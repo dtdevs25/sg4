@@ -1,21 +1,25 @@
-import { auth } from '@/lib/auth'
+import NextAuth from 'next-auth'
+import { authConfig } from '@/lib/auth.config'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
-  const session = await auth()
-  const { pathname } = request.nextUrl
+// Usar o NextAuth com configuração compatível com Edge Runtime
+const { auth } = NextAuth(authConfig)
+
+export default auth((req) => {
+  const isLoggedIn = !!req.auth
+  const { pathname } = req.nextUrl
 
   // Rotas públicas
   const publicPaths = ['/login', '/api/auth']
   const isPublic = publicPaths.some((p) => pathname.startsWith(p))
 
-  if (!session && !isPublic) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  if (!isLoggedIn && !isPublic) {
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  if (session && pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  if (isLoggedIn && pathname === '/login') {
+    return NextResponse.redirect(new URL('/dashboard', req.url))
   }
 
   // Security headers
@@ -32,7 +36,7 @@ export async function middleware(request: NextRequest) {
     "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:;"
   )
   return response
-}
+})
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|logo).*)'],
