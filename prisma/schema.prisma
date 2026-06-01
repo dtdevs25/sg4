@@ -1,0 +1,166 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── AUTH ───────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String    // bcrypt hash — NUNCA texto plano
+  role          Role      @default(VIEWER)
+  active        Boolean   @default(true)
+  failedLogins  Int       @default(0)
+  lockedUntil   DateTime?
+  lastLogin     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  tecnico       Tecnico?
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("sessions")
+}
+
+// Auditoria de todas as ações sensíveis
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String?
+  entityId  String?
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+enum Role {
+  ADMIN
+  GESTOR
+  VIEWER
+}
+
+// ─── TÉCNICOS ───────────────────────────────────────────────────────────────
+
+model Tecnico {
+  id        String    @id @default(cuid())
+  userId    String?   @unique
+  nome      String
+  email     String?   @unique
+  telefone  String?
+  cargo     String    @default("Técnico de Segurança do Trabalho")
+  admissao  DateTime
+  ativo     Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user        User?        @relation(fields: [userId], references: [id])
+  atividades  Atividade[]
+  programacoes Programacao[]
+
+  @@map("tecnicos")
+}
+
+// ─── ATIVIDADES (DSS + INSPEÇÃO) ────────────────────────────────────────────
+
+model Atividade {
+  id         String      @id @default(cuid())
+  tecnicoId  String
+  tipo       TipoAtividade
+  ano        Int
+  mes        Mes
+  semana     Semana
+  meta       Int         @default(0)
+  realizado  Int         @default(0)
+  observacao String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  tecnico    Tecnico     @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+
+  @@unique([tecnicoId, tipo, ano, mes, semana])
+  @@index([tecnicoId])
+  @@index([ano, mes])
+  @@map("atividades")
+}
+
+enum TipoAtividade {
+  DSS
+  INSPECAO
+}
+
+enum Mes {
+  JANEIRO
+  FEVEREIRO
+  MARCO
+  ABRIL
+  MAIO
+  JUNHO
+  JULHO
+  AGOSTO
+  SETEMBRO
+  OUTUBRO
+  NOVEMBRO
+  DEZEMBRO
+}
+
+enum Semana {
+  S1
+  S2
+  S3
+  S4
+  S5
+}
+
+// ─── PROGRAMAÇÃO ────────────────────────────────────────────────────────────
+
+model Programacao {
+  id          String    @id @default(cuid())
+  tecnicoId   String
+  titulo      String
+  descricao   String?
+  data        DateTime
+  status      StatusProgramacao @default(PENDENTE)
+  local       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tecnico     Tecnico   @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+
+  @@index([tecnicoId])
+  @@index([data])
+  @@map("programacoes")
+}
+
+enum StatusProgramacao {
+  PENDENTE
+  CONCLUIDO
+  CANCELADO
+}
