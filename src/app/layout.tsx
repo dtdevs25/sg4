@@ -8,7 +8,12 @@ export const metadata: Metadata = {
   title: 'SG4 - Gestão de Segurança do Trabalho',
   description: 'Sistema de gestão de equipes de técnicos de segurança do trabalho',
   icons: {
-    icon: '/favicon.png',
+    icon: [
+      { url: '/favicon.png?v=2', type: 'image/png' },
+      { url: '/favicon.ico?v=2', type: 'image/x-icon' }
+    ],
+    shortcut: '/favicon.png?v=2',
+    apple: '/favicon.png?v=2',
   },
 }
 
