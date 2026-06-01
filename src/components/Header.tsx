@@ -6,31 +6,27 @@ import { LogOut, Bell, User } from 'lucide-react'
 export function Header() {
   const { data: session } = useSession()
 
+  const handleLogout = async () => {
+    await signOut({ redirect: false })
+    window.location.href = '/login'
+  }
+
   return (
-    <header className="h-16 bg-red-600 flex items-center justify-between px-6 shadow-md shrink-0 sticky top-0 z-30">
-      {/* Logo — lado esquerdo */}
+    <header className="h-16 bg-red-600 flex items-center justify-between pl-14 pr-6 md:px-6 shadow-md shrink-0 sticky top-0 z-30">
+      {/* Logo — lado esquerdo (um pouco maior) */}
       <div className="flex items-center gap-3">
-        <img src="/logo.png" alt="SG4" className="h-8 brightness-0 invert" />
+        <img src="/logo.png" alt="SG4" className="h-10 w-auto brightness-0 invert object-contain" />
       </div>
 
-      {/* Direita: usuário + sair */}
+      {/* Direita: botão de sair (apenas o ícone) */}
       <div className="flex items-center gap-3">
-        {/* Nome do usuário */}
-        {session?.user?.name && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10">
-            <User size={15} className="text-red-200" />
-            <span className="text-sm text-white font-medium">{session.user.name}</span>
-          </div>
-        )}
-
-        {/* Botão sair */}
         <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-all duration-200 border border-white/20 hover:border-white/40"
+          onClick={handleLogout}
+          className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all duration-200 border border-white/20 hover:border-white/40 active:scale-95"
           aria-label="Sair do sistema"
+          title="Sair do sistema"
         >
-          <LogOut size={15} />
-          <span className="hidden sm:inline">Sair</span>
+          <LogOut size={18} />
         </button>
       </div>
     </header>
