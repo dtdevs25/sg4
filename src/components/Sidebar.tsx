@@ -36,22 +36,26 @@ export function Sidebar() {
   }
 
   const NavItems = () => (
-    <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+    <nav className="flex-1 px-3 py-6 space-y-2.5 overflow-y-auto">
       {NAV.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
         return (
           <Link key={href} href={href}
             onClick={() => setMobileOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+            className={`flex items-center rounded-xl text-sm font-medium transition-all duration-200 group relative ${
+              collapsed 
+                ? 'justify-center w-10 h-10 mx-auto px-0' 
+                : 'gap-3.5 px-3.5 py-3'
+            } ${
               active
-                ? 'bg-red-50 text-red-600 font-semibold shadow-sm'
+                ? 'bg-red-50 text-red-600 font-bold shadow-sm shadow-red-500/5'
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
-            <Icon size={20} className={`shrink-0 transition-colors ${active ? 'text-red-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
-            {!collapsed && <span className="truncate">{label}</span>}
+            <Icon size={22} className={`shrink-0 transition-all duration-200 group-hover:scale-105 ${active ? 'text-red-600' : 'text-slate-400 group-hover:text-slate-700'}`} />
+            {!collapsed && <span className="truncate tracking-wide">{label}</span>}
             {collapsed && (
-              <span className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity shadow-sm border border-slate-700">
+              <span className="absolute left-full ml-3 px-2.5 py-1.5 bg-slate-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-all duration-200 shadow-md border border-slate-700 transform translate-x-2 group-hover:translate-x-0">
                 {label}
               </span>
             )}
