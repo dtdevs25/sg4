@@ -148,7 +148,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto">
+    <div className="space-y-8 max-w-[1600px] mx-auto">
 
       {/* ── Cabeçalho + Seletor de Mês ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
@@ -191,7 +191,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <KpiCard
           label="DSS Realizados" value={kpiDss.toLocaleString('pt-BR')}
           subtitle={`Meta: ${metaDss.toLocaleString('pt-BR')}`} progress={pctDss}
@@ -215,10 +215,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Evolução + Radial ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
         {/* Area Chart - Evolução Mensal */}
-        <div className="xl:col-span-2 bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+        <div className="xl:col-span-2 bg-white border border-slate-100 rounded-3xl p-7 shadow-sm">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
               <TrendingUp size={16} />
@@ -228,7 +228,7 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-400">Clique nos meses acima para filtrar</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={areaData} margin={{ left: -10, right: 10, bottom: 0 }}>
               <defs>
                 <linearGradient id="dssGrad" x1="0" y1="0" x2="0" y2="1">
@@ -257,7 +257,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Radial Progress */}
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col">
+        <div className="bg-white border border-slate-100 rounded-3xl p-7 shadow-sm flex flex-col">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
               <Target size={16} />
@@ -288,10 +288,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Barras por Técnico + Ranking ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
         {/* Bar Chart */}
-        <div className="xl:col-span-2 bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+        <div className="xl:col-span-2 bg-white border border-slate-100 rounded-3xl p-7 shadow-sm">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-8 h-8 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0">
               <BarChart2 size={16} />
@@ -301,7 +301,7 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-400">{mesSel ? `Estimativa de ${mesSel}/2026` : 'Acumulado 2026'}</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={320}>
             <BarChart data={barData} margin={{ left: -15, right: 10, bottom: 10 }} barCategoryGap="30%">
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis dataKey="nome" tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 500 }} angle={-20} textAnchor="end" height={55} axisLine={false} tickLine={false} />
@@ -315,19 +315,19 @@ export default function DashboardPage() {
         </div>
 
         {/* Ranking */}
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col">
+        <div className="bg-white border border-slate-100 rounded-3xl p-7 shadow-sm flex flex-col">
           <div className="flex items-center gap-2 mb-5">
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
               <Award size={16} />
             </div>
             <h2 className="text-sm font-bold text-slate-800">Ranking do Time</h2>
           </div>
-          <div className="flex-1 space-y-3 overflow-y-auto pr-1">
+          <div className="flex-1 space-y-4 overflow-y-auto pr-1">
             {ranking.map((t, i) => {
               const colors = ['bg-amber-100 text-amber-700', 'bg-slate-100 text-slate-600', 'bg-orange-100 text-orange-700']
               const badgeColor = colors[i] ?? 'bg-slate-50 text-slate-400'
               return (
-                <div key={t.nome} className="flex items-center gap-2.5 p-2 rounded-2xl hover:bg-slate-50 transition-colors group">
+                <div key={t.nome} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-colors group">
                   <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${badgeColor}`}>{i+1}</span>
                   <div className="w-8 h-8 rounded-xl bg-red-50 text-red-700 flex items-center justify-center text-[10px] font-extrabold shrink-0">
                     {getInitials(t.nome)}
