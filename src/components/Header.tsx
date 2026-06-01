@@ -7,7 +7,7 @@ export function Header() {
   const { data: session } = useSession()
 
   return (
-    <header className="h-16 bg-gradient-to-r from-red-900 via-red-700 to-red-800 flex items-center justify-between px-6 shadow-lg shadow-red-950/40 shrink-0 sticky top-0 z-30">
+    <header className="h-16 bg-red-600 flex items-center justify-between px-6 shadow-md shrink-0 sticky top-0 z-30">
       {/* Logo — lado esquerdo */}
       <div className="flex items-center gap-3">
         <img src="/logo.png" alt="SG4" className="h-8 brightness-0 invert" />

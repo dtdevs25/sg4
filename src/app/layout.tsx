@@ -5,8 +5,11 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'SG4 — Gestão de Segurança do Trabalho',
+  title: 'SG4 - Gestão de Segurança do Trabalho',
   description: 'Sistema de gestão de equipes de técnicos de segurança do trabalho',
+  icons: {
+    icon: '/favicon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

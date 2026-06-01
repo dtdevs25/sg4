@@ -56,23 +56,23 @@ function KpiCard({ label, value, meta, pct, color }: {
   label: string; value: number; meta: number; pct: number; color: string
 }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-3">
-      <span className="text-slate-400 text-sm font-medium">{label}</span>
+    <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 flex flex-col gap-3">
+      <span className="text-slate-500 text-sm font-medium">{label}</span>
       <div className="flex items-end gap-2">
-        <span className="text-3xl font-bold text-white">{value.toLocaleString('pt-BR')}</span>
+        <span className="text-3xl font-bold text-slate-800">{value.toLocaleString('pt-BR')}</span>
         <span className="text-slate-500 text-sm mb-1">/ {meta.toLocaleString('pt-BR')}</span>
       </div>
-      <div className="w-full bg-slate-800 rounded-full h-2">
+      <div className="w-full bg-slate-100 rounded-full h-2">
         <div className={`h-2 rounded-full transition-all`} style={{ width: `${pct}%`, background: color }} />
       </div>
-      <span className="text-xs text-slate-400">{pct}% atingido</span>
+      <span className="text-xs text-slate-500">{pct}% atingido</span>
     </div>
   )
 }
 
 const TooltipStyle = {
-  contentStyle: { background: '#1e293b', border: '1px solid #334155', borderRadius: 12, color: '#f1f5f9' },
-  labelStyle: { color: '#94a3b8' },
+  contentStyle: { background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, color: '#334155' },
+  labelStyle: { color: '#64748b' },
 }
 
 export default function DashboardPage() {
@@ -80,8 +80,8 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Título */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-slate-400 text-sm mt-1">Visão geral — Time TST SG4 · 2026</p>
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-slate-500 text-sm mt-1">Visão geral — Time TST SG4 · 2026</p>
       </div>
 
       {/* KPIs Grid */}
@@ -90,53 +90,53 @@ export default function DashboardPage() {
         <KpiCard label="Inspeções Realizadas" value={TOT_INSP} meta={META_INSP}  pct={PCT_INSP} color="#f97316" />
         
         {/* KPI Novo: Reuniões */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-3">
-          <span className="text-slate-400 text-sm font-medium">Presença Reuniões</span>
-          <span className="text-3xl font-bold text-white">{METRICAS_REUNIOES.presencaGeral}%</span>
-          <div className="w-full bg-slate-800 rounded-full h-2">
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 flex flex-col gap-3">
+          <span className="text-slate-500 text-sm font-medium">Presença Reuniões</span>
+          <span className="text-3xl font-bold text-slate-800">{METRICAS_REUNIOES.presencaGeral}%</span>
+          <div className="w-full bg-slate-100 rounded-full h-2">
             <div className="h-2 rounded-full bg-cyan-500" style={{ width: `${METRICAS_REUNIOES.presencaGeral}%` }} />
           </div>
-          <span className="text-xs text-slate-400">{METRICAS_REUNIOES.pontualidadeGeral}% pontualidade</span>
+          <span className="text-xs text-slate-500">{METRICAS_REUNIOES.pontualidadeGeral}% pontualidade</span>
         </div>
 
         {/* KPI Novo: Entregas */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-3">
-          <span className="text-slate-400 text-sm font-medium">Entregas no Prazo</span>
-          <span className="text-3xl font-bold text-emerald-400">{METRICAS_ENTREGAS.noPrazo}%</span>
-          <div className="w-full bg-slate-800 rounded-full h-2">
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 flex flex-col gap-3">
+          <span className="text-slate-500 text-sm font-medium">Entregas no Prazo</span>
+          <span className="text-3xl font-bold text-emerald-600">{METRICAS_ENTREGAS.noPrazo}%</span>
+          <div className="w-full bg-slate-100 rounded-full h-2">
             <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${METRICAS_ENTREGAS.noPrazo}%` }} />
           </div>
-          <span className="text-xs text-slate-400">Atividades e Registros de KM</span>
+          <span className="text-xs text-slate-500">Atividades e Registros de KM</span>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-3">
-          <span className="text-slate-400 text-sm font-medium">Total de Técnicos</span>
-          <span className="text-3xl font-bold text-white">10</span>
-          <span className="text-xs text-slate-400">Ativos no time</span>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 flex flex-col gap-3">
+          <span className="text-slate-500 text-sm font-medium">Total de Técnicos</span>
+          <span className="text-3xl font-bold text-slate-800">10</span>
+          <span className="text-xs text-slate-500">Ativos no time</span>
         </div>
         
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col gap-3">
-          <span className="text-slate-400 text-sm font-medium">Atingimento Geral</span>
-          <span className="text-3xl font-bold text-white">{PCT_GERAL}%</span>
-          <div className="w-full bg-slate-800 rounded-full h-2">
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5 flex flex-col gap-3">
+          <span className="text-slate-500 text-sm font-medium">Atingimento Geral</span>
+          <span className="text-3xl font-bold text-slate-800">{PCT_GERAL}%</span>
+          <div className="w-full bg-slate-100 rounded-full h-2">
             <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${PCT_GERAL}%` }} />
           </div>
-          <span className="text-xs text-slate-400">{TOTAL_REAL} / {TOTAL_META.toLocaleString('pt-BR')} atividades</span>
+          <span className="text-xs text-slate-500">{TOTAL_REAL} / {TOTAL_META.toLocaleString('pt-BR')} atividades</span>
         </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Bar chart por técnico */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <h2 className="text-base font-semibold text-white mb-4">Desempenho por Técnico</h2>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5">
+          <h2 className="text-base font-semibold text-slate-800 mb-4">Desempenho por Técnico</h2>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={TECNICOS} margin={{ left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="nome" tick={{ fill: '#64748b', fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={55} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
               <Tooltip {...TooltipStyle} />
-              <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
+              <Legend wrapperStyle={{ color: '#64748b', fontSize: 12 }} />
               <Bar dataKey="dss"  name="DSS"      fill="#ef4444" radius={[4,4,0,0]} />
               <Bar dataKey="insp" name="Inspeção"  fill="#f97316" radius={[4,4,0,0]} />
             </BarChart>
@@ -144,15 +144,15 @@ export default function DashboardPage() {
         </div>
 
         {/* Line chart mensal */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-          <h2 className="text-base font-semibold text-white mb-4">Evolução Mensal — 2026</h2>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5">
+          <h2 className="text-base font-semibold text-slate-800 mb-4">Evolução Mensal — 2026</h2>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={MENSAL} margin={{ left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="mes" tick={{ fill: '#64748b', fontSize: 11 }} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} />
               <Tooltip {...TooltipStyle} />
-              <Legend wrapperStyle={{ color: '#94a3b8', fontSize: 12 }} />
+              <Legend wrapperStyle={{ color: '#64748b', fontSize: 12 }} />
               <Line type="monotone" dataKey="dss"  name="DSS"      stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
               <Line type="monotone" dataKey="insp" name="Inspeção"  stroke="#f97316" strokeWidth={2} dot={{ r: 4 }} />
             </LineChart>
@@ -161,21 +161,21 @@ export default function DashboardPage() {
       </div>
 
       {/* Ranking */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-        <h2 className="text-base font-semibold text-white mb-4">Ranking do Time</h2>
+      <div className="bg-white border border-slate-200 shadow-sm rounded-2xl p-5">
+        <h2 className="text-base font-semibold text-slate-800 mb-4">Ranking do Time</h2>
         <div className="space-y-3">
           {ranking.map((t, i) => {
             const pct = Math.round((t.total / (t.meta_dss + t.meta_insp)) * 100)
             return (
               <div key={t.nome} className="flex items-center gap-4">
-                <span className={`text-sm font-bold w-6 text-center ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-orange-400' : 'text-slate-500'}`}>
+                <span className={`text-sm font-bold w-6 text-center ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-slate-500' : i === 2 ? 'text-orange-500' : 'text-slate-500'}`}>
                   {i + 1}
                 </span>
-                <span className="text-sm text-slate-200 w-36 truncate">{t.nome}</span>
-                <div className="flex-1 bg-slate-800 rounded-full h-2">
+                <span className="text-sm text-slate-700 w-36 truncate">{t.nome}</span>
+                <div className="flex-1 bg-slate-100 rounded-full h-2">
                   <div className="h-2 rounded-full bg-red-600" style={{ width: `${pct}%` }} />
                 </div>
-                <span className="text-xs text-slate-400 w-16 text-right">{t.total} ativ.</span>
+                <span className="text-xs text-slate-500 w-16 text-right">{t.total} ativ.</span>
                 <span className="text-xs text-slate-500 w-10 text-right">{pct}%</span>
               </div>
             )

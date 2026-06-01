@@ -10,11 +10,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <SessionProvider session={session}>
-      <div className="flex h-screen bg-slate-950 text-white overflow-hidden">
-        <Sidebar />
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <Header />
-          <main className="flex-1 overflow-y-auto p-6 bg-slate-950">
+      <div className="flex flex-col h-screen bg-gray-50 text-slate-900 overflow-hidden">
+        <Header />
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
             {children}
           </main>
         </div>

@@ -115,10 +115,10 @@ export default function ReunioesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <CalendarDays className="text-red-500" /> Presença e Pontualidade em Reuniões
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             Substitua a planilha de reuniões: controle a frequência, atrasos e justificativas de ausência do time.
           </p>
         </div>
@@ -134,8 +134,8 @@ export default function ReunioesPage() {
       {/* Meses Selector & Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Month Picker */}
-        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between">
-          <span className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 block">Selecionar Mês da Reunião</span>
+        <div className="lg:col-span-2 bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between">
+          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-3 block">Selecionar Mês da Reunião</span>
           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
             {[
               { key: '01', label: 'Janeiro' },
@@ -157,7 +157,7 @@ export default function ReunioesPage() {
                 className={`py-2 px-1 rounded-xl text-xs font-bold transition-all ${
                   selectedMonth === m.key
                     ? 'bg-red-700 text-white shadow-md shadow-red-900/30'
-                    : 'bg-slate-950 text-slate-400 hover:bg-slate-850 hover:text-white border border-slate-800'
+                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
                 }`}
               >
                 {m.label}
@@ -167,9 +167,9 @@ export default function ReunioesPage() {
         </div>
 
         {/* Stats card */}
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between">
+        <div className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between">
           <div className="flex justify-between items-start">
-            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Métricas das Reuniões</span>
+            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Métricas das Reuniões</span>
             <span className="text-[10px] bg-red-500/10 text-red-400 font-semibold px-2 py-0.5 rounded-full uppercase">
               Mês {selectedMonth}
             </span>
@@ -177,16 +177,16 @@ export default function ReunioesPage() {
           
           <div className="my-3 grid grid-cols-2 gap-4">
             <div>
-              <span className="text-[10px] text-slate-400 block font-medium">Presença Geral</span>
-              <span className="text-3xl font-extrabold text-white">{presenceRate}%</span>
+              <span className="text-[10px] text-slate-500 block font-medium">Presença Geral</span>
+              <span className="text-3xl font-extrabold text-slate-900">{presenceRate}%</span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block font-medium">Pontualidade</span>
+              <span className="text-[10px] text-slate-500 block font-medium">Pontualidade</span>
               <span className="text-3xl font-extrabold text-emerald-400">{punctualityRate}%</span>
             </div>
           </div>
 
-          <div className="border-t border-slate-850 pt-2 flex justify-between text-[11px] text-slate-400">
+          <div className="border-t border-slate-200 pt-2 flex justify-between text-[11px] text-slate-500">
             <span>Reuniões: <b>{totalMeetings}</b></span>
             <span>Atrasos: <b className="text-amber-400">{totalAtrasados}</b></span>
             <span>Ausentes: <b className="text-red-400">{totalAusentes}</b></span>
@@ -195,7 +195,7 @@ export default function ReunioesPage() {
       </div>
 
       {/* Filters and Counters */}
-      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center justify-between">
+      <div className="bg-white border border-slate-200 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="relative w-full sm:max-w-xs">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
@@ -203,20 +203,20 @@ export default function ReunioesPage() {
             placeholder="Filtrar por técnico ou motivo..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-red-500 focus:outline-none transition-colors"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-white text-xs focus:border-red-500 focus:outline-none transition-colors"
           />
         </div>
-        <div className="text-xs text-slate-400">
+        <div className="text-xs text-slate-500">
           Encontrados: <b>{filtered.length}</b> lançamentos de chamadas
         </div>
       </div>
 
       {/* Attendance Log Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/40 text-slate-400 text-xs font-bold uppercase tracking-wider">
+              <tr className="border-b border-slate-200 bg-slate-50/40 text-slate-500 text-xs font-bold uppercase tracking-wider">
                 <th className="py-4 px-6">Data</th>
                 <th className="py-4 px-6">Técnico</th>
                 <th className="py-4 px-6 text-center">Presença</th>
@@ -227,19 +227,19 @@ export default function ReunioesPage() {
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {filtered.map((l) => (
-                <tr key={l.id} className="hover:bg-slate-950/20 transition-colors text-sm">
+                <tr key={l.id} className="hover:bg-slate-50/20 transition-colors text-sm">
                   {/* Data */}
-                  <td className="py-4 px-6 font-semibold text-slate-300">
+                  <td className="py-4 px-6 font-semibold text-slate-600">
                     {l.data}
                   </td>
 
                   {/* Técnico */}
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-850 flex items-center justify-center font-bold text-[9px] text-red-500 border border-slate-800">
+                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[9px] text-red-500 border border-slate-200">
                         {l.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
-                      <span className="font-semibold text-slate-200">{l.nome}</span>
+                      <span className="font-semibold text-slate-700">{l.nome}</span>
                     </div>
                   </td>
 
@@ -262,7 +262,7 @@ export default function ReunioesPage() {
                         ? 'bg-emerald-500/10 text-emerald-400'
                         : l.pontualidade === 'Atrasado'
                         ? 'bg-amber-500/10 text-amber-400'
-                        : 'bg-slate-800 text-slate-400'
+                        : 'bg-slate-800 text-slate-500'
                     }`}>
                       {l.pontualidade === 'Pontual' ? <CheckCircle2 size={11} /> : l.pontualidade === 'Atrasado' ? <Clock size={11} /> : null}
                       {l.pontualidade}
@@ -270,12 +270,12 @@ export default function ReunioesPage() {
                   </td>
 
                   {/* Justificada */}
-                  <td className="py-4 px-6 text-center text-xs font-semibold text-slate-400">
+                  <td className="py-4 px-6 text-center text-xs font-semibold text-slate-500">
                     {l.justificada}
                   </td>
 
                   {/* Motivo */}
-                  <td className="py-4 px-6 text-slate-400 text-xs italic max-w-[250px] truncate" title={l.motivo}>
+                  <td className="py-4 px-6 text-slate-500 text-xs italic max-w-[250px] truncate" title={l.motivo}>
                     {l.motivo || '—'}
                   </td>
                 </tr>
@@ -297,35 +297,35 @@ export default function ReunioesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowModal(false)} />
           
-          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-4xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
+          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-4xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
             <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
               <Sparkles className="text-red-500" /> Registrar Chamada de Reunião
             </h2>
-            <p className="text-slate-400 text-xs mb-5">Selecione a data da reunião e defina a presença e pontualidade da equipe de TSTs.</p>
+            <p className="text-slate-500 text-xs mb-5">Selecione a data da reunião e defina a presença e pontualidade da equipe de TSTs.</p>
 
             <form onSubmit={handleCreate} className="space-y-6">
               <div className="w-full sm:max-w-xs">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Data da Reunião</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Data da Reunião</label>
                 <input
                   type="text"
                   required
                   value={meetingDate}
                   onChange={(e) => setMeetingDate(e.target.value)}
                   placeholder="DD/MM/AAAA"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                 />
               </div>
 
               {/* Grid de Técnicos */}
-              <div className="border-t border-slate-850 pt-4 space-y-4">
-                <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Chamada dos Técnicos</span>
+              <div className="border-t border-slate-200 pt-4 space-y-4">
+                <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Chamada dos Técnicos</span>
                 
                 <div className="grid grid-cols-1 gap-3">
                   {TECNICOS.map((t) => {
                     const att = attendance[t]
                     return (
-                      <div key={t} className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 bg-slate-950/40 border border-slate-850 rounded-xl hover:border-slate-800 transition-all">
-                        <span className="text-xs font-bold text-white lg:w-56 truncate">{t}</span>
+                      <div key={t} className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 bg-slate-50/40 border border-slate-200 rounded-xl hover:border-slate-200 transition-all">
+                        <span className="text-xs font-bold text-slate-900 lg:w-56 truncate">{t}</span>
                         
                         <div className="flex flex-wrap items-center gap-3">
                           {/* Presença */}
@@ -334,7 +334,7 @@ export default function ReunioesPage() {
                             <select
                               value={att.presenca}
                               onChange={(e) => updateAttendance(t, 'presenca', e.target.value)}
-                              className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-white"
+                              className="px-2 py-1 rounded bg-white border border-slate-200 text-xs text-white"
                             >
                               <option value="Presente">Presente</option>
                               <option value="Ausente">Ausente</option>
@@ -348,7 +348,7 @@ export default function ReunioesPage() {
                               <select
                                 value={att.pontualidade}
                                 onChange={(e) => updateAttendance(t, 'pontualidade', e.target.value)}
-                                className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-white"
+                                className="px-2 py-1 rounded bg-white border border-slate-200 text-xs text-white"
                               >
                                 <option value="Pontual">Pontual</option>
                                 <option value="Atrasado">Atrasado</option>
@@ -362,7 +362,7 @@ export default function ReunioesPage() {
                             <select
                               value={att.justificada}
                               onChange={(e) => updateAttendance(t, 'justificada', e.target.value)}
-                              className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-white"
+                              className="px-2 py-1 rounded bg-white border border-slate-200 text-xs text-white"
                             >
                               <option value="Não Se Aplica">Não Se Aplica</option>
                               <option value="Sim">Sim</option>
@@ -376,7 +376,7 @@ export default function ReunioesPage() {
                             placeholder="Motivo / Justificativa se houver..."
                             value={att.motivo}
                             onChange={(e) => updateAttendance(t, 'motivo', e.target.value)}
-                            className="px-3 py-1 rounded bg-slate-900 border border-slate-800 text-xs text-white w-48 lg:w-64 focus:outline-none focus:border-red-500"
+                            className="px-3 py-1 rounded bg-white border border-slate-200 text-xs text-white w-48 lg:w-64 focus:outline-none focus:border-red-500"
                           />
                         </div>
                       </div>
@@ -385,11 +385,11 @@ export default function ReunioesPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-slate-850">
+              <div className="flex gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold text-sm transition-colors border border-slate-800"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-600 font-semibold text-sm transition-colors border border-slate-200"
                 >
                   Cancelar
                 </button>

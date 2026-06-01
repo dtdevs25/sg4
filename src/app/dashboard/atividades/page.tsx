@@ -93,10 +93,10 @@ export default function AtividadesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <Activity className="text-red-500" /> Registro de Atividades Operacionais
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             Substitua a planilha de atividades diárias: gerencie tarefas de planejamento, inspeções em campo e DSS.
           </p>
         </div>
@@ -110,7 +110,7 @@ export default function AtividadesPage() {
       </div>
 
       {/* Filters Panel */}
-      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col xl:flex-row gap-4 items-center justify-between">
+      <div className="bg-white border border-slate-200 p-4 rounded-2xl flex flex-col xl:flex-row gap-4 items-center justify-between">
         <div className="flex flex-wrap gap-3 w-full xl:max-w-4xl">
           {/* Busca */}
           <div className="relative flex-1 min-w-[200px]">
@@ -120,7 +120,7 @@ export default function AtividadesPage() {
               placeholder="Buscar por descrição, local ou cidade..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none"
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-white text-xs focus:outline-none"
             />
           </div>
 
@@ -129,7 +129,7 @@ export default function AtividadesPage() {
             <select
               value={filterResponsavel}
               onChange={(e) => setFilterResponsavel(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400 focus:outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 focus:outline-none"
             >
               <option value="TODOS">Todos os Técnicos</option>
               {TECNICOS.map(t => (
@@ -143,7 +143,7 @@ export default function AtividadesPage() {
             <select
               value={filterCategoria}
               onChange={(e) => setFilterCategoria(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400 focus:outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 focus:outline-none"
             >
               <option value="TODOS">Todas as Categorias</option>
               {CATEGORIES.map(c => (
@@ -153,17 +153,17 @@ export default function AtividadesPage() {
           </div>
         </div>
         
-        <div className="text-xs text-slate-400 shrink-0">
+        <div className="text-xs text-slate-500 shrink-0">
           Encontradas: <b>{filtered.length}</b> atividades operacionais
         </div>
       </div>
 
       {/* Activities Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 bg-slate-950/40 text-slate-400 text-xs font-bold uppercase tracking-wider">
+              <tr className="border-b border-slate-200 bg-slate-50/40 text-slate-500 text-xs font-bold uppercase tracking-wider">
                 <th className="py-4 px-6">Data</th>
                 <th className="py-4 px-6">Responsável</th>
                 <th className="py-4 px-6">Descrição da Atividade</th>
@@ -176,25 +176,25 @@ export default function AtividadesPage() {
             </thead>
             <tbody className="divide-y divide-slate-800/60">
               {filtered.map((act) => (
-                <tr key={act.id} className="hover:bg-slate-950/20 transition-colors text-sm">
+                <tr key={act.id} className="hover:bg-slate-50/20 transition-colors text-sm">
                   {/* Data */}
-                  <td className="py-4 px-6 font-semibold text-slate-300">
+                  <td className="py-4 px-6 font-semibold text-slate-600">
                     {act.data}
                   </td>
 
                   {/* Responsável */}
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-850 flex items-center justify-center font-bold text-[9px] text-red-500 border border-slate-800">
+                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[9px] text-red-500 border border-slate-200">
                         {act.responsavel.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
-                      <span className="font-semibold text-slate-200">{act.responsavel}</span>
+                      <span className="font-semibold text-slate-700">{act.responsavel}</span>
                     </div>
                   </td>
 
                   {/* Descrição */}
                   <td className="py-4 px-6 max-w-[280px]">
-                    <p className="text-slate-300 text-xs font-medium leading-relaxed line-clamp-2" title={act.descricao}>
+                    <p className="text-slate-600 text-xs font-medium leading-relaxed line-clamp-2" title={act.descricao}>
                       {act.descricao}
                     </p>
                     {act.observacao && (
@@ -205,7 +205,7 @@ export default function AtividadesPage() {
                   </td>
 
                   {/* Equipe */}
-                  <td className="py-4 px-6 text-slate-400 text-xs font-semibold">
+                  <td className="py-4 px-6 text-slate-500 text-xs font-semibold">
                     {act.equipe}
                   </td>
 
@@ -214,7 +214,7 @@ export default function AtividadesPage() {
                     <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
                       act.categoria === 'GESTÃO DSS' ? 'bg-red-500/10 text-red-400' :
                       act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? 'bg-orange-500/10 text-orange-400' :
-                      'bg-slate-800 text-slate-300'
+                      'bg-slate-800 text-slate-600'
                     }`}>
                       {act.categoria}
                     </span>
@@ -222,7 +222,7 @@ export default function AtividadesPage() {
 
                   {/* Localidade */}
                   <td className="py-4 px-6">
-                    <span className="text-slate-300 font-medium block text-xs">{act.local}</span>
+                    <span className="text-slate-600 font-medium block text-xs">{act.local}</span>
                     <span className="text-[10px] text-slate-500">{act.cidade} / {act.estado}</span>
                   </td>
 
@@ -246,7 +246,7 @@ export default function AtividadesPage() {
                     <div className="flex justify-end gap-1.5">
                       <button
                         onClick={() => toggleStatus(act.id)}
-                        className="text-xs text-slate-400 hover:text-white font-semibold transition-colors bg-slate-850 px-2 py-1 rounded border border-slate-800"
+                        className="text-xs text-slate-500 hover:text-slate-900 font-semibold transition-colors bg-slate-100 px-2 py-1 rounded border border-slate-200"
                       >
                         Tog Status
                       </button>
@@ -270,31 +270,31 @@ export default function AtividadesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowAddModal(false)} />
           
-          <div className="relative bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
+          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
             <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
               <Sparkles className="text-red-500" /> Lançar Atividade Operacional
             </h2>
-            <p className="text-slate-400 text-xs mb-5">Preencha os campos exatos do registro diário de atividades.</p>
+            <p className="text-slate-500 text-xs mb-5">Preencha os campos exatos do registro diário de atividades.</p>
 
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Data</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Data</label>
                   <input
                     type="text"
                     required
                     value={form.data}
                     onChange={(e) => setForm(p => ({ ...p, data: e.target.value }))}
                     placeholder="DD/MM/AAAA"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Responsável</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Responsável</label>
                   <select
                     value={form.responsavel}
                     onChange={(e) => setForm(p => ({ ...p, responsavel: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                   >
                     {TECNICOS.map(t => (
                       <option key={t} value={t}>{t}</option>
@@ -304,24 +304,24 @@ export default function AtividadesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Descrição da Atividade</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Descrição da Atividade</label>
                 <textarea
                   required
                   rows={2}
                   value={form.descricao}
                   onChange={(e) => setForm(p => ({ ...p, descricao: e.target.value }))}
                   placeholder="Ex: Inspeção de segurança em campo em equipe própria de rede externa..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Equipe</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Equipe</label>
                   <select
                     value={form.equipe}
                     onChange={(e) => setForm(p => ({ ...p, equipe: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                   >
                     <option value="Não se aplica">Não se aplica</option>
                     <option value="Equipe própria">Equipe própria</option>
@@ -329,11 +329,11 @@ export default function AtividadesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Categoria</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Categoria</label>
                   <select
                     value={form.categoria}
                     onChange={(e) => setForm(p => ({ ...p, categoria: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                   >
                     {CATEGORIES.map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -344,69 +344,69 @@ export default function AtividadesPage() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Local</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Local</label>
                   <input
                     type="text"
                     required
                     value={form.local}
                     onChange={(e) => setForm(p => ({ ...p, local: e.target.value }))}
                     placeholder="Ex: Base"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                   />
                 </div>
                 <div className="col-span-1">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Cidade</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Cidade</label>
                   <input
                     type="text"
                     required
                     value={form.cidade}
                     onChange={(e) => setForm(p => ({ ...p, cidade: e.target.value }))}
                     placeholder="Bauru"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                   />
                 </div>
                 <div className="col-span-1">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">UF (Estado)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">UF (Estado)</label>
                   <input
                     type="text"
                     required
                     value={form.estado}
                     onChange={(e) => setForm(p => ({ ...p, estado: e.target.value }))}
                     placeholder="SP"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Status Inicial</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Status Inicial</label>
                   <select
                     value={form.status}
                     onChange={(e) => setForm(p => ({ ...p, status: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                   >
                     <option value="CONCLUÍDO">CONCLUÍDO</option>
                     <option value="PENDENTE">PENDENTE</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Observações (opcional)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Observações (opcional)</label>
                   <input
                     type="text"
                     value={form.observacao}
                     onChange={(e) => setForm(p => ({ ...p, observacao: e.target.value }))}
                     placeholder="Detalhamento ou justificativa..."
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm focus:border-red-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-slate-850">
+              <div className="flex gap-3 pt-4 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold text-sm transition-colors border border-slate-800"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-600 font-semibold text-sm transition-colors border border-slate-200"
                 >
                   Cancelar
                 </button>
