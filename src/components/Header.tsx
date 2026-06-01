@@ -12,7 +12,7 @@ export function Header() {
   }
 
   return (
-    <header className="h-16 bg-red-600 flex items-center justify-between pl-14 pr-6 md:px-6 shadow-md shrink-0 sticky top-0 z-30">
+    <header className="h-16 bg-red-600 flex items-center justify-between pl-16 pr-8 md:pl-20 md:pr-12 shadow-md shrink-0 sticky top-0 z-30">
       {/* Logo — lado esquerdo (um pouco maior) */}
       <div className="flex items-center gap-3">
         <img src="/logo.png" alt="SG4" className="h-10 w-auto brightness-0 invert object-contain" />
