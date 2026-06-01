@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from 'next-auth'
 
 export const authConfig = {
+  trustHost: true,
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 }, // 8h
   pages: {
     signIn: '/login',

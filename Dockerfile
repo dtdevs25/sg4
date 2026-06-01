@@ -44,8 +44,9 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Instalar somente dependências de produção para Prisma e DB
-RUN npm ci --only=production
+# Instalar dependências de produção e gerar o Prisma Client nativo no runner
+RUN npm ci --omit=dev
+RUN npx prisma generate
 
 USER nextjs
 
