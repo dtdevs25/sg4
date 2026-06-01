@@ -36,17 +36,13 @@ export function Sidebar() {
   }
 
   const NavItems = () => (
-    <nav className="flex-1 px-3 py-6 space-y-2.5 overflow-y-auto">
+    <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
       {NAV.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
         return (
           <Link key={href} href={href}
             onClick={() => setMobileOpen(false)}
-            className={`flex items-center rounded-xl text-sm font-medium transition-all duration-200 group relative ${
-              collapsed 
-                ? 'justify-center w-10 h-10 mx-auto px-0' 
-                : 'gap-3.5 px-3.5 py-3'
-            } ${
+            className={`flex items-center gap-3.5 pl-3.5 pr-2 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative ${
               active
                 ? 'bg-red-50 text-red-600 font-bold shadow-sm shadow-red-500/5'
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -71,7 +67,7 @@ export function Sidebar() {
     const role = (session?.user as any)?.role || 'Técnico'
     
     return (
-      <div className={`p-3 border-t border-slate-100 flex items-center gap-3 bg-slate-50/50 ${collapsed ? 'justify-center' : ''}`}>
+      <div className={`px-3 py-4 mb-2 mx-2 border-t border-slate-100 flex items-center gap-3 rounded-xl bg-slate-50 ${collapsed ? 'justify-center' : ''}`}>
         <div className="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center font-bold text-sm shrink-0 shadow-inner">
           {initials}
         </div>
