@@ -7,15 +7,15 @@ import {
   Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import {
-  ClipboardCheck, Clock, FileText, Award, ChevronDown
+  ClipboardCheck, Clock, FileText, Award, ChevronDown, X
 } from 'lucide-react'
 
 /* ── Constantes Visuais ── */
 const RED   = '#e53935'
 const RED2  = '#c62828'
 const COLORS = {
-  dss: '#5DADE2',    // Azul claro para DSS
-  insp: '#F4D03F',   // Amarelo para Inspeções
+  dss: '#e53935',    // Vermelho
+  insp: '#8e44ad',   // Roxo
 }
 
 /* ── Dados Mock (lógica do sistema original) ── */
@@ -50,7 +50,6 @@ const TECNICOS = [
   { nome: 'Samuel S.',   dss: 4,  insp: 4   },
 ]
 
-// Metas por técnico por mês
 const META_DSS_POR_TEC = 8
 const META_INSP_POR_TEC = 20
 
@@ -63,30 +62,30 @@ function getInitials(name?: string | null) {
 }
 
 /* ── Componentes de UI ── */
-function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle }: any) {
+function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: any) {
   return (
-    <div style={{
-      background: bg,
-      borderRadius: 10,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-      overflow: 'hidden',
-      cursor: 'pointer',
-      transition: 'transform .15s',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'space-between',
-      flex: 1,
-    }}
-      onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.02)')}
-      onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+    <div 
+      onClick={onClick}
+      style={{
+        background: bg,
+        borderRadius: 10,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        overflow: 'hidden',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform .15s',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        flex: 1,
+      }}
+      onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
+      onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
     >
       <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <p style={{ color: '#fff', fontSize: 14, fontWeight: 500, marginBottom: 4, letterSpacing: 0.3 }}>{label}</p>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <h3 style={{ color: '#fff', fontSize: 38, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{value}</h3>
-            {subtitle && <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 600 }}>{subtitle}</span>}
-          </div>
+          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>{label}</p>
+          <h3 style={{ color: '#fff', fontSize: 44, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{value}</h3>
+          {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, marginTop: 6, background: 'rgba(0,0,0,0.1)', padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>Meta: {subtitle}</div>}
         </div>
         <Icon size={56} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
       </div>
@@ -141,17 +140,26 @@ function CustomTooltip({ active, payload, label }: any) {
   )
 }
 
+/* ── Helper de Medalha ── */
+function getMedal(index: number) {
+  if (index === 0) return { bg: '#FFD700', color: '#B8860B', label: '🥇' } // Ouro
+  if (index === 1) return { bg: '#E5E4E2', color: '#71706E', label: '🥈' } // Prata
+  if (index === 2) return { bg: '#CD7F32', color: '#8B4513', label: '🥉' } // Bronze
+  return { bg: '#f1f5f9', color: '#64748b', label: index + 1 }
+}
+
 /* ── Página ── */
 export default function DashboardPage() {
   const { data: session } = useSession()
   const firstName = session?.user?.name?.split(' ')[0] || 'Gestor'
 
   const [ano, setAno] = useState('2026')
-  const [mes, setMes] = useState<string | null>(null) // null = Geral/Acumulado
+  const [mes, setMes] = useState<string | null>(null)
+  const [modalData, setModalData] = useState<any>(null) // Modal state
 
   // Lógica de Metas
   const nTecnicos = TECNICOS.length
-  const metaDssTotal = mes ? (nTecnicos * META_DSS_POR_TEC) : (nTecnicos * META_DSS_POR_TEC * 4) // multiplicando por 4 meses ativos para simular acumulado
+  const metaDssTotal = mes ? (nTecnicos * META_DSS_POR_TEC) : (nTecnicos * META_DSS_POR_TEC * 4)
   const metaInspTotal = mes ? (nTecnicos * META_INSP_POR_TEC) : (nTecnicos * META_INSP_POR_TEC * 4)
 
   // Valores reais baseados no filtro
@@ -162,8 +170,7 @@ export default function DashboardPage() {
   const pctDss = Math.round((totalDss / metaDssTotal) * 100)
   const pctInsp = Math.round((totalInsp / metaInspTotal) * 100)
 
-  // Dados do Gráfico de Desempenho (2 barras: DSS e Inspeção)
-  // Simula os dados do mês dividindo o acumulado por 4 (como no sistema original)
+  // Dados do Gráfico (Simula dividindo por 4 para mês específico, acumulado caso geral)
   const barData = mes
     ? TECNICOS.map(t => ({ nome: t.nome, dss: Math.round(t.dss / 4), insp: Math.round(t.insp / 4) }))
     : TECNICOS
@@ -174,6 +181,44 @@ export default function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+
+      {/* ── Modal de Detalhes ── */}
+      {modalData && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 400, overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: RED, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff' }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Detalhes do Técnico</h3>
+              <button onClick={() => setModalData(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: '#334155', border: '2px solid #cbd5e1' }}>
+                  {getInitials(modalData.nome)}
+                </div>
+                <div>
+                  <p style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>{modalData.nome}</p>
+                  <p style={{ fontSize: 13, color: '#64748b', fontWeight: 500, margin: 0 }}>{mes ? `Dados de ${mes}/${ano}` : `Acumulado ${ano}`}</p>
+                </div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div style={{ background: '#f0f9ff', padding: 16, borderRadius: 12, border: '1px solid #bae6fd' }}>
+                  <p style={{ fontSize: 12, color: '#0369a1', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>DSS</p>
+                  <p style={{ fontSize: 32, fontWeight: 900, color: '#0284c7', margin: 0 }}>{modalData.dss}</p>
+                  <p style={{ fontSize: 11, color: '#0ea5e9', fontWeight: 600, marginTop: 4 }}>Meta: {mes ? META_DSS_POR_TEC : META_DSS_POR_TEC * 4}</p>
+                </div>
+                <div style={{ background: '#fffbeb', padding: 16, borderRadius: 12, border: '1px solid #fde68a' }}>
+                  <p style={{ fontSize: 12, color: '#b45309', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>Inspeções</p>
+                  <p style={{ fontSize: 32, fontWeight: 900, color: '#d97706', margin: 0 }}>{modalData.insp}</p>
+                  <p style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600, marginTop: 4 }}>Meta: {mes ? META_INSP_POR_TEC : META_INSP_POR_TEC * 4}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Barra superior com Filtros ── */}
       <div style={{
@@ -199,22 +244,14 @@ export default function DashboardPage() {
 
         {/* Filtros */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Select Ano */}
           <div style={{ position: 'relative' }}>
             <select
               value={ano}
               onChange={e => setAno(e.target.value)}
               style={{
-                appearance: 'none',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: 8,
-                padding: '8px 36px 8px 16px',
-                fontSize: 13,
-                fontWeight: 600,
-                color: '#475569',
-                cursor: 'pointer',
-                outline: 'none'
+                appearance: 'none', background: '#f8fafc', border: '1px solid #e2e8f0',
+                borderRadius: 8, padding: '8px 36px 8px 16px', fontSize: 13,
+                fontWeight: 600, color: '#475569', cursor: 'pointer', outline: 'none'
               }}
             >
               {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
@@ -222,22 +259,14 @@ export default function DashboardPage() {
             <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 11, pointerEvents: 'none', color: '#94a3b8' }} />
           </div>
 
-          {/* Select Mês */}
           <div style={{ position: 'relative' }}>
             <select
               value={mes || ''}
               onChange={e => setMes(e.target.value || null)}
               style={{
-                appearance: 'none',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: 8,
-                padding: '8px 36px 8px 16px',
-                fontSize: 13,
-                fontWeight: 600,
-                color: '#475569',
-                cursor: 'pointer',
-                outline: 'none'
+                appearance: 'none', background: '#f8fafc', border: '1px solid #e2e8f0',
+                borderRadius: 8, padding: '8px 36px 8px 16px', fontSize: 13,
+                fontWeight: 600, color: '#475569', cursor: 'pointer', outline: 'none'
               }}
             >
               <option value="">Geral (Acumulado)</option>
@@ -250,36 +279,37 @@ export default function DashboardPage() {
 
       {/* ── 4 Stat cards ── */}
       <div style={{ display: 'flex', gap: 20 }}>
-        <StatCard icon={ClipboardCheck} label="DSS Realizados" value={totalDss} bg="#007BFF" bgDark="#0069D9" />
-        <StatCard icon={Clock}          label="Inspeções Realizadas" value={totalInsp} bg="#FFC107" bgDark="#E0A800" />
-        <StatCard icon={Award}          label="% Atendimento DSS" value={`${pctDss}%`} subtitle={`Meta: ${metaDssTotal}`} bg="#28A745" bgDark="#218838" />
-        <StatCard icon={Award}          label="% Atendimento Inspeção" value={`${pctInsp}%`} subtitle={`Meta: ${metaInspTotal}`} bg="#DC3545" bgDark="#C82333" />
+        <StatCard icon={ClipboardCheck} label="DDS"       value={totalDss} bg="#007BFF" bgDark="#0069D9" />
+        <StatCard icon={Clock}          label="Inspeções" value={totalInsp} bg="#FFC107" bgDark="#E0A800" />
+        <StatCard icon={Award}          label="% DDS"     value={`${pctDss}%`} subtitle={metaDssTotal} bg="#28A745" bgDark="#218838" />
+        <StatCard icon={Award}          label="% Inspeções" value={`${pctInsp}%`} subtitle={metaInspTotal} bg="#DC3545" bgDark="#C82333" />
       </div>
 
       {/* ── Charts & Rankings (2/3 + 1/3) ── */}
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
 
-        {/* Coluna Esquerda: Gráfico BarChart (2 barras por técnico) */}
+        {/* Coluna Esquerda: Gráfico BarChart */}
         <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <ChartCard icon={FileText} title="Desempenho por Técnico" style={{ height: 500 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50 }}>
+              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50 }} onClick={(data) => {
+                if (data && data.activePayload && data.activePayload.length > 0) {
+                  setModalData(data.activePayload[0].payload)
+                }
+              }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
                   dataKey="nome"
                   tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }}
-                  tickLine={false}
-                  axisLine={false}
-                  angle={-25}
-                  textAnchor="end"
-                  height={70}
+                  tickLine={false} axisLine={false} angle={-25} textAnchor="end" height={70}
+                  style={{ cursor: 'pointer' }}
                 />
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(229,57,53,0.04)' }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(229,57,53,0.04)', cursor: 'pointer' }} />
                 <Legend wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingTop: 10 }} />
                 
-                <Bar dataKey="dss" name="DSS" fill={COLORS.dss} radius={[4, 4, 0, 0]} maxBarSize={30} />
-                <Bar dataKey="insp" name="Inspeções" fill={COLORS.insp} radius={[4, 4, 0, 0]} maxBarSize={30} />
+                <Bar dataKey="dss" name="DSS" fill={COLORS.dss} radius={[4, 4, 0, 0]} maxBarSize={30} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="insp" name="Inspeções" fill={COLORS.insp} radius={[4, 4, 0, 0]} maxBarSize={30} style={{ cursor: 'pointer' }} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -291,30 +321,36 @@ export default function DashboardPage() {
           {/* Ranking DSS */}
           <ChartCard icon={Award} title="Ranking - DSS" style={{ height: 240 }}>
             <div style={{ overflowY: 'auto', height: '100%', paddingRight: 4 }} className="scrollbar-hide">
-              {rankDss.map((t, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: i < 3 ? '#fef3c7' : '#f1f5f9', color: i < 3 ? '#d97706' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
-                    {i + 1}
+              {rankDss.map((t, i) => {
+                const medal = getMedal(i)
+                return (
+                  <div key={i} onClick={() => setModalData(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background .15s', borderRadius: 8 }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: i < 3 ? 14 : 11, fontWeight: 800, boxShadow: i < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}>
+                      {medal.label}
+                    </div>
+                    <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: COLORS.dss }}>{t.dss}</div>
                   </div>
-                  <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: COLORS.dss }}>{t.dss}</div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </ChartCard>
 
           {/* Ranking Inspeções */}
           <ChartCard icon={Award} title="Ranking - Inspeções" style={{ height: 240 }}>
             <div style={{ overflowY: 'auto', height: '100%', paddingRight: 4 }} className="scrollbar-hide">
-              {rankInsp.map((t, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: i < 3 ? '#fef3c7' : '#f1f5f9', color: i < 3 ? '#d97706' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
-                    {i + 1}
+              {rankInsp.map((t, i) => {
+                const medal = getMedal(i)
+                return (
+                  <div key={i} onClick={() => setModalData(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background .15s', borderRadius: 8 }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: i < 3 ? 14 : 11, fontWeight: 800, boxShadow: i < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}>
+                      {medal.label}
+                    </div>
+                    <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: COLORS.insp }}>{t.insp}</div>
                   </div>
-                  <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: COLORS.insp }}>{t.insp}</div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </ChartCard>
 
