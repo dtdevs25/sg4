@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import {
-  CalendarDays, CheckCircle2, Clock, XCircle, AlertCircle,
-  PlusCircle, User, Search, TrendingUp, Sparkles, Filter
+  CalendarDays, CheckCircle2, Clock, XCircle,
+  PlusCircle, Search, Sparkles, X
 } from 'lucide-react'
 
 // Dados reais da planilha "GESTÃO DE PARTICIPAÇÃO E PONTUALIDADE" compilados
@@ -34,31 +34,21 @@ const INITIAL_REUNIOES_LOG = [
 
 // Lista de Técnicos
 const TECNICOS = [
-  'ANTONIO CARLOS JUNIOR DIAS',
-  'DANIEL JOSÉ GREGORIO JUNIOR',
-  'DJONATÊ CRUZ DOS SANTOS',
-  'JONAS RODRIGUES PEREIRA',
-  'KARINE NOVAES ASSEM',
-  'LUIS CLAUDIO SOARES',
-  'ROGÉRIO LIMA DA SILVA',
-  'ROSICLEIDE FERNANDES SANTOS DAVINO',
-  'SAMUEL DA SILVA SANTOS',
+  'ANTONIO CARLOS JUNIOR DIAS', 'DANIEL JOSÉ GREGORIO JUNIOR', 'DJONATÊ CRUZ DOS SANTOS',
+  'JONAS RODRIGUES PEREIRA', 'KARINE NOVAES ASSEM', 'LUIS CLAUDIO SOARES',
+  'ROGÉRIO LIMA DA SILVA', 'ROSICLEIDE FERNANDES SANTOS DAVINO', 'SAMUEL DA SILVA SANTOS',
   'DARA AMORIM SILVA DE LIMA'
 ]
 
 export default function ReunioesPage() {
   const [logs, setLogs] = useState(INITIAL_REUNIOES_LOG)
   const [search, setSearch] = useState('')
-  const [selectedMonth, setSelectedMonth] = useState('01') // Janeiro padrão
+  const [selectedMonth, setSelectedMonth] = useState('01')
   const [showModal, setShowModal] = useState(false)
 
-  // Form para nova reunião
   const [meetingDate, setMeetingDate] = useState('02/03/2026')
   const [attendance, setAttendance] = useState<Record<string, { presenca: string; pontualidade: string; justificada: string; motivo: string }>>(
-    TECNICOS.reduce((acc, t) => ({
-      ...acc,
-      [t]: { presenca: 'Presente', pontualidade: 'Pontual', justificada: 'Não Se Aplica', motivo: '' }
-    }), {})
+    TECNICOS.reduce((acc, t) => ({ ...acc, [t]: { presenca: 'Presente', pontualidade: 'Pontual', justificada: 'Não Se Aplica', motivo: '' } }), {})
   )
 
   const filtered = logs.filter(l => {
@@ -67,7 +57,6 @@ export default function ReunioesPage() {
     return matchSearch && matchMonth
   })
 
-  // Estatísticas gerais baseadas nas fórmulas reais da planilha
   const totalMeetings = Array.from(new Set(filtered.map(l => l.data))).length
   const totalPresences = filtered.filter(l => l.presenca === 'Presente').length
   const totalPunctual = filtered.filter(l => l.pontualidade === 'Pontual').length
@@ -87,12 +76,9 @@ export default function ReunioesPage() {
       const att = attendance[t]
       newLogs.push({
         id: (idCounter++).toString(),
-        data: meetingDate,
-        nome: t,
-        presenca: att.presenca,
-        pontualidade: att.presenca === 'Ausente' ? 'N/A' : att.pontualidade,
-        justificada: att.justificada,
-        motivo: att.motivo
+        data: meetingDate, nome: t,
+        presenca: att.presenca, pontualidade: att.presenca === 'Ausente' ? 'N/A' : att.pontualidade,
+        justificada: att.justificada, motivo: att.motivo
       })
     })
 
@@ -101,64 +87,75 @@ export default function ReunioesPage() {
   }
 
   function updateAttendance(nome: string, field: string, value: string) {
-    setAttendance(prev => ({
-      ...prev,
-      [nome]: {
-        ...prev[nome],
-        [field]: value
-      }
-    }))
+    setAttendance(prev => ({ ...prev, [nome]: { ...prev[nome], [field]: value } }))
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <CalendarDays className="text-red-500" /> Presença e Pontualidade em Reuniões
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+
+      {/* ── Cabeçalho Padronizado ── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CalendarDays color="#e53935" size={22} />
+            Presença em Reuniões
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Substitua a planilha de reuniões: controle a frequência, atrasos e justificativas de ausência do time.
-          </p>
+          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
+            Controle de frequência e pontualidade
+          </span>
         </div>
+        
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all duration-200 shadow-lg shadow-red-900/20 active:scale-95"
+          style={{
+            background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+            fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+          }}
         >
-          <PlusCircle size={18} />
-          <span>Lançar Chamada</span>
+          <PlusCircle size={16} />
+          Lançar Chamada
         </button>
       </div>
 
-      {/* Meses Selector & Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Month Picker */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between">
-          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-3 block">Selecionar Mês da Reunião</span>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+        
+        {/* Filtro de Meses */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Mês da Reunião</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {[
-              { key: '01', label: 'Janeiro' },
-              { key: '02', label: 'Fevereiro' },
-              { key: '03', label: 'Março' },
-              { key: '04', label: 'Abril' },
-              { key: '05', label: 'Maio' },
-              { key: '06', label: 'Junho' },
-              { key: '07', label: 'Julho' },
-              { key: '08', label: 'Agosto' },
-              { key: '09', label: 'Setembro' },
-              { key: '10', label: 'Outubro' },
-              { key: '11', label: 'Novembro' },
-              { key: '12', label: 'Dezembro' }
+              { key: '01', label: 'Janeiro' }, { key: '02', label: 'Fevereiro' },
+              { key: '03', label: 'Março' }, { key: '04', label: 'Abril' },
+              { key: '05', label: 'Maio' }, { key: '06', label: 'Junho' },
+              { key: '07', label: 'Julho' }, { key: '08', label: 'Agosto' },
+              { key: '09', label: 'Setembro' }, { key: '10', label: 'Outubro' },
+              { key: '11', label: 'Novembro' }, { key: '12', label: 'Dezembro' }
             ].map(m => (
               <button
                 key={m.key}
                 onClick={() => setSelectedMonth(m.key)}
-                className={`py-2 px-1 rounded-xl text-xs font-bold transition-all ${
-                  selectedMonth === m.key
-                    ? 'bg-red-700 text-white shadow-md shadow-red-900/30'
-                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
-                }`}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: selectedMonth === m.key ? '1px solid #e53935' : '1px solid #e2e8f0',
+                  background: selectedMonth === m.key ? '#e53935' : '#f8fafc',
+                  color: selectedMonth === m.key ? '#fff' : '#64748b',
+                }}
               >
                 {m.label}
               </button>
@@ -166,124 +163,90 @@ export default function ReunioesPage() {
           </div>
         </div>
 
-        {/* Stats card */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Métricas das Reuniões</span>
-            <span className="text-[10px] bg-red-500/10 text-red-400 font-semibold px-2 py-0.5 rounded-full uppercase">
+        {/* Card de Estatística */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Métricas das Reuniões</span>
+            <span style={{ background: 'rgba(229,57,53,0.1)', color: '#e53935', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
               Mês {selectedMonth}
             </span>
           </div>
           
-          <div className="my-3 grid grid-cols-2 gap-4">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
-              <span className="text-[10px] text-slate-500 block font-medium">Presença Geral</span>
-              <span className="text-3xl font-extrabold text-slate-900">{presenceRate}%</span>
+              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Presença Geral</span>
+              <div style={{ fontSize: 32, fontWeight: 800, color: '#1e293b' }}>{presenceRate}%</div>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 block font-medium">Pontualidade</span>
-              <span className="text-3xl font-extrabold text-emerald-400">{punctualityRate}%</span>
+              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Pontualidade</span>
+              <div style={{ fontSize: 32, fontWeight: 800, color: '#10b981' }}>{punctualityRate}%</div>
             </div>
           </div>
-
-          <div className="border-t border-slate-200 pt-2 flex justify-between text-[11px] text-slate-500">
-            <span>Reuniões: <b>{totalMeetings}</b></span>
-            <span>Atrasos: <b className="text-amber-400">{totalAtrasados}</b></span>
-            <span>Ausentes: <b className="text-red-400">{totalAusentes}</b></span>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', fontWeight: 600, borderTop: '1px solid #f1f5f9', paddingTop: 12 }}>
+            <span>Reuniões: <b style={{ color: '#1e293b' }}>{totalMeetings}</b></span>
+            <span>Atrasos: <b style={{ color: '#f59e0b' }}>{totalAtrasados}</b></span>
+            <span>Ausentes: <b style={{ color: '#e53935' }}>{totalAusentes}</b></span>
           </div>
         </div>
       </div>
 
-      {/* Filters and Counters */}
-      <div className="bg-white border border-slate-200 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:max-w-xs">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Filtrar por técnico ou motivo..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-white text-xs focus:border-red-500 focus:outline-none transition-colors"
-          />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+        <div style={{ position: 'relative', width: 300 }}>
+          <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
+          <input type="text" placeholder="Filtrar por técnico ou motivo..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
         </div>
-        <div className="text-xs text-slate-500">
-          Encontrados: <b>{filtered.length}</b> lançamentos de chamadas
-        </div>
+        <div style={{ fontSize: 13, color: '#64748b' }}>Encontrados: <b>{filtered.length}</b> lançamentos</div>
       </div>
 
-      {/* Attendance Log Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+      {/* Tabela */}
+      <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/40 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                <th className="py-4 px-6">Data</th>
-                <th className="py-4 px-6">Técnico</th>
-                <th className="py-4 px-6 text-center">Presença</th>
-                <th className="py-4 px-6 text-center">Pontualidade</th>
-                <th className="py-4 px-6 text-center">Ausência Justificada?</th>
-                <th className="py-4 px-6">Motivo / Observações</th>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Presença</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Pontualidade</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Justificada?</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Motivo</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filtered.map((l) => (
-                <tr key={l.id} className="hover:bg-slate-50/20 transition-colors text-sm">
-                  {/* Data */}
-                  <td className="py-4 px-6 font-semibold text-slate-600">
-                    {l.data}
-                  </td>
-
-                  {/* Técnico */}
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[9px] text-red-500 border border-slate-200">
+            <tbody>
+              {filtered.map(l => (
+                <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{l.data}</td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
                         {l.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
-                      <span className="font-semibold text-slate-700">{l.nome}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{l.nome}</span>
                     </div>
                   </td>
-
-                  {/* Presença */}
-                  <td className="py-4 px-6 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      l.presenca === 'Presente'
-                        ? 'bg-emerald-500/10 text-emerald-400'
-                        : 'bg-red-500/10 text-red-400'
-                    }`}>
-                      {l.presenca === 'Presente' ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
-                      {l.presenca}
+                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: l.presenca === 'Presente' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: l.presenca === 'Presente' ? '#10b981' : '#ef4444' }}>
+                      {l.presenca === 'Presente' ? <CheckCircle2 size={12} /> : <XCircle size={12} />} {l.presenca}
                     </span>
                   </td>
-
-                  {/* Pontualidade */}
-                  <td className="py-4 px-6 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      l.pontualidade === 'Pontual'
-                        ? 'bg-emerald-500/10 text-emerald-400'
-                        : l.pontualidade === 'Atrasado'
-                        ? 'bg-amber-500/10 text-amber-400'
-                        : 'bg-slate-800 text-slate-500'
-                    }`}>
-                      {l.pontualidade === 'Pontual' ? <CheckCircle2 size={11} /> : l.pontualidade === 'Atrasado' ? <Clock size={11} /> : null}
-                      {l.pontualidade}
+                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: l.pontualidade === 'Pontual' ? 'rgba(16,185,129,0.1)' : l.pontualidade === 'Atrasado' ? 'rgba(245,158,11,0.1)' : '#f1f5f9', color: l.pontualidade === 'Pontual' ? '#10b981' : l.pontualidade === 'Atrasado' ? '#f59e0b' : '#64748b' }}>
+                      {l.pontualidade === 'Pontual' ? <CheckCircle2 size={12} /> : l.pontualidade === 'Atrasado' ? <Clock size={12} /> : null} {l.pontualidade}
                     </span>
                   </td>
-
-                  {/* Justificada */}
-                  <td className="py-4 px-6 text-center text-xs font-semibold text-slate-500">
+                  <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: '#475569' }}>
                     {l.justificada}
                   </td>
-
-                  {/* Motivo */}
-                  <td className="py-4 px-6 text-slate-500 text-xs italic max-w-[250px] truncate" title={l.motivo}>
+                  <td style={{ padding: '14px 20px', fontSize: 12, color: '#64748b', fontStyle: 'italic', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {l.motivo || '—'}
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500 text-xs font-medium">
-                    Nenhuma reunião encontrada para o período selecionado.
+                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', fontSize: 13, color: '#94a3b8' }}>
+                    Nenhuma reunião encontrada para o período.
                   </td>
                 </tr>
               )}
@@ -294,90 +257,51 @@ export default function ReunioesPage() {
 
       {/* Modal Lançar Chamada */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowModal(false)} />
-          
-          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-4xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
-            <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
-              <Sparkles className="text-red-500" /> Registrar Chamada de Reunião
-            </h2>
-            <p className="text-slate-500 text-xs mb-5">Selecione a data da reunião e defina a presença e pontualidade da equipe de TSTs.</p>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 800, maxHeight: '85vh', overflowY: 'auto', padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles color="#e53935" size={20} /> Registrar Chamada de Reunião
+              </h2>
+              <button onClick={() => setShowModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
 
-            <form onSubmit={handleCreate} className="space-y-6">
-              <div className="w-full sm:max-w-xs">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Data da Reunião</label>
-                <input
-                  type="text"
-                  required
-                  value={meetingDate}
-                  onChange={(e) => setMeetingDate(e.target.value)}
-                  placeholder="DD/MM/AAAA"
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                />
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ width: 200 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Data da Reunião</label>
+                <input type="text" required value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} placeholder="DD/MM/AAAA" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
 
-              {/* Grid de Técnicos */}
-              <div className="border-t border-slate-200 pt-4 space-y-4">
-                <span className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Chamada dos Técnicos</span>
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+                <span style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 12 }}>Chamada dos Técnicos</span>
                 
-                <div className="grid grid-cols-1 gap-3">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {TECNICOS.map((t) => {
                     const att = attendance[t]
                     return (
-                      <div key={t} className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-3 bg-slate-50/40 border border-slate-200 rounded-xl hover:border-slate-200 transition-all">
-                        <span className="text-xs font-bold text-slate-900 lg:w-56 truncate">{t}</span>
+                      <div key={t} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', flexWrap: 'wrap', gap: 12 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', width: 220 }}>{t}</span>
                         
-                        <div className="flex flex-wrap items-center gap-3">
-                          {/* Presença */}
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-slate-500 font-bold uppercase">Presença</span>
-                            <select
-                              value={att.presenca}
-                              onChange={(e) => updateAttendance(t, 'presenca', e.target.value)}
-                              className="px-2 py-1 rounded bg-white border border-slate-200 text-xs text-white"
-                            >
-                              <option value="Presente">Presente</option>
-                              <option value="Ausente">Ausente</option>
-                            </select>
-                          </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                          <select value={att.presenca} onChange={(e) => updateAttendance(t, 'presenca', e.target.value)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, background: '#fff' }}>
+                            <option value="Presente">Presente</option>
+                            <option value="Ausente">Ausente</option>
+                          </select>
 
-                          {/* Pontualidade */}
                           {att.presenca === 'Presente' && (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-slate-500 font-bold uppercase">Pontualidade</span>
-                              <select
-                                value={att.pontualidade}
-                                onChange={(e) => updateAttendance(t, 'pontualidade', e.target.value)}
-                                className="px-2 py-1 rounded bg-white border border-slate-200 text-xs text-white"
-                              >
-                                <option value="Pontual">Pontual</option>
-                                <option value="Atrasado">Atrasado</option>
-                              </select>
-                            </div>
+                            <select value={att.pontualidade} onChange={(e) => updateAttendance(t, 'pontualidade', e.target.value)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, background: '#fff' }}>
+                              <option value="Pontual">Pontual</option>
+                              <option value="Atrasado">Atrasado</option>
+                            </select>
                           )}
 
-                          {/* Justificada */}
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-slate-500 font-bold uppercase">Justificado?</span>
-                            <select
-                              value={att.justificada}
-                              onChange={(e) => updateAttendance(t, 'justificada', e.target.value)}
-                              className="px-2 py-1 rounded bg-white border border-slate-200 text-xs text-white"
-                            >
-                              <option value="Não Se Aplica">Não Se Aplica</option>
-                              <option value="Sim">Sim</option>
-                              <option value="Não">Não</option>
-                            </select>
-                          </div>
+                          <select value={att.justificada} onChange={(e) => updateAttendance(t, 'justificada', e.target.value)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, background: '#fff' }}>
+                            <option value="Não Se Aplica">Justificado?</option>
+                            <option value="Sim">Sim</option>
+                            <option value="Não">Não</option>
+                          </select>
 
-                          {/* Motivo */}
-                          <input
-                            type="text"
-                            placeholder="Motivo / Justificativa se houver..."
-                            value={att.motivo}
-                            onChange={(e) => updateAttendance(t, 'motivo', e.target.value)}
-                            className="px-3 py-1 rounded bg-white border border-slate-200 text-xs text-white w-48 lg:w-64 focus:outline-none focus:border-red-500"
-                          />
+                          <input type="text" placeholder="Motivo..." value={att.motivo} onChange={(e) => updateAttendance(t, 'motivo', e.target.value)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, width: 160 }} />
                         </div>
                       </div>
                     )
@@ -385,18 +309,11 @@ export default function ReunioesPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-600 font-semibold text-sm transition-colors border border-slate-200"
-                >
+              <div style={{ display: 'flex', gap: 12, marginTop: 10, borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all shadow-lg shadow-red-900/20"
-                >
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   Confirmar Chamada Geral
                 </button>
               </div>

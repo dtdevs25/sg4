@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import {
   ClipboardCheck, Calendar, Filter, User,
-  CheckCircle2, AlertTriangle, PlayCircle, PlusCircle, ArrowUpRight, Search
+  CheckCircle2, AlertTriangle, PlayCircle, Search
 } from 'lucide-react'
 
-// Dados reais compilados da aba "GESTÃO DE INSPEÇÕES DE SEGURANÇA"
+// Dados reais compilados
 const INITIAL_INSPECOES = [
   { id: '1', nome: 'Antonio Carlos Junior Dias', admissao: '05/08/2025', jan: 20, fev: 20, mar: 16, abr: 18, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
   { id: '2', nome: 'Daniel José Gregorio Junior', admissao: '05/08/2025', jan: 23, fev: 22, mar: 25, abr: 22, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
@@ -29,11 +29,10 @@ export default function InspecoesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<number>(0)
   
-  const targetMeta = 20 // Meta padrão mensal da planilha de inspeções
+  const targetMeta = 20
 
   const filtered = data.filter(t => t.nome.toLowerCase().includes(search.toLowerCase()))
 
-  // Estatísticas do mês
   const totalRealizado = filtered.reduce((acc, curr) => acc + curr[selectedMonth], 0)
   const totalMeta = filtered.length * targetMeta
   const pctRealizado = totalMeta > 0 ? Math.round((totalRealizado / totalMeta) * 100) : 0
@@ -49,45 +48,59 @@ export default function InspecoesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <ClipboardCheck className="text-red-500" /> Gestão de Inspeções de Segurança
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Gerencie e acompanhe as metas mensais de inspeções (Meta: <b>{targetMeta}</b> por técnico/mês)
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+
+      {/* ── Cabeçalho Padronizado ── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ClipboardCheck color="#e53935" size={22} />
+            Inspeções de Segurança
+          </h1>
+          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
+            Gerencie e acompanhe as metas mensais
+          </span>
+        </div>
       </div>
 
-      {/* Meses Selector & Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Month Picker */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between">
-          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-3 block">Selecionar Período</span>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+        
+        {/* Filtro de Meses */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {[
-              { key: 'jan', label: 'Janeiro' },
-              { key: 'fev', label: 'Fevereiro' },
-              { key: 'mar', label: 'Março' },
-              { key: 'abr', label: 'Abril' },
-              { key: 'mai', label: 'Maio' },
-              { key: 'jun', label: 'Junho' },
-              { key: 'jul', label: 'Julho' },
-              { key: 'ago', label: 'Agosto' },
-              { key: 'set', label: 'Setembro' },
-              { key: 'out', label: 'Outubro' },
-              { key: 'nov', label: 'Novembro' },
-              { key: 'dez', label: 'Dezembro' }
+              { key: 'jan', label: 'Janeiro' }, { key: 'fev', label: 'Fevereiro' },
+              { key: 'mar', label: 'Março' }, { key: 'abr', label: 'Abril' },
+              { key: 'mai', label: 'Maio' }, { key: 'jun', label: 'Junho' },
+              { key: 'jul', label: 'Julho' }, { key: 'ago', label: 'Agosto' },
+              { key: 'set', label: 'Setembro' }, { key: 'out', label: 'Outubro' },
+              { key: 'nov', label: 'Novembro' }, { key: 'dez', label: 'Dezembro' }
             ].map(m => (
               <button
                 key={m.key}
                 onClick={() => { setSelectedMonth(m.key as MesKey); setEditingId(null) }}
-                className={`py-2 px-1 rounded-xl text-xs font-bold transition-all ${
-                  selectedMonth === m.key
-                    ? 'bg-red-700 text-white shadow-md shadow-red-900/30'
-                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
-                }`}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: selectedMonth === m.key ? '1px solid #e53935' : '1px solid #e2e8f0',
+                  background: selectedMonth === m.key ? '#e53935' : '#f8fafc',
+                  color: selectedMonth === m.key ? '#fff' : '#64748b',
+                }}
               >
                 {m.label}
               </button>
@@ -95,175 +108,126 @@ export default function InspecoesPage() {
           </div>
         </div>
 
-        {/* Stats card */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Atingimento do Mês</span>
-            <span className="text-xs bg-red-500/10 text-red-400 font-semibold px-2 py-0.5 rounded-full uppercase">
+        {/* Card de Estatística */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atingimento do Mês</span>
+            <span style={{ background: 'rgba(229,57,53,0.1)', color: '#e53935', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
               {selectedMonth}
             </span>
           </div>
-          
-          <div className="my-4 flex items-baseline gap-2">
-            <span className="text-4xl font-extrabold text-slate-900">{totalRealizado}</span>
-            <span className="text-slate-500 text-sm">/ {totalMeta} inspeções realizadas</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: 36, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalRealizado}</span>
+            <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>/ {totalMeta} insp.</span>
           </div>
-
-          <div className="w-full bg-slate-50 rounded-full h-2.5 overflow-hidden border border-slate-200">
-            <div 
-              className="h-full rounded-full bg-gradient-to-r from-red-600 to-orange-500 transition-all duration-500" 
-              style={{ width: `${Math.min(pctRealizado, 100)}%` }}
-            />
+          <div style={{ background: '#f1f5f9', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 8 }}>
+            <div style={{ background: '#e53935', height: '100%', width: `${Math.min(pctRealizado, 100)}%`, transition: 'width 0.3s' }} />
           </div>
-          
-          <div className="flex justify-between text-[11px] text-slate-500 mt-2">
-            <span>Atingimento: <b>{pctRealizado}%</b></span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
+            <span>Atingimento: <b style={{ color: '#1e293b' }}>{pctRealizado}%</b></span>
             <span>Meta: {targetMeta} / técnico</span>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white border border-slate-200 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full sm:max-w-xs">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Filtrar por técnico..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-white text-xs focus:border-red-500 focus:outline-none transition-colors"
-          />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+          <div style={{ position: 'relative', width: 300 }}>
+            <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
+            <input
+              type="text"
+              placeholder="Filtrar por técnico..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ wIdth: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
+            />
+          </div>
         </div>
-        <div className="text-xs text-slate-500">
-          Mostrando <b>{filtered.length}</b> de <b>{data.length}</b> técnicos cadastrados
-        </div>
-      </div>
 
-      {/* Grid of details */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/40 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                <th className="py-4 px-6">Técnico</th>
-                <th className="py-4 px-6 text-center">Meta Mensal</th>
-                <th className="py-4 px-6 text-center">Realizado</th>
-                <th className="py-4 px-6 text-center">Progresso</th>
-                <th className="py-4 px-6 text-center">Status</th>
-                <th className="py-4 px-6 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filtered.map((t) => {
-                const realizado = t[selectedMonth]
-                const statusPct = Math.round((realizado / targetMeta) * 100)
-                const isCompleted = realizado >= targetMeta
-                const hasStarted = realizado > 0
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Meta Mensal</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Realizado</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Progresso</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(t => {
+                  const realizado = t[selectedMonth]
+                  const statusPct = Math.round((realizado / targetMeta) * 100)
+                  const isCompleted = realizado >= targetMeta
+                  const hasStarted = realizado > 0
 
-                return (
-                  <tr key={t.id} className="hover:bg-slate-50/20 transition-colors text-sm">
-                    {/* Técnico */}
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-red-500">
-                          {t.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                  return (
+                    <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                            {t.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
+                            <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Admissão: {t.admissao}</div>
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-semibold text-slate-900 block">{t.nome}</span>
-                          <span className="text-[10px] text-slate-500">Admissão: {t.admissao}</span>
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>
+                        {targetMeta}
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        {editingId === t.id ? (
+                          <input type="number" value={editValue} min={0} max={100} onChange={(e) => setEditValue(Number(e.target.value))} style={{ width: 60, padding: 4, borderRadius: 4, border: '1px solid #e2e8f0', textAlign: 'center' }} />
+                        ) : (
+                          <span style={{ fontSize: 14, fontWeight: 800, color: isCompleted ? '#10b981' : hasStarted ? '#f59e0b' : '#64748b' }}>{realizado}</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: 150 }}>
+                          <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                            <div style={{ background: isCompleted ? '#10b981' : hasStarted ? '#f59e0b' : '#64748b', height: '100%', width: `${Math.min(statusPct, 100)}%` }} />
+                          </div>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', width: 30, textAlign: 'right' }}>{statusPct}%</span>
                         </div>
-                      </div>
-                    </td>
-
-                    {/* Meta */}
-                    <td className="py-4 px-6 text-center font-semibold text-slate-500">
-                      {targetMeta}
-                    </td>
-
-                    {/* Realizado */}
-                    <td className="py-4 px-6 text-center">
-                      {editingId === t.id ? (
-                        <input
-                          type="number"
-                          value={editValue}
-                          min={0}
-                          max={100}
-                          onChange={(e) => setEditValue(Number(e.target.value))}
-                          className="w-16 px-2 py-1 rounded bg-slate-50 border border-slate-700 text-center text-white focus:outline-none focus:border-red-500 font-semibold"
-                        />
-                      ) : (
-                        <span className={`font-bold ${isCompleted ? 'text-emerald-400' : hasStarted ? 'text-orange-400' : 'text-slate-500'}`}>
-                          {realizado}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Progresso bar */}
-                    <td className="py-4 px-6 min-w-[150px]">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-slate-50 rounded-full h-2 border border-slate-200 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              isCompleted ? 'bg-emerald-500' : hasStarted ? 'bg-orange-500' : 'bg-slate-700'
-                            }`}
-                            style={{ width: `${Math.min(statusPct, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-500 w-8 text-right">
-                          {statusPct}%
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Status badge */}
-                    <td className="py-4 px-6 text-center">
-                      {isCompleted ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400">
-                          <CheckCircle2 size={12} /> Meta Atingida
-                        </span>
-                      ) : hasStarted ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-500/10 text-orange-400">
-                          <PlayCircle size={12} /> Em andamento
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-500">
-                          <AlertTriangle size={12} /> Não iniciado
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Ação */}
-                    <td className="py-4 px-6 text-right">
-                      {editingId === t.id ? (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => saveEdit(t.id)}
-                            className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors"
-                          >
-                            Salvar
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        {isCompleted ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700 }}>
+                            <CheckCircle2 size={12} /> Completo
+                          </span>
+                        ) : hasStarted ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700 }}>
+                            <PlayCircle size={12} /> Andamento
+                          </span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700 }}>
+                            <AlertTriangle size={12} /> Aguardando
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                        {editingId === t.id ? (
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            <button onClick={() => saveEdit(t.id)} style={{ padding: '4px 8px', borderRadius: 4, border: 'none', background: '#10b981', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
+                            <button onClick={() => setEditingId(null)} style={{ padding: '4px 8px', borderRadius: 4, border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Cancela</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => startEdit(t.id, realizado)} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: 'transparent', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                            Editar
                           </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-600 text-xs font-bold transition-colors"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => startEdit(t.id, realizado)}
-                          className="text-slate-500 hover:text-slate-900 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-700 text-xs font-semibold transition-all"
-                        >
-                          Lançar Realizado
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

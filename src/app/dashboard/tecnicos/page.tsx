@@ -2,11 +2,10 @@
 
 import { useState } from 'react'
 import {
-  Users, UserPlus, Search, Edit2, ShieldAlert,
-  CheckCircle, XCircle, Mail, Phone, Calendar, ArrowUpDown, ChevronRight
+  Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2
 } from 'lucide-react'
 
-// Dados reais da planilha com dados extras fictícios de contato para visualização rica
+// Dados reais da planilha
 const INITIAL_TECNICOS = [
   { id: '1', nome: 'Antonio Carlos Junior Dias', email: 'antonio.dias@sg4.com.br', telefone: '(11) 98765-4321', cargo: 'Técnico de Segurança do Trabalho Sênior', admissao: '05/08/2025', ativo: true },
   { id: '2', nome: 'Daniel José Gregorio Junior', email: 'daniel.junior@sg4.com.br', telefone: '(11) 97654-3210', cargo: 'Técnico de Segurança do Trabalho Sênior', admissao: '05/08/2025', ativo: true },
@@ -28,9 +27,7 @@ export default function TecnicosPage() {
   
   // Form state
   const [form, setForm] = useState({
-    nome: '',
-    email: '',
-    telefone: '',
+    nome: '', email: '', telefone: '',
     cargo: 'Técnico de Segurança do Trabalho Pleno',
     admissao: new Date().toLocaleDateString('pt-BR'),
     ativo: true,
@@ -45,9 +42,7 @@ export default function TecnicosPage() {
   function handleOpenAdd() {
     setIsEditing(null)
     setForm({
-      nome: '',
-      email: '',
-      telefone: '',
+      nome: '', email: '', telefone: '',
       cargo: 'Técnico de Segurança do Trabalho Pleno',
       admissao: new Date().toLocaleDateString('pt-BR'),
       ativo: true,
@@ -58,12 +53,8 @@ export default function TecnicosPage() {
   function handleOpenEdit(tecnico: typeof INITIAL_TECNICOS[0]) {
     setIsEditing(tecnico.id)
     setForm({
-      nome: tecnico.nome,
-      email: tecnico.email,
-      telefone: tecnico.telefone,
-      cargo: tecnico.cargo,
-      admissao: tecnico.admissao,
-      ativo: tecnico.ativo,
+      nome: tecnico.nome, email: tecnico.email, telefone: tecnico.telefone,
+      cargo: tecnico.cargo, admissao: tecnico.admissao, ativo: tecnico.ativo,
     })
     setShowModal(true)
   }
@@ -86,185 +77,162 @@ export default function TecnicosPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Users className="text-red-500" /> Equipe de Técnicos
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+
+      {/* ── Cabeçalho Padronizado ── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Users color="#e53935" size={22} />
+            Equipe de Técnicos
           </h1>
-          <p className="text-slate-500 text-sm mt-1">Gerencie os profissionais de campo e monitore seus cadastros</p>
+          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
+            Gerencie os profissionais de campo
+          </span>
         </div>
+        
         <button
           onClick={handleOpenAdd}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all duration-200 shadow-lg shadow-red-900/20 active:scale-95"
+          style={{
+            background: '#e53935',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            padding: '8px 16px',
+            fontSize: 13,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+          }}
         >
-          <UserPlus size={18} />
-          <span>Novo Técnico</span>
+          <UserPlus size={16} />
+          Novo Técnico
         </button>
       </div>
 
-      {/* Filters & Actions */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white border border-slate-200 p-4 rounded-2xl">
-        <div className="relative w-full sm:max-w-xs">
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+      {/* Filters */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+        <div style={{ position: 'relative', width: 300 }}>
+          <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
           <input
             type="text"
             placeholder="Buscar técnico, e-mail ou cargo..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-white text-sm focus:border-red-500 focus:outline-none transition-colors"
+            style={{ wIdth: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
           />
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span>Total: <b>{tecnicos.length}</b> técnicos</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-          <span>Ativos: <b className="text-emerald-400">{tecnicos.filter(t => t.ativo).length}</b></span>
+        <div style={{ fontSize: 13, color: '#64748b' }}>
+          <span>Total: <b>{tecnicos.length}</b></span>
+          <span style={{ margin: '0 8px' }}>•</span>
+          <span>Ativos: <b style={{ color: '#10b981' }}>{tecnicos.filter(t => t.ativo).length}</b></span>
         </div>
       </div>
 
-      {/* Grid de Técnicos */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {filtered.map((tecnico) => (
-          <div
-            key={tecnico.id}
-            className={`group bg-white border transition-all duration-300 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-700/80 hover:shadow-xl hover:shadow-slate-950/50 ${
-              tecnico.ativo ? 'border-slate-200/80' : 'border-red-950/40 opacity-70'
-            }`}
-          >
-            <div className="space-y-4">
-              {/* Header do Card */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-850 to-slate-800 border border-slate-200 flex items-center justify-center font-bold text-red-500 text-base shadow-inner">
-                    {tecnico.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-red-400 transition-colors line-clamp-1">
-                      {tecnico.nome}
-                    </h3>
-                    <span className="text-xs text-slate-500 font-medium line-clamp-1">{tecnico.cargo}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => toggleStatus(tecnico.id)}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
-                    tecnico.ativo 
-                      ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' 
-                      : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                  }`}
-                >
-                  {tecnico.ativo ? 'Ativo' : 'Inativo'}
-                </button>
-              </div>
-
-              {/* Informações de contato */}
-              <div className="space-y-2 border-t border-slate-200 pt-3 text-xs text-slate-500">
-                <div className="flex items-center gap-2">
-                  <Mail size={14} className="text-slate-500 shrink-0" />
-                  <span className="truncate">{tecnico.email}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone size={14} className="text-slate-500 shrink-0" />
-                  <span>{tecnico.telefone}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar size={14} className="text-slate-500 shrink-0" />
-                  <span>Admissão: {tecnico.admissao}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 mt-5 border-t border-slate-200 pt-3">
-              <button
-                onClick={() => handleOpenEdit(tecnico)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors border border-slate-200"
-              >
-                <Edit2 size={13} />
-                <span>Editar</span>
-              </button>
-              <button
-                onClick={() => toggleStatus(tecnico.id)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
-                  tecnico.ativo
-                    ? 'border-red-950/40 text-red-400 bg-red-950/10 hover:bg-red-950/20'
-                    : 'border-emerald-950/40 text-emerald-400 bg-emerald-950/10 hover:bg-emerald-950/20'
-                }`}
-              >
-                {tecnico.ativo ? 'Desativar' : 'Reativar'}
-              </button>
-            </div>
-          </div>
-        ))}
+      {/* ── Tabela de Técnicos ── */}
+      <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Contato</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Admissão</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(tecnico => (
+                <tr key={tecnico.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: tecnico.ativo ? 1 : 0.6 }}>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                        {tecnico.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>{tecnico.nome}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>{tecnico.cargo}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}><Mail size={12} /> {tecnico.email}</div>
+                    <div style={{ fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}><Phone size={12} /> {tecnico.telefone}</div>
+                  </td>
+                  <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {tecnico.admissao}</div>
+                  </td>
+                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                    <span style={{ 
+                      display: 'inline-block', padding: '4px 10px', borderRadius: 12, fontSize: 11, fontWeight: 800, textTransform: 'uppercase',
+                      background: tecnico.ativo ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      color: tecnico.ativo ? '#10b981' : '#ef4444'
+                    }}>
+                      {tecnico.ativo ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                    <button onClick={() => handleOpenEdit(tecnico)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: '#64748b', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>Editar</button>
+                    <button onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: tecnico.ativo ? '#ef4444' : '#10b981', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                      {tecnico.ativo ? 'Desativar' : 'Reativar'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modal Add/Edit */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowModal(false)} />
-          
-          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-md shadow-2xl shadow-slate-200 animate-in fade-in zoom-in-95 duration-200 text-white">
-            <h2 className="text-lg font-bold mb-1">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginTop: 0, marginBottom: 4 }}>
               {isEditing ? 'Editar Técnico' : 'Novo Técnico'}
             </h2>
-            <p className="text-slate-500 text-xs mb-5">Preencha os dados do técnico de segurança do trabalho.</p>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Preencha os dados do técnico de segurança do trabalho.</p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nome Completo</label>
-                <input
-                  type="text"
-                  required
-                  value={form.nome}
-                  onChange={(e) => setForm(p => ({ ...p, nome: e.target.value }))}
-                  placeholder="Nome do técnico"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none transition-colors"
-                />
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Nome Completo</label>
+                <input type="text" required value={form.nome} onChange={(e) => setForm(p => ({ ...p, nome: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">E-mail Profissional</label>
-                <input
-                  type="email"
-                  required
-                  value={form.email}
-                  onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))}
-                  placeholder="exemplo@sg4.com.br"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none transition-colors"
-                />
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>E-mail Profissional</label>
+                <input type="email" required value={form.email} onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Telefone</label>
-                  <input
-                    type="text"
-                    value={form.telefone}
-                    onChange={(e) => setForm(p => ({ ...p, telefone: e.target.value }))}
-                    placeholder="(11) 99999-9999"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none transition-colors"
-                  />
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Telefone</label>
+                  <input type="text" value={form.telefone} onChange={(e) => setForm(p => ({ ...p, telefone: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Admissão</label>
-                  <input
-                    type="text"
-                    value={form.admissao}
-                    onChange={(e) => setForm(p => ({ ...p, admissao: e.target.value }))}
-                    placeholder="DD/MM/AAAA"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none transition-colors"
-                  />
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Admissão</label>
+                  <input type="text" value={form.admissao} onChange={(e) => setForm(p => ({ ...p, admissao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Cargo</label>
-                <select
-                  value={form.cargo}
-                  onChange={(e) => setForm(p => ({ ...p, cargo: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none transition-colors appearance-none"
-                >
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Cargo</label>
+                <select value={form.cargo} onChange={(e) => setForm(p => ({ ...p, cargo: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
                   <option value="Técnico de Segurança do Trabalho Júnior">Técnico Júnior</option>
                   <option value="Técnico de Segurança do Trabalho Pleno">Técnico Pleno</option>
                   <option value="Técnico de Segurança do Trabalho Sênior">Técnico Sênior</option>
@@ -272,18 +240,11 @@ export default function TecnicosPage() {
                 </select>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-600 font-semibold text-sm transition-colors border border-slate-200"
-                >
+              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all shadow-lg shadow-red-900/20"
-                >
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   {isEditing ? 'Salvar' : 'Cadastrar'}
                 </button>
               </div>

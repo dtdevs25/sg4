@@ -2,39 +2,28 @@
 
 import { useState } from 'react'
 import {
-  Activity, Plus, Calendar, Search, MapPin, Tag,
-  CheckCircle, Clock, XCircle, ArrowRightLeft, Sparkles, Filter, Trash2
+  Activity, Plus, Search, CheckCircle, Clock, Trash2, Sparkles, X
 } from 'lucide-react'
 
-// Dados reais e exatos da planilha "GESTÃO DAS ATIVIDADES"
+// Dados reais da planilha "GESTÃO DAS ATIVIDADES"
 const INITIAL_ATIVIDADES = [
   { id: 'act-1', data: '02/01/2026', responsavel: 'ANTONIO CARLOS JUNIOR DIAS', descricao: 'Planejamento das atividades, leitura de e-mail e elaboração do plano semanal.', equipe: 'Não se aplica', categoria: 'ADMINISTRATIVA', local: 'Base Humaitá', cidade: 'São José dos Campos', estado: 'SP', status: 'CONCLUÍDO', observacao: '' },
   { id: 'act-2', data: '02/01/2026', responsavel: 'ANTONIO CARLOS JUNIOR DIAS', descricao: 'Inspeção de segurança em campo.', equipe: 'Não se aplica', categoria: 'INSPEÇÃO DE SEGURANÇA', local: 'No município', cidade: 'Lorena', estado: 'SP', status: 'PENDENTE', observacao: 'Não foi encontrada nenhuma equipe para realizar a inspeção.' },
   { id: 'act-3', data: '02/01/2026', responsavel: 'ANTONIO CARLOS JUNIOR DIAS', descricao: 'Inspeção de segurança em campo.', equipe: 'Não se aplica', categoria: 'INSPEÇÃO DE SEGURANÇA', local: 'No município', cidade: 'Guaratinguetá', estado: 'SP', status: 'PENDENTE', observacao: 'Não foi encontrada nenhuma equipe para realizar a inspeção.' },
   { id: 'act-4', data: '02/01/2026', responsavel: 'DANIEL JOSÉ GREGORIO JUNIOR', descricao: 'Planejamento das atividades, leitura de e-mails, relatórios semanais.', equipe: 'Não se aplica', categoria: 'ADMINISTRATIVA', local: 'Base', cidade: 'Bauru', estado: 'SP', status: 'CONCLUÍDO', observacao: '' },
   { id: 'act-5', data: '02/01/2026', responsavel: 'DANIEL JOSÉ GREGORIO JUNIOR', descricao: 'Inspeção de segurança em campo de equipe própria.', equipe: 'Equipe própria', categoria: 'INSPEÇÃO DE SEGURANÇA', local: 'Na localidade', cidade: 'Bauru', estado: 'SP', status: 'CONCLUÍDO', observacao: 'Realizada com sucesso.' },
-  { id: 'act-6', data: '02/01/2026', responsavel: 'KARINE NOVAES ASSEM', descricao: 'DDS - Diálogo Diário de Segurança sobre Trabalho em Altura.', equipe: 'Equipe terceirizada', categoria: 'GESTÃO DSS', local: 'Planta Leste', cidade: 'Vitória', estado: 'ES', status: 'CONCLUÍDO', observacao: '' },
+  { id: 'act-6', data: '02/01/2026', responsavel: 'KARINE NOVAES ASSEM', descricao: 'DSS - Diálogo de Segurança e Saúde sobre Trabalho em Altura.', equipe: 'Equipe terceirizada', categoria: 'GESTÃO DSS', local: 'Planta Leste', cidade: 'Vitória', estado: 'ES', status: 'CONCLUÍDO', observacao: '' },
 ]
 
 const TECNICOS = [
-  'ANTONIO CARLOS JUNIOR DIAS',
-  'DANIEL JOSÉ GREGORIO JUNIOR',
-  'DJONATÊ CRUZ DOS SANTOS',
-  'JONAS RODRIGUES PEREIRA',
-  'KARINE NOVAES ASSEM',
-  'LUIS CLAUDIO SOARES',
-  'ROGÉRIO LIMA DA SILVA',
-  'ROSICLEIDE FERNANDES SANTOS DAVINO',
-  'SAMUEL DA SILVA SANTOS',
+  'ANTONIO CARLOS JUNIOR DIAS', 'DANIEL JOSÉ GREGORIO JUNIOR', 'DJONATÊ CRUZ DOS SANTOS',
+  'JONAS RODRIGUES PEREIRA', 'KARINE NOVAES ASSEM', 'LUIS CLAUDIO SOARES',
+  'ROGÉRIO LIMA DA SILVA', 'ROSICLEIDE FERNANDES SANTOS DAVINO', 'SAMUEL DA SILVA SANTOS',
   'DARA AMORIM SILVA DE LIMA'
 ]
 
 const CATEGORIES = [
-  'ADMINISTRATIVA',
-  'INSPEÇÃO DE SEGURANÇA',
-  'GESTÃO DSS',
-  'REUNIÃO DE ALINHAMENTO',
-  'TREINAMENTO'
+  'ADMINISTRATIVA', 'INSPEÇÃO DE SEGURANÇA', 'GESTÃO DSS', 'REUNIÃO DE ALINHAMENTO', 'TREINAMENTO'
 ]
 
 export default function AtividadesPage() {
@@ -44,24 +33,15 @@ export default function AtividadesPage() {
   const [filterCategoria, setFilterCategoria] = useState('TODOS')
   const [showAddModal, setShowAddModal] = useState(false)
 
-  // Form de Lançamento
   const [form, setForm] = useState({
     data: new Date().toLocaleDateString('pt-BR'),
     responsavel: 'ANTONIO CARLOS JUNIOR DIAS',
-    descricao: '',
-    equipe: 'Não se aplica',
-    categoria: 'INSPEÇÃO DE SEGURANÇA',
-    local: '',
-    cidade: '',
-    estado: 'SP',
-    status: 'CONCLUÍDO',
-    observacao: ''
+    descricao: '', equipe: 'Não se aplica', categoria: 'INSPEÇÃO DE SEGURANÇA',
+    local: '', cidade: '', estado: 'SP', status: 'CONCLUÍDO', observacao: ''
   })
 
   const filtered = atividades.filter(act => {
-    const matchSearch = act.descricao.toLowerCase().includes(search.toLowerCase()) ||
-                        act.local.toLowerCase().includes(search.toLowerCase()) ||
-                        act.cidade.toLowerCase().includes(search.toLowerCase())
+    const matchSearch = act.descricao.toLowerCase().includes(search.toLowerCase()) || act.local.toLowerCase().includes(search.toLowerCase()) || act.cidade.toLowerCase().includes(search.toLowerCase())
     const matchResp = filterResponsavel === 'TODOS' || act.responsavel === filterResponsavel
     const matchCat = filterCategoria === 'TODOS' || act.categoria === filterCategoria
     return matchSearch && matchResp && matchCat
@@ -76,12 +56,7 @@ export default function AtividadesPage() {
   }
 
   function toggleStatus(id: string) {
-    setAtividades(prev => prev.map(a => {
-      if (a.id === id) {
-        return { ...a, status: a.status === 'CONCLUÍDO' ? 'PENDENTE' : 'CONCLUÍDO' }
-      }
-      return a
-    }))
+    setAtividades(prev => prev.map(a => a.id === id ? { ...a, status: a.status === 'CONCLUÍDO' ? 'PENDENTE' : 'CONCLUÍDO' } : a))
   }
 
   function deleteAct(id: string) {
@@ -89,174 +64,113 @@ export default function AtividadesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <Activity className="text-red-500" /> Registro de Atividades Operacionais
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+
+      {/* ── Cabeçalho Padronizado ── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Activity color="#e53935" size={22} />
+            Atividades Operacionais
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Substitua a planilha de atividades diárias: gerencie tarefas de planejamento, inspeções em campo e DSS.
-          </p>
+          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
+            Registro diário de tarefas e inspeções
+          </span>
         </div>
+        
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all duration-200 shadow-lg shadow-red-900/20 active:scale-95"
+          style={{
+            background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+            fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+          }}
         >
-          <Plus size={18} />
-          <span>Lançar Atividade</span>
+          <Plus size={16} />
+          Lançar Atividade
         </button>
       </div>
 
-      {/* Filters Panel */}
-      <div className="bg-white border border-slate-200 p-4 rounded-2xl flex flex-col xl:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-wrap gap-3 w-full xl:max-w-4xl">
-          {/* Busca */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Buscar por descrição, local ou cidade..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-white text-xs focus:outline-none"
-            />
+      {/* Filters */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, flex: 1 }}>
+          <div style={{ position: 'relative', minWidth: 200, flex: 1 }}>
+            <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
+            <input type="text" placeholder="Buscar por descrição, local..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
           </div>
-
-          {/* Responsável */}
-          <div className="w-[200px]">
-            <select
-              value={filterResponsavel}
-              onChange={(e) => setFilterResponsavel(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 focus:outline-none"
-            >
-              <option value="TODOS">Todos os Técnicos</option>
-              {TECNICOS.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Categoria */}
-          <div className="w-[180px]">
-            <select
-              value={filterCategoria}
-              onChange={(e) => setFilterCategoria(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 focus:outline-none"
-            >
-              <option value="TODOS">Todas as Categorias</option>
-              {CATEGORIES.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
+          <select value={filterResponsavel} onChange={(e) => setFilterResponsavel(e.target.value)} style={{ width: 220, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
+            <option value="TODOS">Todos os Técnicos</option>
+            {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={filterCategoria} onChange={(e) => setFilterCategoria(e.target.value)} style={{ width: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
+            <option value="TODOS">Todas as Categorias</option>
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
-        
-        <div className="text-xs text-slate-500 shrink-0">
-          Encontradas: <b>{filtered.length}</b> atividades operacionais
-        </div>
+        <div style={{ fontSize: 13, color: '#64748b' }}>Encontradas: <b>{filtered.length}</b> atividades</div>
       </div>
 
-      {/* Activities Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+      {/* Table */}
+      <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/40 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                <th className="py-4 px-6">Data</th>
-                <th className="py-4 px-6">Responsável</th>
-                <th className="py-4 px-6">Descrição da Atividade</th>
-                <th className="py-4 px-6">Equipe</th>
-                <th className="py-4 px-6">Categoria</th>
-                <th className="py-4 px-6">Localidade (Cidade/UF)</th>
-                <th className="py-4 px-6 text-center">Status</th>
-                <th className="py-4 px-6 text-right">Ações</th>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Responsável</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Descrição</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Categoria</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Localidade</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filtered.map((act) => (
-                <tr key={act.id} className="hover:bg-slate-50/20 transition-colors text-sm">
-                  {/* Data */}
-                  <td className="py-4 px-6 font-semibold text-slate-600">
-                    {act.data}
-                  </td>
-
-                  {/* Responsável */}
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[9px] text-red-500 border border-slate-200">
+            <tbody>
+              {filtered.map(act => (
+                <tr key={act.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{act.data}</td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
                         {act.responsavel.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
-                      <span className="font-semibold text-slate-700">{act.responsavel}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{act.responsavel}</span>
                     </div>
                   </td>
-
-                  {/* Descrição */}
-                  <td className="py-4 px-6 max-w-[280px]">
-                    <p className="text-slate-600 text-xs font-medium leading-relaxed line-clamp-2" title={act.descricao}>
-                      {act.descricao}
-                    </p>
-                    {act.observacao && (
-                      <p className="text-[10px] text-red-400 italic mt-1 leading-snug">
-                        Obs: {act.observacao}
-                      </p>
-                    )}
+                  <td style={{ padding: '14px 20px', maxWidth: 300 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{act.descricao}</p>
+                    {act.observacao && <p style={{ margin: '4px 0 0 0', fontSize: 11, color: '#e53935', fontStyle: 'italic' }}>Obs: {act.observacao}</p>}
                   </td>
-
-                  {/* Equipe */}
-                  <td className="py-4 px-6 text-slate-500 text-xs font-semibold">
-                    {act.equipe}
-                  </td>
-
-                  {/* Categoria */}
-                  <td className="py-4 px-6">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
-                      act.categoria === 'GESTÃO DSS' ? 'bg-red-500/10 text-red-400' :
-                      act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? 'bg-orange-500/10 text-orange-400' :
-                      'bg-slate-800 text-slate-600'
-                    }`}>
+                  <td style={{ padding: '14px 20px' }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, background: act.categoria === 'GESTÃO DSS' ? 'rgba(229,57,53,0.1)' : act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? 'rgba(245,158,11,0.1)' : '#f1f5f9', color: act.categoria === 'GESTÃO DSS' ? '#e53935' : act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? '#f59e0b' : '#64748b' }}>
                       {act.categoria}
                     </span>
                   </td>
-
-                  {/* Localidade */}
-                  <td className="py-4 px-6">
-                    <span className="text-slate-600 font-medium block text-xs">{act.local}</span>
-                    <span className="text-[10px] text-slate-500">{act.cidade} / {act.estado}</span>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{act.local}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>{act.cidade} / {act.estado}</div>
                   </td>
-
-                  {/* Status */}
-                  <td className="py-4 px-6 text-center">
-                    <button
-                      onClick={() => toggleStatus(act.id)}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold transition-all ${
-                        act.status === 'CONCLUÍDO'
-                          ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                          : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
-                      }`}
-                    >
+                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                    <button onClick={() => toggleStatus(act.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 12, border: 'none', background: act.status === 'CONCLUÍDO' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: act.status === 'CONCLUÍDO' ? '#10b981' : '#f59e0b', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
                       {act.status === 'CONCLUÍDO' ? <CheckCircle size={12} /> : <Clock size={12} />}
                       {act.status}
                     </button>
                   </td>
-
-                  {/* Ações */}
-                  <td className="py-4 px-6 text-right">
-                    <div className="flex justify-end gap-1.5">
-                      <button
-                        onClick={() => toggleStatus(act.id)}
-                        className="text-xs text-slate-500 hover:text-slate-900 font-semibold transition-colors bg-slate-100 px-2 py-1 rounded border border-slate-200"
-                      >
-                        Tog Status
-                      </button>
-                      <button
-                        onClick={() => deleteAct(act.id)}
-                        className="text-xs text-slate-500 hover:text-red-400 p-1 hover:bg-white/5 rounded"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                    <button onClick={() => deleteAct(act.id)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                      <Trash2 size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -267,153 +181,71 @@ export default function AtividadesPage() {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowAddModal(false)} />
-          
-          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
-            <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
-              <Sparkles className="text-red-500" /> Lançar Atividade Operacional
-            </h2>
-            <p className="text-slate-500 text-xs mb-5">Preencha os campos exatos do registro diário de atividades.</p>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 600, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles color="#e53935" size={20} /> Lançar Atividade
+              </h2>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
 
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Data</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.data}
-                    onChange={(e) => setForm(p => ({ ...p, data: e.target.value }))}
-                    placeholder="DD/MM/AAAA"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  />
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Data</label>
+                  <input type="text" required value={form.data} onChange={(e) => setForm(p => ({ ...p, data: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Responsável</label>
-                  <select
-                    value={form.responsavel}
-                    onChange={(e) => setForm(p => ({ ...p, responsavel: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  >
-                    {TECNICOS.map(t => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Responsável</label>
+                  <select value={form.responsavel} onChange={(e) => setForm(p => ({ ...p, responsavel: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                    {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Descrição da Atividade</label>
-                <textarea
-                  required
-                  rows={2}
-                  value={form.descricao}
-                  onChange={(e) => setForm(p => ({ ...p, descricao: e.target.value }))}
-                  placeholder="Ex: Inspeção de segurança em campo em equipe própria de rede externa..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                />
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Descrição da Atividade</label>
+                <textarea required rows={2} value={form.descricao} onChange={(e) => setForm(p => ({ ...p, descricao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', resize: 'none' }} />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Equipe</label>
-                  <select
-                    value={form.equipe}
-                    onChange={(e) => setForm(p => ({ ...p, equipe: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  >
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Equipe</label>
+                  <select value={form.equipe} onChange={(e) => setForm(p => ({ ...p, equipe: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
                     <option value="Não se aplica">Não se aplica</option>
                     <option value="Equipe própria">Equipe própria</option>
                     <option value="Equipe terceirizada">Equipe terceirizada</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Categoria</label>
-                  <select
-                    value={form.categoria}
-                    onChange={(e) => setForm(p => ({ ...p, categoria: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  >
-                    {CATEGORIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Categoria</label>
+                  <select value={form.categoria} onChange={(e) => setForm(p => ({ ...p, categoria: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Local</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.local}
-                    onChange={(e) => setForm(p => ({ ...p, local: e.target.value }))}
-                    placeholder="Ex: Base"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Local</label>
+                  <input type="text" required value={form.local} onChange={(e) => setForm(p => ({ ...p, local: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
-                <div className="col-span-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Cidade</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.cidade}
-                    onChange={(e) => setForm(p => ({ ...p, cidade: e.target.value }))}
-                    placeholder="Bauru"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  />
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Cidade</label>
+                  <input type="text" required value={form.cidade} onChange={(e) => setForm(p => ({ ...p, cidade: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
-                <div className="col-span-1">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">UF (Estado)</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.estado}
-                    onChange={(e) => setForm(p => ({ ...p, estado: e.target.value }))}
-                    placeholder="SP"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  />
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>UF</label>
+                  <input type="text" required value={form.estado} onChange={(e) => setForm(p => ({ ...p, estado: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Status Inicial</label>
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm(p => ({ ...p, status: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  >
-                    <option value="CONCLUÍDO">CONCLUÍDO</option>
-                    <option value="PENDENTE">PENDENTE</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Observações (opcional)</label>
-                  <input
-                    type="text"
-                    value={form.observacao}
-                    onChange={(e) => setForm(p => ({ ...p, observacao: e.target.value }))}
-                    placeholder="Detalhamento ou justificativa..."
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-600 font-semibold text-sm transition-colors border border-slate-200"
-                >
+              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all shadow-lg shadow-red-900/20"
-                >
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   Registrar Atividade
                 </button>
               </div>

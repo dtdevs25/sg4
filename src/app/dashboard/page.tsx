@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -81,13 +82,13 @@ function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: a
       onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
       onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
     >
-      <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>{label}</p>
-          <h3 style={{ color: '#fff', fontSize: 44, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{value}</h3>
+          <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{value}</h3>
           {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, marginTop: 6, background: 'rgba(0,0,0,0.1)', padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>Meta: {subtitle}</div>}
         </div>
-        <Icon size={56} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+        <Icon size={48} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
       </div>
       <div style={{ height: 10, background: bgDark }} />
     </div>
@@ -150,6 +151,7 @@ function getMedal(index: number) {
 
 /* ── Página ── */
 export default function DashboardPage() {
+  const router = useRouter()
   const { data: session } = useSession()
   const firstName = session?.user?.name?.split(' ')[0] || 'Gestor'
 
@@ -279,10 +281,10 @@ export default function DashboardPage() {
 
       {/* ── 4 Stat cards ── */}
       <div style={{ display: 'flex', gap: 20 }}>
-        <StatCard icon={ClipboardCheck} label="DDS"       value={totalDss} bg="#007BFF" bgDark="#0069D9" />
-        <StatCard icon={Clock}          label="Inspeções" value={totalInsp} bg="#FFC107" bgDark="#E0A800" />
-        <StatCard icon={Award}          label="% DDS"     value={`${pctDss}%`} subtitle={metaDssTotal} bg="#28A745" bgDark="#218838" />
-        <StatCard icon={Award}          label="% Inspeções" value={`${pctInsp}%`} subtitle={metaInspTotal} bg="#DC3545" bgDark="#C82333" />
+        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS"       value={totalDss} bg="#007BFF" bgDark="#0069D9" />
+        <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock}          label="Inspeções" value={totalInsp} bg="#FFC107" bgDark="#E0A800" />
+        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={Award}          label="% DSS"     value={`${pctDss}%`} subtitle={metaDssTotal} bg="#28A745" bgDark="#218838" />
+        <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Award}          label="% Inspeções" value={`${pctInsp}%`} subtitle={metaInspTotal} bg="#DC3545" bgDark="#C82333" />
       </div>
 
       {/* ── Charts & Rankings (2/3 + 1/3) ── */}

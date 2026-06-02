@@ -14,7 +14,7 @@ const NAV = [
   { href: '/dashboard',             label: 'Dashboard',   icon: LayoutDashboard },
   { href: '/dashboard/tecnicos',    label: 'Técnicos',    icon: Users            },
   { href: '/dashboard/inspecoes',   label: 'Inspeções',   icon: ClipboardCheck   },
-  { href: '/dashboard/dialogos',    label: 'Diálogos',    icon: MessageSquare    },
+  { href: '/dashboard/dialogos',    label: 'DSS',         icon: MessageSquare    },
   { href: '/dashboard/atividades',  label: 'Atividades',  icon: Activity         },
   { href: '/dashboard/programacao', label: 'Programação', icon: Calendar         },
   { href: '/dashboard/reunioes',    label: 'Reuniões',    icon: CalendarCheck    },

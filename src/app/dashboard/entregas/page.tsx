@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   FileCheck, Calendar, Filter, User, CheckCircle2,
-  AlertTriangle, Clock, Search, PlusCircle, ArrowUpRight, Award, ShieldAlert
+  AlertTriangle, Clock, Search, PlusCircle, Award, ShieldAlert, X, Sparkles
 } from 'lucide-react'
 
 // Dados reais da planilha "GESTÃO DAS ENTREGAS 2026"
@@ -39,15 +39,9 @@ const PERIODS = [
 ]
 
 const TECNICOS = [
-  'ANTONIO CARLOS JUNIOR DIAS',
-  'DANIEL JOSÉ GREGORIO JUNIOR',
-  'DJONATÊ CRUZ DOS SANTOS',
-  'JONAS RODRIGUES PEREIRA',
-  'KARINE NOVAES ASSEM',
-  'LUIS CLAUDIO SOARES',
-  'ROGÉRIO LIMA DA SILVA',
-  'ROSICLEIDE FERNANDES SANTOS DAVINO',
-  'SAMUEL DA SILVA SANTOS',
+  'ANTONIO CARLOS JUNIOR DIAS', 'DANIEL JOSÉ GREGORIO JUNIOR', 'DJONATÊ CRUZ DOS SANTOS',
+  'JONAS RODRIGUES PEREIRA', 'KARINE NOVAES ASSEM', 'LUIS CLAUDIO SOARES',
+  'ROGÉRIO LIMA DA SILVA', 'ROSICLEIDE FERNANDES SANTOS DAVINO', 'SAMUEL DA SILVA SANTOS',
   'DARA AMORIM SILVA DE LIMA'
 ]
 
@@ -57,7 +51,6 @@ export default function EntregasPage() {
   const [selectedType, setSelectedType] = useState('TODOS')
   const [showAddModal, setShowAddModal] = useState(false)
 
-  // Form de Lançamento
   const [form, setForm] = useState({
     tecnico: 'ANTONIO CARLOS JUNIOR DIAS',
     periodo: '23/03/2026 a 27/03/2026',
@@ -72,7 +65,6 @@ export default function EntregasPage() {
     return matchTec && matchType
   })
 
-  // Estatísticas das Entregas
   const total = filtered.length
   const noPrazo = filtered.filter(e => e.status === 'No Prazo').length
   const atrasados = filtered.filter(e => e.status === 'Atrasado').length
@@ -91,173 +83,140 @@ export default function EntregasPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <FileCheck className="text-red-500" /> Controle de Entregas Semanais
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+
+      {/* ── Cabeçalho Padronizado ── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FileCheck color="#e53935" size={22} />
+            Controle de Entregas
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Substitua a planilha de entregas: gerencie relatórios de atividades semanais e registros de KM.
-          </p>
+          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
+            Relatórios e registros da equipe
+          </span>
         </div>
+        
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all duration-200 shadow-lg shadow-red-900/20 active:scale-95"
+          style={{
+            background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+            fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+          }}
         >
-          <PlusCircle size={18} />
-          <span>Lançar Entrega</span>
+          <PlusCircle size={16} />
+          Lançar Entrega
         </button>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Eficiência */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Eficiência de Entregas</span>
-            <Award className="text-emerald-500" size={18} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Eficiência</span>
+            <Award color="#10b981" size={18} />
           </div>
-          <div className="my-3">
-            <span className="text-3xl font-extrabold text-slate-900">{eficiencia}%</span>
-            <span className="text-slate-500 text-xs block mt-1">Entregas feitas no prazo legal</span>
+          <div style={{ margin: '12px 0' }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{eficiencia}%</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Entregas no prazo legal</div>
           </div>
-          <div className="w-full bg-slate-50 rounded-full h-1.5 overflow-hidden">
-            <div className="h-full bg-emerald-500" style={{ width: `${eficiencia}%` }} />
-          </div>
-        </div>
-
-        {/* Total Entregues */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between">
-          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider block">Total Lançado</span>
-          <div className="my-3">
-            <span className="text-3xl font-extrabold text-slate-900">{total}</span>
-            <span className="text-slate-500 text-xs block mt-1">Registros semanais declarados</span>
+          <div style={{ background: '#f1f5f9', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+            <div style={{ background: '#10b981', height: '100%', width: `${eficiencia}%` }} />
           </div>
         </div>
 
-        {/* No Prazo */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Dentro do Prazo</span>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          </div>
-          <div className="my-3">
-            <span className="text-3xl font-extrabold text-emerald-400">{noPrazo}</span>
-            <span className="text-slate-500 text-xs block mt-1">Relatórios / KM em conformidade</span>
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Lançado</span>
+          <div style={{ margin: '12px 0' }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{total}</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Registros semanais</div>
           </div>
         </div>
 
-        {/* Atrasados */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Entregas em Atraso</span>
-            <ShieldAlert className="text-red-500" size={16} />
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Dentro do Prazo</span>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }} />
           </div>
-          <div className="my-3">
-            <span className="text-3xl font-extrabold text-red-400">{atrasados}</span>
-            <span className="text-slate-500 text-xs block mt-1">Requer atenção do gestor</span>
+          <div style={{ margin: '12px 0' }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{noPrazo}</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Relatórios em conformidade</div>
+          </div>
+        </div>
+
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atrasados</span>
+            <ShieldAlert color="#ef4444" size={16} />
+          </div>
+          <div style={{ margin: '12px 0' }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{atrasados}</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Requer atenção do gestor</div>
           </div>
         </div>
       </div>
 
-      {/* Filters Panel */}
-      <div className="bg-white border border-slate-200 p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-wrap gap-3 w-full md:max-w-3xl">
-          {/* Técnico */}
-          <div className="flex-1 min-w-[200px]">
-            <select
-              value={selectedTecnico}
-              onChange={(e) => setSelectedTecnico(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-white focus:outline-none"
-            >
-              <option value="TODOS">Todos os Técnicos</option>
-              {TECNICOS.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Tipo */}
-          <div className="w-[180px]">
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-white focus:outline-none"
-            >
-              <option value="TODOS">Todos os Tipos</option>
-              <option value="Relatório de Atividades">Relatório de Atividades</option>
-              <option value="Registro de KM Inicial/Final">Registro de KM</option>
-            </select>
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 1 }}>
+          <select value={selectedTecnico} onChange={(e) => setSelectedTecnico(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', minWidth: 200 }}>
+            <option value="TODOS">Todos os Técnicos</option>
+            {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', minWidth: 200 }}>
+            <option value="TODOS">Todos os Tipos</option>
+            <option value="Relatório de Atividades">Relatório de Atividades</option>
+            <option value="Registro de KM Inicial/Final">Registro de KM</option>
+          </select>
         </div>
-        <div className="text-xs text-slate-500 shrink-0">
-          Encontradas: <b>{filtered.length}</b> entregas registradas
-        </div>
+        <div style={{ fontSize: 13, color: '#64748b' }}>Encontradas: <b>{filtered.length}</b> entregas</div>
       </div>
 
-      {/* Deliveries Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+      <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/40 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                <th className="py-4 px-6">Período Semanal</th>
-                <th className="py-4 px-6">Técnico</th>
-                <th className="py-4 px-6">Tipo da Entrega</th>
-                <th className="py-4 px-6 text-center">Data/Hora da Entrega</th>
-                <th className="py-4 px-6 text-center">Status</th>
-                <th className="py-4 px-6 text-right">Ação</th>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Período</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Tipo</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Data da Entrega</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ação</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filtered.map((e) => (
-                <tr key={e.id} className="hover:bg-slate-50/20 transition-colors text-sm">
-                  {/* Período */}
-                  <td className="py-4 px-6 font-semibold text-slate-600">
-                    {e.periodo}
-                  </td>
-
-                  {/* Técnico */}
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[9px] text-red-500 border border-slate-200">
+            <tbody>
+              {filtered.map(e => (
+                <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{e.periodo}</td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
                         {e.tecnico.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
-                      <span className="font-semibold text-slate-700">{e.tecnico}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{e.tecnico}</span>
                     </div>
                   </td>
-
-                  {/* Tipo */}
-                  <td className="py-4 px-6 font-medium text-slate-500">
-                    {e.tipo}
-                  </td>
-
-                  {/* Data Entrega */}
-                  <td className="py-4 px-6 text-center font-medium text-slate-600">
-                    {e.dataEntrega || 'Não Entregue'}
-                  </td>
-
-                  {/* Status */}
-                  <td className="py-4 px-6 text-center">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      e.status === 'No Prazo'
-                        ? 'bg-emerald-500/10 text-emerald-400'
-                        : 'bg-red-500/10 text-red-400'
-                    }`}>
-                      {e.status === 'No Prazo' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />}
-                      {e.status}
+                  <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>{e.tipo}</td>
+                  <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, color: '#64748b', fontWeight: 600 }}>{e.dataEntrega || '—'}</td>
+                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: e.status === 'No Prazo' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: e.status === 'No Prazo' ? '#10b981' : '#ef4444' }}>
+                      {e.status === 'No Prazo' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />} {e.status}
                     </span>
                   </td>
-
-                  {/* Ação */}
-                  <td className="py-4 px-6 text-right">
-                    <button
-                      onClick={() => deleteEntrega(e.id)}
-                      className="text-xs text-slate-500 hover:text-red-400 font-semibold px-2 py-1 hover:bg-slate-50/40 rounded transition-colors"
-                      title="Deletar registro"
-                    >
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                    <button onClick={() => deleteEntrega(e.id)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '4px 8px' }}>
                       Remover
                     </button>
                   </td>
@@ -265,8 +224,8 @@ export default function EntregasPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500 text-xs font-medium">
-                    Nenhum registro de entrega encontrado para os filtros selecionados.
+                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', fontSize: 13, color: '#94a3b8' }}>
+                    Nenhuma entrega encontrada.
                   </td>
                 </tr>
               )}
@@ -275,91 +234,58 @@ export default function EntregasPage() {
         </div>
       </div>
 
-      {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowAddModal(false)} />
-          
-          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
-            <h2 className="text-lg font-bold mb-1">Lançar Nova Entrega</h2>
-            <p className="text-slate-500 text-xs mb-5">Informe se o técnico entregou os relatórios/KM no prazo legal.</p>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles color="#e53935" size={20} /> Lançar Nova Entrega
+              </h2>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
 
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Técnico</label>
-                <select
-                  value={form.tecnico}
-                  onChange={(e) => setForm(p => ({ ...p, tecnico: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                >
-                  {TECNICOS.map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Técnico</label>
+                <select value={form.tecnico} onChange={(e) => setForm(p => ({ ...p, tecnico: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                  {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Período Semanal</label>
-                <select
-                  value={form.periodo}
-                  onChange={(e) => setForm(p => ({ ...p, periodo: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                >
-                  {PERIODS.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Período Semanal</label>
+                <select value={form.periodo} onChange={(e) => setForm(p => ({ ...p, periodo: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                  {PERIODS.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tipo da Entrega</label>
-                <select
-                  value={form.tipo}
-                  onChange={(e) => setForm(p => ({ ...p, tipo: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                >
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Tipo da Entrega</label>
+                <select value={form.tipo} onChange={(e) => setForm(p => ({ ...p, tipo: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
                   <option value="Relatório de Atividades">Relatório de Atividades</option>
                   <option value="Registro de KM Inicial/Final">Registro de KM Inicial/Final</option>
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Data/Hora da Entrega</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="DD/MM/AAAA HH:MM"
-                    value={form.dataEntrega}
-                    onChange={(e) => setForm(p => ({ ...p, dataEntrega: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  />
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Data/Hora</label>
+                  <input type="text" required placeholder="DD/MM/AAAA HH:MM" value={form.dataEntrega} onChange={(e) => setForm(p => ({ ...p, dataEntrega: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Status</label>
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm(p => ({ ...p, status: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  >
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Status</label>
+                  <select value={form.status} onChange={(e) => setForm(p => ({ ...p, status: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
                     <option value="No Prazo">No Prazo</option>
                     <option value="Atrasado">Atrasado</option>
                   </select>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-600 font-semibold text-sm transition-colors border border-slate-200"
-                >
+              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all shadow-lg shadow-red-900/20"
-                >
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   Registrar Entrega
                 </button>
               </div>

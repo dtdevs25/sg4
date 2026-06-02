@@ -9,7 +9,7 @@ import {
 // Dados reais compilados da aba "GESTÃO DE DSS - TIME TST SG4"
 const INITIAL_DIALOGOS = [
   { id: '1', nome: 'Antonio Carlos Junior Dias', jan: 8, fev: 8, mar: 8, abr: 8, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '2', nome: 'Daniel José Gregorio Junior', jan: 8, fev: 8, mar: 8, abr: 20, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 }, // Daniel fez 20 em abr na planilha
+  { id: '2', nome: 'Daniel José Gregorio Junior', jan: 8, fev: 8, mar: 8, abr: 20, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
   { id: '3', nome: 'Dara Amorim Silva de Lima', jan: 0, fev: 0, mar: 0, abr: 3, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
   { id: '4', nome: 'Djonatê Cruz dos Santos', jan: 8, fev: 8, mar: 8, abr: 3, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
   { id: '5', nome: 'Jonas Rodrigues Pereira', jan: 9, fev: 8, mar: 8, abr: 3, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
@@ -20,7 +20,7 @@ const INITIAL_DIALOGOS = [
   { id: '10', nome: 'Samuel da Silva Santos', jan: 0, fev: 2, mar: 0, abr: 2, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
 ]
 
-// Lista de temas sugeridos de DSS altamente profissionais
+// Lista de temas sugeridos de DSS
 const SUGGESTED_TOPICS = [
   { id: 't1', tema: 'Uso correto e higienização dos EPIs em campo', categoria: 'EPI' },
   { id: 't2', tema: 'Prevenção de acidentes em trabalhos em altura (NR 35)', categoria: 'NRs' },
@@ -38,7 +38,6 @@ export default function DialogosPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<number>(0)
   
-  // Sugestões de temas criados pelo usuário localmente
   const [topics, setTopics] = useState(SUGGESTED_TOPICS)
   const [newTopic, setNewTopic] = useState('')
   const [newCategory, setNewCategory] = useState('EPI')
@@ -69,45 +68,59 @@ export default function DialogosPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <MessageSquare className="text-red-500" /> Diálogos Diários de Segurança (DSS)
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Acompanhe os DDSs ministrados e gerencie sugestões de temas de conscientização. (Meta: <b>{targetMeta}</b>/mês por técnico)
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+
+      {/* ── Cabeçalho Padronizado ── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <MessageSquare color="#e53935" size={22} />
+            Diálogos de Segurança e Saúde (DSS)
+          </h1>
+          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
+            Acompanhe os DSS ministrados
+          </span>
+        </div>
       </div>
 
-      {/* Meses Selector & Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Month Picker */}
-        <div className="lg:col-span-2 bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between">
-          <span className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-3 block">Selecionar Período</span>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+        
+        {/* Filtro de Meses */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {[
-              { key: 'jan', label: 'Janeiro' },
-              { key: 'fev', label: 'Fevereiro' },
-              { key: 'mar', label: 'Março' },
-              { key: 'abr', label: 'Abril' },
-              { key: 'mai', label: 'Maio' },
-              { key: 'jun', label: 'Junho' },
-              { key: 'jul', label: 'Julho' },
-              { key: 'ago', label: 'Agosto' },
-              { key: 'set', label: 'Setembro' },
-              { key: 'out', label: 'Outubro' },
-              { key: 'nov', label: 'Novembro' },
-              { key: 'dez', label: 'Dezembro' }
+              { key: 'jan', label: 'Janeiro' }, { key: 'fev', label: 'Fevereiro' },
+              { key: 'mar', label: 'Março' }, { key: 'abr', label: 'Abril' },
+              { key: 'mai', label: 'Maio' }, { key: 'jun', label: 'Junho' },
+              { key: 'jul', label: 'Julho' }, { key: 'ago', label: 'Agosto' },
+              { key: 'set', label: 'Setembro' }, { key: 'out', label: 'Outubro' },
+              { key: 'nov', label: 'Novembro' }, { key: 'dez', label: 'Dezembro' }
             ].map(m => (
               <button
                 key={m.key}
                 onClick={() => { setSelectedMonth(m.key as MesKey); setEditingId(null) }}
-                className={`py-2 px-1 rounded-xl text-xs font-bold transition-all ${
-                  selectedMonth === m.key
-                    ? 'bg-red-700 text-white shadow-md shadow-red-900/30'
-                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
-                }`}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  border: selectedMonth === m.key ? '1px solid #e53935' : '1px solid #e2e8f0',
+                  background: selectedMonth === m.key ? '#e53935' : '#f8fafc',
+                  color: selectedMonth === m.key ? '#fff' : '#64748b',
+                }}
               >
                 {m.label}
               </button>
@@ -115,110 +128,91 @@ export default function DialogosPage() {
           </div>
         </div>
 
-        {/* Stats card */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">Atingimento de DSS</span>
-            <span className="text-xs bg-red-500/10 text-red-400 font-semibold px-2 py-0.5 rounded-full uppercase">
+        {/* Card de Estatística */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atingimento de DSS</span>
+            <span style={{ background: 'rgba(229,57,53,0.1)', color: '#e53935', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
               {selectedMonth}
             </span>
           </div>
-          
-          <div className="my-4 flex items-baseline gap-2">
-            <span className="text-4xl font-extrabold text-slate-900">{totalRealizado}</span>
-            <span className="text-slate-500 text-sm">/ {totalMeta} DDS realizados</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: 36, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalRealizado}</span>
+            <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>/ {totalMeta} DSS</span>
           </div>
-
-          <div className="w-full bg-slate-50 rounded-full h-2.5 overflow-hidden border border-slate-200">
-            <div 
-              className="h-full rounded-full bg-gradient-to-r from-red-600 to-amber-500 transition-all duration-500" 
-              style={{ width: `${Math.min(pctRealizado, 100)}%` }}
-            />
+          <div style={{ background: '#f1f5f9', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 8 }}>
+            <div style={{ background: '#e53935', height: '100%', width: `${Math.min(pctRealizado, 100)}%`, transition: 'width 0.3s' }} />
           </div>
-          
-          <div className="flex justify-between text-[11px] text-slate-500 mt-2">
-            <span>Atingimento: <b>{pctRealizado}%</b></span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
+            <span>Atingimento: <b style={{ color: '#1e293b' }}>{pctRealizado}%</b></span>
             <span>Meta: {targetMeta} / técnico</span>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Lançamentos table - col-span 2 */}
-        <div className="xl:col-span-2 space-y-4">
-          <div className="bg-white border border-slate-200 p-4 rounded-2xl flex items-center justify-between">
-            <div className="relative w-full max-w-xs">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+        
+        {/* ── Tabela de Lançamentos ── */}
+        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+            <div style={{ position: 'relative', width: 300 }}>
+              <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
               <input
                 type="text"
                 placeholder="Filtrar por técnico..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-white text-xs focus:border-red-500 focus:outline-none"
+                style={{ wIdth: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
               />
-            </div>
-            <div className="text-xs text-slate-500">
-              Período selecionado: <b className="text-white uppercase">{selectedMonth}</b>
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/40 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                    <th className="py-4 px-5">Técnico</th>
-                    <th className="py-4 px-5 text-center">Meta</th>
-                    <th className="py-4 px-5 text-center">Realizado</th>
-                    <th className="py-4 px-5 text-center">Status</th>
-                    <th className="py-4 px-5 text-right">Lançar</th>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Meta</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Realizado</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {filtered.map((t) => {
+                <tbody>
+                  {filtered.map(t => {
                     const realizado = t[selectedMonth]
                     const isCompleted = realizado >= targetMeta
                     const hasStarted = realizado > 0
 
                     return (
-                      <tr key={t.id} className="hover:bg-slate-50/20 transition-colors text-sm">
-                        <td className="py-4 px-5 font-semibold text-slate-900">{t.nome}</td>
-                        <td className="py-4 px-5 text-center text-slate-500">{targetMeta}</td>
-                        <td className="py-4 px-5 text-center font-bold">
+                      <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</td>
+                        <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>{targetMeta}</td>
+                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                           {editingId === t.id ? (
-                            <input
-                              type="number"
-                              value={editValue}
-                              min={0}
-                              onChange={(e) => setEditValue(Number(e.target.value))}
-                              className="w-14 px-2 py-0.5 rounded bg-slate-50 border border-slate-700 text-center text-white"
-                            />
+                            <input type="number" value={editValue} min={0} onChange={(e) => setEditValue(Number(e.target.value))} style={{ width: 60, padding: 4, borderRadius: 4, border: '1px solid #e2e8f0', textAlign: 'center' }} />
                           ) : (
-                            <span className={isCompleted ? 'text-emerald-400' : hasStarted ? 'text-orange-400' : 'text-slate-500'}>
-                              {realizado}
-                            </span>
+                            <span style={{ fontSize: 14, fontWeight: 800, color: isCompleted ? '#10b981' : hasStarted ? '#f59e0b' : '#64748b' }}>{realizado}</span>
                           )}
                         </td>
-                        <td className="py-4 px-5 text-center">
+                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                           {isCompleted ? (
-                            <span className="text-emerald-400 text-xs font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full">Completo</span>
+                            <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Completo</span>
                           ) : hasStarted ? (
-                            <span className="text-orange-400 text-xs font-bold bg-orange-500/10 px-2 py-0.5 rounded-full">{realizado}/{targetMeta}</span>
+                            <span style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{realizado}/{targetMeta}</span>
                           ) : (
-                            <span className="text-slate-500 text-xs font-bold bg-slate-800 px-2 py-0.5 rounded-full">Aguardando</span>
+                            <span style={{ background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Aguardando</span>
                           )}
                         </td>
-                        <td className="py-4 px-5 text-right">
+                        <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                           {editingId === t.id ? (
-                            <div className="flex justify-end gap-1.5">
-                              <button onClick={() => saveEdit(t.id)} className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">OK</button>
-                              <button onClick={() => setEditingId(null)} className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-500 text-xs font-bold">Cancelar</button>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                              <button onClick={() => saveEdit(t.id)} style={{ padding: '4px 8px', borderRadius: 4, border: 'none', background: '#10b981', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
+                              <button onClick={() => setEditingId(null)} style={{ padding: '4px 8px', borderRadius: 4, border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Cancela</button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => { setEditingId(t.id); setEditValue(realizado) }}
-                              className="text-slate-500 hover:text-slate-900 hover:bg-slate-100 px-2.5 py-1 rounded border border-slate-200 hover:border-slate-700 text-xs font-medium"
-                            >
+                            <button onClick={() => { setEditingId(t.id); setEditValue(realizado) }} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: 'transparent', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                               Editar
                             </button>
                           )}
@@ -232,74 +226,44 @@ export default function DialogosPage() {
           </div>
         </div>
 
-        {/* Sugestões de Temas de DDS */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 h-fit">
-          <div className="border-b border-slate-200 pb-3">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-              <ShieldCheck className="text-red-500" /> Temas Sugeridos para DDS
-            </h2>
-            <p className="text-slate-500 text-xs mt-1">Crie e sugira temas semanais para a equipe ministrar em campo.</p>
-          </div>
-
-          {/* Add topic form */}
-          <form onSubmit={handleAddTopic} className="space-y-3">
-            <div>
-              <input
-                type="text"
-                placeholder="Ex: Prevenção de choques elétricos..."
-                value={newTopic}
-                onChange={(e) => setNewTopic(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-white focus:outline-none focus:border-red-500"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 focus:outline-none"
-              >
+        {/* Sugestões de Temas */}
+        <div style={{ flex: 1, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ShieldCheck color="#e53935" size={20} />
+            Temas Sugeridos para DSS
+          </h2>
+          
+          <form onSubmit={handleAddTopic} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+            <input type="text" placeholder="Ex: Prevenção de choques..." value={newTopic} onChange={e => setNewTopic(e.target.value)} style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select value={newCategory} onChange={e => setNewCategory(e.target.value)} style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff' }}>
                 <option value="EPI">EPI</option>
                 <option value="NRs">NRs</option>
                 <option value="Saúde">Saúde</option>
                 <option value="Procedimento">Procedimento</option>
                 <option value="Emergência">Emergência</option>
               </select>
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-xl bg-red-700 hover:bg-red-600 text-white font-bold text-xs flex items-center gap-1.5 transition-colors"
-              >
-                <Plus size={14} /> Sugerir
+              <button type="submit" style={{ padding: '0 16px', borderRadius: 8, border: 'none', background: '#1e293b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Plus size={14} /> Add
               </button>
             </div>
           </form>
 
-          {/* List of topics */}
-          <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {topics.map(t => (
-              <div key={t.id} className="flex justify-between items-start gap-2 bg-slate-50/60 p-3 rounded-xl border border-slate-200 hover:border-slate-200 transition-colors">
-                <div className="space-y-1">
-                  <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                    t.categoria === 'EPI' ? 'bg-blue-500/10 text-blue-400' :
-                    t.categoria === 'NRs' ? 'bg-purple-500/10 text-purple-400' :
-                    t.categoria === 'Saúde' ? 'bg-emerald-500/10 text-emerald-400' :
-                    t.categoria === 'Emergência' ? 'bg-red-500/10 text-red-400' :
-                    'bg-slate-800 text-slate-500'
-                  }`}>
-                    {t.categoria}
-                  </span>
-                  <p className="text-xs font-semibold text-slate-700 leading-relaxed">{t.tema}</p>
+              <div key={t.id} style={{ padding: 12, borderRadius: 8, border: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: '#e53935', textTransform: 'uppercase' }}>{t.categoria}</span>
+                  <p style={{ margin: '4px 0 0 0', fontSize: 13, fontWeight: 600, color: '#334155', lineHeight: 1.4 }}>{t.tema}</p>
                 </div>
-                <button
-                  onClick={() => handleDeleteTopic(t.id)}
-                  className="text-slate-600 hover:text-red-400 p-1 rounded hover:bg-white/5 transition-colors shrink-0"
-                  title="Excluir sugestão"
-                >
-                  <Trash2 size={13} />
+                <button onClick={() => handleDeleteTopic(t.id)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                  <Trash2 size={14} />
                 </button>
               </div>
             ))}
           </div>
         </div>
+
       </div>
     </div>
   )

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   Calendar as CalendarIcon, Clock, MapPin, User,
-  Plus, CheckCircle2, AlertCircle, Trash2, Search, Filter
+  Plus, CheckCircle2, AlertCircle, Trash2, Search, X
 } from 'lucide-react'
 
 const INITIAL_SCHEDULE = [
@@ -19,15 +19,10 @@ export default function ProgramacaoPage() {
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   
-  // New schedule form
   const [form, setForm] = useState({
     tecnico: 'Antonio Carlos Junior',
-    titulo: '',
-    local: '',
-    data: '',
-    hora: '',
-    status: 'Pendente',
-    prioridade: 'Média'
+    titulo: '', local: '', data: '', hora: '',
+    status: 'Pendente', prioridade: 'Média'
   })
 
   const filtered = schedule.filter(s => 
@@ -44,22 +39,13 @@ export default function ProgramacaoPage() {
     setShowAddModal(false)
     setForm({
       tecnico: 'Antonio Carlos Junior',
-      titulo: '',
-      local: '',
-      data: '',
-      hora: '',
-      status: 'Pendente',
-      prioridade: 'Média'
+      titulo: '', local: '', data: '', hora: '',
+      status: 'Pendente', prioridade: 'Média'
     })
   }
 
   function toggleStatus(id: string) {
-    setSchedule(prev => prev.map(s => {
-      if (s.id === id) {
-        return { ...s, status: s.status === 'Concluído' ? 'Pendente' : 'Concluído' }
-      }
-      return s
-    }))
+    setSchedule(prev => prev.map(s => s.id === id ? { ...s, status: s.status === 'Concluído' ? 'Pendente' : 'Concluído' } : s))
   }
 
   function deleteSchedule(id: string) {
@@ -67,149 +53,134 @@ export default function ProgramacaoPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-            <CalendarIcon className="text-red-500" /> Programação e Agenda do Time
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+
+      {/* ── Cabeçalho Padronizado ── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CalendarIcon color="#e53935" size={22} />
+            Programação e Agenda
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Planejamento de treinamentos, auditorias e inspeções especiais para a equipe de TSTs
-          </p>
+          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
+            Planejamento de treinamentos e inspeções
+          </span>
         </div>
+        
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all duration-200 shadow-lg shadow-red-900/20 active:scale-95"
+          style={{
+            background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+            fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+          }}
         >
-          <Plus size={18} />
-          <span>Agendar Evento</span>
+          <Plus size={16} />
+          Agendar Evento
         </button>
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-slate-200 p-4 rounded-2xl flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="relative w-full md:max-w-md">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+        <div style={{ position: 'relative', width: 300 }}>
+          <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
           <input
             type="text"
-            placeholder="Buscar por título do evento, técnico ou local..."
+            placeholder="Buscar evento, técnico, local..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-white text-xs focus:outline-none focus:border-red-500"
+            style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
           />
         </div>
-        <div className="text-xs text-slate-500">
-          Total agendado: <b>{filtered.length}</b> compromissos
-        </div>
+        <div style={{ fontSize: 13, color: '#64748b' }}>Total agendado: <b>{filtered.length}</b> compromissos</div>
       </div>
 
-      {/* Grid containing Schedule Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {filtered.map((item) => (
-          <div
-            key={item.id}
-            className={`group bg-white border rounded-2xl p-5 flex flex-col justify-between transition-all hover:border-slate-700 hover:shadow-xl ${
-              item.status === 'Concluído' ? 'border-slate-200 opacity-75' : 'border-slate-200'
-            }`}
-          >
-            <div className="space-y-4">
-              {/* Prioridade & Status */}
-              <div className="flex justify-between items-center">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                  item.prioridade === 'Alta' ? 'bg-red-500/10 text-red-400' :
-                  item.prioridade === 'Média' ? 'bg-orange-500/10 text-orange-400' :
-                  'bg-blue-500/10 text-blue-400'
-                }`}>
-                  {item.prioridade} prioridade
-                </span>
-                <button
-                  onClick={() => toggleStatus(item.id)}
-                  className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full transition-colors ${
-                    item.status === 'Concluído'
-                      ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                      : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
-                  }`}
-                >
-                  {item.status}
-                </button>
-              </div>
-
-              {/* Título */}
-              <h3 className="font-bold text-slate-900 group-hover:text-red-400 transition-colors leading-snug">
-                {item.titulo}
-              </h3>
-
-              {/* Informações de Tempo e Local */}
-              <div className="space-y-2 border-t border-slate-200 pt-3 text-xs text-slate-500">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon size={14} className="text-slate-500" />
-                  <span>Data: <b>{item.data}</b> às <b>{item.hora}</b></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin size={14} className="text-slate-500" />
-                  <span className="truncate">{item.local}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <User size={14} className="text-slate-500" />
-                  <span className="font-medium text-slate-600">Técnico: {item.tecnico}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Ações */}
-            <div className="flex gap-2 mt-5 border-t border-slate-200 pt-3">
-              <button
-                onClick={() => toggleStatus(item.id)}
-                className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                  item.status === 'Concluído'
-                    ? 'border-slate-200 bg-slate-100 text-slate-500'
-                    : 'border-emerald-950/40 text-emerald-400 bg-emerald-950/10 hover:bg-emerald-950/20'
-                }`}
-              >
-                {item.status === 'Concluído' ? 'Desmarcar Concluído' : 'Marcar Concluído'}
-              </button>
-              <button
-                onClick={() => deleteSchedule(item.id)}
-                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-red-950/30 hover:text-red-400 border border-slate-200 transition-colors"
-                title="Excluir agendamento"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          </div>
-        ))}
+      {/* Tabela de Programação */}
+      <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data / Hora</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Título do Evento</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Local</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status / Prioridade</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(item => (
+                <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: item.status === 'Concluído' ? 0.6 : 1 }}>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 6 }}><CalendarIcon size={14} /> {item.data}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}><Clock size={12} /> {item.hora}</div>
+                  </td>
+                  <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155', maxWidth: 250, lineHeight: 1.4 }}>
+                    {item.titulo}
+                  </td>
+                  <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <MapPin size={14} color="#94a3b8" /> {item.local}
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                        {item.tecnico.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{item.tecnico}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+                      <button onClick={() => toggleStatus(item.id)} style={{ padding: '4px 8px', borderRadius: 12, border: 'none', background: item.status === 'Concluído' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: item.status === 'Concluído' ? '#10b981' : '#f59e0b', fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {item.status === 'Concluído' ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />} {item.status}
+                      </button>
+                      <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: item.prioridade === 'Alta' ? '#e53935' : item.prioridade === 'Média' ? '#f59e0b' : '#3b82f6' }}>
+                        Pri: {item.prioridade}
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                    <button onClick={() => deleteSchedule(item.id)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowAddModal(false)} />
-          
-          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
-            <h2 className="text-lg font-bold mb-1">Agendar Novo Evento</h2>
-            <p className="text-slate-500 text-xs mb-5">Planeje uma atividade para a equipe técnica.</p>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>Agendar Novo Evento</h2>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
 
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Título do Evento</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Treinamento NR-10 Basico"
-                  value={form.titulo}
-                  onChange={(e) => setForm(p => ({ ...p, titulo: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                />
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Título do Evento</label>
+                <input type="text" required value={form.titulo} onChange={(e) => setForm(p => ({ ...p, titulo: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Técnico Encarregado</label>
-                <select
-                  value={form.tecnico}
-                  onChange={(e) => setForm(p => ({ ...p, tecnico: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                >
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Técnico Encarregado</label>
+                <select value={form.tecnico} onChange={(e) => setForm(p => ({ ...p, tecnico: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
                   <option value="Antonio Carlos Junior">Antonio Carlos Junior</option>
                   <option value="Daniel José Gregorio">Daniel José Gregorio</option>
                   <option value="Dara Amorim Silva">Dara Amorim Silva</option>
@@ -221,68 +192,37 @@ export default function ProgramacaoPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Data</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="DD/MM/AAAA"
-                    value={form.data}
-                    onChange={(e) => setForm(p => ({ ...p, data: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  />
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Data</label>
+                  <input type="text" required placeholder="DD/MM/AAAA" value={form.data} onChange={(e) => setForm(p => ({ ...p, data: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Hora</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="HH:MM"
-                    value={form.hora}
-                    onChange={(e) => setForm(p => ({ ...p, hora: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                  />
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Hora</label>
+                  <input type="text" required placeholder="HH:MM" value={form.hora} onChange={(e) => setForm(p => ({ ...p, hora: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Local / Planta</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Refinaria Leste - Setor Elétrico"
-                  value={form.local}
-                  onChange={(e) => setForm(p => ({ ...p, local: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Local / Planta</label>
+                  <input type="text" required value={form.local} onChange={(e) => setForm(p => ({ ...p, local: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Prioridade</label>
+                  <select value={form.prioridade} onChange={(e) => setForm(p => ({ ...p, prioridade: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                    <option value="Alta">Alta</option>
+                    <option value="Média">Média</option>
+                    <option value="Baixa">Baixa</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Prioridade</label>
-                <select
-                  value={form.prioridade}
-                  onChange={(e) => setForm(p => ({ ...p, prioridade: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:border-red-500 focus:outline-none"
-                >
-                  <option value="Alta">Alta</option>
-                  <option value="Média">Média</option>
-                  <option value="Baixa">Baixa</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-100 text-slate-600 font-semibold text-sm transition-colors border border-slate-200"
-                >
+              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-semibold text-sm transition-all shadow-lg shadow-red-900/20"
-                >
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   Agendar Evento
                 </button>
               </div>
