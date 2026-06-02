@@ -3,11 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import {
   LayoutDashboard, Users, ClipboardCheck, MessageSquare,
   Activity, Calendar, CalendarCheck, FileCheck,
-  ChevronLeft, ChevronRight, Menu, X, LogOut, User as UserIcon,
+  ChevronLeft, ChevronRight, Menu, X, User as UserIcon,
 } from 'lucide-react'
 
 const NAV = [
@@ -21,6 +21,10 @@ const NAV = [
   { href: '/dashboard/entregas',    label: 'Entregas',    icon: FileCheck        },
 ]
 
+const RED      = '#e53935'
+const RED_BG   = 'rgba(229,57,53,0.08)'
+const GRAY_TXT = '#64748b'
+
 function getInitials(name?: string | null) {
   if (!name) return '?'
   const parts = name.trim().split(' ')
@@ -29,15 +33,11 @@ function getInitials(name?: string | null) {
     : name.slice(0, 2).toUpperCase()
 }
 
-interface NavItemProps {
-  href: string
-  label: string
-  icon: React.ElementType
-  collapsed: boolean
-  onClose?: () => void
-}
-
-function NavItem({ href, label, icon: Icon, collapsed, onClose }: NavItemProps) {
+/* ── Nav item ─────────────────────────────────────────────────────────────── */
+function NavItem({ href, label, icon: Icon, collapsed, onClose }: {
+  href: string; label: string; icon: React.ElementType
+  collapsed: boolean; onClose?: () => void
+}) {
   const pathname = usePathname()
   const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
 
@@ -46,58 +46,144 @@ function NavItem({ href, label, icon: Icon, collapsed, onClose }: NavItemProps) 
       href={href}
       onClick={onClose}
       title={collapsed ? label : undefined}
-      style={{ textDecoration: 'none' }}
-      className={[
-        'flex items-center w-full p-3 rounded-xl transition-all duration-200 group relative',
-        collapsed ? 'justify-center' : 'gap-3',
-        active
-          ? 'bg-black/20 text-white font-bold'
-          : 'text-white/80 hover:bg-black/10 hover:text-white',
-      ].join(' ')}
+      style={{ textDecoration: 'none', display: 'block' }}
     >
-      {/* Accent bar */}
-      <div className={[
-        'absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300',
-        active ? 'h-3/4 bg-white' : 'h-0',
-      ].join(' ')} />
+      <div style={{
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        gap: collapsed ? 0 : 14,
+        justifyContent: collapsed ? 'center' : 'flex-start',
+        padding: collapsed ? '14px 0' : '13px 16px',
+        borderRadius: 12,
+        background: active ? RED_BG : 'transparent',
+        cursor: 'pointer',
+        transition: 'background .15s',
+        marginBottom: 2,
+      }}>
+        {/* Accent bar */}
+        {active && !collapsed && (
+          <span style={{
+            position: 'absolute', left: 0, top: '15%', bottom: '15%',
+            width: 3, background: RED, borderRadius: '0 4px 4px 0',
+          }} />
+        )}
 
-      <Icon
-        size={20}
-        className={active ? 'text-white shrink-0' : 'text-white/60 group-hover:text-white shrink-0'}
-      />
+        {/* Icon */}
+        <Icon
+          size={22}
+          strokeWidth={active ? 2.5 : 1.8}
+          style={{ color: active ? RED : GRAY_TXT, flexShrink: 0 }}
+        />
 
-      {!collapsed && (
-        <span className="text-sm tracking-wide flex-1 text-left truncate">{label}</span>
-      )}
+        {/* Label */}
+        {!collapsed && (
+          <span style={{
+            fontSize: 14,
+            fontWeight: active ? 700 : 500,
+            color: active ? RED : GRAY_TXT,
+            letterSpacing: 0.1,
+            flex: 1,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {label}
+          </span>
+        )}
 
-      {/* Tooltip collapsed */}
-      {collapsed && (
-        <span className="
-          absolute left-full ml-4 px-3 py-2 rounded-xl
-          bg-slate-800 text-white text-xs font-semibold
-          whitespace-nowrap pointer-events-none z-50
-          opacity-0 group-hover:opacity-100
-          translate-x-2 group-hover:translate-x-0
-          transition-all duration-200 shadow-xl
-        ">
-          {label}
-        </span>
-      )}
+        {/* Tooltip when collapsed */}
+        {collapsed && (
+          <span style={{
+            position: 'absolute', left: '110%', top: '50%', transform: 'translateY(-50%)',
+            background: '#1e293b', color: '#fff', fontSize: 12, fontWeight: 600,
+            padding: '6px 12px', borderRadius: 8, whiteSpace: 'nowrap',
+            pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            opacity: 0,
+            /* CSS hover trick doesn't work inline; handled via group CSS class below */
+          }} className="nav-tooltip">
+            {label}
+          </span>
+        )}
+      </div>
     </Link>
   )
 }
 
-export function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+/* ── User profile (sem botão de sair) ─────────────────────────────────────── */
+function UserProfile({ collapsed, name, role, initials }: {
+  collapsed: boolean; name: string; role: string; initials: string
+}) {
+  if (collapsed) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%',
+          background: `linear-gradient(135deg, ${RED}, #c62828)`,
+          color: '#fff', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', fontSize: 13, fontWeight: 800,
+          boxShadow: `0 4px 12px rgba(229,57,53,0.3)`,
+        }}>
+          {initials}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      margin: '0 12px 12px',
+      padding: 14,
+      borderRadius: 12,
+      background: 'linear-gradient(135deg, #fff5f5, #fee2e2)',
+      border: '1px solid rgba(229,57,53,0.15)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+          background: `linear-gradient(135deg, ${RED}, #c62828)`,
+          color: '#fff', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', fontSize: 13, fontWeight: 800,
+          boxShadow: `0 4px 12px rgba(229,57,53,0.25)`,
+        }}>
+          {initials}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>
+            {name}
+          </p>
+          <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>
+            {role}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Sidebar content ──────────────────────────────────────────────────────── */
+function SidebarContent({ collapsed, isMobile = false, onClose }: {
+  collapsed: boolean; isMobile?: boolean; onClose?: () => void
+}) {
   const { data: session } = useSession()
+  const name     = session?.user?.name || 'Usuário SG4'
+  const role     = (session?.user as any)?.role || 'Técnico'
+  const initials = getInitials(session?.user?.name)
 
-  const userName = session?.user?.name || 'Usuário SG4'
-  const userRole = (session?.user as any)?.role || 'Técnico'
-
-  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
+  return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <nav style={{ flex: 1, padding: '2rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
+      {/* Label "Navegação" */}
+      {!collapsed && !isMobile && (
+        <div style={{ padding: '20px 20px 8px' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 2 }}>
+            Navegação
+          </span>
+        </div>
+      )}
+      {(collapsed || isMobile) && <div style={{ height: 20 }} />}
+
+      {/* Nav items */}
+      <nav style={{ flex: 1, padding: collapsed ? '0 10px' : '0 12px', overflowY: 'auto' }}>
         {NAV.map(item => (
           <NavItem
             key={item.href}
@@ -105,91 +191,72 @@ export function Sidebar() {
             label={item.label}
             icon={item.icon}
             collapsed={collapsed && !isMobile}
-            onClose={isMobile ? () => setMobileOpen(false) : undefined}
+            onClose={onClose}
           />
         ))}
       </nav>
 
-      {/* User profile na base */}
-      <div style={{ padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '0.5rem',
-          flexDirection: collapsed && !isMobile ? 'column' : 'row',
-        }}>
-          <div style={{ position: 'relative', flexShrink: 0 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.1)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <UserIcon size={16} color="rgba(255,255,255,0.6)" />
-            </div>
-            <div style={{
-              position: 'absolute', bottom: 0, right: 0,
-              width: 10, height: 10, background: '#34d399',
-              borderRadius: '50%', border: '2px solid #27AE60',
-            }} />
-          </div>
+      {/* Divider */}
+      <div style={{ height: 1, background: '#f1f5f9', margin: '0 16px 8px' }} />
 
-          {(!collapsed || isMobile) && (
-            <>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ color: '#fff', fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {userName}
-                </p>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>
-                  {userRole}
-                </p>
-              </div>
-              <button
-                onClick={() => signOut({ callbackUrl: '/login' })}
-                title="Sair"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: 'rgba(255,255,255,0.5)', flexShrink: 0 }}
-              >
-                <LogOut size={14} />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+      {/* User profile */}
+      <UserProfile
+        collapsed={collapsed && !isMobile}
+        name={name}
+        role={role}
+        initials={initials}
+      />
     </div>
   )
+}
+
+/* ── Main export ─────────────────────────────────────────────────────────── */
+export function Sidebar() {
+  const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
     <>
+      {/* Tooltip CSS */}
+      <style>{`
+        .nav-item-wrap:hover .nav-tooltip { opacity: 1 !important; }
+      `}</style>
+
       {/* Mobile toggle */}
       <button
         className="md:hidden"
         style={{
           position: 'fixed', top: 24, left: 16, zIndex: 200,
           background: 'none', border: 'none', cursor: 'pointer',
-          color: '#64748b', padding: 6, borderRadius: 8,
+          color: '#94a3b8', padding: 6, borderRadius: 8,
         }}
         onClick={() => setMobileOpen(p => !p)}
       >
         {mobileOpen ? <X size={22} /> : <Menu size={22} />}
       </button>
 
-      {/* Mobile overlay */}
+      {/* Mobile drawer */}
       {mobileOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 150, backdropFilter: 'blur(4px)' }}
           className="md:hidden"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 150, backdropFilter: 'blur(4px)' }}
           onClick={() => setMobileOpen(false)}
         >
           <aside
-            style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: 288, background: '#27AE60', display: 'flex', flexDirection: 'column', boxShadow: '4px 0 24px rgba(0,0,0,0.2)' }}
+            style={{
+              position: 'absolute', left: 0, top: 0, height: '100%', width: 288,
+              background: '#fff', display: 'flex', flexDirection: 'column',
+              boxShadow: '4px 0 24px rgba(0,0,0,0.15)',
+              borderRight: '1px solid #f1f5f9',
+            }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setMobileOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 8, cursor: 'pointer', color: '#fff' }}>
+            <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid #f1f5f9' }}>
+              <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', borderRadius: 10, padding: 8, cursor: 'pointer', color: '#94a3b8' }}>
                 <X size={20} />
               </button>
             </div>
-            <SidebarContent isMobile />
+            <SidebarContent collapsed={false} isMobile onClose={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
@@ -198,31 +265,32 @@ export function Sidebar() {
       <aside
         className="hidden md:flex flex-col"
         style={{
-          background: '#27AE60',
-          width: collapsed ? 80 : 288,
-          transition: 'width 0.4s ease',
+          background: '#ffffff',
+          width: collapsed ? 76 : 272,
+          transition: 'width 0.35s ease',
           flexShrink: 0,
           position: 'relative',
-          boxShadow: '2px 0 12px rgba(0,0,0,0.1)',
+          borderRight: '1px solid #f1f5f9',
+          boxShadow: '2px 0 8px rgba(0,0,0,0.04)',
         }}
       >
-        {/* Collapse button */}
-        <div style={{ position: 'absolute', right: -12, top: 40, zIndex: 10 }}>
+        {/* Collapse toggle */}
+        <div style={{ position: 'absolute', right: -12, top: 44, zIndex: 10 }}>
           <button
             onClick={() => setCollapsed(!collapsed)}
             style={{
               width: 24, height: 24, borderRadius: '50%',
               background: '#fff', border: '1px solid #e2e8f0',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', color: '#27AE60',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+              cursor: 'pointer', color: RED,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             }}
           >
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
           </button>
         </div>
 
-        <SidebarContent />
+        <SidebarContent collapsed={collapsed} />
       </aside>
     </>
   )
