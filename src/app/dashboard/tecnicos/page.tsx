@@ -133,7 +133,7 @@ export default function TecnicosPage() {
             placeholder="Buscar técnico, e-mail ou cargo..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ wIdth: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
+            style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
           />
         </div>
         <div style={{ fontSize: 13, color: '#64748b' }}>
