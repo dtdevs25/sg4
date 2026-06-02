@@ -292,7 +292,7 @@ export default function DashboardPage() {
         <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <ChartCard icon={FileText} title="Desempenho por Técnico" style={{ height: 500 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50 }} onClick={(data) => {
+              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50 }} onClick={(data: any) => {
                 if (data && data.activePayload && data.activePayload.length > 0) {
                   setModalData(data.activePayload[0].payload)
                 }
