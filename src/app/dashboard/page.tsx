@@ -281,8 +281,8 @@ export default function DashboardPage() {
 
       {/* ── 4 Stat cards ── */}
       <div style={{ display: 'flex', gap: 20 }}>
-        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS"       value={totalDss} bg="#007BFF" bgDark="#0069D9" />
-        <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock}          label="Inspeções" value={totalInsp} bg="#FFC107" bgDark="#E0A800" />
+        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS"       value={totalDss} bg="#e53935" bgDark="#c62828" />
+        <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock}          label="Inspeções" value={totalInsp} bg="#8e44ad" bgDark="#732d91" />
         <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={Award}          label="% DSS"     value={`${pctDss}%`} subtitle={metaDssTotal} bg="#28A745" bgDark="#218838" />
         <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Award}          label="% Inspeções" value={`${pctInsp}%`} subtitle={metaInspTotal} bg="#DC3545" bgDark="#C82333" />
       </div>
