@@ -10,12 +10,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <SessionProvider session={session}>
-      <div className="flex flex-col h-screen bg-gray-50 text-slate-900 overflow-hidden">
+      <div className="min-h-screen bg-[#F8FAFC] font-sans">
+        {/* Fixed full-width header */}
         <Header />
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+
+        {/* Body: sidebar + main, offset by header height */}
+        <div className="flex pt-20 h-screen overflow-hidden">
           <Sidebar />
-          <main className="flex-1 overflow-y-auto p-8 bg-gray-50">
-            {children}
+          <main className="flex-1 overflow-y-auto bg-[#F8FAFC] scrollbar-hide">
+            <div className="p-4 md:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+              {children}
+            </div>
           </main>
         </div>
       </div>
