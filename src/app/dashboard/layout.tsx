@@ -10,15 +10,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <SessionProvider session={session}>
-      <div className="min-h-screen bg-[#F8FAFC] font-sans">
-        {/* Fixed full-width header */}
+      {/* Wrapper que ocupa toda a tela */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#F8FAFC' }}>
+
+        {/* Header fixo — fica por cima de tudo */}
         <Header />
 
-        {/* Body: sidebar + main, offset by header height */}
-        <div className="flex pt-20 h-screen overflow-hidden">
+        {/* Área abaixo do header: sidebar + conteúdo */}
+        <div style={{ display: 'flex', flex: 1, marginTop: 80, overflow: 'hidden' }}>
           <Sidebar />
-          <main className="flex-1 overflow-y-auto bg-[#F8FAFC] scrollbar-hide">
-            <div className="p-4 md:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <main style={{ flex: 1, overflowY: 'auto', background: '#F8FAFC' }}>
+            <div style={{ padding: '2rem', maxWidth: 1600, margin: '0 auto' }}>
               {children}
             </div>
           </main>

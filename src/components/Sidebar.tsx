@@ -21,10 +21,6 @@ const NAV = [
   { href: '/dashboard/entregas',    label: 'Entregas',    icon: FileCheck        },
 ]
 
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ')
-}
-
 function getInitials(name?: string | null) {
   if (!name) return '?'
   const parts = name.trim().split(' ')
@@ -50,30 +46,31 @@ function NavItem({ href, label, icon: Icon, collapsed, onClose }: NavItemProps) 
       href={href}
       onClick={onClose}
       title={collapsed ? label : undefined}
-      className={cn(
+      style={{ textDecoration: 'none' }}
+      className={[
         'flex items-center w-full p-3 rounded-xl transition-all duration-200 group relative',
         collapsed ? 'justify-center' : 'gap-3',
         active
-          ? 'bg-black/20 text-white font-bold shadow-inner'
+          ? 'bg-black/20 text-white font-bold'
           : 'text-white/80 hover:bg-black/10 hover:text-white',
-      )}
+      ].join(' ')}
     >
-      {/* Left accent bar */}
-      <div className={cn(
+      {/* Accent bar */}
+      <div className={[
         'absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300',
-        active ? 'h-3/4 bg-white' : 'h-0 bg-transparent'
-      )} />
+        active ? 'h-3/4 bg-white' : 'h-0',
+      ].join(' ')} />
 
-      <Icon className={cn(
-        'h-5 w-5 shrink-0 transition-colors',
-        active ? 'text-white' : 'text-white/60 group-hover:text-white'
-      )} />
+      <Icon
+        size={20}
+        className={active ? 'text-white shrink-0' : 'text-white/60 group-hover:text-white shrink-0'}
+      />
 
       {!collapsed && (
         <span className="text-sm tracking-wide flex-1 text-left truncate">{label}</span>
       )}
 
-      {/* Tooltip when collapsed */}
+      {/* Tooltip collapsed */}
       {collapsed && (
         <span className="
           absolute left-full ml-4 px-3 py-2 rounded-xl
@@ -92,18 +89,15 @@ function NavItem({ href, label, icon: Icon, collapsed, onClose }: NavItemProps) 
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
-  const [mobileOpen, setMobileOpen]   = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const { data: session } = useSession()
 
   const userName = session?.user?.name || 'Usuário SG4'
   const userRole = (session?.user as any)?.role || 'Técnico'
-  const initials = getInitials(session?.user?.name)
 
-  /* ── Sidebar content (shared between desktop & mobile) ── */
   const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <div className="flex flex-col h-full">
-      {/* Nav */}
-      <nav className="flex-1 px-4 py-8 space-y-1 overflow-y-auto scrollbar-hide">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <nav style={{ flex: 1, padding: '2rem 1rem 1rem', display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' }}>
         {NAV.map(item => (
           <NavItem
             key={item.href}
@@ -116,34 +110,48 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* User Profile at bottom */}
-      <div className="mt-auto p-3">
-        <div className={cn(
-          'flex items-center gap-3 p-2 transition-all duration-300',
-          collapsed && !isMobile && 'flex-col text-center'
-        )}>
-          <div className="relative shrink-0">
-            <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
-              <UserIcon className="h-4 w-4 text-white/60" />
+      {/* User profile na base */}
+      <div style={{ padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '0.5rem',
+          flexDirection: collapsed && !isMobile ? 'column' : 'row',
+        }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <UserIcon size={16} color="rgba(255,255,255,0.6)" />
             </div>
-            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#27AE60] rounded-full" />
+            <div style={{
+              position: 'absolute', bottom: 0, right: 0,
+              width: 10, height: 10, background: '#34d399',
+              borderRadius: '50%', border: '2px solid #27AE60',
+            }} />
           </div>
 
           {(!collapsed || isMobile) && (
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-medium text-xs truncate">{userName}</p>
-              <p className="text-white/60 text-[9px] uppercase tracking-wider mt-0.5">{userRole}</p>
-            </div>
-          )}
-
-          {(!collapsed || isMobile) && (
-            <button
-              onClick={() => signOut({ callbackUrl: '/login' })}
-              title="Sair"
-              className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
+            <>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ color: '#fff', fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {userName}
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 9, textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 }}>
+                  {userRole}
+                </p>
+              </div>
+              <button
+                onClick={() => signOut({ callbackUrl: '/login' })}
+                title="Sair"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: 'rgba(255,255,255,0.5)', flexShrink: 0 }}
+              >
+                <LogOut size={14} />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -152,31 +160,33 @@ export function Sidebar() {
 
   return (
     <>
-      {/* ── Mobile trigger ──────────────────────────────── */}
+      {/* Mobile toggle */}
       <button
-        className="md:hidden fixed top-5 left-4 z-50 text-gray-500 hover:bg-gray-100 p-1.5 rounded-lg active:scale-95 transition-all"
+        className="md:hidden"
+        style={{
+          position: 'fixed', top: 24, left: 16, zIndex: 200,
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: '#64748b', padding: 6, borderRadius: 8,
+        }}
         onClick={() => setMobileOpen(p => !p)}
-        aria-label="Menu"
       >
         {mobileOpen ? <X size={22} /> : <Menu size={22} />}
       </button>
 
-      {/* ── Mobile overlay + drawer ─────────────────────── */}
+      {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm animate-in fade-in duration-300"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 150, backdropFilter: 'blur(4px)' }}
+          className="md:hidden"
           onClick={() => setMobileOpen(false)}
         >
           <aside
-            className="bg-[#27AE60] absolute left-0 top-0 h-full w-72 shadow-2xl flex flex-col"
+            style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: 288, background: '#27AE60', display: 'flex', flexDirection: 'column', boxShadow: '4px 0 24px rgba(0,0,0,0.2)' }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-4 flex justify-end">
-              <button
-                onClick={() => setMobileOpen(false)}
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
-              >
-                <X className="h-6 w-6" />
+            <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setMobileOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, padding: 8, cursor: 'pointer', color: '#fff' }}>
+                <X size={20} />
               </button>
             </div>
             <SidebarContent isMobile />
@@ -184,21 +194,31 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* ── Desktop sidebar ─────────────────────────────── */}
-      <aside className={cn(
-        'bg-[#27AE60] transition-all duration-500 ease-in-out hidden md:flex flex-col relative z-40 shadow-xl shrink-0',
-        collapsed ? 'w-20' : 'w-72'
-      )}>
-        {/* Collapse toggle button */}
-        <div className="absolute -right-3 top-10 z-50">
+      {/* Desktop sidebar */}
+      <aside
+        className="hidden md:flex flex-col"
+        style={{
+          background: '#27AE60',
+          width: collapsed ? 80 : 288,
+          transition: 'width 0.4s ease',
+          flexShrink: 0,
+          position: 'relative',
+          boxShadow: '2px 0 12px rgba(0,0,0,0.1)',
+        }}
+      >
+        {/* Collapse button */}
+        <div style={{ position: 'absolute', right: -12, top: 40, zIndex: 10 }}>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="w-6 h-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-[#27AE60] shadow-md hover:scale-110 transition-transform"
+            style={{
+              width: 24, height: 24, borderRadius: '50%',
+              background: '#fff', border: '1px solid #e2e8f0',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#27AE60',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            }}
           >
-            {collapsed
-              ? <ChevronRight className="h-4 w-4" />
-              : <ChevronLeft  className="h-4 w-4" />
-            }
+            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         </div>
 

@@ -9,51 +9,64 @@ export function Header() {
   const [showNotifications, setShowNotifications] = useState(false)
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-20 bg-white border-b border-gray-100 z-30 px-4 md:px-8 flex items-center justify-between shadow-sm">
-      {/* Left: Logo */}
-      <div className="flex items-center gap-4 pl-2">
+    <header style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0,
+      height: 80,
+      background: '#ffffff',
+      borderBottom: '1px solid #f1f5f9',
+      zIndex: 100,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '0 2rem',
+      boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    }}>
+      {/* Logo */}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
         <img
           src="/logo.png"
           alt="SG4"
-          className="h-10 md:h-12 w-auto object-contain transition-transform hover:scale-105 cursor-pointer"
+          style={{ height: 48, width: 'auto', objectFit: 'contain' }}
         />
       </div>
 
-      {/* Right: Notifications & Logout */}
-      <div className="flex items-center gap-2 md:gap-4">
-        {/* Bell */}
-        <div className="relative">
+      {/* Ações direita */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
+        {/* Sino */}
+        <div style={{ position: 'relative' }}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2.5 text-gray-400 hover:text-[#27AE60] hover:bg-green-50 rounded-xl transition-all duration-300"
+            style={{
+              padding: 10, border: 'none', background: 'transparent',
+              cursor: 'pointer', borderRadius: 12, color: '#94a3b8',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all .2s',
+            }}
           >
-            <Bell className="h-6 w-6" />
+            <Bell size={24} />
           </button>
 
           {showNotifications && (
             <>
               <div
-                className="fixed inset-0 z-40"
+                style={{ position: 'fixed', inset: 0, zIndex: 200 }}
                 onClick={() => setShowNotifications(false)}
               />
-              <div className="
-                fixed z-50 animate-in fade-in duration-200
-                top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-                w-[calc(100vw-3rem)] max-w-[360px]
-                md:absolute md:top-auto md:left-auto md:translate-x-0 md:translate-y-0
-                md:right-0 md:mt-2 md:w-80 md:max-w-[320px]
-                bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden
-              ">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-gray-700">Notificações</h3>
-                  <button
-                    onClick={() => setShowNotifications(false)}
-                    className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
-                  >
-                    <X className="h-4 w-4 text-gray-500" />
+              <div style={{
+                position: 'absolute', top: '110%', right: 0,
+                width: 300, background: '#fff',
+                borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                border: '1px solid #f1f5f9', overflow: 'hidden', zIndex: 300,
+              }}>
+                <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Notificações</span>
+                  <button onClick={() => setShowNotifications(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+                    <X size={16} />
                   </button>
                 </div>
-                <div className="p-6 text-center text-gray-400 text-sm">
+                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
                   Nenhuma notificação no momento.
                 </div>
               </div>
@@ -61,15 +74,20 @@ export function Header() {
           )}
         </div>
 
-        <div className="h-8 w-[1px] bg-gray-100 mx-1" />
+        {/* Divisor */}
+        <div style={{ width: 1, height: 28, background: '#f1f5f9', margin: '0 4px' }} />
 
         {/* Logout */}
         <button
           onClick={() => signOut({ callbackUrl: '/login' })}
           title="Sair do Sistema"
-          className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-300 group"
+          style={{
+            padding: 10, border: 'none', background: 'transparent',
+            cursor: 'pointer', borderRadius: 12, color: '#94a3b8',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
         >
-          <LogOut className="h-6 w-6 group-hover:scale-110 transition-transform" />
+          <LogOut size={24} />
         </button>
       </div>
     </header>
