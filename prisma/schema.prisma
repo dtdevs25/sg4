@@ -84,6 +84,8 @@ model Tecnico {
   user        User?        @relation(fields: [userId], references: [id])
   atividades  Atividade[]
   programacoes Programacao[]
+  reunioes    Reuniao[]
+  entregas    Entrega[]
 
   @@map("tecnicos")
 }
@@ -164,3 +166,69 @@ enum StatusProgramacao {
   CONCLUIDO
   CANCELADO
 }
+
+// ─── REUNIÕES ───────────────────────────────────────────────────────────────
+
+model Reuniao {
+  id           String   @id @default(cuid())
+  tecnicoId    String
+  data         DateTime
+  presenca     PresencaReuniao @default(PRESENTE)
+  pontualidade PontualidadeReuniao @default(PONTUAL)
+  justificada  JustificativaReuniao @default(NAO_SE_APLICA)
+  motivo       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tecnico      Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+
+  @@index([tecnicoId])
+  @@index([data])
+  @@map("reunioes")
+}
+
+enum PresencaReuniao {
+  PRESENTE
+  AUSENTE
+}
+
+enum PontualidadeReuniao {
+  PONTUAL
+  ATRASADO
+  NAO_SE_APLICA
+}
+
+enum JustificativaReuniao {
+  SIM
+  NAO
+  NAO_SE_APLICA
+}
+
+// ─── ENTREGAS ───────────────────────────────────────────────────────────────
+
+model Entrega {
+  id          String   @id @default(cuid())
+  tecnicoId   String
+  periodo     String
+  tipo        TipoEntrega
+  dataEntrega DateTime?
+  status      StatusEntrega @default(NO_PRAZO)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tecnico     Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+
+  @@index([tecnicoId])
+  @@map("entregas")
+}
+
+enum TipoEntrega {
+  RELATORIO_ATIVIDADES
+  REGISTRO_KM
+}
+
+enum StatusEntrega {
+  NO_PRAZO
+  ATRASADO
+}
+
