@@ -174,7 +174,7 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
       <div style={{ height: 16 }} />
 
       {/* Nav items */}
-      <nav style={{ flex: 1, padding: collapsed ? '0 8px' : '0 10px', overflowY: 'auto' }}>
+      <nav className="scrollbar-hide" style={{ flex: 1, padding: collapsed ? '0 8px' : '0 10px', overflowY: collapsed ? 'hidden' : 'auto', overflowX: 'hidden' }}>
         {NAV.map(item => (
           <NavItem
             key={item.href}
