@@ -54,7 +54,7 @@ function NavItem({ href, label, icon: Icon, collapsed, onClose }: {
         alignItems: 'center',
         gap: collapsed ? 0 : 14,
         justifyContent: collapsed ? 'center' : 'flex-start',
-        padding: collapsed ? '14px 0' : '13px 16px',
+        padding: collapsed ? '10px 0' : '10px 14px',
         borderRadius: 12,
         background: active ? RED_BG : 'transparent',
         cursor: 'pointer',
@@ -135,8 +135,7 @@ function UserProfile({ collapsed, name, role, initials }: {
       margin: '0 12px 12px',
       padding: 14,
       borderRadius: 12,
-      background: 'linear-gradient(135deg, #fff5f5, #fee2e2)',
-      border: '1px solid rgba(229,57,53,0.15)',
+      background: 'transparent',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{
@@ -172,18 +171,10 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Label "Navegação" */}
-      {!collapsed && !isMobile && (
-        <div style={{ padding: '20px 20px 8px' }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 2 }}>
-            Navegação
-          </span>
-        </div>
-      )}
-      {(collapsed || isMobile) && <div style={{ height: 20 }} />}
+      <div style={{ height: 16 }} />
 
       {/* Nav items */}
-      <nav style={{ flex: 1, padding: collapsed ? '0 10px' : '0 12px', overflowY: 'auto' }}>
+      <nav style={{ flex: 1, padding: collapsed ? '0 8px' : '0 10px', overflowY: 'auto' }}>
         {NAV.map(item => (
           <NavItem
             key={item.href}
