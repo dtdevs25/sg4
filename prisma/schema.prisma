@@ -13,7 +13,7 @@ model User {
   name          String
   email         String    @unique
   password      String    // bcrypt hash — NUNCA texto plano
-  role          Role      @default(VIEWER)
+  role          Role      @default(TST)
   active        Boolean   @default(true)
   failedLogins  Int       @default(0)
   lockedUntil   DateTime?
@@ -62,9 +62,9 @@ model AuditLog {
 }
 
 enum Role {
+  MASTER
   ADMIN
-  GESTOR
-  VIEWER
+  TST
 }
 
 // ─── TÉCNICOS ───────────────────────────────────────────────────────────────

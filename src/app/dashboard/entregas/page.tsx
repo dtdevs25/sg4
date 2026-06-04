@@ -5,6 +5,7 @@ import {
   FileCheck, Calendar, Filter, User, CheckCircle2,
   AlertTriangle, Clock, Search, PlusCircle, Award, ShieldAlert, X, Sparkles
 } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 
 // Dados reais da planilha "GESTÃO DAS ENTREGAS 2026"
 const INITIAL_ENTREGAS = [
@@ -46,6 +47,9 @@ const TECNICOS = [
 ]
 
 export default function EntregasPage() {
+  const { data: session } = useSession()
+  const role = (session?.user as any)?.role
+
   const [entregas, setEntregas] = useState(INITIAL_ENTREGAS)
   const [selectedTecnico, setSelectedTecnico] = useState('TODOS')
   const [selectedType, setSelectedType] = useState('TODOS')
@@ -170,7 +174,7 @@ export default function EntregasPage() {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 1 }}>
-          <select value={selectedTecnico} onChange={(e) => setSelectedTecnico(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', minWidth: 200 }}>
+          <select value={selectedTecnico} disabled={role === 'TST'} onChange={(e) => setSelectedTecnico(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b', fontWeight: 600 }}>
             <option value="TODOS">Todos os Técnicos</option>
             {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -193,7 +197,7 @@ export default function EntregasPage() {
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Tipo</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Data da Entrega</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ação</th>
+                {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -215,11 +219,13 @@ export default function EntregasPage() {
                       {e.status === 'No Prazo' ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />} {e.status}
                     </span>
                   </td>
-                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                    <button onClick={() => deleteEntrega(e.id)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: '4px 8px' }}>
-                      Remover
-                    </button>
-                  </td>
+                  {role !== 'TST' && (
+                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      <button onClick={() => deleteEntrega(e.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               {filtered.length === 0 && (
@@ -247,7 +253,7 @@ export default function EntregasPage() {
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Técnico</label>
-                <select value={form.tecnico} onChange={(e) => setForm(p => ({ ...p, tecnico: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                <select value={form.tecnico} disabled={role === 'TST'} onChange={(e) => setForm(p => ({ ...p, tecnico: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
                   {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>

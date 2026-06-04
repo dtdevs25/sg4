@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2
 } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 
 // Dados reais da planilha
 const INITIAL_TECNICOS = [
@@ -20,6 +21,9 @@ const INITIAL_TECNICOS = [
 ]
 
 export default function TecnicosPage() {
+  const { data: session } = useSession()
+  const role = (session?.user as any)?.role
+
   const [tecnicos, setTecnicos] = useState(INITIAL_TECNICOS)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -102,26 +106,28 @@ export default function TecnicosPage() {
           </span>
         </div>
         
-        <button
-          onClick={handleOpenAdd}
-          style={{
-            background: '#e53935',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            padding: '8px 16px',
-            fontSize: 13,
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            cursor: 'pointer',
-            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
-          }}
-        >
-          <UserPlus size={16} />
-          Novo Técnico
-        </button>
+        {role !== 'TST' && (
+          <button
+            onClick={handleOpenAdd}
+            style={{
+              background: '#e53935',
+              color: '#fff',
+              border: 'none',
+              padding: '10px 18px',
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 2px 4px rgba(229, 57, 53, 0.2)'
+            }}
+          >
+            <UserPlus size={16} />
+            Novo Técnico
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -153,7 +159,7 @@ export default function TecnicosPage() {
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Contato</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Admissão</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
+                {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -186,12 +192,14 @@ export default function TecnicosPage() {
                       {tecnico.ativo ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
-                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                    <button onClick={() => handleOpenEdit(tecnico)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: '#64748b', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>Editar</button>
-                    <button onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: tecnico.ativo ? '#ef4444' : '#10b981', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                      {tecnico.ativo ? 'Desativar' : 'Reativar'}
-                    </button>
-                  </td>
+                  {role !== 'TST' && (
+                    <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                      <button onClick={() => handleOpenEdit(tecnico)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: '#64748b', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>Editar</button>
+                      <button onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: tecnico.ativo ? '#ef4444' : '#10b981', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                        {tecnico.ativo ? 'Desativar' : 'Reativar'}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   Activity, Plus, Search, CheckCircle, Clock, Trash2, Sparkles, X
 } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 
 // Dados reais da planilha "GESTÃO DAS ATIVIDADES"
 const INITIAL_ATIVIDADES = [
@@ -27,6 +28,9 @@ const CATEGORIES = [
 ]
 
 export default function AtividadesPage() {
+  const { data: session } = useSession()
+  const role = (session?.user as any)?.role
+
   const [atividades, setAtividades] = useState(INITIAL_ATIVIDADES)
   const [search, setSearch] = useState('')
   const [filterResponsavel, setFilterResponsavel] = useState('TODOS')
@@ -109,7 +113,7 @@ export default function AtividadesPage() {
             <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
             <input type="text" placeholder="Buscar por descrição, local..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
           </div>
-          <select value={filterResponsavel} onChange={(e) => setFilterResponsavel(e.target.value)} style={{ width: 220, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
+          <select value={filterResponsavel} disabled={role === 'TST'} onChange={(e) => setFilterResponsavel(e.target.value)} style={{ width: 220, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
             <option value="TODOS">Todos os Técnicos</option>
             {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -133,7 +137,7 @@ export default function AtividadesPage() {
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Categoria</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Localidade</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
+                {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Excluir</th>}
               </tr>
             </thead>
             <tbody>
@@ -167,11 +171,13 @@ export default function AtividadesPage() {
                       {act.status}
                     </button>
                   </td>
-                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                    <button onClick={() => deleteAct(act.id)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+                  {role !== 'TST' && (
+                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      <button onClick={() => deleteAct(act.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir Atividade">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -198,7 +204,7 @@ export default function AtividadesPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Responsável</label>
-                  <select value={form.responsavel} onChange={(e) => setForm(p => ({ ...p, responsavel: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                  <select value={form.responsavel} disabled={role === 'TST'} onChange={(e) => setForm(p => ({ ...p, responsavel: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
                     {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>

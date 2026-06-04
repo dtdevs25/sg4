@@ -5,6 +5,7 @@ import {
   Calendar as CalendarIcon, Clock, MapPin, User,
   Plus, CheckCircle2, AlertCircle, Trash2, Search, X
 } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 
 const INITIAL_SCHEDULE = [
   { id: 'sch-1', tecnico: 'Rosicleide Fernandes', titulo: 'Treinamento de NR-35 (Trabalho em Altura)', local: 'Centro de Treinamento - Sala B', data: '05/06/2026', hora: '08:30', status: 'Pendente', prioridade: 'Alta' },
@@ -15,6 +16,9 @@ const INITIAL_SCHEDULE = [
 ]
 
 export default function ProgramacaoPage() {
+  const { data: session } = useSession()
+  const role = (session?.user as any)?.role
+
   const [schedule, setSchedule] = useState(INITIAL_SCHEDULE)
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -117,7 +121,7 @@ export default function ProgramacaoPage() {
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Local</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status / Prioridade</th>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
+                {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -151,11 +155,13 @@ export default function ProgramacaoPage() {
                       </span>
                     </div>
                   </td>
-                  <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                    <button onClick={() => deleteSchedule(item.id)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
+                  {role !== 'TST' && (
+                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      <button onClick={() => deleteSchedule(item.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir Evento">
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -179,8 +185,8 @@ export default function ProgramacaoPage() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Técnico Encarregado</label>
-                <select value={form.tecnico} onChange={(e) => setForm(p => ({ ...p, tecnico: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Técnico Responsável</label>
+                <select value={form.tecnico} disabled={role === 'TST'} onChange={(e) => setForm(p => ({ ...p, tecnico: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
                   <option value="Antonio Carlos Junior">Antonio Carlos Junior</option>
                   <option value="Daniel José Gregorio">Daniel José Gregorio</option>
                   <option value="Dara Amorim Silva">Dara Amorim Silva</option>

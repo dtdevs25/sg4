@@ -29,8 +29,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const { email, password } = parsed.data
 
-        // 2. Buscar usuário
-        const user = await prisma.user.findUnique({ where: { email } })
+        // 2. Buscar usuário com seu perfil de técnico
+        const user = await prisma.user.findUnique({ 
+          where: { email },
+          include: { tecnico: { select: { id: true } } }
+        })
         if (!user || !user.active) return null
 
         // 3. Verificar bloqueio por tentativas falhas
@@ -67,6 +70,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           role: user.role,
+          tecnicoId: user.tecnico?.id,
         }
       },
     }),
