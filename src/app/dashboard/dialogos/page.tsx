@@ -86,11 +86,8 @@ export default function DialogosPage() {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <MessageSquare color="#660099" size={22} />
-            Diálogos de Segurança e Saúde (DSS)
+            Diálogo Semanal de Segurança
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Acompanhe os DSS ministrados
-          </span>
         </div>
       </div>
 
