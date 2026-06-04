@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   FileCheck, Calendar, Filter, User, CheckCircle2,
-  AlertTriangle, Clock, Search, PlusCircle, Award, ShieldAlert, X, Sparkles
+  AlertTriangle, Clock, Search, PlusCircle, Award, ShieldAlert, X, Sparkles, Trash2
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
