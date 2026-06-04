@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { forgotPassword } from '@/app/actions/authActions'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [toast, setToast] = useState({ show: false, msg: '' })
   const [showForgot, setShowForgot] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
+  const [loadingForgot, setLoadingForgot] = useState(false)
   const [form, setForm] = useState({ email: '', password: '' })
 
   function showToastMsg(msg: string) {
@@ -47,11 +49,21 @@ export default function LoginPage() {
     })
   }
 
-  function handleForgot() {
+  async function handleForgot() {
     if (!forgotEmail || !forgotEmail.includes('@')) {
       showToastMsg('⚠️ Informe um e-mail válido.')
       return
     }
+    
+    setLoadingForgot(true)
+    const res = await forgotPassword(forgotEmail)
+    setLoadingForgot(false)
+
+    if (!res.success) {
+      showToastMsg('⚠️ ' + res.error)
+      return
+    }
+
     setShowForgot(false)
     setForgotEmail('')
     showToastMsg('📧 Link de recuperação enviado para ' + forgotEmail)
@@ -545,11 +557,11 @@ export default function LoginPage() {
                 />
               </div>
               <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => { setShowForgot(false); setForgotEmail('') }}>
+                <button className="btn-secondary" onClick={() => { setShowForgot(false); setForgotEmail('') }} disabled={loadingForgot}>
                   Cancelar
                 </button>
-                <button className="btn-primary-modal" onClick={handleForgot}>
-                  Enviar Link
+                <button className="btn-primary-modal" onClick={handleForgot} disabled={loadingForgot}>
+                  {loadingForgot ? 'Enviando...' : 'Enviar Link'}
                 </button>
               </div>
             </div>

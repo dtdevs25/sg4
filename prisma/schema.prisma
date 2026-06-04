@@ -16,9 +16,11 @@ model User {
   role          Role      @default(TST)
   active        Boolean   @default(true)
   failedLogins  Int       @default(0)
-  lockedUntil   DateTime?
-  lastLogin     DateTime?
-  createdAt     DateTime  @default(now())
+  lockedUntil      DateTime?
+  lastLogin        DateTime?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   sessions      Session[]
