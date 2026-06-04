@@ -68,9 +68,6 @@ export default function InspecoesPage() {
             <ClipboardCheck color="#660099" size={22} />
             Inspeções de Segurança
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Gerencie e acompanhe as metas mensais
-          </span>
         </div>
       </div>
 
