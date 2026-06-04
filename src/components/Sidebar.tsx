@@ -23,7 +23,6 @@ const NAV: NavItemType[] = [
   { href: '/dashboard/inspecoes',   label: 'Inspeções',   icon: ClipboardCheck   },
   { href: '/dashboard/dialogos',    label: 'DSS',         icon: MessageSquare    },
   { href: '/dashboard/atividades',  label: 'Atividades',  icon: Activity         },
-  { href: '/dashboard/programacao', label: 'Programação (Atual eventos)', icon: Calendar },
   { href: '/dashboard/reunioes',    label: 'Reuniões',    icon: CalendarCheck    },
   { href: '/dashboard/entregas',    label: 'Entregas',    icon: FileCheck        },
   { href: '/dashboard/relatorios',  label: 'Relatórios',  icon: FileText         },
