@@ -31,13 +31,13 @@ const NAV: NavItemType[] = [
     subItems: [
       { href: '/dashboard/cadastros/usuarios', label: 'Usuários' },
       { href: '/dashboard/cadastros/tecnicos', label: 'Técnicos' },
-      { href: '/dashboard/cadastros/programacao', label: 'Programação' },
     ]
   },
   {
     label: 'Administração', icon: ShieldAlert,
     subItems: [
       { href: '/dashboard/administracao/logs', label: 'Logs' },
+      { href: '/dashboard/administracao/programacao', label: 'Programação' },
     ]
   },
 ]

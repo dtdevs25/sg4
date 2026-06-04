@@ -18,12 +18,18 @@ export function Header() {
       padding: '0 2rem',
       boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
     }}>
-      {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      {/* Logos */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         <img
           src="/logo.png"
           alt="SG4"
           style={{ height: 48, width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+        />
+        <div style={{ width: 1, height: 32, background: 'rgba(255, 255, 255, 0.4)' }} />
+        <img
+          src="/logovivo.png"
+          alt="Vivo"
+          style={{ height: 40, width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
         />
       </div>
 
