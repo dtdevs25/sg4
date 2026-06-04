@@ -8,17 +8,39 @@ import {
   LayoutDashboard, Users, ClipboardCheck, MessageSquare,
   Activity, Calendar, CalendarCheck, FileCheck,
   ChevronLeft, ChevronRight, Menu, X, User as UserIcon,
+  Settings, ShieldAlert, FileText, ChevronDown
 } from 'lucide-react'
 
-const NAV = [
+type NavItemType = {
+  href?: string;
+  label: string;
+  icon: React.ElementType;
+  subItems?: { href: string; label: string }[];
+}
+
+const NAV: NavItemType[] = [
   { href: '/dashboard',             label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/dashboard/tecnicos',    label: 'Técnicos',    icon: Users            },
   { href: '/dashboard/inspecoes',   label: 'Inspeções',   icon: ClipboardCheck   },
   { href: '/dashboard/dialogos',    label: 'DSS',         icon: MessageSquare    },
   { href: '/dashboard/atividades',  label: 'Atividades',  icon: Activity         },
-  { href: '/dashboard/programacao', label: 'Programação', icon: Calendar         },
+  { href: '/dashboard/programacao', label: 'Programação (Atual eventos)', icon: Calendar },
   { href: '/dashboard/reunioes',    label: 'Reuniões',    icon: CalendarCheck    },
   { href: '/dashboard/entregas',    label: 'Entregas',    icon: FileCheck        },
+  { href: '/dashboard/relatorios',  label: 'Relatórios',  icon: FileText         },
+  { 
+    label: 'Cadastros', icon: UserIcon, 
+    subItems: [
+      { href: '/dashboard/cadastros/usuarios', label: 'Usuários' },
+      { href: '/dashboard/cadastros/tecnicos', label: 'Técnicos' },
+      { href: '/dashboard/cadastros/programacao', label: 'Programação' },
+    ]
+  },
+  {
+    label: 'Administração', icon: ShieldAlert,
+    subItems: [
+      { href: '/dashboard/administracao/logs', label: 'Logs' },
+    ]
+  },
 ]
 
 const RED      = '#e53935'
@@ -34,35 +56,44 @@ function getInitials(name?: string | null) {
 }
 
 /* ── Nav item ─────────────────────────────────────────────────────────────── */
-function NavItem({ href, label, icon: Icon, collapsed, onClose }: {
-  href: string; label: string; icon: React.ElementType
-  collapsed: boolean; onClose?: () => void
+function NavItem({ item, collapsed, onClose }: {
+  item: NavItemType; collapsed: boolean; onClose?: () => void
 }) {
   const pathname = usePathname()
-  const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+  const [isOpen, setIsOpen] = useState(
+    item.subItems?.some(sub => pathname === sub.href || pathname.startsWith(sub.href)) || false
+  )
 
-  return (
-    <Link
-      href={href}
-      onClick={onClose}
-      title={collapsed ? label : undefined}
-      style={{ textDecoration: 'none', display: 'block' }}
-    >
-      <div style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        gap: collapsed ? 0 : 14,
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        padding: collapsed ? '10px 0' : '10px 14px',
-        borderRadius: 12,
-        background: active ? RED_BG : 'transparent',
-        cursor: 'pointer',
-        transition: 'background .15s',
-        marginBottom: 2,
-      }}>
+  const active = item.href ? (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))) : isOpen
+  const Icon = item.icon
+
+  const handleToggle = (e: React.MouseEvent) => {
+    if (item.subItems) {
+      e.preventDefault()
+      setIsOpen(!isOpen)
+    }
+  }
+
+  const content = (
+    <div className="nav-item-wrap" style={{ position: 'relative' }}>
+      <div 
+        onClick={handleToggle}
+        style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          gap: collapsed ? 0 : 14,
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          padding: collapsed ? '10px 0' : '10px 14px',
+          borderRadius: 12,
+          background: active && !item.subItems ? RED_BG : 'transparent',
+          cursor: 'pointer',
+          transition: 'background .15s',
+          marginBottom: 2,
+        }}
+      >
         {/* Accent bar */}
-        {active && !collapsed && (
+        {active && !collapsed && !item.subItems && (
           <span style={{
             position: 'absolute', left: 0, top: '15%', bottom: '15%',
             width: 3, background: RED, borderRadius: '0 4px 4px 0',
@@ -88,8 +119,12 @@ function NavItem({ href, label, icon: Icon, collapsed, onClose }: {
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}>
-            {label}
+            {item.label}
           </span>
+        )}
+
+        {!collapsed && item.subItems && (
+          <ChevronDown size={16} style={{ color: GRAY_TXT, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
         )}
 
         {/* Tooltip when collapsed */}
@@ -100,17 +135,51 @@ function NavItem({ href, label, icon: Icon, collapsed, onClose }: {
             padding: '6px 12px', borderRadius: 8, whiteSpace: 'nowrap',
             pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
             opacity: 0,
-            /* CSS hover trick doesn't work inline; handled via group CSS class below */
+            zIndex: 50,
           }} className="nav-tooltip">
-            {label}
+            {item.label}
           </span>
         )}
       </div>
-    </Link>
+
+      {/* Sub Items */}
+      {!collapsed && item.subItems && isOpen && (
+        <div style={{ paddingLeft: 46, paddingRight: 10, paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {item.subItems.map(sub => {
+            const subActive = pathname === sub.href
+            return (
+              <Link key={sub.href} href={sub.href} onClick={onClose} style={{ textDecoration: 'none' }}>
+                <div style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: subActive ? 700 : 500,
+                  color: subActive ? RED : GRAY_TXT,
+                  background: subActive ? RED_BG : 'transparent',
+                  cursor: 'pointer'
+                }}>
+                  {sub.label}
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
+
+  if (item.href) {
+    return (
+      <Link href={item.href} onClick={onClose} title={collapsed ? item.label : undefined} style={{ textDecoration: 'none', display: 'block' }}>
+        {content}
+      </Link>
+    )
+  }
+
+  return content
 }
 
-/* ── User profile (sem botão de sair) ─────────────────────────────────────── */
+/* ── User profile ─────────────────────────────────────────────────────────── */
 function UserProfile({ collapsed, name, role, initials }: {
   collapsed: boolean; name: string; role: string; initials: string
 }) {
@@ -177,10 +246,8 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
       <nav className="scrollbar-hide" style={{ flex: 1, padding: collapsed ? '0 8px' : '0 10px', overflowY: collapsed ? 'hidden' : 'auto', overflowX: 'hidden' }}>
         {NAV.map(item => (
           <NavItem
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            icon={item.icon}
+            key={item.label}
+            item={item}
             collapsed={collapsed && !isMobile}
             onClose={onClose}
           />
