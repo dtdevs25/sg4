@@ -104,7 +104,7 @@ export default function EntregasPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FileCheck color="#e53935" size={22} />
+            <FileCheck color="#660099" size={22} />
             Controle de Entregas
           </h1>
           <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
@@ -115,9 +115,9 @@ export default function EntregasPage() {
         <button
           onClick={() => setShowAddModal(true)}
           style={{
-            background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+            background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
             fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+            boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
           }}
         >
           <PlusCircle size={16} />
@@ -206,7 +206,7 @@ export default function EntregasPage() {
                   <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{e.periodo}</td>
                   <td style={{ padding: '14px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
                         {e.tecnico.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{e.tecnico}</span>
@@ -245,7 +245,7 @@ export default function EntregasPage() {
           <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles color="#e53935" size={20} /> Lançar Nova Entrega
+                <Sparkles color="#660099" size={20} /> Lançar Nova Entrega
               </h2>
               <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
             </div>
@@ -291,7 +291,7 @@ export default function EntregasPage() {
                 <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   Registrar Entrega
                 </button>
               </div>

@@ -65,7 +65,7 @@ export default function InspecoesPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ClipboardCheck color="#e53935" size={22} />
+            <ClipboardCheck color="#660099" size={22} />
             Inspeções de Segurança
           </h1>
           <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
@@ -97,8 +97,8 @@ export default function InspecoesPage() {
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  border: selectedMonth === m.key ? '1px solid #e53935' : '1px solid #e2e8f0',
-                  background: selectedMonth === m.key ? '#e53935' : '#f8fafc',
+                  border: selectedMonth === m.key ? '1px solid #660099' : '1px solid #e2e8f0',
+                  background: selectedMonth === m.key ? '#660099' : '#f8fafc',
                   color: selectedMonth === m.key ? '#fff' : '#64748b',
                 }}
               >
@@ -112,7 +112,7 @@ export default function InspecoesPage() {
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atingimento do Mês</span>
-            <span style={{ background: 'rgba(229,57,53,0.1)', color: '#e53935', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
+            <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
               {selectedMonth}
             </span>
           </div>
@@ -121,7 +121,7 @@ export default function InspecoesPage() {
             <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>/ {totalMeta} insp.</span>
           </div>
           <div style={{ background: '#f1f5f9', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 8 }}>
-            <div style={{ background: '#e53935', height: '100%', width: `${Math.min(pctRealizado, 100)}%`, transition: 'width 0.3s' }} />
+            <div style={{ background: '#660099', height: '100%', width: `${Math.min(pctRealizado, 100)}%`, transition: 'width 0.3s' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
             <span>Atingimento: <b style={{ color: '#1e293b' }}>{pctRealizado}%</b></span>
@@ -168,7 +168,7 @@ export default function InspecoesPage() {
                     <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                       <td style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
                             {t.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
                           </div>
                           <div>

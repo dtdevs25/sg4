@@ -85,7 +85,7 @@ export default function AtividadesPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Activity color="#e53935" size={22} />
+            <Activity color="#660099" size={22} />
             Atividades Operacionais
           </h1>
           <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
@@ -96,9 +96,9 @@ export default function AtividadesPage() {
         <button
           onClick={() => setShowAddModal(true)}
           style={{
-            background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+            background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
             fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+            boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
           }}
         >
           <Plus size={16} />
@@ -146,7 +146,7 @@ export default function AtividadesPage() {
                   <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{act.data}</td>
                   <td style={{ padding: '14px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
                         {act.responsavel.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{act.responsavel}</span>
@@ -154,10 +154,10 @@ export default function AtividadesPage() {
                   </td>
                   <td style={{ padding: '14px 20px', maxWidth: 300 }}>
                     <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{act.descricao}</p>
-                    {act.observacao && <p style={{ margin: '4px 0 0 0', fontSize: 11, color: '#e53935', fontStyle: 'italic' }}>Obs: {act.observacao}</p>}
+                    {act.observacao && <p style={{ margin: '4px 0 0 0', fontSize: 11, color: '#660099', fontStyle: 'italic' }}>Obs: {act.observacao}</p>}
                   </td>
                   <td style={{ padding: '14px 20px' }}>
-                    <span style={{ fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, background: act.categoria === 'GESTÃO DSS' ? 'rgba(229,57,53,0.1)' : act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? 'rgba(245,158,11,0.1)' : '#f1f5f9', color: act.categoria === 'GESTÃO DSS' ? '#e53935' : act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? '#f59e0b' : '#64748b' }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, background: act.categoria === 'GESTÃO DSS' ? 'rgba(102,0,153,0.1)' : act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? 'rgba(245,158,11,0.1)' : '#f1f5f9', color: act.categoria === 'GESTÃO DSS' ? '#660099' : act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? '#f59e0b' : '#64748b' }}>
                       {act.categoria}
                     </span>
                   </td>
@@ -191,7 +191,7 @@ export default function AtividadesPage() {
           <div style={{ background: '#fff', borderRadius: 16, width: 600, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles color="#e53935" size={20} /> Lançar Atividade
+                <Sparkles color="#660099" size={20} /> Lançar Atividade
               </h2>
               <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
             </div>
@@ -251,7 +251,7 @@ export default function AtividadesPage() {
                 <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   Registrar Atividade
                 </button>
               </div>

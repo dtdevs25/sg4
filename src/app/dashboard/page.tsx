@@ -12,10 +12,10 @@ import {
 } from 'lucide-react'
 
 /* ── Constantes Visuais ── */
-const RED   = '#e53935'
-const RED2  = '#c62828'
+const RED   = '#660099'
+const RED2  = '#4a0072'
 const COLORS = {
-  dss: '#e53935',    // Vermelho
+  dss: '#660099',    // Vermelho
   insp: '#8e44ad',   // Roxo
 }
 
@@ -281,7 +281,7 @@ export default function DashboardPage() {
 
       {/* ── 4 Stat cards ── */}
       <div style={{ display: 'flex', gap: 20 }}>
-        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS"       value={totalDss} bg="#e53935" bgDark="#c62828" />
+        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS"       value={totalDss} bg="#660099" bgDark="#4a0072" />
         <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock}          label="Inspeções" value={totalInsp} bg="#8e44ad" bgDark="#732d91" />
         <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={Award}          label="% DSS"     value={`${pctDss}%`} subtitle={metaDssTotal} bg="#28A745" bgDark="#218838" />
         <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Award}          label="% Inspeções" value={`${pctInsp}%`} subtitle={metaInspTotal} bg="#17a2b8" bgDark="#138496" />
@@ -307,7 +307,7 @@ export default function DashboardPage() {
                   style={{ cursor: 'pointer' }}
                 />
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(229,57,53,0.04)', cursor: 'pointer' }} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(102,0,153,0.04)', cursor: 'pointer' }} />
                 <Legend wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingTop: 10 }} />
                 
                 <Bar dataKey="dss" name="DSS" fill={COLORS.dss} radius={[4, 4, 0, 0]} maxBarSize={30} style={{ cursor: 'pointer' }} />

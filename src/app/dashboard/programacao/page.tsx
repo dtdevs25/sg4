@@ -74,7 +74,7 @@ export default function ProgramacaoPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CalendarIcon color="#e53935" size={22} />
+            <CalendarIcon color="#660099" size={22} />
             Programação e Agenda
           </h1>
           <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
@@ -85,9 +85,9 @@ export default function ProgramacaoPage() {
         <button
           onClick={() => setShowAddModal(true)}
           style={{
-            background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+            background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
             fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+            boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
           }}
         >
           <Plus size={16} />
@@ -139,7 +139,7 @@ export default function ProgramacaoPage() {
                   </td>
                   <td style={{ padding: '14px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
                         {item.tecnico.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{item.tecnico}</span>
@@ -150,7 +150,7 @@ export default function ProgramacaoPage() {
                       <button onClick={() => toggleStatus(item.id)} style={{ padding: '4px 8px', borderRadius: 12, border: 'none', background: item.status === 'Concluído' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: item.status === 'Concluído' ? '#10b981' : '#f59e0b', fontSize: 11, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
                         {item.status === 'Concluído' ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />} {item.status}
                       </button>
-                      <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: item.prioridade === 'Alta' ? '#e53935' : item.prioridade === 'Média' ? '#f59e0b' : '#3b82f6' }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', color: item.prioridade === 'Alta' ? '#660099' : item.prioridade === 'Média' ? '#f59e0b' : '#3b82f6' }}>
                         Pri: {item.prioridade}
                       </span>
                     </div>
@@ -228,7 +228,7 @@ export default function ProgramacaoPage() {
                 <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   Agendar Evento
                 </button>
               </div>

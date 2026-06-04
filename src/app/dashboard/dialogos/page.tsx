@@ -85,7 +85,7 @@ export default function DialogosPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <MessageSquare color="#e53935" size={22} />
+            <MessageSquare color="#660099" size={22} />
             Diálogos de Segurança e Saúde (DSS)
           </h1>
           <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
@@ -117,8 +117,8 @@ export default function DialogosPage() {
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  border: selectedMonth === m.key ? '1px solid #e53935' : '1px solid #e2e8f0',
-                  background: selectedMonth === m.key ? '#e53935' : '#f8fafc',
+                  border: selectedMonth === m.key ? '1px solid #660099' : '1px solid #e2e8f0',
+                  background: selectedMonth === m.key ? '#660099' : '#f8fafc',
                   color: selectedMonth === m.key ? '#fff' : '#64748b',
                 }}
               >
@@ -132,7 +132,7 @@ export default function DialogosPage() {
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atingimento de DSS</span>
-            <span style={{ background: 'rgba(229,57,53,0.1)', color: '#e53935', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
+            <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
               {selectedMonth}
             </span>
           </div>
@@ -141,7 +141,7 @@ export default function DialogosPage() {
             <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>/ {totalMeta} DSS</span>
           </div>
           <div style={{ background: '#f1f5f9', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 8 }}>
-            <div style={{ background: '#e53935', height: '100%', width: `${Math.min(pctRealizado, 100)}%`, transition: 'width 0.3s' }} />
+            <div style={{ background: '#660099', height: '100%', width: `${Math.min(pctRealizado, 100)}%`, transition: 'width 0.3s' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
             <span>Atingimento: <b style={{ color: '#1e293b' }}>{pctRealizado}%</b></span>
@@ -229,7 +229,7 @@ export default function DialogosPage() {
         {/* Sugestões de Temas */}
         <div style={{ flex: 1, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
           <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShieldCheck color="#e53935" size={20} />
+            <ShieldCheck color="#660099" size={20} />
             Temas Sugeridos para DSS
           </h2>
           
@@ -253,7 +253,7 @@ export default function DialogosPage() {
             {topics.map(t => (
               <div key={t.id} style={{ padding: 12, borderRadius: 8, border: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <div>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: '#e53935', textTransform: 'uppercase' }}>{t.categoria}</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: '#660099', textTransform: 'uppercase' }}>{t.categoria}</span>
                   <p style={{ margin: '4px 0 0 0', fontSize: 13, fontWeight: 600, color: '#334155', lineHeight: 1.4 }}>{t.tema}</p>
                 </div>
                 <button onClick={() => handleDeleteTopic(t.id)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>

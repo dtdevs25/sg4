@@ -82,7 +82,7 @@ export default function UsuariosPage() {
 
   if (role !== 'MASTER' && role !== 'ADMIN') {
     return (
-      <div style={{ padding: 40, textAlign: 'center', color: '#e53935', background: '#fff', borderRadius: 10 }}>
+      <div style={{ padding: 40, textAlign: 'center', color: '#660099', background: '#fff', borderRadius: 10 }}>
         <AlertCircle size={40} style={{ margin: '0 auto 16px' }} />
         <h2 style={{ margin: 0, fontSize: 18 }}>Acesso Negado</h2>
         <p style={{ marginTop: 8, fontSize: 14 }}>Você não tem permissão para gerenciar usuários.</p>
@@ -107,7 +107,7 @@ export default function UsuariosPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Users color="#e53935" size={22} />
+            <Users color="#660099" size={22} />
             Gestão de Usuários
           </h1>
           <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
@@ -118,9 +118,9 @@ export default function UsuariosPage() {
         <button
           onClick={() => setShowAddModal(true)}
           style={{
-            background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+            background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
             fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+            boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
           }}
         >
           <Plus size={16} />
@@ -159,7 +159,7 @@ export default function UsuariosPage() {
                 <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: u.active ? 1 : 0.6 }}>
                   <td style={{ padding: '14px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #e53935, #c62828)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #660099, #4a0072)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
                         {u.name.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
@@ -203,7 +203,7 @@ export default function UsuariosPage() {
           <div style={{ background: '#fff', borderRadius: 16, width: 480, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles color="#e53935" size={20} /> Cadastrar Usuário
+                <Sparkles color="#660099" size={20} /> Cadastrar Usuário
               </h2>
               <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
             </div>
@@ -247,7 +247,7 @@ export default function UsuariosPage() {
                 <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                <button type="submit" style={{ flex: 1, padding: '12px', background: '#660099', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                   Salvar Usuário
                 </button>
               </div>

@@ -42,8 +42,8 @@ const NAV: NavItemType[] = [
   },
 ]
 
-const RED      = '#e53935'
-const RED_BG   = 'rgba(229,57,53,0.08)'
+const RED      = '#660099'
+const RED_BG   = 'rgba(102,0,153,0.08)'
 const GRAY_TXT = '#64748b'
 
 function getInitials(name?: string | null) {
@@ -187,10 +187,10 @@ function UserProfile({ collapsed, name, role, initials }: {
       <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0' }}>
         <div style={{
           width: 40, height: 40, borderRadius: '50%',
-          background: `linear-gradient(135deg, ${RED}, #c62828)`,
+          background: `linear-gradient(135deg, ${RED}, #4a0072)`,
           color: '#fff', display: 'flex', alignItems: 'center',
           justifyContent: 'center', fontSize: 13, fontWeight: 800,
-          boxShadow: `0 4px 12px rgba(229,57,53,0.3)`,
+          boxShadow: `0 4px 12px rgba(102,0,153,0.3)`,
         }}>
           {initials}
         </div>
@@ -208,10 +208,10 @@ function UserProfile({ collapsed, name, role, initials }: {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{
           width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-          background: `linear-gradient(135deg, ${RED}, #c62828)`,
+          background: `linear-gradient(135deg, ${RED}, #4a0072)`,
           color: '#fff', display: 'flex', alignItems: 'center',
           justifyContent: 'center', fontSize: 13, fontWeight: 800,
-          boxShadow: `0 4px 12px rgba(229,57,53,0.25)`,
+          boxShadow: `0 4px 12px rgba(102,0,153,0.25)`,
         }}>
           {initials}
         </div>

@@ -98,7 +98,7 @@ export default function TecnicosPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Users color="#e53935" size={22} />
+            <Users color="#660099" size={22} />
             Equipe de Técnicos
           </h1>
           <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
@@ -110,7 +110,7 @@ export default function TecnicosPage() {
           <button
             onClick={handleOpenAdd}
             style={{
-              background: '#e53935',
+              background: '#660099',
               color: '#fff',
               border: 'none',
               padding: '10px 18px',
@@ -121,7 +121,7 @@ export default function TecnicosPage() {
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              boxShadow: '0 2px 4px rgba(229, 57, 53, 0.2)'
+              boxShadow: '0 2px 4px rgba(102,0,153, 0.2)'
             }}
           >
             <UserPlus size={16} />
@@ -167,7 +167,7 @@ export default function TecnicosPage() {
                 <tr key={tecnico.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: tecnico.ativo ? 1 : 0.6 }}>
                   <td style={{ padding: '14px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
                         {tecnico.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
                       <div>
@@ -252,7 +252,7 @@ export default function TecnicosPage() {
                 <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   {isEditing ? 'Salvar' : 'Cadastrar'}
                 </button>
               </div>

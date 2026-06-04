@@ -108,7 +108,7 @@ export default function ReunioesPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CalendarDays color="#e53935" size={22} />
+            <CalendarDays color="#660099" size={22} />
             Presença em Reuniões
           </h1>
           <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
@@ -119,9 +119,9 @@ export default function ReunioesPage() {
         <button
           onClick={() => setShowModal(true)}
           style={{
-            background: '#e53935', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+            background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
             fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-            boxShadow: '0 2px 6px rgba(229,57,53,0.3)',
+            boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
           }}
         >
           <PlusCircle size={16} />
@@ -152,8 +152,8 @@ export default function ReunioesPage() {
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  border: selectedMonth === m.key ? '1px solid #e53935' : '1px solid #e2e8f0',
-                  background: selectedMonth === m.key ? '#e53935' : '#f8fafc',
+                  border: selectedMonth === m.key ? '1px solid #660099' : '1px solid #e2e8f0',
+                  background: selectedMonth === m.key ? '#660099' : '#f8fafc',
                   color: selectedMonth === m.key ? '#fff' : '#64748b',
                 }}
               >
@@ -167,7 +167,7 @@ export default function ReunioesPage() {
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Métricas das Reuniões</span>
-            <span style={{ background: 'rgba(229,57,53,0.1)', color: '#e53935', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
+            <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
               Mês {selectedMonth}
             </span>
           </div>
@@ -186,7 +186,7 @@ export default function ReunioesPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', fontWeight: 600, borderTop: '1px solid #f1f5f9', paddingTop: 12 }}>
             <span>Reuniões: <b style={{ color: '#1e293b' }}>{totalMeetings}</b></span>
             <span>Atrasos: <b style={{ color: '#f59e0b' }}>{totalAtrasados}</b></span>
-            <span>Ausentes: <b style={{ color: '#e53935' }}>{totalAusentes}</b></span>
+            <span>Ausentes: <b style={{ color: '#660099' }}>{totalAusentes}</b></span>
           </div>
         </div>
       </div>
@@ -219,7 +219,7 @@ export default function ReunioesPage() {
                   <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{l.data}</td>
                   <td style={{ padding: '14px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#e53935', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
                         {l.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{l.nome}</span>
@@ -261,7 +261,7 @@ export default function ReunioesPage() {
           <div style={{ background: '#fff', borderRadius: 16, width: 800, maxHeight: '85vh', overflowY: 'auto', padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles color="#e53935" size={20} /> Registrar Chamada de Reunião
+                <Sparkles color="#660099" size={20} /> Registrar Chamada de Reunião
               </h2>
               <button onClick={() => setShowModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
             </div>
@@ -313,7 +313,7 @@ export default function ReunioesPage() {
                 <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#e53935', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                   Confirmar Chamada Geral
                 </button>
               </div>
