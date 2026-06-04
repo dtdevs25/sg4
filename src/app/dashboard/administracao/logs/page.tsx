@@ -22,9 +22,7 @@ export default function LogsPage() {
             <ShieldAlert color="#660099" size={22} />
             Logs de Auditoria
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Rastreio de ações do sistema
-          </span>
+          
         </div>
       </div>
       

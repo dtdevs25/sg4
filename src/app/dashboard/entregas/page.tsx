@@ -107,9 +107,7 @@ export default function EntregasPage() {
             <FileCheck color="#660099" size={22} />
             Controle de Entregas
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Relatórios e registros da equipe
-          </span>
+          
         </div>
         
         <button

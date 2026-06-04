@@ -101,9 +101,7 @@ export default function TecnicosPage() {
             <Users color="#660099" size={22} />
             Equipe de Técnicos
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Gerencie os profissionais de campo
-          </span>
+          
         </div>
         
         {role !== 'TST' && (

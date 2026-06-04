@@ -111,9 +111,7 @@ export default function ReunioesPage() {
             <CalendarDays color="#660099" size={22} />
             Presença em Reuniões
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Controle de frequência e pontualidade
-          </span>
+          
         </div>
         
         <button

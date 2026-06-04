@@ -22,9 +22,7 @@ export default function ProgramacaoRelatoriosPage() {
             <Calendar color="#660099" size={22} />
             Programação
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Agendamento de relatórios
-          </span>
+          
         </div>
       </div>
       

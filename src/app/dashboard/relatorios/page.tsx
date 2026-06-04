@@ -22,9 +22,7 @@ export default function RelatoriosPage() {
             <FileText color="#660099" size={22} />
             Relatórios
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Emissão de relatórios gerenciais
-          </span>
+          
         </div>
       </div>
       

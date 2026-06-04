@@ -88,9 +88,7 @@ export default function AtividadesPage() {
             <Activity color="#660099" size={22} />
             Atividades Operacionais
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Registro diário de tarefas e inspeções
-          </span>
+          
         </div>
         
         <button

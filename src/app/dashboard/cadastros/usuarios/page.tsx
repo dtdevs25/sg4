@@ -110,9 +110,7 @@ export default function UsuariosPage() {
             <Users color="#660099" size={22} />
             Gestão de Usuários
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Gerencie os acessos ao sistema
-          </span>
+          
         </div>
 
         <button
