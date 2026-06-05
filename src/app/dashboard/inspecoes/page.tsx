@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   ClipboardCheck, Calendar, Filter, User,
-  CheckCircle2, AlertTriangle, PlayCircle, Search
+  CheckCircle2, AlertTriangle, PlayCircle, Search, Edit2, Trash2
 } from 'lucide-react'
 
 // Dados reais compilados
@@ -30,6 +30,7 @@ export default function InspecoesPage() {
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<number>(0)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   
   const targetMeta = 20
 
@@ -44,6 +45,11 @@ export default function InspecoesPage() {
   function startEdit(id: string, currentValue: number) {
     setEditingId(id)
     setEditValue(currentValue)
+  }
+
+  function handleDelete(id: string) {
+    setData(prev => prev.filter(t => t.id !== id))
+    setDeleteConfirmId(null)
   }
 
   function saveEdit(id: string) {
@@ -260,9 +266,22 @@ export default function InspecoesPage() {
                             <button onClick={() => setEditingId(null)} style={{ padding: '4px 8px', borderRadius: 4, border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Cancela</button>
                           </div>
                         ) : (
-                          <button onClick={() => startEdit(t.id, realizado)} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: 'transparent', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                            Editar
-                          </button>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                            <button
+                              onClick={() => startEdit(t.id, realizado)}
+                              title="Editar"
+                              style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4 }}
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(t.id)}
+                              title="Excluir"
+                              style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -273,6 +292,42 @@ export default function InspecoesPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Confirmação de Exclusão */}
+      {deleteConfirmId && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash2 color="#ef4444" size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Excluir Registro</h3>
+                <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Esta ação não pode ser desfeita.</p>
+              </div>
+            </div>
+            
+            <p style={{ margin: '0 0 24px 0', fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
+              Você tem certeza que deseja excluir as informações deste técnico? Todos os dados vinculados a ele serão perdidos.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirmId)}
+                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s' }}
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
