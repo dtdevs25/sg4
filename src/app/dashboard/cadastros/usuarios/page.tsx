@@ -16,6 +16,9 @@ export default function UsuariosPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showResendModal, setShowResendModal] = useState(false)
+  const [resendingId, setResendingId] = useState<string | null>(null)
+  const [isResending, setIsResending] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const [form, setForm] = useState({
@@ -72,11 +75,19 @@ export default function UsuariosPage() {
     }
   }
 
-  async function handleResendInvite(id: string) {
-    if (!confirm('Deseja gerar um novo link de acesso e reenviar para o e-mail deste usuário?')) return
-    const res = await resendInvitation(id)
+  function handleOpenResend(id: string) {
+    setResendingId(id)
+    setShowResendModal(true)
+  }
+
+  async function handleConfirmResend() {
+    if (!resendingId) return
+    setIsResending(true)
+    const res = await resendInvitation(resendingId)
+    setIsResending(false)
     if (res.success) {
-      alert('E-mail de redefinição reenviado com sucesso!')
+      setShowResendModal(false)
+      setResendingId(null)
     } else {
       alert(res.error)
     }
@@ -202,7 +213,7 @@ export default function UsuariosPage() {
                       <button onClick={() => handleToggle(u.id)} style={{ background: 'transparent', border: 'none', color: u.active ? '#f59e0b' : '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title={u.active ? 'Bloquear' : 'Ativar'}>
                         <Power size={18} />
                       </button>
-                      <button onClick={() => handleResendInvite(u.id)} style={{ background: 'transparent', border: 'none', color: '#6366f1', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Reenviar e-mail de definição de senha">
+                      <button onClick={() => handleOpenResend(u.id)} style={{ background: 'transparent', border: 'none', color: '#6366f1', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Reenviar e-mail de definição de senha">
                         <Mail size={18} />
                       </button>
                       <button onClick={() => handleOpenDelete(u.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Excluir Definitivamente">
@@ -296,6 +307,31 @@ export default function UsuariosPage() {
               </button>
               <button onClick={handleConfirmDelete} style={{ flex: 1, padding: '10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 Sim, Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resend Confirmation Modal */}
+      {showResendModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 400, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Mail color="#6366f1" size={24} />
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, marginBottom: 8 }}>
+              Reenviar E-mail
+            </h2>
+            <p style={{ fontSize: 14, color: '#64748b', marginBottom: 24, lineHeight: 1.5 }}>
+              Deseja gerar um novo link de acesso e reenviar para o e-mail deste usuário? O link anterior será invalidado.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button disabled={isResending} onClick={() => setShowResendModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: isResending ? 0.7 : 1 }}>
+                Cancelar
+              </button>
+              <button disabled={isResending} onClick={handleConfirmResend} style={{ flex: 1, padding: '10px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: isResending ? 0.7 : 1 }}>
+                {isResending ? 'Enviando...' : 'Sim, Reenviar'}
               </button>
             </div>
           </div>
