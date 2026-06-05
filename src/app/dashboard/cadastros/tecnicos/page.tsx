@@ -198,7 +198,7 @@ export default function TecnicosPage() {
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Contato</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Admissão</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
-                {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>}
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -236,11 +236,15 @@ export default function TecnicosPage() {
                     </span>
                   </td>
                   {role !== 'TST' && (
-                    <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                      <button disabled={pending} onClick={() => handleOpenEdit(tecnico)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: '#64748b', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>Editar</button>
-                      <button disabled={pending} onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: tecnico.ativo ? '#ef4444' : '#10b981', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                        {tecnico.ativo ? 'Desativar' : 'Reativar'}
-                      </button>
+                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                        <button disabled={pending} onClick={() => handleOpenEdit(tecnico)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Editar Técnico">
+                          <Edit2 size={18} />
+                        </button>
+                        <button disabled={pending} onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: 'none', color: tecnico.ativo ? '#ef4444' : '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title={tecnico.ativo ? 'Desativar (Excluir)' : 'Reativar Técnico'}>
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
