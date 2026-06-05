@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import {
-  Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2, Camera
+  Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2, Camera, Power, X, AlertCircle
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { getTecnicos, saveTecnico, toggleTecnicoStatus, uploadFotoTecnico } from '@/app/actions/tecnicos'
+import { getTecnicos, saveTecnico, toggleTecnicoStatus, uploadFotoTecnico, deleteTecnico } from '@/app/actions/tecnicos'
 
 export default function TecnicosPage() {
   const { data: session } = useSession()
@@ -14,6 +14,8 @@ export default function TecnicosPage() {
   const [tecnicos, setTecnicos] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   
@@ -117,6 +119,25 @@ export default function TecnicosPage() {
     startTransition(async () => {
       await toggleTecnicoStatus(id)
       load()
+    })
+  }
+
+  function handleOpenDelete(id: string) {
+    setDeletingId(id)
+    setShowDeleteModal(true)
+  }
+
+  function handleConfirmDelete() {
+    if (!deletingId) return
+    startTransition(async () => {
+      const res = await deleteTecnico(deletingId)
+      if (!res.success) {
+        alert(res.error)
+      } else {
+        setShowDeleteModal(false)
+        setDeletingId(null)
+        load()
+      }
     })
   }
 
@@ -241,7 +262,10 @@ export default function TecnicosPage() {
                         <button disabled={pending} onClick={() => handleOpenEdit(tecnico)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Editar Técnico">
                           <Edit2 size={18} />
                         </button>
-                        <button disabled={pending} onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: 'none', color: tecnico.ativo ? '#ef4444' : '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title={tecnico.ativo ? 'Desativar (Excluir)' : 'Reativar Técnico'}>
+                        <button disabled={pending} onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: 'none', color: tecnico.ativo ? '#f59e0b' : '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title={tecnico.ativo ? 'Desativar Técnico' : 'Reativar Técnico'}>
+                          <Power size={18} />
+                        </button>
+                        <button disabled={pending} onClick={() => handleOpenDelete(tecnico.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Excluir Definitivamente">
                           <Trash2 size={18} />
                         </button>
                       </div>
@@ -318,6 +342,31 @@ export default function TecnicosPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 400, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <AlertCircle color="#ef4444" size={24} />
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, marginBottom: 8 }}>
+              Excluir Técnico
+            </h2>
+            <p style={{ fontSize: 14, color: '#64748b', marginBottom: 24, lineHeight: 1.5 }}>
+              Tem certeza que deseja excluir permanentemente este técnico? Esta ação <b>não poderá ser desfeita</b> e o registro será apagado do banco de dados.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button disabled={pending} onClick={() => setShowDeleteModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>
+                Cancelar
+              </button>
+              <button disabled={pending} onClick={handleConfirmDelete} style={{ flex: 1, padding: '10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>
+                {pending ? 'Excluindo...' : 'Sim, Excluir'}
+              </button>
+            </div>
           </div>
         </div>
       )}

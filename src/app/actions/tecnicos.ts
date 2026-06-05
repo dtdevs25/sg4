@@ -111,3 +111,23 @@ export async function toggleTecnicoStatus(id: string) {
     return { success: false, error: 'Erro ao alterar status' }
   }
 }
+
+export async function deleteTecnico(id: string) {
+  try {
+    const session = await auth()
+    const role = (session?.user as any)?.role
+    // Apenas ADMINISTRADOR (ou MASTER) pode excluir
+    if (role !== 'MASTER' && role !== 'ADMIN') {
+      return { success: false, error: 'Acesso negado. Apenas administradores podem excluir registros.' }
+    }
+
+    const target = await prisma.tecnico.findUnique({ where: { id } })
+    if (!target) return { success: false, error: 'Técnico não encontrado' }
+
+    await prisma.tecnico.delete({ where: { id } })
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao excluir técnico:', error)
+    return { success: false, error: 'Erro ao excluir técnico. Verifique se ele não possui vínculos ativos.' }
+  }
+}
