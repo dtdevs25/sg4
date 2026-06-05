@@ -143,10 +143,10 @@ function CustomTooltip({ active, payload, label }: any) {
 
 /* ── Helper de Medalha ── */
 function getMedal(index: number) {
-  if (index === 0) return { bg: '#FFD700', color: '#B8860B', label: '🥇' } // Ouro
-  if (index === 1) return { bg: '#E5E4E2', color: '#71706E', label: '🥈' } // Prata
-  if (index === 2) return { bg: '#CD7F32', color: '#8B4513', label: '🥉' } // Bronze
-  return { bg: '#f1f5f9', color: '#64748b', label: index + 1 }
+  if (index === 0) return { bg: '#FEF08A', color: '#A16207', border: '2px solid #EAB308', label: '1' } // Ouro
+  if (index === 1) return { bg: '#F1F5F9', color: '#475569', border: '2px solid #CBD5E1', label: '2' } // Prata
+  if (index === 2) return { bg: '#FFEDD5', color: '#C2410C', border: '2px solid #FDBA74', label: '3' } // Bronze
+  return { bg: '#f8fafc', color: '#94a3b8', border: '2px solid transparent', label: (index + 1).toString() }
 }
 
 /* ── Página ── */
@@ -321,13 +321,13 @@ export default function DashboardPage() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
           
           {/* Ranking DSS */}
-          <ChartCard icon={Award} title="Ranking - DSS" style={{ height: 240 }}>
+          <ChartCard icon={Target} title="Ranking - DSS" style={{ height: 240 }}>
             <div style={{ overflowY: 'auto', height: '100%', paddingRight: 4 }} className="scrollbar-hide">
               {rankDss.map((t, i) => {
                 const medal = getMedal(i)
                 return (
                   <div key={i} onClick={() => setModalData(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background .15s', borderRadius: 8 }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: i < 3 ? 14 : 11, fontWeight: 800, boxShadow: i < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, border: medal.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: i < 3 ? 12 : 11, fontWeight: 800, boxShadow: i < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}>
                       {medal.label}
                     </div>
                     <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
@@ -339,13 +339,13 @@ export default function DashboardPage() {
           </ChartCard>
 
           {/* Ranking Inspeções */}
-          <ChartCard icon={Award} title="Ranking - Inspeções" style={{ height: 240 }}>
+          <ChartCard icon={TrendingUp} title="Ranking - Inspeções" style={{ height: 240 }}>
             <div style={{ overflowY: 'auto', height: '100%', paddingRight: 4 }} className="scrollbar-hide">
               {rankInsp.map((t, i) => {
                 const medal = getMedal(i)
                 return (
                   <div key={i} onClick={() => setModalData(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background .15s', borderRadius: 8 }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: i < 3 ? 14 : 11, fontWeight: 800, boxShadow: i < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, border: medal.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: i < 3 ? 12 : 11, fontWeight: 800, boxShadow: i < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none' }}>
                       {medal.label}
                     </div>
                     <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
