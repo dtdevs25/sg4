@@ -1,28 +1,21 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useTransition } from 'react'
 import {
   ClipboardCheck, Calendar, Filter, User,
   CheckCircle2, AlertTriangle, PlayCircle, Search, Edit2, Trash2,
   UploadCloud, FileSpreadsheet, ListTodo, CheckSquare, X
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
-
-// Dados reais compilados
-const INITIAL_INSPECOES = [
-  { id: '1', nome: 'Antonio Carlos Junior Dias', admissao: '05/08/2025', jan: 20, fev: 20, mar: 16, abr: 18, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '2', nome: 'Daniel José Gregorio Junior', admissao: '05/08/2025', jan: 23, fev: 22, mar: 25, abr: 22, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '3', nome: 'Dara Amorim Silva de Lima', admissao: '23/03/2026', jan: 0, fev: 0, mar: 0, abr: 5, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '4', nome: 'Djonatê Cruz dos Santos', admissao: '05/08/2025', jan: 20, fev: 21, mar: 20, abr: 5, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '5', nome: 'Jonas Rodrigues Pereira', admissao: '18/09/2025', jan: 20, fev: 20, mar: 21, abr: 21, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '6', nome: 'Karine Novaes Assem', admissao: '05/08/2025', jan: 20, fev: 22, mar: 20, abr: 21, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '7', nome: 'Luis Claudio Soares', admissao: '02/02/2026', jan: 0, fev: 1, mar: 19, abr: 21, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '8', nome: 'Rogério Lima da Silva', admissao: '12/04/2025', jan: 20, fev: 20, mar: 20, abr: 0, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '9', nome: 'Rosicleide Fernandes Santos Davino', admissao: '05/08/2025', jan: 25, fev: 21, mar: 24, abr: 18, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '10', nome: 'Samuel da Silva Santos', admissao: '05/08/2025', jan: 0, fev: 2, mar: 0, abr: 2, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-]
+import { getTecnicos } from '@/app/actions/tecnicos'
+import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
+
+const MES_MAP: Record<MesKey, string> = {
+  jan: 'JANEIRO', fev: 'FEVEREIRO', mar: 'MARCO', abr: 'ABRIL', mai: 'MAIO', jun: 'JUNHO',
+  jul: 'JULHO', ago: 'AGOSTO', set: 'SETEMBRO', out: 'OUTUBRO', nov: 'NOVEMBRO', dez: 'DEZEMBRO'
+}
 
 export type ArkiumItem = {
   id: string
@@ -35,16 +28,19 @@ export type ArkiumItem = {
   identificadorObjeto: string
   nomeQuestionario: string
   clienteObjeto: string
+  localidadeObjeto: string
   autocheck: string
   observacao: string
   status: 'ABERTO' | 'FECHADO'
+  dbTecnico?: any
 }
 
 export default function InspecoesPage() {
   const [activeTab, setActiveTab] = useState<'consolidado' | 'arkium'>('consolidado')
+  const [pending, startTransition] = useTransition()
 
   // --- ESTADO: Visão Consolidada ---
-  const [data, setData] = useState(INITIAL_INSPECOES)
+  const [data, setData] = useState<any[]>([])
   const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['abr'])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
@@ -60,6 +56,38 @@ export default function InspecoesPage() {
   const totalMeta = filtered.length * targetMeta * (selectedMonths.length || 1)
   const pctRealizado = totalMeta > 0 ? Math.round((totalRealizado / totalMeta) * 100) : 0
 
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  async function loadData() {
+    const tecRes = await getTecnicos()
+    const atvRes = await getAtividades('INSPECAO')
+
+    if (tecRes.success && tecRes.data) {
+      const tecnicos = tecRes.data.filter((t: any) => t.ativo)
+      const atividades = atvRes.success && atvRes.data ? atvRes.data : []
+
+      const newData = tecnicos.map((t: any) => {
+        const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
+        const result: any = { id: t.id, nome: t.nome, admissao: new Date(t.admissao).toLocaleDateString('pt-BR'), fotoUrl: t.fotoUrl }
+        
+        Object.keys(MES_MAP).forEach(k => {
+          const mesName = MES_MAP[k as MesKey]
+          const totalMes = tecAtv.filter((a: any) => a.mes === mesName && a.ano === selectedYear).reduce((sum: number, a: any) => sum + a.realizado, 0)
+          result[k] = totalMes
+        })
+        return result
+      })
+      setData(newData)
+    }
+  }
+
+  // Recarrega os dados quando o ano selecionado mudar para re-calcular os meses
+  useEffect(() => {
+    loadData()
+  }, [selectedYear])
+
   function startEdit(id: string, currentValue: number) {
     setEditingId(id)
     setEditValue(currentValue)
@@ -72,11 +100,22 @@ export default function InspecoesPage() {
 
   function saveEdit(id: string) {
     if (selectedMonths.length === 1) {
-      setData(prev => prev.map(t => t.id === id ? { ...t, [selectedMonths[0]]: editValue } : t))
+      const monthKey = selectedMonths[0]
+      const dbMes = MES_MAP[monthKey]
+      
+      startTransition(async () => {
+         const res = await upsertAtividadeMes(id, 'INSPECAO', selectedYear, dbMes, editValue)
+         if (res.success) {
+           setData(prev => prev.map(t => t.id === id ? { ...t, [monthKey]: editValue } : t))
+         } else {
+           alert('Erro ao salvar no banco.')
+         }
+         setEditingId(null)
+      })
     } else {
       alert("Selecione apenas 1 mês para editar os valores na tabela.")
+      setEditingId(null)
     }
-    setEditingId(null)
   }
 
   const MONTHS_LIST = [
@@ -117,24 +156,37 @@ export default function InspecoesPage() {
         const ws = wb.Sheets[wsname]
         const parsed = XLSX.utils.sheet_to_json(ws) as any[]
 
-        const imported: ArkiumItem[] = parsed.map((row: any) => {
-          const dtFechamento = row['Data Fechamento'] || row['DataFechamento'] || ''
-          return {
-            id: Math.random().toString(36).substr(2, 9),
-            numero: String(row['Numero'] || row['Número'] || ''),
-            resultado: String(row['Resultado'] || ''),
-            dataAbertura: String(row['Data Abertura'] || row['DataAbertura'] || ''),
-            dataFechamento: String(dtFechamento),
-            matriculaAuditor: String(row['Matricula Auditor'] || row['MatriculaAuditor'] || ''),
-            nomeAuditor: String(row['Nome Auditor'] || row['NomeAuditor'] || ''),
-            identificadorObjeto: String(row['Identificador Objeto'] || row['IdentificadorObjeto'] || ''),
-            nomeQuestionario: String(row['Nome Questionario'] || row['NomeQuestionario'] || ''),
-            clienteObjeto: String(row['Cliente Objeto'] || row['ClienteObjeto'] || ''),
-            autocheck: String(row['Autocheck'] || ''),
-            observacao: String(row['Observação'] || row['Observacao'] || ''),
-            status: dtFechamento ? 'FECHADO' : 'ABERTO'
-          }
-        })
+        const imported: ArkiumItem[] = parsed
+          .map((row: any) => {
+            const dtFechamento = row['Data Fechamento'] || row['DataFechamento'] || ''
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              numero: String(row['Numero'] || row['Número'] || ''),
+              resultado: String(row['Resultado'] || ''),
+              dataAbertura: String(row['Data Abertura'] || row['DataAbertura'] || ''),
+              dataFechamento: String(dtFechamento),
+              matriculaAuditor: String(row['Matricula Auditor'] || row['MatriculaAuditor'] || ''),
+              nomeAuditor: String(row['Nome Auditor'] || row['NomeAuditor'] || ''),
+              identificadorObjeto: String(row['Identificador Objeto'] || row['IdentificadorObjeto'] || ''),
+              nomeQuestionario: String(row['Nome Questionario'] || row['NomeQuestionario'] || ''),
+              clienteObjeto: String(row['Cliente Objeto'] || row['ClienteObjeto'] || ''),
+              localidadeObjeto: String(row['Localidade Objeto'] || row['LocalidadeObjeto'] || ''),
+              autocheck: String(row['Autocheck'] || ''),
+              observacao: String(row['Observação'] || row['Observacao'] || ''),
+              status: dtFechamento ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'
+            }
+          })
+          .filter(item => item.matriculaAuditor.toUpperCase().startsWith('SG4'))
+          .map(item => {
+            // Tenta achar o técnico correspondente no array 'data' (que veio do BD)
+            // Match simples: nome exato ou contendo partes do nome (ex: nome e sobrenome principais)
+            const dbTecnico = data.find(t => {
+               const nomePlanilha = item.nomeAuditor.toLowerCase().trim()
+               const nomeBd = t.nome.toLowerCase().trim()
+               return nomePlanilha === nomeBd || nomePlanilha.includes(nomeBd.split(' ')[0]) && nomePlanilha.includes(nomeBd.split(' ').pop())
+            })
+            return { ...item, dbTecnico }
+          })
         
         // Adiciona novos itens ignorando duplicações exatas de número se já existirem
         setArkiumData(prev => {
@@ -357,9 +409,13 @@ export default function InspecoesPage() {
                         <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '14px 20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
-                                {t.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                              </div>
+                              {t.fotoUrl ? (
+                                <img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />
+                              ) : (
+                                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                                  {t.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                                </div>
+                              )}
                               <div>
                                 <div style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
                                 <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Admissão: {t.admissao}</div>
@@ -530,8 +586,19 @@ export default function InspecoesPage() {
                         <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#334155' }}>#{a.numero}</td>
                           <td style={{ padding: '12px 16px' }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{a.nomeAuditor}</div>
-                            <div style={{ fontSize: 10, color: '#94a3b8' }}>Mat: {a.matriculaAuditor || '--'}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              {a.dbTecnico?.fotoUrl ? (
+                                <img src={a.dbTecnico.fotoUrl} alt={a.dbTecnico.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }} />
+                              ) : (
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                                  {(a.dbTecnico?.nome || a.nomeAuditor).split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{a.dbTecnico?.nome || a.nomeAuditor}</div>
+                                <div style={{ fontSize: 10, color: '#94a3b8' }}>Mat: {a.matriculaAuditor || '--'}</div>
+                              </div>
+                            </div>
                           </td>
                           <td style={{ padding: '12px 16px', maxWidth: 200 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={a.nomeQuestionario}>{a.nomeQuestionario}</div>

@@ -1,28 +1,21 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useTransition } from 'react'
 import {
   MessageSquare, Calendar, ShieldCheck, HelpCircle,
   TrendingUp, Search, Plus, Trash2, Edit,
   UploadCloud, FileSpreadsheet, ListTodo, CheckSquare, X, AlertTriangle, PlayCircle, CheckCircle2
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
-
-// Dados reais compilados da aba "GESTÃO DE DSS - TIME TST SG4"
-const INITIAL_DIALOGOS = [
-  { id: '1', nome: 'Antonio Carlos Junior Dias', jan: 8, fev: 8, mar: 8, abr: 8, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '2', nome: 'Daniel José Gregorio Junior', jan: 8, fev: 8, mar: 8, abr: 20, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '3', nome: 'Dara Amorim Silva de Lima', jan: 0, fev: 0, mar: 0, abr: 3, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '4', nome: 'Djonatê Cruz dos Santos', jan: 8, fev: 8, mar: 8, abr: 3, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '5', nome: 'Jonas Rodrigues Pereira', jan: 9, fev: 8, mar: 8, abr: 3, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '6', nome: 'Karine Novaes Assem', jan: 8, fev: 9, mar: 13, abr: 10, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '7', nome: 'Luis Claudio Soares', jan: 0, fev: 3, mar: 8, abr: 8, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '8', nome: 'Rogério Lima da Silva', jan: 9, fev: 8, mar: 9, abr: 3, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '9', nome: 'Rosicleide Fernandes Santos Davino', jan: 16, fev: 14, mar: 18, abr: 14, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-  { id: '10', nome: 'Samuel da Silva Santos', jan: 0, fev: 2, mar: 0, abr: 2, mai: 0, jun: 0, jul: 0, ago: 0, set: 0, out: 0, nov: 0, dez: 0 },
-]
+import { getTecnicos } from '@/app/actions/tecnicos'
+import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
+
+const MES_MAP: Record<MesKey, string> = {
+  jan: 'JANEIRO', fev: 'FEVEREIRO', mar: 'MARCO', abr: 'ABRIL', mai: 'MAIO', jun: 'JUNHO',
+  jul: 'JULHO', ago: 'AGOSTO', set: 'SETEMBRO', out: 'OUTUBRO', nov: 'NOVEMBRO', dez: 'DEZEMBRO'
+}
 
 export type ArkiumDSSItem = {
   id: string
@@ -40,13 +33,15 @@ export type ArkiumDSSItem = {
   assinado: string
   justificativa: string
   estado: 'ABERTO' | 'FECHADO'
+  dbTecnico?: any
 }
 
 export default function DialogosPage() {
   const [activeTab, setActiveTab] = useState<'consolidado' | 'arkium'>('consolidado')
+  const [pending, startTransition] = useTransition()
 
   // --- ESTADO: Visão Consolidada ---
-  const [data, setData] = useState(INITIAL_DIALOGOS)
+  const [data, setData] = useState<any[]>([])
   const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['abr'])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
@@ -62,13 +57,56 @@ export default function DialogosPage() {
   const totalMeta = filtered.length * targetMeta * (selectedMonths.length || 1)
   const pctRealizado = totalMeta > 0 ? Math.round((totalRealizado / totalMeta) * 100) : 0
 
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  async function loadData() {
+    const tecRes = await getTecnicos()
+    const atvRes = await getAtividades('DSS')
+
+    if (tecRes.success && tecRes.data) {
+      const tecnicos = tecRes.data.filter((t: any) => t.ativo)
+      const atividades = atvRes.success && atvRes.data ? atvRes.data : []
+
+      const newData = tecnicos.map((t: any) => {
+        const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
+        const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl }
+        
+        Object.keys(MES_MAP).forEach(k => {
+          const mesName = MES_MAP[k as MesKey]
+          const totalMes = tecAtv.filter((a: any) => a.mes === mesName && a.ano === selectedYear).reduce((sum: number, a: any) => sum + a.realizado, 0)
+          result[k] = totalMes
+        })
+        return result
+      })
+      setData(newData)
+    }
+  }
+
+  // Recarrega os dados quando o ano selecionado mudar
+  useEffect(() => {
+    loadData()
+  }, [selectedYear])
+
   function saveEdit(id: string) {
     if (selectedMonths.length === 1) {
-      setData(prev => prev.map(t => t.id === id ? { ...t, [selectedMonths[0]]: editValue } : t))
+      const monthKey = selectedMonths[0]
+      const dbMes = MES_MAP[monthKey]
+      
+      startTransition(async () => {
+         const res = await upsertAtividadeMes(id, 'DSS', selectedYear, dbMes, editValue)
+         if (res.success) {
+           setData(prev => prev.map(t => t.id === id ? { ...t, [monthKey]: editValue } : t))
+         } else {
+           alert('Erro ao salvar no banco.')
+         }
+         setEditingId(null)
+      })
     } else {
       alert("Selecione apenas 1 mês para editar os valores na tabela.")
+      setEditingId(null)
     }
-    setEditingId(null)
   }
 
   function handleDelete(id: string) {
@@ -114,33 +152,43 @@ export default function DialogosPage() {
         const ws = wb.Sheets[wsname]
         const parsed = XLSX.utils.sheet_to_json(ws) as any[]
 
-        const imported: ArkiumDSSItem[] = parsed.map((row: any) => {
-          const assinadoVal = String(row['Assinado'] || '')
-          const justifVal = String(row['Justificativa'] || '')
-          
-          // Lógica de "ABERTO": Se não está assinado E não tem justificativa, consideramos aberto
-          // Ou se a "Data Fechamento" estiver vazia. Depende do seu processo. 
-          // Assumiremos que falta "Assinatura" ou "Justificativa" para fechá-lo.
-          const isFechado = (assinadoVal.toLowerCase() === 'sim' || assinadoVal.toLowerCase() === 'yes') || justifVal.length > 0
+        const imported: ArkiumDSSItem[] = parsed
+          .map((row: any) => {
+            const assinadoVal = String(row['Assinado'] || '')
+            const justifVal = String(row['Justificativa'] || '')
+            
+            // Lógica de "ABERTO": Se não está assinado E não tem justificativa, consideramos aberto
+            // Ou se a "Data Fechamento" estiver vazia. Depende do seu processo. 
+            // Assumiremos que falta "Assinatura" ou "Justificativa" para fechá-lo.
+            const isFechado = (assinadoVal.toLowerCase() === 'sim' || assinadoVal.toLowerCase() === 'yes') || justifVal.length > 0
 
-          return {
-            id: Math.random().toString(36).substr(2, 9),
-            assunto: String(row['Assunto'] || ''),
-            numeroDialogo: String(row['Numero do Diálogo'] || row['Numero do Dialogo'] || row['Numero'] || ''),
-            lider: String(row['Lider'] || row['Líder'] || ''),
-            base: String(row['Base'] || ''),
-            uf: String(row['UF'] || ''),
-            localidade: String(row['Localidade'] || ''),
-            dataFechamento: String(row['Data Fechamento'] || row['DataFechamento'] || ''),
-            matricula: String(row['Matricula'] || row['Matrícula'] || ''),
-            nome: String(row['Nome'] || ''),
-            tipo: String(row['Tipo'] || ''),
-            statusDSS: String(row['Status'] || ''),
-            assinado: assinadoVal,
-            justificativa: justifVal,
-            estado: isFechado ? 'FECHADO' : 'ABERTO'
-          }
-        })
+            return {
+              id: Math.random().toString(36).substr(2, 9),
+              assunto: String(row['Assunto'] || ''),
+              numeroDialogo: String(row['Numero do Diálogo'] || row['Numero do Dialogo'] || row['Numero'] || ''),
+              lider: String(row['Lider'] || row['Líder'] || ''),
+              base: String(row['Base'] || ''),
+              uf: String(row['UF'] || ''),
+              localidade: String(row['Localidade'] || ''),
+              dataFechamento: String(row['Data Fechamento'] || row['DataFechamento'] || ''),
+              matricula: String(row['Matricula'] || row['Matrícula'] || ''),
+              nome: String(row['Nome'] || ''),
+              tipo: String(row['Tipo'] || ''),
+              statusDSS: String(row['Status'] || ''),
+              assinado: assinadoVal,
+              justificativa: justifVal,
+              estado: isFechado ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'
+            }
+          })
+          .filter(item => item.matricula.toUpperCase().startsWith('SG4'))
+          .map(item => {
+            const dbTecnico = data.find(t => {
+               const nomePlanilha = item.nome.toLowerCase().trim()
+               const nomeBd = t.nome.toLowerCase().trim()
+               return nomePlanilha === nomeBd || nomePlanilha.includes(nomeBd.split(' ')[0]) && nomePlanilha.includes(nomeBd.split(' ').pop())
+            })
+            return { ...item, dbTecnico }
+          })
         
         setArkiumData(prev => {
           const newItems = imported.filter(imp => !prev.some(p => p.numeroDialogo === imp.numeroDialogo && p.matricula === imp.matricula))
@@ -359,7 +407,18 @@ export default function DialogosPage() {
 
                       return (
                         <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</td>
+                          <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              {t.fotoUrl ? (
+                                <img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />
+                              ) : (
+                                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                                  {t.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                                </div>
+                              )}
+                              <span>{t.nome}</span>
+                            </div>
+                          </td>
                           <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>{meta}</td>
                           <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                             {editingId === t.id ? (
@@ -507,8 +566,19 @@ export default function DialogosPage() {
                         <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#334155' }}>#{a.numeroDialogo}</td>
                           <td style={{ padding: '12px 16px' }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{a.nome}</div>
-                            <div style={{ fontSize: 10, color: '#94a3b8' }}>Mat: {a.matricula || '--'}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              {a.dbTecnico?.fotoUrl ? (
+                                <img src={a.dbTecnico.fotoUrl} alt={a.dbTecnico.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }} />
+                              ) : (
+                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                                  {(a.dbTecnico?.nome || a.nome).split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{a.dbTecnico?.nome || a.nome}</div>
+                                <div style={{ fontSize: 10, color: '#94a3b8' }}>Mat: {a.matricula || '--'}</div>
+                              </div>
+                            </div>
                           </td>
                           <td style={{ padding: '12px 16px', maxWidth: 200 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={a.assunto}>{a.assunto}</div>
