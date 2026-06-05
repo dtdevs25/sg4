@@ -158,44 +158,47 @@ export default function ReunioesPage() {
               <option value="2026">2026</option>
             </select>
           </div>
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setIsMonthDropdownOpen(!isMonthDropdownOpen)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                textAlign: 'left',
-                fontSize: 13,
-                fontWeight: 600,
-                color: '#334155',
-                cursor: 'pointer',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}
-            >
-              <span>{selectedMonths.length > 0 ? selectedMonths.map(m => MONTHS_LIST.find(x => x.key === m)?.label).join(', ') : 'Nenhum mês selecionado'}</span>
-              <span style={{ fontSize: 10 }}>▼</span>
-            </button>
-            
-            {isMonthDropdownOpen && (
-              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, marginTop: 4, zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' }}>
-                {MONTHS_LIST.map(m => (
-                  <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedMonths.includes(m.key)} 
-                      onChange={() => toggleMonth(m.key)} 
-                      style={{ accentColor: '#660099' }}
-                    />
-                    <span style={{ fontSize: 13, color: '#334155' }}>{m.label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {MONTHS_LIST.slice(0, 6).map(m => {
+                const isSelected = selectedMonths.includes(m.key)
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => toggleMonth(m.key)}
+                    style={{
+                      flex: 1, padding: '8px 0', borderRadius: 6,
+                      border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                      background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                      color: isSelected ? '#660099' : '#64748b',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {MONTHS_LIST.slice(6, 12).map(m => {
+                const isSelected = selectedMonths.includes(m.key)
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => toggleMonth(m.key)}
+                    style={{
+                      flex: 1, padding: '8px 0', borderRadius: 6,
+                      border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                      background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                      color: isSelected ? '#660099' : '#64748b',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
 
