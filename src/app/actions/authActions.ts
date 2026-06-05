@@ -28,12 +28,12 @@ export async function forgotPassword(email: string) {
 
     const html = `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-        <h2 style="color: #660099;">SG4 Dashboard - Recuperação de Senha</h2>
+        <h2 style="color: #e53935;">SG4 - Gestão de Segurança do Trabalho</h2>
         <p>Olá, <b>${user.name}</b>!</p>
         <p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
         <p>Para criar uma nova senha, clique no botão abaixo:</p>
         <div style="margin: 30px 0;">
-          <a href="${resetUrl}" style="background-color: #660099; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Redefinir Senha</a>
+          <a href="${resetUrl}" style="background-color: #e53935; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Redefinir Senha</a>
         </div>
         <p style="font-size: 14px; color: #666;">Se você não solicitou a redefinição de senha, apenas ignore este e-mail.</p>
         <p style="font-size: 14px; color: #666;">Este link é válido por 1 hora.</p>
@@ -42,7 +42,7 @@ export async function forgotPassword(email: string) {
 
     const mailRes = await sendMail({
       to: email,
-      subject: 'SG4 Dashboard - Recuperação de Senha',
+      subject: 'SG4 - Gestão de Segurança do Trabalho (Recuperação de Senha)',
       html
     })
 

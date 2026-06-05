@@ -12,7 +12,8 @@ export default auth((req) => {
   // Rotas públicas — não precisam de autenticação
   const isPublic =
     pathname.startsWith('/login') ||
-    pathname.startsWith('/api/auth')
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/reset-password')
 
   // Rota raiz: sempre redireciona para /login (middleware decide conforme sessão)
   if (pathname === '/') {
