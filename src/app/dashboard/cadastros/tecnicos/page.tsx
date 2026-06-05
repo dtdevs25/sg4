@@ -1,83 +1,123 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import {
-  Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2
+  Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2, Camera
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-
-// Dados reais da planilha
-const INITIAL_TECNICOS = [
-  { id: '1', nome: 'Antonio Carlos Junior Dias', email: 'antonio.dias@sg4.com.br', telefone: '(11) 98765-4321', cargo: 'Técnico de Segurança do Trabalho Sênior', admissao: '05/08/2025', ativo: true },
-  { id: '2', nome: 'Daniel José Gregorio Junior', email: 'daniel.junior@sg4.com.br', telefone: '(11) 97654-3210', cargo: 'Técnico de Segurança do Trabalho Sênior', admissao: '05/08/2025', ativo: true },
-  { id: '3', nome: 'Dara Amorim Silva de Lima', email: 'dara.lima@sg4.com.br', telefone: '(11) 96543-2109', cargo: 'Técnica de Segurança do Trabalho Júnior', admissao: '23/03/2026', ativo: true },
-  { id: '4', nome: 'Djonatê Cruz dos Santos', email: 'djonate.santos@sg4.com.br', telefone: '(11) 95432-1098', cargo: 'Técnico de Segurança do Trabalho Pleno', admissao: '05/08/2025', ativo: true },
-  { id: '5', nome: 'Jonas Rodrigues Pereira', email: 'jonas.pereira@sg4.com.br', telefone: '(11) 94321-0987', cargo: 'Técnico de Segurança do Trabalho Pleno', admissao: '18/09/2025', ativo: true },
-  { id: '6', nome: 'Karine Novaes Assem', email: 'karine.assem@sg4.com.br', telefone: '(11) 93210-9876', cargo: 'Técnica de Segurança do Trabalho Sênior', admissao: '05/08/2025', ativo: true },
-  { id: '7', nome: 'Luis Claudio Soares', email: 'luis.soares@sg4.com.br', telefone: '(11) 92109-8765', cargo: 'Técnico de Segurança do Trabalho Júnior', admissao: '02/02/2026', ativo: true },
-  { id: '8', nome: 'Rogério Lima da Silva', email: 'rogerio.silva@sg4.com.br', telefone: '(11) 91098-7654', cargo: 'Técnico de Segurança do Trabalho Pleno', admissao: '12/04/2025', ativo: true },
-  { id: '9', nome: 'Rosicleide Fernandes Santos Davino', email: 'rosicleide.davino@sg4.com.br', telefone: '(11) 90987-6543', cargo: 'Técnica de Segurança do Trabalho Sênior', admissao: '05/08/2025', ativo: true },
-  { id: '10', nome: 'Samuel da Silva Santos', email: 'samuel.santos@sg4.com.br', telefone: '(11) 99876-5432', cargo: 'Técnico de Segurança do Trabalho Júnior', admissao: '05/08/2025', ativo: true },
-]
+import { getTecnicos, saveTecnico, toggleTecnicoStatus, uploadFotoTecnico } from '@/app/actions/tecnicos'
 
 export default function TecnicosPage() {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
-  const [tecnicos, setTecnicos] = useState(INITIAL_TECNICOS)
+  const [tecnicos, setTecnicos] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [isEditing, setIsEditing] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
   
   // Form state
   const [form, setForm] = useState({
     nome: '', email: '', telefone: '',
-    cargo: 'Técnico de Segurança do Trabalho Pleno',
     admissao: new Date().toLocaleDateString('pt-BR'),
-    ativo: true,
+    fotoUrl: '',
   })
+  
+  const [fotoFile, setFotoFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>('')
 
   const filtered = tecnicos.filter(t => 
     t.nome.toLowerCase().includes(search.toLowerCase()) ||
-    t.email.toLowerCase().includes(search.toLowerCase()) ||
+    t.email?.toLowerCase().includes(search.toLowerCase()) ||
     t.cargo.toLowerCase().includes(search.toLowerCase())
   )
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function load() {
+    const res = await getTecnicos()
+    if (res.success && res.data) {
+      setTecnicos(res.data)
+    }
+  }
 
   function handleOpenAdd() {
     setIsEditing(null)
     setForm({
       nome: '', email: '', telefone: '',
-      cargo: 'Técnico de Segurança do Trabalho Pleno',
       admissao: new Date().toLocaleDateString('pt-BR'),
-      ativo: true,
+      fotoUrl: '',
     })
+    setFotoFile(null)
+    setPreviewUrl('')
     setShowModal(true)
   }
 
-  function handleOpenEdit(tecnico: typeof INITIAL_TECNICOS[0]) {
+  function handleOpenEdit(tecnico: any) {
     setIsEditing(tecnico.id)
+    const admissao = new Date(tecnico.admissao).toLocaleDateString('pt-BR')
     setForm({
-      nome: tecnico.nome, email: tecnico.email, telefone: tecnico.telefone,
-      cargo: tecnico.cargo, admissao: tecnico.admissao, ativo: tecnico.ativo,
+      nome: tecnico.nome, email: tecnico.email || '', telefone: tecnico.telefone || '',
+      admissao,
+      fotoUrl: tecnico.fotoUrl || '',
     })
+    setFotoFile(null)
+    setPreviewUrl(tecnico.fotoUrl || '')
     setShowModal(true)
+  }
+
+  async function handleFotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setFotoFile(file)
+      setPreviewUrl(URL.createObjectURL(file))
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nome || !form.email) return
 
-    if (isEditing) {
-      setTecnicos(prev => prev.map(t => t.id === isEditing ? { ...t, ...form } : t))
-    } else {
-      const newId = (tecnicos.length + 1).toString()
-      setTecnicos(prev => [...prev, { id: newId, ...form }])
-    }
-    setShowModal(false)
+    startTransition(async () => {
+      let finalFotoUrl = form.fotoUrl
+
+      if (fotoFile) {
+        const reader = new FileReader()
+        reader.readAsDataURL(fotoFile)
+        await new Promise((resolve) => {
+          reader.onload = async () => {
+            const base64 = reader.result as string
+            const resUrl = await uploadFotoTecnico(base64, fotoFile.name, fotoFile.type)
+            if (resUrl.success) {
+              finalFotoUrl = resUrl.url as string
+            }
+            resolve(true)
+          }
+        })
+      }
+
+      await saveTecnico({
+        id: isEditing || undefined,
+        nome: form.nome,
+        email: form.email,
+        telefone: form.telefone,
+        admissao: form.admissao,
+        fotoUrl: finalFotoUrl
+      })
+
+      setShowModal(false)
+      load()
+    })
   }
 
   function toggleStatus(id: string) {
-    setTecnicos(prev => prev.map(t => t.id === id ? { ...t, ativo: !t.ativo } : t))
+    startTransition(async () => {
+      await toggleTecnicoStatus(id)
+      load()
+    })
   }
 
   return (
@@ -101,12 +141,12 @@ export default function TecnicosPage() {
             <Users color="#660099" size={22} />
             Equipe de Técnicos
           </h1>
-          
         </div>
         
         {role !== 'TST' && (
           <button
             onClick={handleOpenAdd}
+            disabled={pending}
             style={{
               background: '#660099',
               color: '#fff',
@@ -115,11 +155,12 @@ export default function TecnicosPage() {
               borderRadius: 8,
               fontSize: 14,
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: pending ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              boxShadow: '0 2px 4px rgba(102,0,153, 0.2)'
+              boxShadow: '0 2px 4px rgba(102,0,153, 0.2)',
+              opacity: pending ? 0.7 : 1
             }}
           >
             <UserPlus size={16} />
@@ -165,9 +206,13 @@ export default function TecnicosPage() {
                 <tr key={tecnico.id} style={{ borderBottom: '1px solid #f1f5f9', opacity: tecnico.ativo ? 1 : 0.6 }}>
                   <td style={{ padding: '14px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
-                        {tecnico.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                      </div>
+                      {tecnico.fotoUrl ? (
+                        <img src={tecnico.fotoUrl} alt={tecnico.nome} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />
+                      ) : (
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                          {tecnico.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                        </div>
+                      )}
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>{tecnico.nome}</div>
                         <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>{tecnico.cargo}</div>
@@ -179,7 +224,7 @@ export default function TecnicosPage() {
                     <div style={{ fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}><Phone size={12} /> {tecnico.telefone}</div>
                   </td>
                   <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {tecnico.admissao}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {new Date(tecnico.admissao).toLocaleDateString('pt-BR')}</div>
                   </td>
                   <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                     <span style={{ 
@@ -192,14 +237,21 @@ export default function TecnicosPage() {
                   </td>
                   {role !== 'TST' && (
                     <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                      <button onClick={() => handleOpenEdit(tecnico)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: '#64748b', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>Editar</button>
-                      <button onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: tecnico.ativo ? '#ef4444' : '#10b981', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                      <button disabled={pending} onClick={() => handleOpenEdit(tecnico)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: '#64748b', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', marginRight: 8 }}>Editar</button>
+                      <button disabled={pending} onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: '1px solid #e2e8f0', color: tecnico.ativo ? '#ef4444' : '#10b981', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                         {tecnico.ativo ? 'Desativar' : 'Reativar'}
                       </button>
                     </td>
                   )}
                 </tr>
               ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>
+                    Nenhum técnico encontrado.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -215,6 +267,18 @@ export default function TecnicosPage() {
             <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Preencha os dados do técnico de segurança do trabalho.</p>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+                <label style={{ position: 'relative', width: 80, height: 80, borderRadius: '50%', background: '#f1f5f9', border: '2px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden' }}>
+                  {previewUrl ? (
+                    <img src={previewUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <Camera color="#94a3b8" size={24} />
+                  )}
+                  <input type="file" accept="image/*" onChange={handleFotoChange} style={{ display: 'none' }} />
+                </label>
+              </div>
+
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Nome Completo</label>
                 <input type="text" required value={form.nome} onChange={(e) => setForm(p => ({ ...p, nome: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
@@ -231,27 +295,22 @@ export default function TecnicosPage() {
                   <input type="text" value={form.telefone} onChange={(e) => setForm(p => ({ ...p, telefone: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Admissão</label>
-                  <input type="text" value={form.admissao} onChange={(e) => setForm(p => ({ ...p, admissao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Admissão (DD/MM/AAAA)</label>
+                  <input type="text" value={form.admissao} onChange={(e) => setForm(p => ({ ...p, admissao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Ex: 05/08/2025" />
                 </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Cargo</label>
-                <select value={form.cargo} onChange={(e) => setForm(p => ({ ...p, cargo: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
-                  <option value="Técnico de Segurança do Trabalho Júnior">Técnico Júnior</option>
-                  <option value="Técnico de Segurança do Trabalho Pleno">Técnico Pleno</option>
-                  <option value="Técnico de Segurança do Trabalho Sênior">Técnico Sênior</option>
-                  <option value="Coordenador de Segurança do Trabalho">Coordenador TST</option>
-                </select>
+                <input type="text" readOnly value="Técnico de Segurança do Trabalho" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc', color: '#64748b', fontWeight: 600 }} />
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
+                <button type="button" onClick={() => setShowModal(false)} disabled={pending} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>
                   Cancelar
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                  {isEditing ? 'Salvar' : 'Cadastrar'}
+                <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>
+                  {pending ? 'Processando...' : isEditing ? 'Salvar' : 'Cadastrar'}
                 </button>
               </div>
             </form>

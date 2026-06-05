@@ -19,7 +19,6 @@ export default function UsuariosPage() {
   const [form, setForm] = useState({
     name: '',
     email: '',
-    password: '',
     role: 'TST',
     tecnicoId: ''
   })
@@ -69,7 +68,7 @@ export default function UsuariosPage() {
     const res = await createUsuario(form)
     if (res.success) {
       setShowAddModal(false)
-      setForm({ name: '', email: '', password: '', role: 'TST', tecnicoId: '' })
+      setForm({ name: '', email: '', role: 'TST', tecnicoId: '' })
       fetchData()
     } else {
       alert(res.error)
@@ -217,9 +216,11 @@ export default function UsuariosPage() {
                 <input type="email" required value={form.email} onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Senha Inicial (Mín. 6 caracteres)</label>
-                <input type="text" required minLength={6} value={form.password} onChange={(e) => setForm(p => ({ ...p, password: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 16px', borderRadius: 8 }}>
+                <p style={{ margin: 0, fontSize: 13, color: '#166534', lineHeight: 1.5 }}>
+                  <b style={{ display: 'block', marginBottom: 4 }}>Segurança Aprimorada</b>
+                  Um e-mail será enviado automaticamente para o usuário com um link válido por 48 horas para que ele mesmo cadastre sua senha de acesso.
+                </p>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

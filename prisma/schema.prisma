@@ -78,6 +78,7 @@ model Tecnico {
   email     String?   @unique
   telefone  String?
   cargo     String    @default("Técnico de Segurança do Trabalho")
+  fotoUrl   String?
   admissao  DateTime
   ativo     Boolean   @default(true)
   createdAt DateTime  @default(now())

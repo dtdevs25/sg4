@@ -2,7 +2,9 @@
 
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { sendMail } from '@/lib/mail'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 
 export async function getUsuarios() {
   try {
@@ -67,7 +69,7 @@ export async function toggleUserStatus(id: string) {
   }
 }
 
-export async function createUsuario(data: { name: string, email: string, password?: string, role: any, tecnicoId?: string }) {
+export async function createUsuario(data: { name: string, email: string, role: any, tecnicoId?: string }) {
   try {
     const session = await auth()
     const currentRole = (session?.user as any)?.role
@@ -85,11 +87,13 @@ export async function createUsuario(data: { name: string, email: string, passwor
       return { success: false, error: 'Email já cadastrado' }
     }
 
-    if (!data.password || data.password.length < 6) {
-      return { success: false, error: 'A senha deve ter pelo menos 6 caracteres' }
-    }
+    // Gerar uma senha aleatória para ficar no banco (o usuário redefinirá depois)
+    const randomTempPwd = crypto.randomBytes(32).toString('hex')
+    const hashedPassword = await bcrypt.hash(randomTempPwd, 10)
 
-    const hashedPassword = await bcrypt.hash(data.password, 10)
+    // Token de 48h para primeiro acesso
+    const resetToken = crypto.randomBytes(32).toString('hex')
+    const resetTokenExpiry = new Date(Date.now() + 48 * 3600000)
 
     const user = await prisma.user.create({
       data: {
@@ -97,6 +101,8 @@ export async function createUsuario(data: { name: string, email: string, passwor
         email: data.email,
         password: hashedPassword,
         role: data.role,
+        resetToken,
+        resetTokenExpiry
       }
     })
 
@@ -107,6 +113,28 @@ export async function createUsuario(data: { name: string, email: string, passwor
         data: { userId: user.id }
       })
     }
+
+    // Enviar e-mail de convite
+    const resetUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`
+    const html = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #e53935;">SG4 - Gestão de Segurança do Trabalho</h2>
+        <p>Olá, <b>${user.name}</b>!</p>
+        <p>Uma nova conta foi criada para você no sistema SG4.</p>
+        <p>Para ativar sua conta e criar sua senha de acesso, clique no botão abaixo:</p>
+        <div style="margin: 30px 0;">
+          <a href="${resetUrl}" style="background-color: #e53935; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Criar minha senha</a>
+        </div>
+        <p style="font-size: 14px; color: #666;">Este link é válido por 48 horas.</p>
+        <p style="font-size: 14px; color: #666;">Se você não esperava este e-mail, por favor ignore.</p>
+      </div>
+    `
+
+    await sendMail({
+      to: data.email,
+      subject: 'SG4 - Convite de Acesso',
+      html
+    })
 
     return { success: true }
   } catch (error) {
