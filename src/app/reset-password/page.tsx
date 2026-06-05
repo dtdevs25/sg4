@@ -38,7 +38,7 @@ function ResetForm() {
           router.push('/login')
         }, 3000)
       } else {
-        setError(res.error)
+        setError(res.error || 'Erro desconhecido. Tente novamente.')
       }
     })
   }
