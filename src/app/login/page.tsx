@@ -322,9 +322,8 @@ export default function LoginPage() {
         @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
         .modal {
-          background: rgba(255,255,255,0.12);
-          backdrop-filter: blur(30px) saturate(1.8);
-          border: 1px solid rgba(255,255,255,0.25);
+          background: linear-gradient(135deg, #b91c1c 0%, #8b0000 100%);
+          border: 1px solid rgba(255,255,255,0.15);
           border-radius: 24px;
           padding: 40px 36px 32px;
           max-width: 380px;
