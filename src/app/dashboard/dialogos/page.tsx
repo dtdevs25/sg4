@@ -34,6 +34,7 @@ type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 's
 export default function DialogosPage() {
   const [data, setData] = useState(INITIAL_DIALOGOS)
   const [selectedMonth, setSelectedMonth] = useState<MesKey>('abr')
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<number>(0)
@@ -93,17 +94,24 @@ export default function DialogosPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
         
-        {/* Filtro de Meses */}
+        {/* Filtro de Meses e Ano */}
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+              <option value={2024}>2024</option>
+              <option value={2025}>2025</option>
+              <option value={2026}>2026</option>
+            </select>
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {[
-              { key: 'jan', label: 'Janeiro' }, { key: 'fev', label: 'Fevereiro' },
-              { key: 'mar', label: 'Março' }, { key: 'abr', label: 'Abril' },
-              { key: 'mai', label: 'Maio' }, { key: 'jun', label: 'Junho' },
-              { key: 'jul', label: 'Julho' }, { key: 'ago', label: 'Agosto' },
-              { key: 'set', label: 'Setembro' }, { key: 'out', label: 'Outubro' },
-              { key: 'nov', label: 'Novembro' }, { key: 'dez', label: 'Dezembro' }
+              { key: 'jan', label: 'Jan' }, { key: 'fev', label: 'Fev' },
+              { key: 'mar', label: 'Mar' }, { key: 'abr', label: 'Abr' },
+              { key: 'mai', label: 'Mai' }, { key: 'jun', label: 'Jun' },
+              { key: 'jul', label: 'Jul' }, { key: 'ago', label: 'Ago' },
+              { key: 'set', label: 'Set' }, { key: 'out', label: 'Out' },
+              { key: 'nov', label: 'Nov' }, { key: 'dez', label: 'Dez' }
             ].map(m => (
               <button
                 key={m.key}
