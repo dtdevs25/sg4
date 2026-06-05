@@ -24,7 +24,8 @@ type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 's
 
 export default function InspecoesPage() {
   const [data, setData] = useState(INITIAL_INSPECOES)
-  const [selectedMonth, setSelectedMonth] = useState<MesKey>('abr')
+  const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['abr'])
+  const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -34,8 +35,10 @@ export default function InspecoesPage() {
 
   const filtered = data.filter(t => t.nome.toLowerCase().includes(search.toLowerCase()))
 
-  const totalRealizado = filtered.reduce((acc, curr) => acc + curr[selectedMonth], 0)
-  const totalMeta = filtered.length * targetMeta
+  const totalRealizado = filtered.reduce((acc, curr) => {
+    return acc + selectedMonths.reduce((sum, m) => sum + curr[m], 0)
+  }, 0)
+  const totalMeta = filtered.length * targetMeta * (selectedMonths.length || 1)
   const pctRealizado = totalMeta > 0 ? Math.round((totalRealizado / totalMeta) * 100) : 0
 
   function startEdit(id: string, currentValue: number) {
@@ -44,7 +47,28 @@ export default function InspecoesPage() {
   }
 
   function saveEdit(id: string) {
-    setData(prev => prev.map(t => t.id === id ? { ...t, [selectedMonth]: editValue } : t))
+    // Para simplificar, a edição rápida na tabela só editara o PRIMEIRO mês selecionado, ou o usuário deve editar quando tiver 1 mês só selecionado
+    if (selectedMonths.length === 1) {
+      setData(prev => prev.map(t => t.id === id ? { ...t, [selectedMonths[0]]: editValue } : t))
+    } else {
+      alert("Selecione apenas 1 mês para editar os valores na tabela.")
+    }
+    setEditingId(null)
+  }
+
+  const MONTHS_LIST = [
+    { key: 'jan', label: 'Jan' }, { key: 'fev', label: 'Fev' },
+    { key: 'mar', label: 'Mar' }, { key: 'abr', label: 'Abr' },
+    { key: 'mai', label: 'Mai' }, { key: 'jun', label: 'Jun' },
+    { key: 'jul', label: 'Jul' }, { key: 'ago', label: 'Ago' },
+    { key: 'set', label: 'Set' }, { key: 'out', label: 'Out' },
+    { key: 'nov', label: 'Nov' }, { key: 'dez', label: 'Dez' }
+  ];
+
+  function toggleMonth(m: MesKey) {
+    setSelectedMonths(prev => 
+      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
+    )
     setEditingId(null)
   }
 
@@ -84,41 +108,54 @@ export default function InspecoesPage() {
               <option value={2026}>2026</option>
             </select>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {[
-              { key: 'jan', label: 'Jan' }, { key: 'fev', label: 'Fev' },
-              { key: 'mar', label: 'Mar' }, { key: 'abr', label: 'Abr' },
-              { key: 'mai', label: 'Mai' }, { key: 'jun', label: 'Jun' },
-              { key: 'jul', label: 'Jul' }, { key: 'ago', label: 'Ago' },
-              { key: 'set', label: 'Set' }, { key: 'out', label: 'Out' },
-              { key: 'nov', label: 'Nov' }, { key: 'dez', label: 'Dez' }
-            ].map(m => (
-              <button
-                key={m.key}
-                onClick={() => { setSelectedMonth(m.key as MesKey); setEditingId(null) }}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: selectedMonth === m.key ? '1px solid #660099' : '1px solid #e2e8f0',
-                  background: selectedMonth === m.key ? '#660099' : '#f8fafc',
-                  color: selectedMonth === m.key ? '#fff' : '#64748b',
-                }}
-              >
-                {m.label}
-              </button>
-            ))}
+          
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setIsMonthDropdownOpen(!isMonthDropdownOpen)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                textAlign: 'left',
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#334155',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <span>{selectedMonths.length > 0 ? selectedMonths.map(m => MONTHS_LIST.find(x => x.key === m)?.label).join(', ') : 'Nenhum mês selecionado'}</span>
+              <span style={{ fontSize: 10 }}>▼</span>
+            </button>
+            
+            {isMonthDropdownOpen && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, marginTop: 4, zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' }}>
+                {MONTHS_LIST.map(m => (
+                  <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedMonths.includes(m.key as MesKey)} 
+                      onChange={() => toggleMonth(m.key as MesKey)} 
+                      style={{ accentColor: '#660099' }}
+                    />
+                    <span style={{ fontSize: 13, color: '#334155' }}>{m.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Card de Estatística */}
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atingimento do Mês</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atingimento do Período</span>
             <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
-              {selectedMonth}
+              {selectedMonths.length} MÊS(ES)
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
@@ -155,7 +192,7 @@ export default function InspecoesPage() {
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                   <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Meta Mensal</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Meta do Período</th>
                   <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Realizado</th>
                   <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Progresso</th>
                   <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
@@ -164,9 +201,10 @@ export default function InspecoesPage() {
               </thead>
               <tbody>
                 {filtered.map(t => {
-                  const realizado = t[selectedMonth]
-                  const statusPct = Math.round((realizado / targetMeta) * 100)
-                  const isCompleted = realizado >= targetMeta
+                  const realizado = selectedMonths.reduce((sum, m) => sum + t[m], 0)
+                  const meta = targetMeta * (selectedMonths.length || 1)
+                  const statusPct = meta > 0 ? Math.round((realizado / meta) * 100) : 0
+                  const isCompleted = realizado >= meta
                   const hasStarted = realizado > 0
 
                   return (
@@ -183,7 +221,7 @@ export default function InspecoesPage() {
                         </div>
                       </td>
                       <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>
-                        {targetMeta}
+                        {meta}
                       </td>
                       <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                         {editingId === t.id ? (
