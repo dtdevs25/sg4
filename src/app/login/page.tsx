@@ -80,7 +80,7 @@ export default function LoginPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #3a005c 0%, #660099 35%, #8b2c8c 60%, #4a0072 100%);
+          background: linear-gradient(135deg, #7f0000 0%, #b91c1c 35%, #c0392b 60%, #8b0000 100%);
           position: relative;
           overflow: hidden;
         }
@@ -93,14 +93,14 @@ export default function LoginPage() {
         }
         .blob1 {
           width: 600px; height: 600px;
-          background: radial-gradient(circle, rgba(139,44,140,0.35) 0%, transparent 70%);
+          background: radial-gradient(circle, rgba(255,100,100,0.35) 0%, transparent 70%);
           top: -150px; left: -150px;
           filter: blur(80px);
           animation: blobMove1 8s ease-in-out infinite alternate;
         }
         .blob2 {
           width: 500px; height: 500px;
-          background: radial-gradient(circle, rgba(74,0,114,0.5) 0%, transparent 70%);
+          background: radial-gradient(circle, rgba(120,0,0,0.5) 0%, transparent 70%);
           bottom: -120px; right: -120px;
           filter: blur(80px);
           animation: blobMove2 10s ease-in-out infinite alternate;
@@ -227,7 +227,7 @@ export default function LoginPage() {
           box-shadow: 0 0 0 3px rgba(255,255,255,0.15);
         }
         .login-input:-webkit-autofill {
-          -webkit-box-shadow: 0 0 0 1000px rgba(74,0,114,0.6) inset;
+          -webkit-box-shadow: 0 0 0 1000px rgba(180,0,0,0.6) inset;
           -webkit-text-fill-color: #fff;
         }
 
@@ -280,8 +280,8 @@ export default function LoginPage() {
           font-size: 0.95rem;
           font-weight: 700;
           letter-spacing: 0.5px;
-          color: #660099;
-          background: linear-gradient(135deg, #ffffff 0%, #f3e8ff 100%);
+          color: #9b0000;
+          background: linear-gradient(135deg, #ffffff 0%, #ffe0e0 100%);
           box-shadow: 0 4px 20px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.15);
           transition: transform 0.18s, box-shadow 0.18s, filter 0.18s;
           position: relative;
@@ -315,7 +315,7 @@ export default function LoginPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: rgba(58,0,92,0.55);
+          background: rgba(80,0,0,0.55);
           backdrop-filter: blur(6px);
           animation: fadeIn 0.25s ease;
         }
@@ -351,8 +351,8 @@ export default function LoginPage() {
         .btn-secondary:hover { background: rgba(255,255,255,0.15); }
         .btn-primary-modal {
           flex: 1; padding: 12px; border-radius: 12px; border: none;
-          background: linear-gradient(135deg, #fff 0%, #f3e8ff 100%);
-          color: #660099; font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 700;
+          background: linear-gradient(135deg, #fff 0%, #ffe0e0 100%);
+          color: #9b0000; font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 700;
           cursor: pointer; transition: transform 0.18s, box-shadow 0.18s;
           box-shadow: 0 4px 16px rgba(0,0,0,0.2);
         }
@@ -513,8 +513,8 @@ export default function LoginPage() {
               {pending ? (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   <svg style={{ animation: 'spin 0.7s linear infinite' }} width="18" height="18" fill="none" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="rgba(102,0,153,0.3)" strokeWidth="3"/>
-                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#660099" strokeWidth="3" strokeLinecap="round"/>
+                    <circle cx="12" cy="12" r="10" stroke="rgba(180,0,0,0.3)" strokeWidth="3"/>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#9b0000" strokeWidth="3" strokeLinecap="round"/>
                   </svg>
                   Entrando…
                 </span>
