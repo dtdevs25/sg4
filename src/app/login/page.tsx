@@ -322,7 +322,7 @@ export default function LoginPage() {
         @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
 
         .modal {
-          background: linear-gradient(135deg, #b91c1c 0%, #8b0000 100%);
+          background: #e53935;
           border: 1px solid rgba(255,255,255,0.15);
           border-radius: 24px;
           padding: 40px 36px 32px;

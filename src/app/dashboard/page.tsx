@@ -8,7 +8,7 @@ import {
   Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import {
-  ClipboardCheck, Clock, FileText, Award, ChevronDown, X
+  ClipboardCheck, Clock, FileText, Award, ChevronDown, X, Target, TrendingUp
 } from 'lucide-react'
 
 /* ── Constantes Visuais ── */
@@ -283,8 +283,8 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', gap: 20 }}>
         <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS"       value={totalDss} bg="#660099" bgDark="#4a0072" />
         <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock}          label="Inspeções" value={totalInsp} bg="#8e44ad" bgDark="#732d91" />
-        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={Award}          label="% DSS"     value={`${pctDss}%`} subtitle={metaDssTotal} bg="#28A745" bgDark="#218838" />
-        <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Award}          label="% Inspeções" value={`${pctInsp}%`} subtitle={metaInspTotal} bg="#17a2b8" bgDark="#138496" />
+        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={Target}          label="% DSS"     value={`${pctDss}%`} subtitle={metaDssTotal} bg="#9c27b0" bgDark="#7b1fa2" />
+        <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={TrendingUp}          label="% Inspeções" value={`${pctInsp}%`} subtitle={metaInspTotal} bg="#673ab7" bgDark="#512da8" />
       </div>
 
       {/* ── Charts & Rankings (2/3 + 1/3) ── */}
