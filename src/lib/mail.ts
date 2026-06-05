@@ -16,7 +16,7 @@ const transporter = nodemailer.createTransport({
 export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }) {
   try {
     const info = await transporter.sendMail({
-      from: `"SG4 Dashboard" <${process.env.SMTP_USER || 'sg4@ehspro.com.br'}>`,
+      from: `"SG4 - Gestão de Segurança do Trabalho" <${process.env.SMTP_USER || 'sg4@ehspro.com.br'}>`,
       to,
       subject,
       html,
