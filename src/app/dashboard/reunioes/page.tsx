@@ -43,7 +43,9 @@ const TECNICOS = [
 export default function ReunioesPage() {
   const [logs, setLogs] = useState(INITIAL_REUNIOES_LOG)
   const [search, setSearch] = useState('')
-  const [selectedMonth, setSelectedMonth] = useState('01')
+  const [selectedMonths, setSelectedMonths] = useState<string[]>(['01'])
+  const [selectedYear, setSelectedYear] = useState('2026')
+  const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false)
   const [showModal, setShowModal] = useState(false)
 
   const [meetingDate, setMeetingDate] = useState('02/03/2026')
@@ -53,9 +55,26 @@ export default function ReunioesPage() {
 
   const filtered = logs.filter(l => {
     const matchSearch = l.nome.toLowerCase().includes(search.toLowerCase()) || l.motivo.toLowerCase().includes(search.toLowerCase())
-    const matchMonth = l.data.split('/')[1] === selectedMonth
-    return matchSearch && matchMonth
+    const [_, m, y] = l.data.split('/')
+    const matchMonth = selectedMonths.length === 0 || selectedMonths.includes(m)
+    const matchYear = y === selectedYear
+    return matchSearch && matchMonth && matchYear
   })
+
+  const MONTHS_LIST = [
+    { key: '01', label: 'Jan' }, { key: '02', label: 'Fev' },
+    { key: '03', label: 'Mar' }, { key: '04', label: 'Abr' },
+    { key: '05', label: 'Mai' }, { key: '06', label: 'Jun' },
+    { key: '07', label: 'Jul' }, { key: '08', label: 'Ago' },
+    { key: '09', label: 'Set' }, { key: '10', label: 'Out' },
+    { key: '11', label: 'Nov' }, { key: '12', label: 'Dez' }
+  ]
+
+  function toggleMonth(m: string) {
+    setSelectedMonths(prev => 
+      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
+    )
+  }
 
   const totalMeetings = Array.from(new Set(filtered.map(l => l.data))).length
   const totalPresences = filtered.filter(l => l.presenca === 'Presente').length
@@ -129,35 +148,54 @@ export default function ReunioesPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
         
-        {/* Filtro de Meses */}
+        {/* Filtro de Meses e Ano */}
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Mês da Reunião</span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {[
-              { key: '01', label: 'Janeiro' }, { key: '02', label: 'Fevereiro' },
-              { key: '03', label: 'Março' }, { key: '04', label: 'Abril' },
-              { key: '05', label: 'Maio' }, { key: '06', label: 'Junho' },
-              { key: '07', label: 'Julho' }, { key: '08', label: 'Agosto' },
-              { key: '09', label: 'Setembro' }, { key: '10', label: 'Outubro' },
-              { key: '11', label: 'Novembro' }, { key: '12', label: 'Dezembro' }
-            ].map(m => (
-              <button
-                key={m.key}
-                onClick={() => setSelectedMonth(m.key)}
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: selectedMonth === m.key ? '1px solid #660099' : '1px solid #e2e8f0',
-                  background: selectedMonth === m.key ? '#660099' : '#f8fafc',
-                  color: selectedMonth === m.key ? '#fff' : '#64748b',
-                }}
-              >
-                {m.label}
-              </button>
-            ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+            <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+            </select>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setIsMonthDropdownOpen(!isMonthDropdownOpen)}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                textAlign: 'left',
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#334155',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <span>{selectedMonths.length > 0 ? selectedMonths.map(m => MONTHS_LIST.find(x => x.key === m)?.label).join(', ') : 'Nenhum mês selecionado'}</span>
+              <span style={{ fontSize: 10 }}>▼</span>
+            </button>
+            
+            {isMonthDropdownOpen && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, marginTop: 4, zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.1)', maxHeight: 200, overflowY: 'auto' }}>
+                {MONTHS_LIST.map(m => (
+                  <label key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedMonths.includes(m.key)} 
+                      onChange={() => toggleMonth(m.key)} 
+                      style={{ accentColor: '#660099' }}
+                    />
+                    <span style={{ fontSize: 13, color: '#334155' }}>{m.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -166,7 +204,7 @@ export default function ReunioesPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Métricas das Reuniões</span>
             <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
-              Mês {selectedMonth}
+              {selectedMonths.length} MÊS(ES)
             </span>
           </div>
           
