@@ -3,8 +3,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Cache do apk entre builds (BuildKit)
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat
 
 # Copiar manifests ANTES do código fonte para aproveitar cache de layers.
 # Se package.json não mudou, o npm install abaixo é reutilizado do cache.
@@ -13,8 +12,7 @@ COPY prisma ./prisma/
 
 # npm install com cache persistido entre builds pelo BuildKit.
 # Isso evita baixar os 652 pacotes do zero a cada deploy.
-RUN --mount=type=cache,target=/root/.npm \
-    npm install
+RUN npm install
 
 # Copiar o restante do código fonte
 COPY . .
