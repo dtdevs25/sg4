@@ -10,7 +10,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Instalar TODAS as dependências (incluindo devDependencies para build)
-RUN npm ci
+RUN npm install
 
 # Copiar código fonte
 COPY . .
@@ -44,9 +44,12 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Instalar dependências de produção e gerar o Prisma Client nativo no runner
-RUN npm ci --omit=dev
-RUN npx prisma generate
+# Instalar dependências de produção
+RUN npm install --omit=dev
+
+# Copiar o Prisma Client já gerado pelo builder (evita re-gerar sem dev deps)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
 USER nextjs
 

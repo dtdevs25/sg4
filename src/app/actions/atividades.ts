@@ -37,3 +37,42 @@ export async function getAtividades(tipo?: TipoAtividade) {
     return { success: false, error: 'Erro ao buscar atividades' }
   }
 }
+
+export async function upsertAtividadeMes(tecnicoId: string, tipo: TipoAtividade, ano: number, mes: any, realizado: number) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const role = (session.user as any).role
+    // TSTs talvez não possam editar livremente, mas vamos permitir por enquanto, ou limitar ao ADMIN.
+    
+    // Como a UI edita o mês inteiro, vamos salvar o valor na 'S1' (semana 1) como representante do total mensal
+    const atividade = await prisma.atividade.upsert({
+      where: {
+        tecnicoId_tipo_ano_mes_semana: {
+          tecnicoId,
+          tipo,
+          ano,
+          mes,
+          semana: 'S1'
+        }
+      },
+      update: {
+        realizado
+      },
+      create: {
+        tecnicoId,
+        tipo,
+        ano,
+        mes,
+        semana: 'S1',
+        realizado,
+        meta: tipo === 'DSS' ? 8 : 20
+      }
+    })
+    return { success: true, data: atividade }
+  } catch (error) {
+    console.error('Erro ao salvar atividade mensal:', error)
+    return { success: false, error: 'Erro ao salvar atividade' }
+  }
+}
