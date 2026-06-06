@@ -160,13 +160,14 @@ export default function DialogosPage() {
         const ws = wb.Sheets[wsname]
         const parsed = XLSX.utils.sheet_to_json(ws) as any[]
 
-        setImportProgress(`Analisando ${parsed.length} registros...`)
-
         const imported: ArkiumDSSItem[] = parsed
           .map((row: any) => {
             const assinadoVal = String(row['Assinado'] || '')
             const justifVal = String(row['Justificativa'] || '')
             
+            // Lógica de "ABERTO": Se não está assinado E não tem justificativa, consideramos aberto
+            // Ou se a "Data Fechamento" estiver vazia. Depende do seu processo. 
+            // Assumiremos que falta "Assinatura" ou "Justificativa" para fechá-lo.
             const isFechado = (assinadoVal.toLowerCase() === 'sim' || assinadoVal.toLowerCase() === 'yes') || justifVal.length > 0
 
             return {
@@ -196,9 +197,8 @@ export default function DialogosPage() {
             })
             return { ...item, dbTecnico }
           })
-
+        setImportProgress('Analisando registros...')
         setImportProgress('Salvando registros...')
-
         setTimeout(() => {
           setArkiumData(prev => {
             const newItems = imported.filter(imp => !prev.some(p => p.numeroDialogo === imp.numeroDialogo && p.matricula === imp.matricula))
@@ -207,7 +207,6 @@ export default function DialogosPage() {
             return [...prev, ...newItems]
           })
         }, 400)
-
       } catch (err) {
         setIsImporting(false)
         alert("Erro ao ler o arquivo. Certifique-se de que é um Excel (.xlsx) ou CSV válido.")
@@ -271,68 +270,28 @@ export default function DialogosPage() {
           <style>{`
             @keyframes sg4-spin { to { transform: rotate(360deg); } }
             @keyframes sg4-pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+            @keyframes sg4-progress { 0%{width:0%;margin-left:0%} 50%{width:70%;margin-left:15%} 100%{width:0%;margin-left:100%} }
           `}</style>
           <div style={{
             background: '#fff', borderRadius: 20, padding: '40px 48px',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
             boxShadow: '0 25px 50px rgba(0,0,0,0.4)', maxWidth: 400, width: '90%',
           }}>
-            {/* Spinner */}
-            <div style={{
-              width: 64, height: 64, borderRadius: '50%',
-              background: 'rgba(102,0,153,0.08)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Loader2
-                size={32}
-                color="#660099"
-                style={{ animation: 'sg4-spin 1s linear infinite' }}
-              />
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(102,0,153,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Loader2 size={32} color="#660099" style={{ animation: 'sg4-spin 1s linear infinite' }} />
             </div>
-
-            {/* Textos */}
             <div style={{ textAlign: 'center' }}>
-              <h3 style={{ margin: '0 0 6px 0', fontSize: 18, fontWeight: 800, color: '#1e293b' }}>
-                Importando DSS Arkium
-              </h3>
-              <p style={{
-                margin: '0 0 4px 0', fontSize: 12, color: '#64748b', fontWeight: 500,
-                maxWidth: 280, lineHeight: 1.5,
-              }}>
-                {importingFileName}
-              </p>
-              <p style={{
-                margin: 0, fontSize: 13, fontWeight: 700, color: '#660099',
-                animation: 'sg4-pulse 1.5s ease-in-out infinite',
-              }}>
-                {importProgress}
-              </p>
+              <h3 style={{ margin: '0 0 6px 0', fontSize: 18, fontWeight: 800, color: '#1e293b' }}>Importando DSS Arkium</h3>
+              <p style={{ margin: '0 0 4px 0', fontSize: 12, color: '#64748b', fontWeight: 500, maxWidth: 280, lineHeight: 1.5 }}>{importingFileName}</p>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#660099', animation: 'sg4-pulse 1.5s ease-in-out infinite' }}>{importProgress}</p>
             </div>
-
-            {/* Barra de progresso animada */}
             <div style={{ width: '100%', background: '#f1f5f9', borderRadius: 8, height: 6, overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', background: 'linear-gradient(90deg, #660099, #8e44ad)',
-                borderRadius: 8,
-                animation: 'sg4-progress 1.5s ease-in-out infinite',
-              }} />
-              <style>{`
-                @keyframes sg4-progress {
-                  0%   { width: 0%; margin-left: 0%; }
-                  50%  { width: 70%; margin-left: 15%; }
-                  100% { width: 0%; margin-left: 100%; }
-                }
-              `}</style>
+              <div style={{ height: '100%', background: 'linear-gradient(90deg, #660099, #8e44ad)', borderRadius: 8, animation: 'sg4-progress 1.5s ease-in-out infinite' }} />
             </div>
-
-            <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
-              Não feche nem atualize a página durante a importação.
-            </p>
+            <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Não feche nem atualize a página durante a importação.</p>
           </div>
         </div>
       )}
-
-      {/* ── Cabeçalho Padronizado ── */}
       <div style={{
         background: '#fff',
         borderRadius: 10,
