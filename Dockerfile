@@ -2,26 +2,28 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Instalar dependências necessárias para a build nativa (se houver)
-RUN apk add --no-cache libc6-compat
+# Cache do apk entre builds (BuildKit)
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk add --no-cache libc6-compat
 
-# Copiar arquivos de pacotes
+# Copiar manifests ANTES do código fonte para aproveitar cache de layers.
+# Se package.json não mudou, o npm install abaixo é reutilizado do cache.
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Instalar TODAS as dependências (incluindo devDependencies para build)
-RUN npm install
+# npm install com cache persistido entre builds pelo BuildKit.
+# Isso evita baixar os 652 pacotes do zero a cada deploy.
+RUN --mount=type=cache,target=/root/.npm \
+    npm install
 
-# Copiar código fonte
+# Copiar o restante do código fonte
 COPY . .
 
-# Gerar o Prisma Client nativo do alpine
+# Gerar o Prisma Client nativo do Alpine
 RUN npx prisma generate
 
-# Desabilitar telemetria do Next.js
+# Build de produção do Next.js
 ENV NEXT_TELEMETRY_DISABLED=1
-
-# Executar a build de produção do Next.js
 RUN npm run build
 
 # ─── RUNNER ─────────────────────────────────────────────────────────────────
@@ -31,23 +33,20 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Criar usuário não privilegiado para rodar a aplicação com segurança máxima
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copiar apenas os arquivos necessários para execução
+# Arquivos públicos e configuração
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 
-# Definir permissões de escrita para cache do next
+# Standalone output do Next.js (inclui tudo que precisa para rodar)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Instalar dependências de produção
-RUN npm install --omit=dev
-
-# Copiar o Prisma Client já gerado pelo builder (evita re-gerar sem dev deps)
+# Prisma Client gerado no builder (já compilado para Alpine)
+# O standalone já inclui as dependências necessárias — não precisamos de npm install aqui.
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
 
@@ -57,5 +56,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Executar a aplicação via server standalone gerado na build do Next.js
 CMD ["node", "server.js"]
