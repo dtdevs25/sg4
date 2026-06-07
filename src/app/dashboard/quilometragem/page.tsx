@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   Car, Fuel, Plus, Search, Calendar, CheckCircle2,
   AlertTriangle, UploadCloud, Trash2, Camera, MapPin, DollarSign, Image as ImageIcon,
-  Loader2, PlayCircle, StopCircle
+  Loader2, PlayCircle, StopCircle, Pencil
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import {
@@ -444,7 +444,7 @@ export default function QuilometragemPage() {
                     <td style={{ padding: '14px 20px' }}>
                       {k.kmFinal ? (
                         <>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>{new Date(k.dataFinal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Sexta-feira - {new Date(k.dataFinal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
                           <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                             {k.kmFinal} km
                             {k.fotoFinal && <button onClick={() => setShowPhotoModal(k.fotoFinal)} style={{ background: 'none', border: 'none', color: '#660099', cursor: 'pointer', padding: 0 }} title="Ver Foto Odômetro"><ImageIcon size={14} /></button>}
@@ -476,7 +476,7 @@ export default function QuilometragemPage() {
                               })
                               setShowEditKmModal(k)
                             }} style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 4 }} title="Editar">
-                              <PlayCircle size={16} />
+                              <Pencil size={16} />
                             </button>
                             <button onClick={() => setShowDeleteModal({id: k.id, type: 'km'})} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
                               <Trash2 size={16} />
@@ -546,7 +546,7 @@ export default function QuilometragemPage() {
                             })
                             setShowEditAbsModal(a)
                           }} style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 4 }} title="Editar">
-                            <PlayCircle size={16} />
+                            <Pencil size={16} />
                           </button>
                           <button onClick={() => setShowDeleteModal({id: a.id, type: 'abs'})} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
                             <Trash2 size={16} />
@@ -702,6 +702,12 @@ export default function QuilometragemPage() {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Nova Foto Odômetro Inicial (Opcional)</label>
+                {showEditKmModal?.fotoInicial && !formEditKm.fotoInicialBase64 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Foto Atual:</span>
+                    <img src={showEditKmModal.fotoInicial} alt="Odômetro Inicial" style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+                  </div>
+                )}
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditKm)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
               </div>
               
@@ -713,6 +719,12 @@ export default function QuilometragemPage() {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Nova Foto Odômetro Final (Opcional)</label>
+                {showEditKmModal?.fotoFinal && !formEditKm.fotoFinalBase64 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Foto Atual:</span>
+                    <img src={showEditKmModal.fotoFinal} alt="Odômetro Final" style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+                  </div>
+                )}
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditKm)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
               </div>
 
@@ -745,6 +757,12 @@ export default function QuilometragemPage() {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Novo Comprovante (Opcional)</label>
+                {showEditAbsModal?.fotoCupom && !formEditAbs.fotoCupomBase64 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Comprovante Atual:</span>
+                    <img src={showEditAbsModal.fotoCupom} alt="Cupom Fiscal" style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+                  </div>
+                )}
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditAbs)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
