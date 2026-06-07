@@ -349,7 +349,7 @@ export default function InspecoesPage() {
               status: dtFechamento ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'
             }
           })
-          .filter(item => item.matriculaAuditor.toUpperCase().startsWith('SG4'))
+          .filter(item => item.numero.trim() !== '') // Evita linhas vazias
           .map(item => {
             // Tenta achar o técnico correspondente no array 'data' (que veio do BD)
             // Match simples: nome exato ou contendo partes do nome (ex: nome e sobrenome principais)
