@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, ClipboardCheck, MessageSquare,
   Activity, Calendar, CalendarCheck, FileCheck,
   ChevronLeft, ChevronRight, Menu, X, User as UserIcon,
-  Settings, ShieldAlert, FileText, ChevronDown
+  Settings, ShieldAlert, FileText, ChevronDown, Car
 } from 'lucide-react'
 
 type NavItemType = {
@@ -24,7 +24,7 @@ const NAV: NavItemType[] = [
   { href: '/dashboard/dialogos',    label: 'DSS',         icon: MessageSquare    },
   { href: '/dashboard/atividades',  label: 'Atividades',  icon: Activity         },
   { href: '/dashboard/reunioes',    label: 'Reuniões',    icon: CalendarCheck    },
-  { href: '/dashboard/entregas',    label: 'Entregas',    icon: FileCheck        },
+  { href: '/dashboard/quilometragem',label: 'Quilometragem',icon: Car              },
   { href: '/dashboard/relatorios',  label: 'Relatórios',  icon: FileText         },
   { 
     label: 'Cadastros', icon: UserIcon, 

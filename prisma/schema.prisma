@@ -90,6 +90,8 @@ model Tecnico {
   reunioes    Reuniao[]
   entregas    Entrega[]
   inspecoesArkium InspecoesArkium[]
+  quilometragens Quilometragem[]
+  abastecimentos Abastecimento[]
 
   @@map("tecnicos")
 }
@@ -308,4 +310,39 @@ model InspecoesArkium {
   @@index([matriculaAuditor])
   @@index([tecnicoId])
   @@map("arkium_inspecoes")
+}
+
+// ─── QUILOMETRAGEM E ABASTECIMENTO ──────────────────────────────────────────
+
+model Quilometragem {
+  id           String   @id @default(cuid())
+  tecnicoId    String
+  diaSemana    String   // Ex: Segunda-feira
+  dataInicial  DateTime
+  kmInicial    Float
+  fotoInicial  String?
+  dataFinal    DateTime?
+  kmFinal      Float?
+  fotoFinal    String?
+  diferenca    Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tecnico      Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+  @@index([tecnicoId])
+  @@map("quilometragem")
+}
+
+model Abastecimento {
+  id           String   @id @default(cuid())
+  tecnicoId    String
+  data         DateTime
+  valor        Float
+  fotoCupom    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tecnico      Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+  @@index([tecnicoId])
+  @@map("abastecimentos")
 }

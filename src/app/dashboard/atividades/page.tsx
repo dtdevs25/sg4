@@ -2,18 +2,26 @@
 
 import { useState } from 'react'
 import {
-  Activity, Plus, Search, CheckCircle, Clock, Trash2, Sparkles, X
+  Activity, Plus, Search, CheckCircle, Clock, Trash2, Sparkles, X,
+  FileCheck, Calendar, Filter, User, CheckCircle2,
+  AlertTriangle, PlusCircle, Award, ShieldAlert
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
-// Dados reais da planilha "GESTÃO DAS ATIVIDADES"
+// --- DADOS MOCK (ATIVIDADES) ---
 const INITIAL_ATIVIDADES = [
   { id: 'act-1', data: '02/01/2026', responsavel: 'ANTONIO CARLOS JUNIOR DIAS', descricao: 'Planejamento das atividades, leitura de e-mail e elaboração do plano semanal.', equipe: 'Não se aplica', categoria: 'ADMINISTRATIVA', local: 'Base Humaitá', cidade: 'São José dos Campos', estado: 'SP', status: 'CONCLUÍDO', observacao: '' },
   { id: 'act-2', data: '02/01/2026', responsavel: 'ANTONIO CARLOS JUNIOR DIAS', descricao: 'Inspeção de segurança em campo.', equipe: 'Não se aplica', categoria: 'INSPEÇÃO DE SEGURANÇA', local: 'No município', cidade: 'Lorena', estado: 'SP', status: 'PENDENTE', observacao: 'Não foi encontrada nenhuma equipe para realizar a inspeção.' },
   { id: 'act-3', data: '02/01/2026', responsavel: 'ANTONIO CARLOS JUNIOR DIAS', descricao: 'Inspeção de segurança em campo.', equipe: 'Não se aplica', categoria: 'INSPEÇÃO DE SEGURANÇA', local: 'No município', cidade: 'Guaratinguetá', estado: 'SP', status: 'PENDENTE', observacao: 'Não foi encontrada nenhuma equipe para realizar a inspeção.' },
   { id: 'act-4', data: '02/01/2026', responsavel: 'DANIEL JOSÉ GREGORIO JUNIOR', descricao: 'Planejamento das atividades, leitura de e-mails, relatórios semanais.', equipe: 'Não se aplica', categoria: 'ADMINISTRATIVA', local: 'Base', cidade: 'Bauru', estado: 'SP', status: 'CONCLUÍDO', observacao: '' },
-  { id: 'act-5', data: '02/01/2026', responsavel: 'DANIEL JOSÉ GREGORIO JUNIOR', descricao: 'Inspeção de segurança em campo de equipe própria.', equipe: 'Equipe própria', categoria: 'INSPEÇÃO DE SEGURANÇA', local: 'Na localidade', cidade: 'Bauru', estado: 'SP', status: 'CONCLUÍDO', observacao: 'Realizada com sucesso.' },
-  { id: 'act-6', data: '02/01/2026', responsavel: 'KARINE NOVAES ASSEM', descricao: 'DSS - Diálogo de Segurança e Saúde sobre Trabalho em Altura.', equipe: 'Equipe terceirizada', categoria: 'GESTÃO DSS', local: 'Planta Leste', cidade: 'Vitória', estado: 'ES', status: 'CONCLUÍDO', observacao: '' },
+]
+
+// --- DADOS MOCK (ENTREGAS) ---
+const INITIAL_ENTREGAS = [
+  { id: '1', tecnico: 'ANTONIO CARLOS JUNIOR DIAS', periodo: '02/03/2026 a 06/03/2026', tipo: 'Relatório de Atividades', dataEntrega: '09/03/2026 14:05', status: 'Atrasado' },
+  { id: '2', tecnico: 'ANTONIO CARLOS JUNIOR DIAS', periodo: '02/03/2026 a 06/03/2026', tipo: 'Registro de KM Inicial/Final', dataEntrega: '09/03/2026 09:12', status: 'No Prazo' },
+  { id: '7', tecnico: 'DANIEL JOSÉ GREGORIO JUNIOR', periodo: '02/03/2026 a 06/03/2026', tipo: 'Relatório de Atividades', dataEntrega: '09/03/2026 08:28', status: 'No Prazo' },
+  { id: '8', tecnico: 'DANIEL JOSÉ GREGORIO JUNIOR', periodo: '02/03/2026 a 06/03/2026', tipo: 'Registro de KM Inicial/Final', dataEntrega: '09/03/2026 07:36', status: 'No Prazo' },
 ]
 
 const TECNICOS = [
@@ -23,54 +31,72 @@ const TECNICOS = [
   'DARA AMORIM SILVA DE LIMA'
 ]
 
-const CATEGORIES = [
-  'ADMINISTRATIVA', 'INSPEÇÃO DE SEGURANÇA', 'GESTÃO DSS', 'REUNIÃO DE ALINHAMENTO', 'TREINAMENTO'
-]
+const CATEGORIES = ['ADMINISTRATIVA', 'INSPEÇÃO DE SEGURANÇA', 'GESTÃO DSS', 'REUNIÃO DE ALINHAMENTO', 'TREINAMENTO']
+const PERIODS = ['02/03/2026 a 06/03/2026', '09/03/2026 a 13/03/2026', '16/03/2026 a 20/03/2026', '23/03/2026 a 27/03/2026']
 
-export default function AtividadesPage() {
+export default function AtividadesEntregasPage() {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
-  const [atividades, setAtividades] = useState(INITIAL_ATIVIDADES)
-  const [search, setSearch] = useState('')
-  const [filterResponsavel, setFilterResponsavel] = useState('TODOS')
-  const [filterCategoria, setFilterCategoria] = useState('TODOS')
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'atividades' | 'entregas'>('atividades')
 
-  const [form, setForm] = useState({
-    data: new Date().toLocaleDateString('pt-BR'),
-    responsavel: 'ANTONIO CARLOS JUNIOR DIAS',
+  // --- ESTADO: ATIVIDADES ---
+  const [atividades, setAtividades] = useState(INITIAL_ATIVIDADES)
+  const [searchAct, setSearchAct] = useState('')
+  const [filterRespAct, setFilterRespAct] = useState('TODOS')
+  const [filterCatAct, setFilterCatAct] = useState('TODOS')
+  const [showAddAct, setShowAddAct] = useState(false)
+  const [formAct, setFormAct] = useState({
+    data: new Date().toLocaleDateString('pt-BR'), responsavel: 'ANTONIO CARLOS JUNIOR DIAS',
     descricao: '', equipe: 'Não se aplica', categoria: 'INSPEÇÃO DE SEGURANÇA',
     local: '', cidade: '', estado: 'SP', status: 'CONCLUÍDO', observacao: ''
   })
 
-  const filtered = atividades.filter(act => {
-    const matchSearch = act.descricao.toLowerCase().includes(search.toLowerCase()) || act.local.toLowerCase().includes(search.toLowerCase()) || act.cidade.toLowerCase().includes(search.toLowerCase())
-    const matchResp = filterResponsavel === 'TODOS' || act.responsavel === filterResponsavel
-    const matchCat = filterCategoria === 'TODOS' || act.categoria === filterCategoria
+  const filteredAct = atividades.filter(act => {
+    const matchSearch = act.descricao.toLowerCase().includes(searchAct.toLowerCase()) || act.local.toLowerCase().includes(searchAct.toLowerCase()) || act.cidade.toLowerCase().includes(searchAct.toLowerCase())
+    const matchResp = filterRespAct === 'TODOS' || act.responsavel === filterRespAct
+    const matchCat = filterCatAct === 'TODOS' || act.categoria === filterCatAct
     return matchSearch && matchResp && matchCat
   })
 
-  function handleCreate(e: React.FormEvent) {
+  function handleCreateAct(e: React.FormEvent) {
     e.preventDefault()
-    const newId = 'act-' + Date.now()
-    setAtividades(prev => [ { id: newId, ...form }, ...prev ])
-    setShowAddModal(false)
-    setForm(p => ({ ...p, descricao: '', local: '', cidade: '', observacao: '' }))
+    setAtividades(prev => [ { id: 'act-' + Date.now(), ...formAct }, ...prev ])
+    setShowAddAct(false)
+    setFormAct(p => ({ ...p, descricao: '', local: '', cidade: '', observacao: '' }))
   }
 
-  function toggleStatus(id: string) {
-    setAtividades(prev => prev.map(a => a.id === id ? { ...a, status: a.status === 'CONCLUÍDO' ? 'PENDENTE' : 'CONCLUÍDO' } : a))
-  }
+  // --- ESTADO: ENTREGAS ---
+  const [entregas, setEntregas] = useState(INITIAL_ENTREGAS)
+  const [selectedTecnicoEnt, setSelectedTecnicoEnt] = useState('TODOS')
+  const [selectedTypeEnt, setSelectedTypeEnt] = useState('TODOS')
+  const [showAddEnt, setShowAddEnt] = useState(false)
+  const [formEnt, setFormEnt] = useState({
+    tecnico: 'ANTONIO CARLOS JUNIOR DIAS', periodo: '23/03/2026 a 27/03/2026',
+    tipo: 'Relatório de Atividades', dataEntrega: '', status: 'No Prazo'
+  })
 
-  function deleteAct(id: string) {
-    setAtividades(prev => prev.filter(a => a.id !== id))
+  const filteredEnt = entregas.filter(e => {
+    const matchTec = selectedTecnicoEnt === 'TODOS' || e.tecnico === selectedTecnicoEnt
+    const matchType = selectedTypeEnt === 'TODOS' || e.tipo === selectedTypeEnt
+    return matchTec && matchType
+  })
+
+  const totalEnt = filteredEnt.length
+  const noPrazoEnt = filteredEnt.filter(e => e.status === 'No Prazo').length
+  const atrasadosEnt = filteredEnt.filter(e => e.status === 'Atrasado').length
+  const eficienciaEnt = totalEnt > 0 ? Math.round((noPrazoEnt / totalEnt) * 100) : 0
+
+  function handleCreateEnt(e: React.FormEvent) {
+    e.preventDefault()
+    setEntregas(prev => [ { id: 'ent-' + Date.now(), ...formEnt }, ...prev ])
+    setShowAddEnt(false)
+    setFormEnt(p => ({ ...p, dataEntrega: '' }))
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
-
-      {/* ── Cabeçalho Padronizado ── */}
+      {/* CABEÇALHO UNIFICADO */}
       <div style={{
         background: '#fff',
         borderRadius: 10,
@@ -86,172 +112,227 @@ export default function AtividadesPage() {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Activity color="#660099" size={22} />
-            Atividades Operacionais
+            Gestão Operacional e Entregas
           </h1>
-          
         </div>
-        
-        <button
-          onClick={() => setShowAddModal(true)}
-          style={{
-            background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
-            fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-            boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
-          }}
-        >
-          <Plus size={16} />
-          Lançar Atividade
-        </button>
+
+        <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4 }}>
+          <button
+            onClick={() => setActiveTab('atividades')}
+            style={{
+              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+              background: activeTab === 'atividades' ? '#fff' : 'transparent',
+              color: activeTab === 'atividades' ? '#660099' : '#64748b',
+              boxShadow: activeTab === 'atividades' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            Atividades Diárias
+          </button>
+          <button
+            onClick={() => setActiveTab('entregas')}
+            style={{
+              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+              background: activeTab === 'entregas' ? '#fff' : 'transparent',
+              color: activeTab === 'entregas' ? '#660099' : '#64748b',
+              boxShadow: activeTab === 'entregas' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            Controle de Entregas
+          </button>
+        </div>
+
+        {activeTab === 'atividades' ? (
+          <button onClick={() => setShowAddAct(true)} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <Plus size={16} /> Lançar Atividade
+          </button>
+        ) : (
+          <button onClick={() => setShowAddEnt(true)} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <PlusCircle size={16} /> Lançar Entrega
+          </button>
+        )}
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, flex: 1 }}>
-          <div style={{ position: 'relative', minWidth: 200, flex: 1 }}>
-            <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
-            <input type="text" placeholder="Buscar por descrição, local..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
-          </div>
-          <select value={filterResponsavel} disabled={role === 'TST'} onChange={(e) => setFilterResponsavel(e.target.value)} style={{ width: 220, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
-            <option value="TODOS">Todos os Técnicos</option>
-            {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <select value={filterCategoria} onChange={(e) => setFilterCategoria(e.target.value)} style={{ width: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
-            <option value="TODOS">Todas as Categorias</option>
-            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div style={{ fontSize: 13, color: '#64748b' }}>Encontradas: <b>{filtered.length}</b> atividades</div>
-      </div>
-
-      {/* Table */}
-      <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Responsável</th>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Descrição</th>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Categoria</th>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Localidade</th>
-                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
-                {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Excluir</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(act => (
-                <tr key={act.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{act.data}</td>
-                  <td style={{ padding: '14px 20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
-                        {act.responsavel.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{act.responsavel}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 20px', maxWidth: 300 }}>
-                    <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{act.descricao}</p>
-                    {act.observacao && <p style={{ margin: '4px 0 0 0', fontSize: 11, color: '#660099', fontStyle: 'italic' }}>Obs: {act.observacao}</p>}
-                  </td>
-                  <td style={{ padding: '14px 20px' }}>
-                    <span style={{ fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, background: act.categoria === 'GESTÃO DSS' ? 'rgba(102,0,153,0.1)' : act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? 'rgba(245,158,11,0.1)' : '#f1f5f9', color: act.categoria === 'GESTÃO DSS' ? '#660099' : act.categoria === 'INSPEÇÃO DE SEGURANÇA' ? '#f59e0b' : '#64748b' }}>
-                      {act.categoria}
-                    </span>
-                  </td>
-                  <td style={{ padding: '14px 20px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{act.local}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>{act.cidade} / {act.estado}</div>
-                  </td>
-                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                    <button onClick={() => toggleStatus(act.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 12, border: 'none', background: act.status === 'CONCLUÍDO' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: act.status === 'CONCLUÍDO' ? '#10b981' : '#f59e0b', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
-                      {act.status === 'CONCLUÍDO' ? <CheckCircle size={12} /> : <Clock size={12} />}
-                      {act.status}
-                    </button>
-                  </td>
-                  {role !== 'TST' && (
-                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                      <button onClick={() => deleteAct(act.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir Atividade">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Add Modal */}
-      {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 600, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Sparkles color="#660099" size={20} /> Lançar Atividade
-              </h2>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+      {/* --- CONTEÚDO ATIVIDADES --- */}
+      {activeTab === 'atividades' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Filtros Atividades */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, flex: 1 }}>
+              <div style={{ position: 'relative', minWidth: 200, flex: 1 }}>
+                <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
+                <input type="text" placeholder="Buscar por descrição, local..." value={searchAct} onChange={(e) => setSearchAct(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
+              </div>
+              <select value={filterRespAct} disabled={role === 'TST'} onChange={(e) => setFilterRespAct(e.target.value)} style={{ width: 220, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
+                <option value="TODOS">Todos os Técnicos</option>
+                {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <select value={filterCatAct} onChange={(e) => setFilterCatAct(e.target.value)} style={{ width: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
+                <option value="TODOS">Todas as Categorias</option>
+                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
+            <div style={{ fontSize: 13, color: '#64748b' }}>Encontradas: <b>{filteredAct.length}</b> atividades</div>
+          </div>
 
-            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Data</label>
-                  <input type="text" required value={form.data} onChange={(e) => setForm(p => ({ ...p, data: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Responsável</label>
-                  <select value={form.responsavel} disabled={role === 'TST'} onChange={(e) => setForm(p => ({ ...p, responsavel: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
-                    {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
+          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Responsável</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Descrição</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Categoria</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
+                    {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Excluir</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAct.map(act => (
+                    <tr key={act.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{act.data}</td>
+                      <td style={{ padding: '14px 20px' }}><div style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{act.responsavel}</div></td>
+                      <td style={{ padding: '14px 20px', maxWidth: 300 }}>
+                        <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{act.descricao}</p>
+                      </td>
+                      <td style={{ padding: '14px 20px' }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, background: '#f1f5f9', color: '#64748b' }}>{act.categoria}</span>
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        <button onClick={() => setAtividades(prev => prev.map(a => a.id === act.id ? { ...a, status: a.status === 'CONCLUÍDO' ? 'PENDENTE' : 'CONCLUÍDO' } : a))} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 12, border: 'none', background: act.status === 'CONCLUÍDO' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: act.status === 'CONCLUÍDO' ? '#10b981' : '#f59e0b', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                          {act.status}
+                        </button>
+                      </td>
+                      {role !== 'TST' && (
+                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                          <button onClick={() => setAtividades(prev => prev.filter(a => a.id !== act.id))} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}>
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- CONTEÚDO ENTREGAS --- */}
+      {activeTab === 'entregas' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* KPI Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
+            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Eficiência</span>
+                <Award color="#10b981" size={18} />
               </div>
+              <div style={{ margin: '12px 0' }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{eficienciaEnt}%</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Entregas no prazo legal</div>
+              </div>
+              <div style={{ background: '#f1f5f9', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                <div style={{ background: '#10b981', height: '100%', width: `${eficienciaEnt}%` }} />
+              </div>
+            </div>
+            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atrasados</span>
+                <ShieldAlert color="#ef4444" size={16} />
+              </div>
+              <div style={{ margin: '12px 0' }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{atrasadosEnt}</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Requer atenção do gestor</div>
+              </div>
+            </div>
+          </div>
 
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 1 }}>
+              <select value={selectedTecnicoEnt} disabled={role === 'TST'} onChange={(e) => setSelectedTecnicoEnt(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b', fontWeight: 600 }}>
+                <option value="TODOS">Todos os Técnicos</option>
+                {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div style={{ fontSize: 13, color: '#64748b' }}>Encontradas: <b>{filteredEnt.length}</b> entregas</div>
+          </div>
+
+          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Período</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Tipo</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Data da Entrega</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
+                    {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ações</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEnt.map(e => (
+                    <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{e.periodo}</td>
+                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155' }}>{e.tecnico}</td>
+                      <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>{e.tipo}</td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, color: '#64748b', fontWeight: 600 }}>{e.dataEntrega || '—'}</td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: e.status === 'No Prazo' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: e.status === 'No Prazo' ? '#10b981' : '#ef4444' }}>
+                          {e.status}
+                        </span>
+                      </td>
+                      {role !== 'TST' && (
+                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                          <button onClick={() => setEntregas(prev => prev.filter(x => x.id !== e.id))} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAIS DE INSERÇÃO SIMPLIFICADOS (Atividades e Entregas) --- */}
+      {showAddAct && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 600, padding: 24 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20 }}>Lançar Atividade</h2>
+            <form onSubmit={handleCreateAct} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Descrição da Atividade</label>
-                <textarea required rows={2} value={form.descricao} onChange={(e) => setForm(p => ({ ...p, descricao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', resize: 'none' }} />
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>Descrição</label>
+                <textarea required value={formAct.descricao} onChange={(e) => setFormAct(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} />
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Equipe</label>
-                  <select value={form.equipe} onChange={(e) => setForm(p => ({ ...p, equipe: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
-                    <option value="Não se aplica">Não se aplica</option>
-                    <option value="Equipe própria">Equipe própria</option>
-                    <option value="Equipe terceirizada">Equipe terceirizada</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Categoria</label>
-                  <select value={form.categoria} onChange={(e) => setForm(p => ({ ...p, categoria: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button type="button" onClick={() => setShowAddAct(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
+                <button type="submit" style={{ flex: 1, padding: 12, background: '#660099', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700 }}>Salvar</button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 100px', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Local</label>
-                  <input type="text" required value={form.local} onChange={(e) => setForm(p => ({ ...p, local: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Cidade</label>
-                  <input type="text" required value={form.cidade} onChange={(e) => setForm(p => ({ ...p, cidade: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>UF</label>
-                  <input type="text" required value={form.estado} onChange={(e) => setForm(p => ({ ...p, estado: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
-                </div>
+      {showAddEnt && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20 }}>Lançar Entrega</h2>
+            <form onSubmit={handleCreateEnt} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>Data da Entrega</label>
+                <input required value={formEnt.dataEntrega} onChange={(e) => setFormEnt(p => ({...p, dataEntrega: e.target.value}))} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} />
               </div>
-
-              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
-                  Cancelar
-                </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                  Registrar Atividade
-                </button>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button type="button" onClick={() => setShowAddEnt(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
+                <button type="submit" style={{ flex: 1, padding: 12, background: '#660099', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700 }}>Salvar</button>
               </div>
             </form>
           </div>
