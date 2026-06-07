@@ -388,11 +388,9 @@ export default function DialogosPage() {
             return { ...item, dbTecnico }
           })
         setImportProgress('Salvando no banco de dados...')
-        // Filtra apenas itens novos (não duplicados)
-        const newItems = imported.filter(imp => !arkiumData.some(p => p.numeroDialogo === imp.numeroDialogo && p.matricula === imp.matricula))
-
-        // Persiste no banco via server action
-        const saveRes = await upsertDssArkiumBatch(newItems.map(item => ({
+        
+        // Persiste no banco via server action (passando tudo para o UPSERT)
+        const saveRes = await upsertDssArkiumBatch(imported.map(item => ({
           numeroDialogo: item.numeroDialogo,
           assunto: item.assunto,
           lider: item.lider,
@@ -409,10 +407,24 @@ export default function DialogosPage() {
           estado: item.estado,
         })))
 
-        const savedCount = saveRes.success ? (saveRes.inseridos ?? newItems.length) : newItems.length
-        setImportProgress(`${savedCount} novos registros importados!`)
-        setArkiumData(prev => [...prev, ...newItems])
-        setTimeout(() => setIsImporting(false), 1200)
+        const msg = saveRes.success 
+           ? `${saveRes.inseridos} registros processados e salvos no banco.` 
+           : `${imported.length} itens processados.`
+           
+        setImportProgress(msg)
+        
+        // Atualiza estado local simulando o Upsert
+        setArkiumData(prev => {
+           const next = [...prev]
+           imported.forEach(imp => {
+              const idx = next.findIndex(p => p.numeroDialogo === imp.numeroDialogo && p.matricula === imp.matricula)
+              if (idx >= 0) next[idx] = imp
+              else next.push(imp)
+           })
+           return next
+        })
+        
+        setTimeout(() => setIsImporting(false), 2500)
       } catch (err) {
         setIsImporting(false)
         alert("Erro ao ler o arquivo. Certifique-se de que é um Excel (.xlsx) ou CSV válido.")

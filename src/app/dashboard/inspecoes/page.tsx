@@ -362,9 +362,8 @@ export default function InspecoesPage() {
             return { ...item, dbTecnico }
           })
         setImportProgress('Salvando no banco de dados...')
-        const newItems = imported.filter(imp => !arkiumData.some(p => p.numero === imp.numero))
 
-        const saveRes = await upsertInspecoesArkiumBatch(newItems.map(item => ({
+        const saveRes = await upsertInspecoesArkiumBatch(imported.map(item => ({
           numero: item.numero,
           resultado: item.resultado,
           dataAbertura: item.dataAbertura,
@@ -380,10 +379,24 @@ export default function InspecoesPage() {
           status: item.status,
         })))
 
-        const savedCount = saveRes.success ? (saveRes.inseridos ?? newItems.length) : newItems.length
-        setImportProgress(`${savedCount} novos registros importados!`)
-        setArkiumData(prev => [...prev, ...newItems])
-        setTimeout(() => setIsImporting(false), 1200)
+        const msg = saveRes.success 
+           ? `${saveRes.inseridos} novos importados, ${saveRes.atualizados} atualizados (já existiam).` 
+           : `${imported.length} itens processados.`
+           
+        setImportProgress(msg)
+        
+        // Atualiza estado local simulando o Upsert
+        setArkiumData(prev => {
+           const next = [...prev]
+           imported.forEach(imp => {
+              const idx = next.findIndex(p => p.numero === imp.numero)
+              if (idx >= 0) next[idx] = imp
+              else next.push(imp)
+           })
+           return next
+        })
+        
+        setTimeout(() => setIsImporting(false), 2500)
       } catch (err) {
         setIsImporting(false)
         alert("Erro ao ler o arquivo. Certifique-se de que é um Excel (.xlsx) ou CSV válido.")
