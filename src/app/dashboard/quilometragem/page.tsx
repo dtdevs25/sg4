@@ -690,12 +690,12 @@ export default function QuilometragemPage() {
       {/* Modal Editar KM */}
       {showEditKmModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><PlayCircle color="#3b82f6" /> Editar Registro de KM</h2>
-            <form onSubmit={handleEditKm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: '16px 24px', maxHeight: '95vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><PlayCircle color="#3b82f6" /> Editar Registro de KM</h2>
+            <form onSubmit={handleEditKm} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Dia da Semana</label>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Dia da Semana</label>
                   <select required value={formEditKm.diaSemana} onChange={(e) => setFormEditKm(p => ({...p, diaSemana: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
                     <option>Segunda-feira</option>
                     <option>Terça-feira</option>
@@ -705,15 +705,15 @@ export default function QuilometragemPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>KM Inicial</label>
-                  <input type="number" step="0.1" required value={formEditKm.kmInicial} onChange={(e) => setFormEditKm(p => ({...p, kmInicial: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>KM Inicial</label>
+                  <input type="number" step="0.1" required value={formEditKm.kmInicial} onChange={(e) => setFormEditKm(p => ({...p, kmInicial: e.target.value}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Nova Foto Odômetro Inicial (Opcional)</label>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Nova Foto Inicial</label>
                 {showEditKmModal?.fotoInicial && !formEditKm.fotoInicialBase64 && (
-                  <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <img src={showEditKmModal.fotoInicial} alt="Odômetro Inicial" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                  <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <img src={showEditKmModal.fotoInicial} alt="Odômetro Inicial" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0' }} />
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Imagem Atual</span>
                       <button type="button" onClick={() => { const input = document.getElementById('editKmInPic') as HTMLInputElement; input?.click() }} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Trocar Imagem</button>
@@ -723,17 +723,17 @@ export default function QuilometragemPage() {
                 <input id="editKmInPic" type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditKm)} style={{ display: showEditKmModal?.fotoInicial && !formEditKm.fotoInicialBase64 ? 'none' : 'block', width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
               </div>
               
-              <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '8px 0' }} />
+              <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '4px 0' }} />
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>KM Final</label>
-                <input type="number" step="0.1" value={formEditKm.kmFinal} onChange={(e) => setFormEditKm(p => ({...p, kmFinal: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>KM Final</label>
+                <input type="number" step="0.1" value={formEditKm.kmFinal} onChange={(e) => setFormEditKm(p => ({...p, kmFinal: e.target.value}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Nova Foto Odômetro Final (Opcional)</label>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Nova Foto Final</label>
                 {showEditKmModal?.fotoFinal && !formEditKm.fotoFinalBase64 && (
-                  <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <img src={showEditKmModal.fotoFinal} alt="Odômetro Final" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                  <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <img src={showEditKmModal.fotoFinal} alt="Odômetro Final" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0' }} />
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Imagem Atual</span>
                       <button type="button" onClick={() => { const input = document.getElementById('editKmFiPic') as HTMLInputElement; input?.click() }} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Trocar Imagem</button>
@@ -757,24 +757,24 @@ export default function QuilometragemPage() {
       {/* Modal Editar Abastecimento */}
       {showEditAbsModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><Fuel color="#3b82f6" /> Editar Abastecimento</h2>
-            <form onSubmit={handleEditAbs} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: '16px 24px', maxHeight: '95vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Fuel color="#3b82f6" /> Editar Abastecimento</h2>
+            <form onSubmit={handleEditAbs} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Data</label>
-                  <input type="date" required value={formEditAbs.data} onChange={(e) => setFormEditAbs(p => ({...p, data: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Data</label>
+                  <input type="date" required value={formEditAbs.data} onChange={(e) => setFormEditAbs(p => ({...p, data: e.target.value}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Valor Total (R$)</label>
-                  <input type="number" step="0.01" required value={formEditAbs.valor} onChange={(e) => setFormEditAbs(p => ({...p, valor: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Valor Total (R$)</label>
+                  <input type="number" step="0.01" required value={formEditAbs.valor} onChange={(e) => setFormEditAbs(p => ({...p, valor: e.target.value}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Novo Comprovante (Opcional)</label>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Novo Comprovante</label>
                 {showEditAbsModal?.fotoCupom && !formEditAbs.fotoCupomBase64 && (
-                  <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <img src={showEditAbsModal.fotoCupom} alt="Cupom Fiscal" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                  <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <img src={showEditAbsModal.fotoCupom} alt="Cupom Fiscal" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0' }} />
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Comprovante Atual</span>
                       <button type="button" onClick={() => { const input = document.getElementById('editAbsPic') as HTMLInputElement; input?.click() }} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Trocar Imagem</button>
