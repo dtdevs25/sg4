@@ -669,13 +669,15 @@ export default function InspecoesPage() {
           {/* Top Actions e Stats */}
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
             {/* Upload Area */}
-            <div style={{ flex: 1, background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10, padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, minWidth: 300 }}>
-              <div style={{ width: 48, height: 48, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <FileSpreadsheet color="#660099" size={24} />
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Importar Relatório Arkium</h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#64748b' }}>Selecione um arquivo Excel (.xlsx) ou CSV</p>
+            <div style={{ flex: 1, background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minWidth: 260 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <FileSpreadsheet color="#660099" size={18} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Importar Arkium</div>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>Excel (.xlsx) ou CSV</div>
+                </div>
               </div>
               <input 
                 type="file" 
@@ -686,36 +688,36 @@ export default function InspecoesPage() {
               />
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                style={{ background: '#660099', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                style={{ background: '#660099', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
               >
-                <UploadCloud size={16} />
-                Selecionar Arquivo
+                <UploadCloud size={14} />
+                Importar
               </button>
             </div>
 
             {/* Stats Cards */}
             <div style={{ flex: 2, display: 'flex', gap: 16, minWidth: 300 }}>
-              <div style={{ flex: 1, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b' }}>
-                  <ListTodo size={18} /> <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>Total Importadas</span>
+              <div style={{ flex: 1, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b' }}>
+                  <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total Importadas</span>
                 </div>
-                <div style={{ fontSize: 36, fontWeight: 800, color: '#1e293b' }}>{totalArkium}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalArkium}</div>
               </div>
               
-              <div style={{ flex: 1, background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ flex: 1, background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#f59e0b' }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#b45309' }}>
-                  <AlertTriangle size={18} /> <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>Em Aberto</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309' }}>
+                  <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Em Aberto</span>
                 </div>
-                <div style={{ fontSize: 36, fontWeight: 800, color: '#f59e0b' }}>{abertasArkium}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{abertasArkium}</div>
               </div>
 
-              <div style={{ flex: 1, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ flex: 1, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#10b981' }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#047857' }}>
-                  <CheckSquare size={18} /> <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>Tratadas / Fechadas</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857' }}>
+                  <CheckSquare size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Tratadas / Fechadas</span>
                 </div>
-                <div style={{ fontSize: 36, fontWeight: 800, color: '#10b981' }}>{fechadasArkium}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{fechadasArkium}</div>
               </div>
             </div>
           </div>

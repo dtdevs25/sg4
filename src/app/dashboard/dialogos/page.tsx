@@ -48,7 +48,7 @@ export default function DialogosPage() {
 
   // --- ESTADO: Visão Consolidada ---
   const [data, setData] = useState<any[]>([])
-  const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['abr'])
+  const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -187,11 +187,34 @@ export default function DialogosPage() {
     { key: 'nov', label: 'Nov' }, { key: 'dez', label: 'Dez' }
   ]
 
-  function toggleMonth(m: MesKey) {
-    setSelectedMonths(prev => 
-      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
-    )
-    setEditingId(null)
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  function handleMonthClick(m: MesKey) {
+    if (clickTimeout.current) {
+      // Duplo clique detectado: seleciona APENAS este mês
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setSelectedMonths([m])
+      setEditingId(null)
+    } else {
+      // Clique simples: espera para ver se é duplo clique
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+        setSelectedMonths(prev => {
+          // Se o mês clicado é o ÚNICO selecionado atualmente, seleciona TODOS novamente
+          if (prev.length === 1 && prev.includes(m)) {
+            return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+          }
+          
+          if (prev.includes(m)) {
+            return prev.filter(x => x !== m)
+          } else {
+            return [...prev, m]
+          }
+        })
+        setEditingId(null)
+      }, 250)
+    }
   }
 
 
@@ -537,13 +560,14 @@ export default function DialogosPage() {
                     return (
                       <button
                         key={m.key}
-                        onClick={() => toggleMonth(m.key as MesKey)}
+                        onClick={() => handleMonthClick(m.key as MesKey)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
                           background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
                           color: isSelected ? '#660099' : '#64748b',
-                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
                         }}
                       >
                         {m.label}
@@ -557,13 +581,14 @@ export default function DialogosPage() {
                     return (
                       <button
                         key={m.key}
-                        onClick={() => toggleMonth(m.key as MesKey)}
+                        onClick={() => handleMonthClick(m.key as MesKey)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
                           background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
                           color: isSelected ? '#660099' : '#64748b',
-                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
                         }}
                       >
                         {m.label}
