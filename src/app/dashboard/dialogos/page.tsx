@@ -70,19 +70,41 @@ export default function DialogosPage() {
   async function loadData() {
     const tecRes = await getTecnicos()
     const atvRes = await getAtividades('DSS')
+    const arkRes = await getDssArkium()
 
     if (tecRes.success && tecRes.data) {
       const tecnicos = tecRes.data.filter((t: any) => t.ativo)
       const atividades = atvRes.success && atvRes.data ? atvRes.data : []
+      const arkiumList = arkRes.success && arkRes.data ? arkRes.data : []
 
       const newData = tecnicos.map((t: any) => {
         const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
+        const tecArkium = arkiumList.filter((a: any) => a.matricula && t.matricula && a.matricula.trim() === t.matricula.trim())
+
         const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl }
         
         Object.keys(MES_MAP).forEach(k => {
           const mesName = MES_MAP[k as MesKey]
-          const totalMes = tecAtv.filter((a: any) => a.mes === mesName && a.ano === selectedYear).reduce((sum: number, a: any) => sum + a.realizado, 0)
-          result[k] = totalMes
+          const totalMesAtv = tecAtv.filter((a: any) => a.mes === mesName && a.ano === selectedYear).reduce((sum: number, a: any) => sum + a.realizado, 0)
+          
+          const totalMesArkium = tecArkium.filter((a: any) => {
+            if (!a.dataFechamento) return false
+            const parts = a.dataFechamento.includes('/') ? a.dataFechamento.split('/') : a.dataFechamento.split('-')
+            if (parts.length < 3) return false
+            let month = 0, year = 0
+            if (a.dataFechamento.includes('/')) {
+                month = parseInt(parts[1], 10)
+                year = parseInt(parts[2], 10)
+                if (parts[2].length === 2) year += 2000
+            } else {
+                year = parseInt(parts[0], 10)
+                month = parseInt(parts[1], 10)
+            }
+            const MONTH_NAMES = ["", "JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
+            return MONTH_NAMES[month] === mesName && year === selectedYear
+          }).length
+
+          result[k] = totalMesAtv + totalMesArkium
         })
         return result
       })
@@ -177,7 +199,7 @@ export default function DialogosPage() {
             nome: r.nome,
             tipo: r.tipo || '',
             statusDSS: r.statusDSS || '',
-            assinado: r.assinado || 'Não',
+            assinado: r.assinado || 'NA',
             justificativa: r.justificativa || '',
             estado: r.estado as 'ABERTO' | 'FECHADO',
             dbTecnico,
@@ -316,7 +338,7 @@ export default function DialogosPage() {
   function openTreatModal(item: ArkiumDSSItem) {
     setTreatingItem(item)
     setTratarJustificativa(item.justificativa)
-    setTratarAssinado(item.assinado || 'Não')
+    setTratarAssinado(item.assinado || 'NA')
   }
 
   async function handleDeleteArkium(id: string) {
@@ -789,99 +811,95 @@ export default function DialogosPage() {
 
       {/* MODAL TRATAR ARKIUM */}
       {treatingItem && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
-                {treatingItem.estado === 'ABERTO' ? 'Tratar Diálogo' : 'Detalhes do Diálogo'} {treatingItem.numeroDialogo}
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
+                {treatingItem.estado === 'ABERTO' ? 'Tratar' : 'Detalhes'}: {treatingItem.numeroDialogo}
               </h3>
               <button onClick={() => setTreatingItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
-            <form onSubmit={handleTratar} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleTratar} style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {/* Cabeçalho do Card Interno */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, background: 'linear-gradient(145deg, #f8fafc, #f1f5f9)', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'linear-gradient(145deg, #f8fafc, #f1f5f9)', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
                   {treatingItem.dbTecnico?.fotoUrl ? (
-                    <img src={treatingItem.dbTecnico.fotoUrl} alt={treatingItem.nome} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} />
+                    <img src={treatingItem.dbTecnico.fotoUrl} alt={treatingItem.nome} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} />
                   ) : (
-                    <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fff', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, border: '2px solid #e2e8f0' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#fff', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, border: '2px solid #e2e8f0' }}>
                       {treatingItem.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                     </div>
                   )}
                   <div style={{ flex: 1 }}>
-                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#1e293b' }}>{treatingItem.nome}</h4>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Líder: <span style={{ fontWeight: 600, color: '#334155' }}>{treatingItem.lider}</span></div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Matrícula: <span style={{ fontWeight: 600, color: '#334155' }}>{treatingItem.matricula}</span></div>
+                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{treatingItem.nome}</h4>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Líder: <span style={{ fontWeight: 600, color: '#334155' }}>{treatingItem.lider}</span></div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Matrícula: <span style={{ fontWeight: 600, color: '#334155' }}>{treatingItem.matricula}</span></div>
                   </div>
                   {treatingItem.estado === 'FECHADO' ? (
-                    <span style={{ padding: '6px 12px', background: '#d1fae5', color: '#047857', borderRadius: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={14}/> FECHADO</span>
+                    <span style={{ padding: '4px 10px', background: '#d1fae5', color: '#047857', borderRadius: 20, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12}/> FECHADO</span>
                   ) : (
-                    <span style={{ padding: '6px 12px', background: '#fef3c7', color: '#b45309', borderRadius: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={14}/> PENDENTE</span>
+                    <span style={{ padding: '4px 10px', background: '#fef3c7', color: '#b45309', borderRadius: 20, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12}/> PENDENTE</span>
                   )}
                 </div>
 
                 {/* Grid de Informações Secundárias */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '0 4px' }}>
-                  <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #f1f5f9' }}>
-                    <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Assunto</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{treatingItem.assunto || '--'}</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                    <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Assunto</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{treatingItem.assunto || '--'}</span>
                   </div>
-                  <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #f1f5f9' }}>
-                    <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Tipo</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{treatingItem.tipo || '--'}</span>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                    <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Tipo</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{treatingItem.tipo || '--'}</span>
                   </div>
-                  <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #f1f5f9' }}>
-                    <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Localidade / UF</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{treatingItem.localidade || '--'} / {treatingItem.uf || '--'}</span>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                    <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Localidade / UF</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{treatingItem.localidade || '--'} / {treatingItem.uf || '--'}</span>
                   </div>
-                  <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #f1f5f9' }}>
-                    <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Base</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{treatingItem.base || '--'}</span>
-                  </div>
-                  <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #f1f5f9', gridColumn: 'span 2' }}>
-                    <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Data Fechamento</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{treatingItem.dataFechamento || 'Não informada'}</span>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                    <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Data / Base</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{treatingItem.dataFechamento || '--'} ({treatingItem.base || '--'})</span>
                   </div>
                 </div>
 
                 {/* Seção de Tratativa (Assinatura e Justificativa) */}
-                <div style={{ background: treatingItem.estado === 'FECHADO' ? '#f0fdf4' : '#fff', border: treatingItem.estado === 'FECHADO' ? '1px solid #bbf7d0' : '1px solid #e2e8f0', borderRadius: 10, padding: 16 }}>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 800, color: treatingItem.estado === 'FECHADO' ? '#166534' : '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <MessageSquare size={16} /> 
+                <div style={{ background: treatingItem.estado === 'FECHADO' ? '#f0fdf4' : '#fff', border: treatingItem.estado === 'FECHADO' ? '1px solid #bbf7d0' : '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: 12, fontWeight: 800, color: treatingItem.estado === 'FECHADO' ? '#166534' : '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <MessageSquare size={14} /> 
                     Tratativa
                   </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>Assinado?</label>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Assinado?</label>
                       {treatingItem.estado === 'FECHADO' ? (
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{treatingItem.assinado}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>{treatingItem.assinado}</div>
                       ) : (
                         <select 
                           value={tratarAssinado} 
                           onChange={e => setTratarAssinado(e.target.value)} 
-                          style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none', background: '#f8fafc' }} 
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', background: '#f8fafc' }} 
                         >
-                          <option value="Não">Não</option>
                           <option value="Sim">Sim</option>
+                          <option value="NA">NA</option>
                         </select>
                       )}
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>Justificativa / Observação</label>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Justificativa / Observação</label>
                       {treatingItem.estado === 'FECHADO' ? (
-                        <div style={{ fontSize: 13, color: '#475569', background: '#fff', padding: 12, borderRadius: 6, border: '1px dashed #cbd5e1', minHeight: 60 }}>
+                        <div style={{ fontSize: 12, color: '#475569', background: '#fff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1', minHeight: 40 }}>
                           {treatingItem.justificativa || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Nenhuma justificativa fornecida.</span>}
                         </div>
                       ) : (
                         <textarea 
                           value={tratarJustificativa} 
                           onChange={e => setTratarJustificativa(e.target.value)} 
-                          placeholder="Digite o motivo se não houver assinatura..."
-                          rows={3}
-                          style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none', resize: 'none', background: '#f8fafc' }} 
+                          placeholder="Digite o motivo..."
+                          rows={2}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', resize: 'none', background: '#f8fafc' }} 
                         />
                       )}
                     </div>
@@ -889,18 +907,18 @@ export default function DialogosPage() {
                 </div>
 
                 {treatingItem.estado === 'ABERTO' ? (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 8 }}>
-                    <button type="button" onClick={() => setTreatingItem(null)} style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+                    <button type="button" onClick={() => setTreatingItem(null)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
                       Cancelar
                     </button>
-                    <button type="submit" style={{ padding: '10px 20px', borderRadius: 8, border: 'none', background: '#10b981', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 6px -1px rgba(16,185,129,0.2)', transition: 'all 0.2s' }}>
-                      <CheckSquare size={16} /> Salvar Tratativa
+                    <button type="submit" style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#10b981', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 6px -1px rgba(16,185,129,0.2)', transition: 'all 0.2s' }}>
+                      <CheckSquare size={14} /> Salvar Tratativa
                     </button>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                    <button type="button" onClick={() => setTreatingItem(null)} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
-                      Fechar Visualização
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button type="button" onClick={() => setTreatingItem(null)} style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#f1f5f9', color: '#475569', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
+                      Fechar
                     </button>
                   </div>
                 )}
