@@ -8,8 +8,8 @@ import {
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import {
-  getQuilometragens, createQuilometragem, fecharQuilometragem, deleteQuilometragem,
-  getAbastecimentos, createAbastecimento, deleteAbastecimento, uploadFotoKm
+  getQuilometragens, createQuilometragem, fecharQuilometragem, deleteQuilometragem, updateQuilometragem,
+  getAbastecimentos, createAbastecimento, deleteAbastecimento, updateAbastecimento, uploadFotoKm
 } from '@/app/actions/quilometragem'
 import { getTecnicos } from '@/app/actions/tecnicos'
 
@@ -44,10 +44,17 @@ export default function QuilometragemPage() {
   const [showAbsModal, setShowAbsModal] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState<string | null>(null) // URL da foto
 
+  const [showEditKmModal, setShowEditKmModal] = useState<any>(null)
+  const [showEditAbsModal, setShowEditAbsModal] = useState<any>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState<{id: string, type: 'km' | 'abs'} | null>(null)
+
   // Forms
   const [formStart, setFormStart] = useState({ tecnicoId: '', diaSemana: 'Segunda-feira', kmInicial: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formEnd, setFormEnd] = useState({ kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: '', valor: '', fotoBase64: '', fileName: '', contentType: '' })
+  
+  const [formEditKm, setFormEditKm] = useState({ diaSemana: '', kmInicial: '', fotoInicialBase64: '', kmFinal: '', fotoFinalBase64: '' })
+  const [formEditAbs, setFormEditAbs] = useState({ data: '', valor: '', fotoCupomBase64: '' })
 
   const fileInputRefStart = useRef<HTMLInputElement>(null)
   const fileInputRefEnd = useRef<HTMLInputElement>(null)
@@ -194,21 +201,80 @@ export default function QuilometragemPage() {
     })
   }
 
-  async function delKm(id: string) {
-    if(!confirm("Certeza que deseja excluir este registro de KM?")) return
+  async function handleEditKm(e: React.FormEvent) {
+    e.preventDefault()
+    if (!showEditKmModal) return
+
     startTransition(async () => {
-      const res = await deleteQuilometragem(id)
-      if (res.success) loadData()
-      else alert(res.error)
+      let fotoInUrl = undefined
+      let fotoFiUrl = undefined
+
+      if (formEditKm.fotoInicialBase64) {
+        const upIn = await uploadFotoKm(formEditKm.fotoInicialBase64, 'edit_in.jpg', 'image/jpeg')
+        if (upIn.success) fotoInUrl = upIn.url
+      }
+      if (formEditKm.fotoFinalBase64) {
+        const upFi = await uploadFotoKm(formEditKm.fotoFinalBase64, 'edit_fi.jpg', 'image/jpeg')
+        if (upFi.success) fotoFiUrl = upFi.url
+      }
+
+      const res = await updateQuilometragem(showEditKmModal.id, {
+        diaSemana: formEditKm.diaSemana,
+        kmInicial: formEditKm.kmInicial ? parseFloat(formEditKm.kmInicial) : undefined,
+        fotoInicial: fotoInUrl,
+        kmFinal: formEditKm.kmFinal ? parseFloat(formEditKm.kmFinal) : null,
+        fotoFinal: fotoFiUrl
+      })
+
+      if (res.success) {
+        setShowEditKmModal(null)
+        loadData()
+      } else {
+        alert(res.error)
+      }
     })
   }
 
-  async function delAbs(id: string) {
-    if(!confirm("Certeza que deseja excluir este abastecimento?")) return
+  async function handleEditAbs(e: React.FormEvent) {
+    e.preventDefault()
+    if (!showEditAbsModal) return
+
     startTransition(async () => {
-      const res = await deleteAbastecimento(id)
-      if (res.success) loadData()
-      else alert(res.error)
+      let fotoUrl = undefined
+      if (formEditAbs.fotoCupomBase64) {
+        const up = await uploadFotoKm(formEditAbs.fotoCupomBase64, 'edit_abs.jpg', 'image/jpeg')
+        if (up.success) fotoUrl = up.url
+      }
+
+      const dt = formEditAbs.data ? new Date(formEditAbs.data + 'T12:00:00Z') : undefined
+      const res = await updateAbastecimento(showEditAbsModal.id, {
+        data: dt,
+        valor: formEditAbs.valor ? parseFloat(formEditAbs.valor) : undefined,
+        fotoCupom: fotoUrl
+      })
+
+      if (res.success) {
+        setShowEditAbsModal(null)
+        loadData()
+      } else {
+        alert(res.error)
+      }
+    })
+  }
+
+  async function confirmDelete() {
+    if(!showDeleteModal) return
+    startTransition(async () => {
+      if (showDeleteModal.type === 'km') {
+        const res = await deleteQuilometragem(showDeleteModal.id)
+        if (res.success) loadData()
+        else alert(res.error)
+      } else {
+        const res = await deleteAbastecimento(showDeleteModal.id)
+        if (res.success) loadData()
+        else alert(res.error)
+      }
+      setShowDeleteModal(null)
     })
   }
 
@@ -399,9 +465,23 @@ export default function QuilometragemPage() {
                           </button>
                         )}
                         {(role === 'MASTER' || role === 'ADMIN') && (
-                          <button onClick={() => delKm(k.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
-                            <Trash2 size={16} />
-                          </button>
+                          <>
+                            <button onClick={() => {
+                              setFormEditKm({
+                                diaSemana: k.diaSemana,
+                                kmInicial: k.kmInicial.toString(),
+                                fotoInicialBase64: '',
+                                kmFinal: k.kmFinal ? k.kmFinal.toString() : '',
+                                fotoFinalBase64: ''
+                              })
+                              setShowEditKmModal(k)
+                            }} style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 4 }} title="Editar">
+                              <PlayCircle size={16} />
+                            </button>
+                            <button onClick={() => setShowDeleteModal({id: k.id, type: 'km'})} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                              <Trash2 size={16} />
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -457,9 +537,21 @@ export default function QuilometragemPage() {
                     </td>
                     {(role === 'MASTER' || role === 'ADMIN') && (
                       <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                        <button onClick={() => delAbs(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
-                          <Trash2 size={16} />
-                        </button>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                          <button onClick={() => {
+                            setFormEditAbs({
+                              data: new Date(a.data).toISOString().split('T')[0],
+                              valor: a.valor.toString(),
+                              fotoCupomBase64: ''
+                            })
+                            setShowEditAbsModal(a)
+                          }} style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 4 }} title="Editar">
+                            <PlayCircle size={16} />
+                          </button>
+                          <button onClick={() => setShowDeleteModal({id: a.id, type: 'abs'})} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -582,6 +674,109 @@ export default function QuilometragemPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar KM */}
+      {showEditKmModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><PlayCircle color="#3b82f6" /> Editar Registro de KM</h2>
+            <form onSubmit={handleEditKm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Dia da Semana</label>
+                  <select required value={formEditKm.diaSemana} onChange={(e) => setFormEditKm(p => ({...p, diaSemana: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
+                    <option>Segunda-feira</option>
+                    <option>Terça-feira</option>
+                    <option>Quarta-feira</option>
+                    <option>Quinta-feira</option>
+                    <option>Sexta-feira</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>KM Inicial</label>
+                  <input type="number" step="0.1" required value={formEditKm.kmInicial} onChange={(e) => setFormEditKm(p => ({...p, kmInicial: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Nova Foto Odômetro Inicial (Opcional)</label>
+                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditKm)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </div>
+              
+              <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '8px 0' }} />
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>KM Final</label>
+                <input type="number" step="0.1" value={formEditKm.kmFinal} onChange={(e) => setFormEditKm(p => ({...p, kmFinal: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Nova Foto Odômetro Final (Opcional)</label>
+                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditKm)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                <button type="button" disabled={pending} onClick={() => setShowEditKmModal(null)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
+                <button type="submit" disabled={pending} style={{ flex: 1, padding: 12, background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, display: 'flex', justifyContent: 'center', gap: 8 }}>
+                  {pending ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Abastecimento */}
+      {showEditAbsModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><Fuel color="#3b82f6" /> Editar Abastecimento</h2>
+            <form onSubmit={handleEditAbs} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Data</label>
+                  <input type="date" required value={formEditAbs.data} onChange={(e) => setFormEditAbs(p => ({...p, data: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Valor Total (R$)</label>
+                  <input type="number" step="0.01" required value={formEditAbs.valor} onChange={(e) => setFormEditAbs(p => ({...p, valor: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Novo Comprovante (Opcional)</label>
+                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditAbs)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                <button type="button" disabled={pending} onClick={() => setShowEditAbsModal(null)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
+                <button type="submit" disabled={pending} style={{ flex: 1, padding: 12, background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, display: 'flex', justifyContent: 'center', gap: 8 }}>
+                  {pending ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Exclusão */}
+      {showDeleteModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 24, textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <AlertTriangle size={32} />
+            </div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>Confirmar Exclusão</h2>
+            <p style={{ fontSize: 14, color: '#64748b', marginBottom: 24, lineHeight: 1.5 }}>
+              Você tem certeza que deseja excluir este registro? Esta ação é permanente e <strong>não poderá ser desfeita</strong>.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button disabled={pending} onClick={() => setShowDeleteModal(null)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', border: 'none', borderRadius: 8, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button disabled={pending} onClick={confirmDelete} style={{ flex: 1, padding: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {pending ? <Loader2 className="animate-spin" size={18} /> : 'Sim, Excluir'}
+              </button>
+            </div>
           </div>
         </div>
       )}

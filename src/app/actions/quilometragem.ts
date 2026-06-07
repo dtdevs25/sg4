@@ -129,6 +129,46 @@ export async function fecharQuilometragem(id: string, kmFinal: number, fotoFinal
   }
 }
 
+export async function updateQuilometragem(id: string, data: {
+  diaSemana?: string
+  kmInicial?: number
+  fotoInicial?: string
+  kmFinal?: number | null
+  fotoFinal?: string | null
+}) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const km = await prisma.quilometragem.findUnique({ where: { id } })
+    if (!km) return { success: false, error: 'Registro não encontrado' }
+
+    const newKmInicial = data.kmInicial !== undefined ? data.kmInicial : km.kmInicial
+    const newKmFinal = data.kmFinal !== undefined ? data.kmFinal : km.kmFinal
+
+    let diferenca = null
+    if (newKmFinal !== null) {
+      diferenca = newKmFinal - newKmInicial
+    }
+
+    const item = await prisma.quilometragem.update({
+      where: { id },
+      data: {
+        diaSemana: data.diaSemana !== undefined ? data.diaSemana : km.diaSemana,
+        kmInicial: newKmInicial,
+        fotoInicial: data.fotoInicial !== undefined ? data.fotoInicial : km.fotoInicial,
+        kmFinal: newKmFinal,
+        fotoFinal: data.fotoFinal !== undefined ? data.fotoFinal : km.fotoFinal,
+        diferenca
+      }
+    })
+    return { success: true, data: item }
+  } catch (error) {
+    console.error('Erro ao atualizar quilometragem:', error)
+    return { success: false, error: 'Erro ao atualizar' }
+  }
+}
+
 export async function deleteQuilometragem(id: string) {
   try {
     const session = await auth()
@@ -205,6 +245,30 @@ export async function createAbastecimento(data: {
   } catch (error) {
     console.error('Erro ao criar abastecimento:', error)
     return { success: false, error: 'Erro ao criar' }
+  }
+}
+
+export async function updateAbastecimento(id: string, data: {
+  data?: Date
+  valor?: number
+  fotoCupom?: string
+}) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const item = await prisma.abastecimento.update({
+      where: { id },
+      data: {
+        ...(data.data && { data: data.data }),
+        ...(data.valor !== undefined && { valor: data.valor }),
+        ...(data.fotoCupom !== undefined && { fotoCupom: data.fotoCupom })
+      }
+    })
+    return { success: true, data: item }
+  } catch (error) {
+    console.error('Erro ao atualizar abastecimento:', error)
+    return { success: false, error: 'Erro ao atualizar' }
   }
 }
 
