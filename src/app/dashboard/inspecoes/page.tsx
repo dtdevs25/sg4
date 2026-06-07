@@ -4,16 +4,18 @@ import { useState, useRef, useEffect, useTransition } from 'react'
 import {
   ClipboardCheck, Calendar, Filter, User,
   CheckCircle2, AlertTriangle, PlayCircle, Search, Edit2, Trash2,
-  UploadCloud, FileSpreadsheet, ListTodo, CheckSquare, X, Loader2
+  UploadCloud, FileSpreadsheet, ListTodo, CheckSquare, X, Loader2, Eye
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { useSession } from 'next-auth/react'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
 import {
   getInspecoesArkium,
   upsertInspecoesArkiumBatch,
   updateInspecoesArkiumItem,
-  limparInspecoesArkiumInvalidos
+  limparInspecoesArkiumInvalidos,
+  deleteInspecoesArkiumItem
 } from '@/app/actions/inspecoesArkium'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
@@ -42,6 +44,9 @@ export type ArkiumItem = {
 }
 
 export default function InspecoesPage() {
+  const { data: session } = useSession()
+  const isMasterOrAdmin = (session?.user as any)?.role === 'MASTER' || (session?.user as any)?.role === 'ADMIN'
+
   const [activeTab, setActiveTab] = useState<'consolidado' | 'arkium'>('consolidado')
   const [pending, startTransition] = useTransition()
 
@@ -273,6 +278,7 @@ export default function InspecoesPage() {
   const [treatingItem, setTreatingItem] = useState<ArkiumItem | null>(null)
   const [tratarData, setTratarData] = useState('')
   const [tratarObs, setTratarObs] = useState('')
+  const [deleteArkiumConfirmId, setDeleteArkiumConfirmId] = useState<string | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [importingFileName, setImportingFileName] = useState('')
   const [importProgress, setImportProgress] = useState('')
@@ -428,6 +434,18 @@ export default function InspecoesPage() {
     setTreatingItem(null)
     setTratarData('')
     setTratarObs('')
+  }
+
+  function handleDeleteArkium(id: string) {
+    startTransition(async () => {
+      const res = await deleteInspecoesArkiumItem(id)
+      if (res.success) {
+        setArkiumData(prev => prev.filter(t => t.id !== id))
+        setDeleteArkiumConfirmId(null)
+      } else {
+        alert("Erro ao excluir registro.")
+      }
+    })
   }
 
   function openTreatModal(item: ArkiumItem) {
@@ -856,17 +874,32 @@ export default function InspecoesPage() {
                             )}
                           </td>
                           <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                            <button
-                              onClick={() => openTreatModal(a)}
-                              style={{
-                                padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700,
-                                background: a.status === 'ABERTO' ? '#660099' : '#f1f5f9',
-                                color: a.status === 'ABERTO' ? '#fff' : '#64748b',
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              {a.status === 'ABERTO' ? 'Tratar' : 'Visualizar'}
-                            </button>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                              <button
+                                onClick={() => openTreatModal(a)}
+                                style={{
+                                  width: 32, height: 32, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                  color: '#64748b', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                }}
+                                title="Visualizar Detalhes"
+                              >
+                                <Eye size={16} />
+                              </button>
+                              {isMasterOrAdmin && (
+                                <button
+                                  onClick={() => setDeleteArkiumConfirmId(a.id)}
+                                  style={{
+                                    width: 32, height: 32, borderRadius: 8, border: '1px solid #fee2e2', background: '#fff',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                                    color: '#ef4444', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                                  }}
+                                  title="Excluir Registro"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -879,70 +912,150 @@ export default function InspecoesPage() {
         </div>
       )}
 
-      {/* MODAL TRATAR ARKIUM */}
+      {/* MODAL TRATAR ARKIUM (NOVO DESIGN) */}
       {treatingItem && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
-                {treatingItem.status === 'ABERTO' ? 'Tratar Inspeção' : 'Detalhes da Inspeção'} #{treatingItem.numero}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <ClipboardCheck color="#64748b" size={16} />
+                </div>
+                Detalhes da Inspeção #{treatingItem.numero}
               </h3>
               <button onClick={() => setTreatingItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
-            <form onSubmit={handleTratar} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleTratar} style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, background: '#f8fafc', padding: 12, borderRadius: 8 }}>
-                <div>
-                  <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data Abertura</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{treatingItem.dataAbertura || '--'}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Cabeçalho do Card Interno */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'linear-gradient(145deg, #f8fafc, #f1f5f9)', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  {treatingItem.dbTecnico?.fotoUrl ? (
+                    <img src={treatingItem.dbTecnico.fotoUrl} alt={treatingItem.nomeAuditor} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} />
+                  ) : (
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#fff', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, border: '2px solid #e2e8f0' }}>
+                      {(treatingItem.dbTecnico?.nome || treatingItem.nomeAuditor).split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
+                    </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{treatingItem.dbTecnico?.nome || treatingItem.nomeAuditor}</h4>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Matrícula: <span style={{ fontWeight: 600, color: '#334155' }}>{treatingItem.matriculaAuditor || '--'}</span></div>
+                  </div>
+                  {treatingItem.status === 'FECHADO' ? (
+                    <span style={{ padding: '4px 10px', background: '#d1fae5', color: '#047857', borderRadius: 20, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12}/> FECHADO</span>
+                  ) : (
+                    <span style={{ padding: '4px 10px', background: '#fef3c7', color: '#b45309', borderRadius: 20, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12}/> PENDENTE</span>
+                  )}
                 </div>
-                <div>
-                  <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Auditor</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{treatingItem.nomeAuditor}</span>
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Questionário / Objeto</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{treatingItem.nomeQuestionario} | {treatingItem.clienteObjeto}</span>
-                </div>
-              </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data de Fechamento</label>
-                <input 
-                  type="text" 
-                  value={tratarData} 
-                  onChange={e => setTratarData(e.target.value)} 
-                  placeholder="Ex: 10/05/2026"
-                  disabled={treatingItem.status === 'FECHADO'}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} 
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Observação / Ação Tomada</label>
-                <textarea 
-                  value={tratarObs} 
-                  onChange={e => setTratarObs(e.target.value)} 
-                  placeholder="Descreva a tratativa..."
-                  disabled={treatingItem.status === 'FECHADO'}
-                  rows={4}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none', resize: 'none' }} 
-                />
-              </div>
-
-              {treatingItem.status === 'ABERTO' && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 8 }}>
-                  <button type="button" onClick={() => setTreatingItem(null)} style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                    Cancelar
-                  </button>
-                  <button type="submit" style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: '#10b981', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <CheckSquare size={16} /> Finalizar Tratativa
-                  </button>
+                {/* Grid de Informações Secundárias */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                    <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Resultado</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: treatingItem.resultado?.toLowerCase().includes('não') ? '#ef4444' : '#10b981', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{treatingItem.resultado || '--'}</span>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                    <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Questionário</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{treatingItem.nomeQuestionario || '--'}</span>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                    <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Localidade / Cliente</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{treatingItem.localidadeObjeto || '--'} / {treatingItem.clienteObjeto || '--'}</span>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                    <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Data Abertura</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{treatingItem.dataAbertura || '--'}</span>
+                  </div>
                 </div>
-              )}
+
+                {/* Seção de Tratativa */}
+                <div style={{ background: treatingItem.status === 'FECHADO' ? '#f0fdf4' : '#fff', border: treatingItem.status === 'FECHADO' ? '1px solid #bbf7d0' : '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: 12, fontWeight: 800, color: treatingItem.status === 'FECHADO' ? '#166534' : '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckSquare size={14} /> 
+                    Tratativa
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Data de Fechamento</label>
+                      {treatingItem.status === 'FECHADO' ? (
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>{treatingItem.dataFechamento || '--'}</div>
+                      ) : (
+                        <input 
+                          type="text" 
+                          value={tratarData} 
+                          onChange={e => setTratarData(e.target.value)} 
+                          placeholder="Ex: 10/05/2026"
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', background: '#f8fafc' }} 
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Observação / Ação Tomada</label>
+                      {treatingItem.status === 'FECHADO' ? (
+                        <div style={{ fontSize: 12, color: '#475569', background: '#fff', padding: 8, borderRadius: 6, border: '1px dashed #cbd5e1', minHeight: 40 }}>
+                          {treatingItem.observacao || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Nenhuma observação fornecida.</span>}
+                        </div>
+                      ) : (
+                        <textarea 
+                          value={tratarObs} 
+                          onChange={e => setTratarObs(e.target.value)} 
+                          placeholder="Descreva a tratativa..."
+                          rows={2}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', resize: 'none', background: '#f8fafc' }} 
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {treatingItem.status === 'ABERTO' ? (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+                    <button type="button" onClick={() => setTreatingItem(null)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
+                      Cancelar
+                    </button>
+                    <button type="submit" style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#10b981', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, boxShadow: '0 4px 6px -1px rgba(16,185,129,0.2)', transition: 'all 0.2s' }}>
+                      <CheckSquare size={14} /> Salvar Tratativa
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                    <button type="button" onClick={() => setTreatingItem(null)} style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#f1f5f9', color: '#475569', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
+                      Fechar
+                    </button>
+                  </div>
+                )}
+              </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Exclusão Arkium */}
+      {deleteArkiumConfirmId && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15,23,42,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 400, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trash2 color="#ef4444" size={20} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>Excluir Inspeção Importada</h3>
+                <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Ação exclusiva para Master/Admin.</p>
+              </div>
+            </div>
+            <p style={{ margin: '0 0 24px 0', fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
+              Você tem certeza que deseja excluir esta inspeção importada? Esta ação removerá o dado do banco de dados definitivamente.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button onClick={() => setDeleteArkiumConfirmId(null)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button onClick={() => handleDeleteArkium(deleteArkiumConfirmId)} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Excluir Definitivamente
+              </button>
+            </div>
           </div>
         </div>
       )}
