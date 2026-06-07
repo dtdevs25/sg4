@@ -445,92 +445,108 @@ export default function RelatoriosAtividadesPage() {
       {/* MODAL NOVA ATIVIDADE */}
       {showNovaAtividade && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 550, padding: 24, maxHeight: '95vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><Camera color="#3b82f6" /> Registrar Atividade</h2>
-            <form onSubmit={handleAddAtividade} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              
-              {(role === 'MASTER' || role === 'ADMIN') && (
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Técnico Responsável</label>
-                  <select required value={formAtiv.tecnicoId} onChange={(e) => setFormAtiv(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
-                    <option value="">Selecione...</option>
-                    {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                  </select>
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Empresa Cliente</label>
-                  <input required placeholder="Ex: Vivo S/A" value={formAtiv.empresa} onChange={e => setFormAtiv(p => ({...p, empresa: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Projeto / Área</label>
-                  <input required placeholder="Ex: Infraestrutura" value={formAtiv.projeto} onChange={e => setFormAtiv(p => ({...p, projeto: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Data da Atividade</label>
-                  <input type="date" required value={formAtiv.data} onChange={e => setFormAtiv(p => ({...p, data: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Cidade / UF</label>
-                  <input required placeholder="Ex: João Pessoa/PB" value={formAtiv.cidadeUf} onChange={e => setFormAtiv(p => ({...p, cidadeUf: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Local (Nome do Prédio/Site)</label>
-                <input required placeholder="Ex: Base Vivo, Cristo Redentor" value={formAtiv.local} onChange={e => setFormAtiv(p => ({...p, local: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-              </div>
-              
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700 }}>Descrição / Relato da Atividade</label>
-                  <button 
-                    type="button" 
-                    onClick={() => handleOptimizeText(false)}
-                    disabled={aiLoading}
-                    style={{ 
-                      fontSize: 11, fontWeight: 700, padding: '4px 10px', 
-                      borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
-                      cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
-                    }}
-                  >
-                    {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
-                  </button>
-                </div>
-                <textarea required rows={3} placeholder="O que foi feito?" value={formAtiv.descricao} onChange={e => setFormAtiv(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
-              </div>
-              
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Registro Fotográfico (Opcional)</label>
-                {formAtiv.fotoBase64 ? (
-                  <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <img src={formAtiv.fotoBase64} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
-                    <button type="button" onClick={() => setFormAtiv(p => ({...p, fotoBase64: ''}))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
-                  </div>
-                ) : (
-                  <div 
-                    onClick={() => document.getElementById('fotoUploadInput')?.click()}
-                    style={{ border: '2px dashed #cbd5e1', borderRadius: 8, padding: '24px 20px', cursor: 'pointer', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}
-                  >
-                    <UploadCloud color="#64748b" size={28} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Clique para escolher uma imagem</span>
+          <div style={{ 
+            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600,
+            display: 'flex', flexDirection: 'column',
+            maxHeight: '90vh', overflow: 'hidden'
+          }}>
+            {/* Modal Header Fixo Roxo */}
+            <div style={{
+              background: '#660099', padding: '20px 24px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              position: 'sticky', top: 0, zIndex: 10
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Lançar Nova Atividade</h2>
+              <button onClick={() => setShowNovaAtividade(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff' }}>X</button>
+            </div>
+            
+            {/* Modal Body com Scroll */}
+            <div style={{ padding: 24, overflowY: 'auto' }}>
+              <form onSubmit={handleAddAtividade} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                
+                {(role === 'MASTER' || role === 'ADMIN') && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Técnico Responsável</label>
+                    <select required value={formAtiv.tecnicoId} onChange={(e) => setFormAtiv(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
+                      <option value="">Selecione...</option>
+                      {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                    </select>
                   </div>
                 )}
-                <input id="fotoUploadInput" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormAtiv)} style={{ display: 'none' }} />
-              </div>
 
-              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <button type="button" disabled={pending} onClick={() => setShowNovaAtividade(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
-                <button type="submit" disabled={pending} style={{ flex: 1, padding: 12, background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, display: 'flex', justifyContent: 'center' }}>
-                  {pending ? <Loader2 className="animate-spin" /> : 'Salvar Atividade'}
-                </button>
-              </div>
-            </form>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Empresa Cliente</label>
+                    <input required placeholder="Ex: Vivo S/A" value={formAtiv.empresa} onChange={e => setFormAtiv(p => ({...p, empresa: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Projeto / Área</label>
+                    <input required placeholder="Ex: Infraestrutura" value={formAtiv.projeto} onChange={e => setFormAtiv(p => ({...p, projeto: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Data da Atividade</label>
+                    <input type="date" required value={formAtiv.data} onChange={e => setFormAtiv(p => ({...p, data: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Cidade / UF</label>
+                    <input required placeholder="Ex: João Pessoa/PB" value={formAtiv.cidadeUf} onChange={e => setFormAtiv(p => ({...p, cidadeUf: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Local (Nome do Prédio/Site)</label>
+                  <input required placeholder="Ex: Base Vivo, Cristo Redentor" value={formAtiv.local} onChange={e => setFormAtiv(p => ({...p, local: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                </div>
+                
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700 }}>Descrição / Relato da Atividade</label>
+                    <button 
+                      type="button" 
+                      onClick={() => handleOptimizeText(false)}
+                      disabled={aiLoading}
+                      style={{ 
+                        fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                        borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                        cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                      }}
+                    >
+                      {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                    </button>
+                  </div>
+                  <textarea required rows={3} placeholder="O que foi feito?" value={formAtiv.descricao} onChange={e => setFormAtiv(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
+                </div>
+                
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Registro Fotográfico (Opcional)</label>
+                  {formAtiv.fotoBase64 ? (
+                    <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <img src={formAtiv.fotoBase64} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
+                      <button type="button" onClick={() => setFormAtiv(p => ({...p, fotoBase64: ''}))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
+                    </div>
+                  ) : (
+                    <div 
+                      onClick={() => document.getElementById('fotoUploadInput')?.click()}
+                      style={{ border: '2px dashed #cbd5e1', borderRadius: 8, padding: '24px 20px', cursor: 'pointer', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}
+                    >
+                      <UploadCloud color="#64748b" size={28} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Clique para escolher uma imagem</span>
+                    </div>
+                  )}
+                  <input id="fotoUploadInput" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormAtiv)} style={{ display: 'none' }} />
+                </div>
+
+                <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                  <button type="button" onClick={() => setShowNovaAtividade(false)} style={{ flex: 1, padding: '12px', background: '#e2e8f0', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none' }}>Cancelar</button>
+                  <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: pending ? 0.7 : 1 }}>
+                    {pending ? 'Salvando...' : 'Salvar Atividade'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
