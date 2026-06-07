@@ -319,6 +319,16 @@ export default function DialogosPage() {
     setTratarAssinado(item.assinado || 'Não')
   }
 
+  async function handleDeleteArkium(id: string) {
+    const res = await deleteDssArkium(id)
+    if (res.success) {
+      setArkiumData(prev => prev.filter(a => a.id !== id))
+    } else {
+      alert("Erro ao excluir registro.")
+    }
+    setDeleteArkiumConfirmId(null)
+  }
+
   const filteredArkium = arkiumData.filter(a => 
     a.numeroDialogo.toLowerCase().includes(arkiumSearch.toLowerCase()) || 
     a.nome.toLowerCase().includes(arkiumSearch.toLowerCase()) ||
