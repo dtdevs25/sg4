@@ -103,23 +103,24 @@ export default function InspecoesPage() {
         Object.keys(MES_MAP).forEach(k => {
           const mesName = MES_MAP[k as MesKey]
           const totalMesArkium = tecArkium.filter((a: any) => {
-            if (!a.dataFechamento) return false
+            const dateStr = a.dataAbertura || a.dataFechamento
+            if (!dateStr) return false
             let month = 0, year = 0
-            if (a.dataFechamento.includes('/')) {
-                const parts = a.dataFechamento.split('/')
+            if (dateStr.includes('/')) {
+                const parts = dateStr.split('/')
                 if (parts.length >= 3) {
                   month = parseInt(parts[1], 10)
                   year = parseInt(parts[2], 10)
                   if (parts[2].length === 2) year += 2000
                 }
-            } else if (a.dataFechamento.includes('-')) {
-                const parts = a.dataFechamento.split('-')
+            } else if (dateStr.includes('-')) {
+                const parts = dateStr.split('-')
                 if (parts.length >= 3) {
                   year = parseInt(parts[0], 10)
                   month = parseInt(parts[1], 10)
                 }
             } else {
-                const excelDateNum = Number(a.dataFechamento)
+                const excelDateNum = Number(dateStr)
                 if (!isNaN(excelDateNum) && excelDateNum > 20000) {
                     const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
                     month = jsDate.getUTCDate()
