@@ -79,7 +79,13 @@ export default function DialogosPage() {
 
       const newData = tecnicos.map((t: any) => {
         const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
-        const tecArkium = arkiumList.filter((a: any) => a.matricula && t.matricula && a.matricula.trim() === t.matricula.trim())
+        const tecArkium = arkiumList.filter((a: any) => {
+          if (!a.nome || !t.nome) return false
+          const nomePlanilha = a.nome.toLowerCase().trim()
+          const nomeBd = t.nome.toLowerCase().trim()
+          const dbTokens = nomeBd.split(' ')
+          return nomePlanilha === nomeBd || (nomePlanilha.includes(dbTokens[0]) && dbTokens.length > 1 && nomePlanilha.includes(dbTokens[dbTokens.length - 1]))
+        })
 
         const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl }
         
