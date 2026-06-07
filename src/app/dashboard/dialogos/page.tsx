@@ -73,7 +73,7 @@ export default function DialogosPage() {
     const arkRes = await getDssArkium()
 
     if (tecRes.success && tecRes.data) {
-      const tecnicos = tecRes.data.filter((t: any) => t.ativo)
+      const tecnicos = tecRes.data
       const atividades = atvRes.success && atvRes.data ? atvRes.data : []
       const arkiumList = arkRes.success && arkRes.data ? arkRes.data : []
 
@@ -140,8 +140,10 @@ export default function DialogosPage() {
 
           result[k] = totalMesArkium
         })
+        result.ativo = t.ativo
         return result
-      })
+      }).filter((r: any) => r.ativo || Object.keys(MES_MAP).some(k => r[k] > 0))
+      
       setData(newData)
     }
   }
