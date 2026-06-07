@@ -35,10 +35,10 @@ export async function uploadFotoRelatorio(base64: string, fileName: string, cont
 }
 
 // ===========================
-// RELATÓRIOS CRUD
+// ATIVIDADES CRUD
 // ===========================
 
-export async function getRelatorios(mes: number, ano: number) {
+export async function getAtividadesRelatorio(mes: number, ano: number) {
   const session = await auth()
   if (!session?.user) return []
 
@@ -49,10 +49,9 @@ export async function getRelatorios(mes: number, ano: number) {
   const endDate = new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999))
 
   let whereClause: any = {
-    dataReferencia: { gte: startDate, lte: endDate }
+    data: { gte: startDate, lte: endDate }
   }
 
-  // TST only sees their own
   if (role === 'TST') {
     const tecnico = await prisma.tecnico.findUnique({ where: { userId } })
     if (tecnico) {
@@ -60,102 +59,22 @@ export async function getRelatorios(mes: number, ano: number) {
     }
   }
 
-  const items = await prisma.relatorio.findMany({
+  const items = await prisma.relatorioAtividade.findMany({
     where: whereClause,
     include: {
-      tecnico: true,
-      atividades: {
-        orderBy: { data: 'asc' }
-      }
+      tecnico: true
     },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { data: 'desc' }
   })
 
   return items
 }
 
-export async function createRelatorio(data: {
+export async function addAtividade(data: {
   tecnicoId: string
+  data: Date
   empresa: string
   projeto: string
-  dataReferencia: Date
-}) {
-  try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: 'Não autorizado' }
-
-    const item = await prisma.relatorio.create({
-      data: {
-        tecnicoId: data.tecnicoId,
-        empresa: data.empresa,
-        projeto: data.projeto,
-        dataReferencia: data.dataReferencia
-      }
-    })
-
-    revalidatePath('/dashboard/relatorios')
-    return { success: true, item }
-  } catch (error: any) {
-    return { success: false, error: error.message }
-  }
-}
-
-export async function updateRelatorio(id: string, data: {
-  empresa?: string
-  projeto?: string
-  dataReferencia?: Date
-  revisao?: string
-}) {
-  try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: 'Não autorizado' }
-
-    const item = await prisma.relatorio.update({
-      where: { id },
-      data
-    })
-
-    revalidatePath('/dashboard/relatorios')
-    return { success: true, item }
-  } catch (error: any) {
-    return { success: false, error: error.message }
-  }
-}
-
-export async function deleteRelatorio(id: string) {
-  try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: 'Não autorizado' }
-
-    await prisma.relatorio.delete({ where: { id } })
-    revalidatePath('/dashboard/relatorios')
-    return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message }
-  }
-}
-
-export async function getRelatorioById(id: string) {
-  const session = await auth()
-  if (!session?.user) return null
-
-  return await prisma.relatorio.findUnique({
-    where: { id },
-    include: {
-      tecnico: true,
-      atividades: {
-        orderBy: { data: 'asc' }
-      }
-    }
-  })
-}
-
-// ===========================
-// ATIVIDADES CRUD
-// ===========================
-
-export async function addAtividade(relatorioId: string, data: {
-  data: Date
   local: string
   cidadeUf: string
   descricao: string
@@ -166,10 +85,7 @@ export async function addAtividade(relatorioId: string, data: {
     if (!session?.user) return { success: false, error: 'Não autorizado' }
 
     const item = await prisma.relatorioAtividade.create({
-      data: {
-        relatorioId,
-        ...data
-      }
+      data
     })
 
     revalidatePath('/dashboard/relatorios')
@@ -181,6 +97,8 @@ export async function addAtividade(relatorioId: string, data: {
 
 export async function updateAtividade(id: string, data: {
   data?: Date
+  empresa?: string
+  projeto?: string
   local?: string
   cidadeUf?: string
   descricao?: string
@@ -213,4 +131,25 @@ export async function deleteAtividade(id: string) {
   } catch (error: any) {
     return { success: false, error: error.message }
   }
+}
+
+// Para o gerador de PDF
+export async function getAtividadesForPrint(mes: number, ano: number, empresa: string, tecnicoId?: string) {
+  const startDate = new Date(Date.UTC(ano, mes - 1, 1))
+  const endDate = new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999))
+
+  let whereClause: any = {
+    data: { gte: startDate, lte: endDate },
+    empresa: { equals: empresa, mode: 'insensitive' }
+  }
+
+  if (tecnicoId) {
+    whereClause.tecnicoId = tecnicoId
+  }
+
+  return await prisma.relatorioAtividade.findMany({
+    where: whereClause,
+    include: { tecnico: true },
+    orderBy: { data: 'asc' }
+  })
 }

@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getRelatorioById } from '@/app/actions/relatorios'
+import { getAtividadesForPrint } from '@/app/actions/relatorios'
 
-export default function PrintRelatorioPage({ params }: { params: { id: string } }) {
-  const [relatorio, setRelatorio] = useState<any>(null)
+export default function PrintRelatorioPage({ searchParams }: { searchParams: { mes: string, ano: string, empresa: string, tecnicoId?: string } }) {
+  const [atividades, setAtividades] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -12,29 +12,28 @@ export default function PrintRelatorioPage({ params }: { params: { id: string } 
   }, [])
 
   async function loadData() {
-    const data = await getRelatorioById(params.id)
-    setRelatorio(data)
+    const mes = parseInt(searchParams.mes)
+    const ano = parseInt(searchParams.ano)
+    const data = await getAtividadesForPrint(mes, ano, searchParams.empresa, searchParams.tecnicoId)
+    setAtividades(data)
     setLoading(false)
   }
 
-  // Auto-print after images load
   useEffect(() => {
-    if (!loading && relatorio) {
+    if (!loading && atividades) {
       setTimeout(() => {
         window.print()
       }, 1000)
     }
-  }, [loading, relatorio])
+  }, [loading, atividades])
 
   if (loading) {
     return <div style={{ padding: 40, textAlign: 'center', fontFamily: 'sans-serif' }}>Carregando relatório para impressão...</div>
   }
 
-  if (!relatorio) {
-    return <div style={{ padding: 40, textAlign: 'center', fontFamily: 'sans-serif', color: 'red' }}>Relatório não encontrado.</div>
-  }
-
-  const mesAno = new Date(relatorio.dataReferencia).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+  const mesAno = new Date(parseInt(searchParams.ano), parseInt(searchParams.mes) - 1).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
+  const projeto = atividades.length > 0 ? atividades[0].projeto : '-'
+  const elaborador = atividades.length > 0 ? atividades[0].tecnico?.nome : '-'
 
   return (
     <>
@@ -136,7 +135,7 @@ export default function PrintRelatorioPage({ params }: { params: { id: string } 
               <td style={{ width: '20%', padding: 0 }}>
                 <table style={{ border: 'none', width: '100%', height: '100%' }}>
                   <tbody>
-                    <tr><td style={{ border: 'none', borderBottom: '1px solid #000', padding: 4 }}>Revisão: {relatorio.revisao}</td></tr>
+                    <tr><td style={{ border: 'none', borderBottom: '1px solid #000', padding: 4 }}>Revisão: 00</td></tr>
                     <tr><td style={{ border: 'none', borderBottom: '1px solid #000', padding: 4 }}>Data: {mesAno}</td></tr>
                     <tr><td style={{ border: 'none', padding: 4 }}>Página: 1</td></tr>
                   </tbody>
@@ -148,11 +147,11 @@ export default function PrintRelatorioPage({ params }: { params: { id: string } 
 
         {/* INFO */}
         <div style={{ border: '1px solid #000', padding: 6, marginBottom: 16 }}>
-          <div className="info-row">Empresa: {relatorio.empresa}</div>
+          <div className="info-row">Empresa: {searchParams.empresa}</div>
           <div className="info-row" style={{ display: 'flex', gap: 40 }}>
-            <span>Projeto: {relatorio.projeto}</span>
+            <span>Projeto: {projeto}</span>
             <span>Data: {mesAno}</span>
-            <span>Elaborador: {relatorio.tecnico?.nome}</span>
+            <span>Elaborador: {elaborador}</span>
           </div>
         </div>
 
@@ -168,7 +167,7 @@ export default function PrintRelatorioPage({ params }: { params: { id: string } 
             </tr>
           </thead>
           <tbody>
-            {relatorio.atividades?.map((ativ: any, idx: number) => (
+            {atividades?.map((ativ: any, idx: number) => (
               <tr key={ativ.id}>
                 <td style={{ textAlign: 'center' }}>{new Date(ativ.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
                 <td>{ativ.local}</td>
@@ -181,9 +180,9 @@ export default function PrintRelatorioPage({ params }: { params: { id: string } 
                 <td style={{ textAlign: 'justify' }}>{ativ.descricao}</td>
               </tr>
             ))}
-            {(!relatorio.atividades || relatorio.atividades.length === 0) && (
+            {atividades.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: 20 }}>Nenhuma atividade registrada neste relatório.</td>
+                <td colSpan={5} style={{ textAlign: 'center', padding: 20 }}>Nenhuma atividade registrada para esta empresa no mês selecionado.</td>
               </tr>
             )}
           </tbody>

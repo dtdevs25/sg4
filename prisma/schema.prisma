@@ -92,7 +92,7 @@ model Tecnico {
   inspecoesArkium InspecoesArkium[]
   quilometragens  Quilometragem[]
   abastecimentos  Abastecimento[]
-  relatorios      Relatorio[]
+  atividadesRelatorio RelatorioAtividade[]
 
   @@map("tecnicos")
 }
@@ -350,30 +350,22 @@ model Abastecimento {
 
 // ─── RELATÓRIOS ─────────────────────────────────────────────────────────────
 
-model Relatorio {
-  id             String   @id @default(cuid())
-  tecnicoId      String
-  empresa        String
-  projeto        String
-  revisao        String   @default("00")
-  dataReferencia DateTime
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  atividades     RelatorioAtividade[]
-
-  tecnico        Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
-}
-
 model RelatorioAtividade {
   id           String   @id @default(cuid())
-  relatorioId  String
+  tecnicoId    String
   data         DateTime
+  empresa      String
+  projeto      String
   local        String
   cidadeUf     String
   fotoUrl      String?
   descricao    String
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  relatorio    Relatorio @relation(fields: [relatorioId], references: [id], onDelete: Cascade)
+  tecnico      Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+
+  @@index([tecnicoId])
+  @@index([data])
+  @@map("relatorios_atividades")
 }
