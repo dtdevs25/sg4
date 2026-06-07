@@ -235,3 +235,32 @@ enum StatusEntrega {
   ATRASADO
 }
 
+// ─── DSS ARKIUM ─────────────────────────────────────────────────────────────
+
+model DssArkium {
+  id             String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  numeroDialogo  String    @map("numero_dialogo")
+  assunto        String?
+  lider          String?
+  base           String?
+  uf             String?
+  localidade     String?
+  dataFechamento String?   @map("data_fechamento")
+  matricula      String
+  nome           String?
+  tipo           String?
+  statusDSS      String?   @map("status_dss")
+  assinado       String?
+  justificativa  String?
+  estado         String    @default("ABERTO")
+  tecnicoId      String?   @map("tecnico_id")
+  importadoEm    DateTime  @default(now()) @map("importado_em")
+  atualizadoEm   DateTime  @default(now()) @updatedAt @map("atualizado_em")
+  importadoPor   String?   @map("importado_por")
+
+  @@unique([numeroDialogo, matricula])
+  @@index([estado])
+  @@index([matricula])
+  @@map("arkium_dss")
+}
+

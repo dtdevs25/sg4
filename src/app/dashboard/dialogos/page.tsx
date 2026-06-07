@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react'
 import {
-  MessageSquare, Calendar, ShieldCheck, HelpCircle,
-  TrendingUp, Search, Plus, Trash2, Edit,
-  UploadCloud, FileSpreadsheet, ListTodo, CheckSquare, X, AlertTriangle, PlayCircle, CheckCircle2, Loader2
+  MessageSquare,
+  Search, Trash2, Edit,
+  UploadCloud, FileSpreadsheet, ListTodo, CheckSquare, X, AlertTriangle, CheckCircle2, Loader2
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
+import { getDssArkium, upsertDssArkiumBatch, updateEstadoDssArkium } from '@/app/actions/dssArkium'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
 
@@ -142,6 +143,44 @@ export default function DialogosPage() {
   const [importProgress, setImportProgress] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Carrega registros Arkium do banco ao montar
+  useEffect(() => {
+    async function loadArkium() {
+      const res = await getDssArkium()
+      if (res.success && res.data && res.data.length > 0) {
+        const fromDb: ArkiumDSSItem[] = res.data.map((r: any) => {
+          const dbTecnico = data.find((t: any) => {
+            const nomeDb = t.nome.toLowerCase().trim()
+            const nomePlanilha = r.nome.toLowerCase().trim()
+            return nomePlanilha === nomeDb ||
+              (nomePlanilha.includes(nomeDb.split(' ')[0]) && nomePlanilha.includes(nomeDb.split(' ').pop()))
+          })
+          return {
+            id: r.id,
+            assunto: r.assunto,
+            numeroDialogo: r.numeroDialogo,
+            lider: r.lider || '',
+            base: r.base || '',
+            uf: r.uf || '',
+            localidade: r.localidade || '',
+            dataFechamento: r.dataFechamento || '',
+            matricula: r.matricula,
+            nome: r.nome,
+            tipo: r.tipo || '',
+            statusDSS: r.statusDSS || '',
+            assinado: r.assinado || 'Não',
+            justificativa: r.justificativa || '',
+            estado: r.estado as 'ABERTO' | 'FECHADO',
+            dbTecnico,
+          }
+        })
+        setArkiumData(fromDb)
+      }
+    }
+    loadArkium()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
+
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -151,7 +190,7 @@ export default function DialogosPage() {
     setImportProgress('Lendo arquivo...')
 
     const reader = new FileReader()
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         setImportProgress('Processando planilha...')
         const bstr = evt.target?.result
@@ -197,16 +236,32 @@ export default function DialogosPage() {
             })
             return { ...item, dbTecnico }
           })
-        setImportProgress('Analisando registros...')
-        setImportProgress('Salvando registros...')
-        setTimeout(() => {
-          setArkiumData(prev => {
-            const newItems = imported.filter(imp => !prev.some(p => p.numeroDialogo === imp.numeroDialogo && p.matricula === imp.matricula))
-            setImportProgress(`${newItems.length} novos registros importados!`)
-            setTimeout(() => setIsImporting(false), 1200)
-            return [...prev, ...newItems]
-          })
-        }, 400)
+        setImportProgress('Salvando no banco de dados...')
+        // Filtra apenas itens novos (não duplicados)
+        const newItems = imported.filter(imp => !arkiumData.some(p => p.numeroDialogo === imp.numeroDialogo && p.matricula === imp.matricula))
+
+        // Persiste no banco via server action
+        const saveRes = await upsertDssArkiumBatch(newItems.map(item => ({
+          numeroDialogo: item.numeroDialogo,
+          assunto: item.assunto,
+          lider: item.lider,
+          base: item.base,
+          uf: item.uf,
+          localidade: item.localidade,
+          dataFechamento: item.dataFechamento,
+          matricula: item.matricula,
+          nome: item.nome,
+          tipo: item.tipo,
+          statusDSS: item.statusDSS,
+          assinado: item.assinado,
+          justificativa: item.justificativa,
+          estado: item.estado,
+        })))
+
+        const savedCount = saveRes.success ? (saveRes.inseridos ?? newItems.length) : newItems.length
+        setImportProgress(`${savedCount} novos registros importados!`)
+        setArkiumData(prev => [...prev, ...newItems])
+        setTimeout(() => setIsImporting(false), 1200)
       } catch (err) {
         setIsImporting(false)
         alert("Erro ao ler o arquivo. Certifique-se de que é um Excel (.xlsx) ou CSV válido.")
@@ -223,21 +278,30 @@ export default function DialogosPage() {
   function handleTratar(e: React.FormEvent) {
     e.preventDefault()
     if (!treatingItem) return
-    setArkiumData(prev => prev.map(item => {
-      if (item.id === treatingItem.id) {
-        const isFechado = (tratarAssinado.toLowerCase() === 'sim' || tratarAssinado.toLowerCase() === 'yes') || tratarJustificativa.length > 0
-        return {
-          ...item,
-          assinado: tratarAssinado,
-          justificativa: tratarJustificativa,
-          estado: isFechado ? 'FECHADO' : 'ABERTO'
-        }
+
+    startTransition(async () => {
+      const isFechado = (tratarAssinado.toLowerCase() === 'sim' || tratarAssinado.toLowerCase() === 'yes') || tratarJustificativa.length > 0
+
+      // Persiste no banco se o item já tem ID real (do banco)
+      if (treatingItem.id && treatingItem.id.length > 9) {
+        await updateEstadoDssArkium(treatingItem.id, tratarAssinado, tratarJustificativa)
       }
-      return item
-    }))
-    setTreatingItem(null)
-    setTratarJustificativa('')
-    setTratarAssinado('')
+
+      setArkiumData(prev => prev.map(item => {
+        if (item.id === treatingItem.id) {
+          return {
+            ...item,
+            assinado: tratarAssinado,
+            justificativa: tratarJustificativa,
+            estado: isFechado ? 'FECHADO' : 'ABERTO'
+          }
+        }
+        return item
+      }))
+      setTreatingItem(null)
+      setTratarJustificativa('')
+      setTratarAssinado('')
+    })
   }
 
   function openTreatModal(item: ArkiumDSSItem) {
@@ -558,27 +622,27 @@ export default function DialogosPage() {
 
             {/* Stats Cards */}
             <div style={{ flex: 2, display: 'flex', gap: 16, minWidth: 300 }}>
-              <div style={{ flex: 1, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#64748b' }}>
-                  <ListTodo size={18} /> <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>Total Importados</span>
+              <div style={{ flex: 1, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b' }}>
+                  <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total Importados</span>
                 </div>
-                <div style={{ fontSize: 36, fontWeight: 800, color: '#1e293b' }}>{totalArkium}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalArkium}</div>
               </div>
               
-              <div style={{ flex: 1, background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ flex: 1, background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#f59e0b' }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#b45309' }}>
-                  <AlertTriangle size={18} /> <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>Pendentes (Aberto)</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309', paddingLeft: 8 }}>
+                  <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Pendentes</span>
                 </div>
-                <div style={{ fontSize: 36, fontWeight: 800, color: '#f59e0b' }}>{abertasArkium}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#f59e0b', lineHeight: 1, paddingLeft: 8 }}>{abertasArkium}</div>
               </div>
 
-              <div style={{ flex: 1, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ flex: 1, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#10b981' }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#047857' }}>
-                  <CheckSquare size={18} /> <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>Tratados / Fechados</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857', paddingLeft: 8 }}>
+                  <CheckSquare size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Fechados</span>
                 </div>
-                <div style={{ fontSize: 36, fontWeight: 800, color: '#10b981' }}>{fechadasArkium}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1, paddingLeft: 8 }}>{fechadasArkium}</div>
               </div>
             </div>
           </div>
@@ -615,7 +679,7 @@ export default function DialogosPage() {
                     <tbody>
                       {filteredArkium.map(a => (
                         <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#334155' }}>#{a.numeroDialogo}</td>
+                          <td style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#334155' }}>{a.numeroDialogo}</td>
                           <td style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               {a.dbTecnico?.fotoUrl ? (
@@ -679,7 +743,7 @@ export default function DialogosPage() {
           <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
-                {treatingItem.estado === 'ABERTO' ? 'Tratar Diálogo' : 'Detalhes do Diálogo'} #{treatingItem.numeroDialogo}
+                {treatingItem.estado === 'ABERTO' ? 'Tratar Diálogo' : 'Detalhes do Diálogo'} {treatingItem.numeroDialogo}
               </h3>
               <button onClick={() => setTreatingItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
                 <X size={20} />
