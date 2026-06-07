@@ -53,12 +53,17 @@ export default function RelatoriosAtividadesPage() {
 
   useEffect(() => {
     loadData()
-    if (role === 'MASTER' || role === 'ADMIN') {
+  }, [selectedYear])
+
+  useEffect(() => {
+    if (role) {
       getTecnicos().then(res => {
-        if (res.success && res.data) setTecnicos(res.data)
+        if (res.success && res.data) {
+          setTecnicos(res.data)
+        }
       })
     }
-  }, [selectedYear, role])
+  }, [role])
 
   async function loadData() {
     setLoading(true)
