@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 
-export async function getReunioes() {
+export async function getReunioes(ano?: number) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -15,7 +15,14 @@ export async function getReunioes() {
       return { success: false, error: 'Perfil de técnico não vinculado a este usuário.' }
     }
 
-    const where = role === 'TST' ? { tecnicoId } : {}
+    const where: any = role === 'TST' ? { tecnicoId } : {}
+    
+    if (ano) {
+      where.data = {
+        gte: new Date(ano, 0, 1),
+        lte: new Date(ano, 11, 31, 23, 59, 59)
+      }
+    }
 
     const data = await prisma.reuniao.findMany({
       where,

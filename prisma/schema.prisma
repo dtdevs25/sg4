@@ -210,6 +210,19 @@ enum JustificativaReuniao {
   NAO_SE_APLICA
 }
 
+model AtaReuniao {
+  id        String   @id @default(cuid())
+  data      DateTime
+  assunto   String
+  conteudo  String   // HTML rich text content
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([data, assunto])
+  @@index([data])
+  @@map("atas_reuniao")
+}
+
 // ─── ENTREGAS ───────────────────────────────────────────────────────────────
 
 model Entrega {
