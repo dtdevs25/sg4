@@ -36,6 +36,7 @@ export default function RelatoriosAtividadesPage() {
   const [todasAtividades, setTodasAtividades] = useState<any[]>([])
   const [tecnicos, setTecnicos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [pending, startTransition] = useTransition()
 
   // Modals
@@ -75,6 +76,14 @@ export default function RelatoriosAtividadesPage() {
     const monthIndex = dataAtiv.getUTCMonth()
     const monthKey = MONTHS_LIST[monthIndex].key
     return selectedMonths.includes(monthKey)
+  })
+
+  const filteredAtividades = atividades.filter(a => {
+    const term = search.toLowerCase()
+    return (a.tecnico?.nome?.toLowerCase() || '').includes(term) ||
+           (a.empresa?.toLowerCase() || '').includes(term) ||
+           (a.projeto?.toLowerCase() || '').includes(term) ||
+           (a.local?.toLowerCase() || '').includes(term)
   })
 
   // Extract unique companies for the PDF generation dropdown
@@ -212,145 +221,184 @@ export default function RelatoriosAtividadesPage() {
     <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
       
       {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <FileText color="#3b82f6" /> Lançamento de Atividades (Relatórios)
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <FileText color="#660099" size={22} />
+            Lançamento de Atividades (Relatórios)
           </h1>
-          <p style={{ color: '#64748b', marginTop: 4 }}>Registre suas atividades para a geração do relatório no final do mês.</p>
         </div>
         
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button onClick={() => setShowGerarPdfModal(true)} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(34,197,94,0.3)' }}>
-            <Printer size={18} /> Gerar PDF
+          <button onClick={() => setShowGerarPdfModal(true)} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(34,197,94,0.3)', fontSize: 13 }}>
+            <Printer size={16} /> Gerar PDF
           </button>
-          <button onClick={() => setShowNovaAtividade(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(59,130,246,0.3)' }}>
-            <Plus size={18} /> Lançar Atividade
+          <button onClick={() => setShowNovaAtividade(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(59,130,246,0.3)', fontSize: 13 }}>
+            <Plus size={16} /> Lançar Atividade
           </button>
         </div>
       </div>
 
       {/* DASHBOARD CONSOLIDADO & FILTROS */}
-      <div style={{ display: 'flex', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, marginBottom: 24 }}>
         
-        {/* CARD CONSOLIDADO */}
-        <div style={{ background: '#fff', borderRadius: 16, padding: '20px 24px', flex: 1, minWidth: 280, border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
-              <FileText size={24} />
-            </div>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>Consolidado do Período</p>
-              <h2 style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalAtividades} <span style={{ fontSize: 14, fontWeight: 600, color: '#94a3b8' }}>atividades</span></h2>
-            </div>
+        {/* FILTROS DE MESES E ANO */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer' }}>
+              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
           </div>
-          <div style={{ display: 'flex', gap: 20, marginTop: 4, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
-            <div>
-              <p style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Empresas Atendidas</p>
-              <p style={{ fontSize: 18, fontWeight: 800, color: '#334155' }}>{empresasAtendidas}</p>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {MONTHS_LIST.slice(0, 6).map(m => {
+                const isSelected = selectedMonths.includes(m.key)
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => handleMonthClick(m.key)}
+                    style={{
+                      flex: 1, padding: '8px 0', borderRadius: 6,
+                      border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                      background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                      color: isSelected ? '#660099' : '#64748b',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                      userSelect: 'none'
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {MONTHS_LIST.slice(6, 12).map(m => {
+                const isSelected = selectedMonths.includes(m.key)
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => handleMonthClick(m.key)}
+                    style={{
+                      flex: 1, padding: '8px 0', borderRadius: 6,
+                      border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                      background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                      color: isSelected ? '#660099' : '#64748b',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                      userSelect: 'none'
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
 
-        {/* FILTROS DE MESES E ANO */}
-        <div style={{ background: '#fff', borderRadius: 16, padding: '20px 24px', flex: 2, minWidth: 320, border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}><Filter size={16} /> Filtro por Mês</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', padding: '4px 8px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-              <Calendar size={14} color="#64748b" />
-              <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ border: 'none', background: 'transparent', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer' }}>
-                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
+        {/* CARD CONSOLIDADO */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Consolidado do Período</span>
+            <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
+              {selectedMonths.length} MÊS(ES)
+            </span>
           </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {MONTHS_LIST.map(m => {
-              const isActive = selectedMonths.includes(m.key)
-              return (
-                <button
-                  key={m.key}
-                  onClick={() => handleMonthClick(m.key)}
-                  style={{
-                    flex: '1 1 60px',
-                    padding: '8px 4px',
-                    borderRadius: 8,
-                    border: isActive ? '1px solid #3b82f6' : '1px solid #e2e8f0',
-                    background: isActive ? '#eff6ff' : '#f8fafc',
-                    color: isActive ? '#1d4ed8' : '#64748b',
-                    fontWeight: isActive ? 700 : 600,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    userSelect: 'none'
-                  }}
-                >
-                  {m.label}
-                </button>
-              )
-            })}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: 32, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalAtividades}</span>
+            <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>atividades</span>
           </div>
-          <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 12 }}>* Clique simples para adicionar/remover. Duplo clique para isolar o mês.</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', fontWeight: 600 }}>
+            <span>Empresas Atendidas: <b style={{ color: '#1e293b' }}>{empresasAtendidas}</b></span>
+          </div>
         </div>
       </div>
 
       {/* TABELA GERAL */}
-      <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-              <tr>
-                <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>DATA</th>
-                {(role === 'MASTER' || role === 'ADMIN') && (
-                  <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>TÉCNICO</th>
-                )}
-                <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>EMPRESA / PROJETO</th>
-                <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 700, color: '#475569' }}>LOCAL / DESCRIÇÃO</th>
-                <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 700, color: '#475569', textAlign: 'center', whiteSpace: 'nowrap' }}>FOTO</th>
-                <th style={{ padding: '16px 20px', fontSize: 13, fontWeight: 700, color: '#475569', textAlign: 'center' }}>AÇÕES</th>
-              </tr>
-            </thead>
-            <tbody>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Search Bar matching other modules */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+          <div style={{ position: 'relative', width: 300 }}>
+            <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
+            <input
+              type="text"
+              placeholder="Filtrar atividades..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                <tr>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>DATA</th>
+                  {(role === 'MASTER' || role === 'ADMIN') && (
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>TÉCNICO</th>
+                  )}
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>EMPRESA / PROJETO</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>LOCAL / DESCRIÇÃO</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center', whiteSpace: 'nowrap' }}>FOTO</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody>
               {loading ? (
-                <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center' }}><Loader2 className="animate-spin inline" color="#3b82f6" size={32} /></td></tr>
-              ) : atividades.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>Nenhuma atividade registrada para este mês.</td></tr>
-              ) : atividades.map(a => (
+                <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center' }}><Loader2 className="animate-spin inline" color="#660099" size={32} /></td></tr>
+              ) : filteredAtividades.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>Nenhuma atividade registrada.</td></tr>
+              ) : filteredAtividades.map(a => (
                 <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '16px 20px', fontWeight: 600, color: '#1e293b' }}>
+                  <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
                     {new Date(a.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
                   </td>
                   {(role === 'MASTER' || role === 'ADMIN') && (
-                    <td style={{ padding: '16px 20px' }}>
+                    <td style={{ padding: '14px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#475569' }}>
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#660099' }}>
                           {a.tecnico?.nome.substring(0, 2).toUpperCase()}
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{a.tecnico?.nome}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.tecnico?.nome}</span>
                       </div>
                     </td>
                   )}
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{a.empresa}</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>{a.projeto}</div>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.empresa}</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{a.projeto}</div>
                   </td>
-                  <td style={{ padding: '16px 20px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#3b82f6', marginBottom: 4 }}><MapPin size={12} className="inline mr-1"/> {a.local} - {a.cidadeUf}</div>
-                    <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.4, maxWidth: 400 }}>{a.descricao}</div>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#660099', marginBottom: 4 }}><MapPin size={12} className="inline mr-1"/> {a.local} - {a.cidadeUf}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4, maxWidth: 400 }}>{a.descricao}</div>
                   </td>
-                  <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                     {a.fotoUrl ? (
-                      <img src={a.fotoUrl} alt="Foto" onClick={() => setShowPhotoModal(a.fotoUrl)} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', margin: '0 auto', border: '1px solid #e2e8f0' }} />
+                      <img src={a.fotoUrl} alt="Foto" onClick={() => setShowPhotoModal(a.fotoUrl)} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', margin: '0 auto', border: '1px solid #e2e8f0' }} />
                     ) : (
-                      <span style={{ fontSize: 11, color: '#94a3b8', background: '#f1f5f9', padding: '4px 8px', borderRadius: 4 }}>Sem Foto</span>
+                      <span style={{ fontSize: 10, color: '#94a3b8', background: '#f1f5f9', padding: '4px 8px', borderRadius: 12, fontWeight: 700, textTransform: 'uppercase' }}>S/F</span>
                     )}
                   </td>
-                  <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                      <button onClick={() => openEdit(a)} style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 4 }} title="Editar">
-                        <Edit3 size={18} />
+                      <button onClick={() => openEdit(a)} style={{ background: 'transparent', border: 'none', color: '#660099', cursor: 'pointer', padding: 4 }} title="Editar">
+                        <Edit3 size={16} />
                       </button>
                       <button onClick={() => setShowDeleteModal(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>
@@ -359,6 +407,7 @@ export default function RelatoriosAtividadesPage() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
 
       {/* MODAL NOVA ATIVIDADE */}
