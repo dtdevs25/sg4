@@ -89,17 +89,29 @@ export default function DialogosPage() {
           
           const totalMesArkium = tecArkium.filter((a: any) => {
             if (!a.dataFechamento) return false
-            const parts = a.dataFechamento.includes('/') ? a.dataFechamento.split('/') : a.dataFechamento.split('-')
-            if (parts.length < 3) return false
             let month = 0, year = 0
             if (a.dataFechamento.includes('/')) {
-                month = parseInt(parts[1], 10)
-                year = parseInt(parts[2], 10)
-                if (parts[2].length === 2) year += 2000
+                const parts = a.dataFechamento.split('/')
+                if (parts.length >= 3) {
+                  month = parseInt(parts[1], 10)
+                  year = parseInt(parts[2], 10)
+                  if (parts[2].length === 2) year += 2000
+                }
+            } else if (a.dataFechamento.includes('-')) {
+                const parts = a.dataFechamento.split('-')
+                if (parts.length >= 3) {
+                  year = parseInt(parts[0], 10)
+                  month = parseInt(parts[1], 10)
+                }
             } else {
-                year = parseInt(parts[0], 10)
-                month = parseInt(parts[1], 10)
+                const excelDateNum = Number(a.dataFechamento)
+                if (!isNaN(excelDateNum) && excelDateNum > 20000) {
+                    const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
+                    month = jsDate.getUTCMonth() + 1
+                    year = jsDate.getUTCFullYear()
+                }
             }
+            if (month === 0 || year === 0) return false
             const MONTH_NAMES = ["", "JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
             return MONTH_NAMES[month] === mesName && year === selectedYear
           }).length
@@ -162,7 +174,7 @@ export default function DialogosPage() {
   // --- ESTADO: Visão Arkium ---
   const [arkiumData, setArkiumData] = useState<ArkiumDSSItem[]>([])
   const [arkiumSearch, setArkiumSearch] = useState('')
-  const [arkiumFilter, setArkiumFilter] = useState<'ALL' | 'ABERTO' | 'FECHADO'>('ALL')
+  const [arkiumFilter, setArkiumFilter] = useState<'ALL' | 'SIM' | 'NA'>('ALL')
   const [treatingItem, setTreatingItem] = useState<ArkiumDSSItem | null>(null)
   const [tratarJustificativa, setTratarJustificativa] = useState('')
   const [tratarAssinado, setTratarAssinado] = useState('')
@@ -351,14 +363,20 @@ export default function DialogosPage() {
     setDeleteArkiumConfirmId(null)
   }
 
-  const filteredArkium = arkiumData.filter(a => 
-    a.numeroDialogo.toLowerCase().includes(arkiumSearch.toLowerCase()) || 
-    a.nome.toLowerCase().includes(arkiumSearch.toLowerCase()) ||
-    a.assunto.toLowerCase().includes(arkiumSearch.toLowerCase())
-  )
-  const totalArkium = filteredArkium.length
-  const fechadasArkium = filteredArkium.filter(a => a.estado === 'FECHADO').length
-  const abertasArkium = arkiumData.filter(a => a.estado === 'ABERTO').length
+  const filteredArkium = arkiumData.filter(a => {
+    const textMatch = a.numeroDialogo.toLowerCase().includes(arkiumSearch.toLowerCase()) || 
+                      a.nome.toLowerCase().includes(arkiumSearch.toLowerCase()) ||
+                      a.assunto.toLowerCase().includes(arkiumSearch.toLowerCase())
+    if (!textMatch) return false
+    
+    if (arkiumFilter === 'SIM') return a.assinado.toLowerCase() === 'sim'
+    if (arkiumFilter === 'NA') return a.assinado.toLowerCase() !== 'sim'
+    return true
+  })
+
+  const totalArkium = arkiumData.length
+  const assinadasArkium = arkiumData.filter(a => a.assinado.toLowerCase() === 'sim').length
+  const naoAssinadasArkium = arkiumData.filter(a => a.assinado.toLowerCase() !== 'sim').length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
@@ -676,25 +694,25 @@ export default function DialogosPage() {
               </div>
               
               <div 
-                onClick={() => setArkiumFilter('ABERTO')}
-                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'ABERTO' ? '2px solid #f59e0b' : '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'ABERTO' ? '0 4px 6px -1px rgba(245,158,11,0.2)' : 'none' }}
+                onClick={() => setArkiumFilter('NA')}
+                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'NA' ? '2px solid #f59e0b' : '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'NA' ? '0 4px 6px -1px rgba(245,158,11,0.2)' : 'none' }}
               >
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#f59e0b' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309', paddingLeft: 8 }}>
                   <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Não Assinados</span>
                 </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#f59e0b', lineHeight: 1, paddingLeft: 8 }}>{abertasArkium}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#f59e0b', lineHeight: 1, paddingLeft: 8 }}>{naoAssinadasArkium}</div>
               </div>
 
               <div 
-                onClick={() => setArkiumFilter('FECHADO')}
-                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'FECHADO' ? '2px solid #10b981' : '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'FECHADO' ? '0 4px 6px -1px rgba(16,185,129,0.2)' : 'none' }}
+                onClick={() => setArkiumFilter('SIM')}
+                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'SIM' ? '2px solid #10b981' : '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'SIM' ? '0 4px 6px -1px rgba(16,185,129,0.2)' : 'none' }}
               >
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#10b981' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857', paddingLeft: 8 }}>
                   <CheckSquare size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Assinados</span>
                 </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1, paddingLeft: 8 }}>{fechadasArkium}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1, paddingLeft: 8 }}>{assinadasArkium}</div>
               </div>
             </div>
           </div>
@@ -729,10 +747,7 @@ export default function DialogosPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {arkiumData
-                        .filter(a => arkiumFilter === 'ALL' || a.estado === arkiumFilter)
-                        .filter(a => a.numeroDialogo.toLowerCase().includes(arkiumSearch.toLowerCase()) || a.nome.toLowerCase().includes(arkiumSearch.toLowerCase()) || a.assunto.toLowerCase().includes(arkiumSearch.toLowerCase()))
-                        .map(a => (
+                      {filteredArkium.map(a => (
                         <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9', background: a.estado === 'ABERTO' ? '#fefce8' : '#fff' }}>
                           <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
                             {a.numeroDialogo}
