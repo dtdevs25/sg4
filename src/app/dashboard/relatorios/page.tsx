@@ -224,7 +224,7 @@ export default function RelatoriosAtividadesPage() {
 
   // --- Render ---
   return (
-    <div style={{ padding: 24, maxWidth: 1400, margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
       
       {/* HEADER */}
       <div style={{
@@ -237,8 +237,7 @@ export default function RelatoriosAtividadesPage() {
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 16,
-        marginBottom: 24
+        gap: 16
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -258,7 +257,7 @@ export default function RelatoriosAtividadesPage() {
       </div>
 
       {/* DASHBOARD CONSOLIDADO & FILTROS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
         
         {/* FILTROS DE MESES E ANO */}
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
