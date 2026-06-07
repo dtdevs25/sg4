@@ -9,6 +9,7 @@ import { useSession } from 'next-auth/react'
 import {
   getAtividadesRelatorio, addAtividade, deleteAtividade, updateAtividade, uploadFotoRelatorio
 } from '@/app/actions/relatorios'
+import { optimizeTextWithAI } from '@/app/actions/ai'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import Link from 'next/link'
 
@@ -38,6 +39,7 @@ export default function RelatoriosAtividadesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [pending, startTransition] = useTransition()
+  const [aiLoading, setAiLoading] = useState(false)
 
   // Modals
   const [showNovaAtividade, setShowNovaAtividade] = useState(false)
@@ -227,6 +229,25 @@ export default function RelatoriosAtividadesPage() {
     setShowEditModal(a)
   }
 
+  async function handleOptimizeText(isEdit: boolean) {
+    const textToOptimize = isEdit ? formEdit.descricao : formAtiv.descricao
+    if (!textToOptimize || textToOptimize.trim().length === 0) return
+
+    setAiLoading(true)
+    const res = await optimizeTextWithAI(textToOptimize)
+    setAiLoading(false)
+
+    if (res.success && res.text) {
+      if (isEdit) {
+        setFormEdit(p => ({...p, descricao: res.text}))
+      } else {
+        setFormAtiv(p => ({...p, descricao: res.text}))
+      }
+    } else {
+      alert(res.error || 'Erro ao otimizar o texto.')
+    }
+  }
+
   // --- Render ---
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
@@ -398,7 +419,7 @@ export default function RelatoriosAtividadesPage() {
                   </td>
                   <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                     {a.fotoUrl ? (
-                      <img src={a.fotoUrl} alt="Foto" onClick={() => setShowPhotoModal(a.fotoUrl)} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', margin: '0 auto', border: '1px solid #e2e8f0' }} />
+                      <img src={a.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios')} alt="Foto" onClick={() => setShowPhotoModal(a.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios'))} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', margin: '0 auto', border: '1px solid #e2e8f0' }} />
                     ) : (
                       <span style={{ fontSize: 10, color: '#94a3b8', background: '#f1f5f9', padding: '4px 8px', borderRadius: 12, fontWeight: 700, textTransform: 'uppercase' }}>S/F</span>
                     )}
@@ -466,7 +487,21 @@ export default function RelatoriosAtividadesPage() {
               </div>
               
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Descrição / Relato da Atividade</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700 }}>Descrição / Relato da Atividade</label>
+                  <button 
+                    type="button" 
+                    onClick={() => handleOptimizeText(false)}
+                    disabled={aiLoading}
+                    style={{ 
+                      fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                      borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                      cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                    }}
+                  >
+                    {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                  </button>
+                </div>
                 <textarea required rows={3} placeholder="O que foi feito?" value={formAtiv.descricao} onChange={e => setFormAtiv(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
               </div>
               
@@ -535,7 +570,21 @@ export default function RelatoriosAtividadesPage() {
               </div>
               
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Descrição</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700 }}>Descrição</label>
+                  <button 
+                    type="button" 
+                    onClick={() => handleOptimizeText(true)}
+                    disabled={aiLoading}
+                    style={{ 
+                      fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                      borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                      cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                    }}
+                  >
+                    {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                  </button>
+                </div>
                 <textarea required rows={3} value={formEdit.descricao} onChange={e => setFormEdit(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
               </div>
               
@@ -543,7 +592,7 @@ export default function RelatoriosAtividadesPage() {
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Alterar Foto (Opcional)</label>
                 {showEditModal.fotoUrl && !formEdit.fotoBase64 && (
                   <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <img src={showEditModal.fotoUrl} alt="Atual" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0' }} />
+                    <img src={showEditModal.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios')} alt="Atual" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0' }} />
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Imagem Atual</span>
                       <button type="button" onClick={() => { const input = document.getElementById('editAtivPic') as HTMLInputElement; input?.click() }} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Trocar Imagem</button>

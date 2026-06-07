@@ -25,7 +25,7 @@ export async function uploadFotoRelatorio(base64: string, fileName: string, cont
 
     await s3Client.send(command)
     
-    const endpoint = process.env.S3_ENDPOINT?.replace('http://', 'https://') || 'https://sg4minio.fslab.dev'
+    const endpoint = (process.env.S3_ENDPOINT || 'https://sg4minio.fslab.dev').replace('http://', 'https://').replace(/\/$/, '')
     const publicUrl = `${endpoint}/${BUCKET_NAME}/${key}`
     return { success: true, url: publicUrl, key }
   } catch (error) {
