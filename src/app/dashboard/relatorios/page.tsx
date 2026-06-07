@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useRef } from 'react'
 import {
-  FileText, Plus, Search, Calendar, ChevronRight,
+  FileText, Plus, Search, Calendar, ChevronRight, Filter,
   AlertTriangle, UploadCloud, Trash2, Camera, MapPin, Loader2, PlayCircle, Eye, Printer, Edit3
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
@@ -12,14 +12,28 @@ import {
 import { getTecnicos } from '@/app/actions/tecnicos'
 import Link from 'next/link'
 
+const MES_MAP: Record<string, string> = {
+  jan: 'JANEIRO', fev: 'FEVEREIRO', mar: 'MARCO', abr: 'ABRIL', mai: 'MAIO', jun: 'JUNHO',
+  jul: 'JULHO', ago: 'AGOSTO', set: 'SETEMBRO', out: 'OUTUBRO', nov: 'NOVEMBRO', dez: 'DEZEMBRO'
+}
+
+const MONTHS_LIST = [
+  { key: 'jan', label: 'Jan' }, { key: 'fev', label: 'Fev' },
+  { key: 'mar', label: 'Mar' }, { key: 'abr', label: 'Abr' },
+  { key: 'mai', label: 'Mai' }, { key: 'jun', label: 'Jun' },
+  { key: 'jul', label: 'Jul' }, { key: 'ago', label: 'Ago' },
+  { key: 'set', label: 'Set' }, { key: 'out', label: 'Out' },
+  { key: 'nov', label: 'Nov' }, { key: 'dez', label: 'Dez' }
+]
+
 export default function RelatoriosAtividadesPage() {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
-  const [mesAtual, setMesAtual] = useState(new Date().getMonth() + 1)
-  const [anoAtual, setAnoAtual] = useState(new Date().getFullYear())
+  const [selectedMonths, setSelectedMonths] = useState<string[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
 
-  const [atividades, setAtividades] = useState<any[]>([])
+  const [todasAtividades, setTodasAtividades] = useState<any[]>([])
   const [tecnicos, setTecnicos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
@@ -34,10 +48,7 @@ export default function RelatoriosAtividadesPage() {
   // Forms
   const [formAtiv, setFormAtiv] = useState({ tecnicoId: '', data: '', empresa: '', projeto: '', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formEdit, setFormEdit] = useState({ data: '', empresa: '', projeto: '', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
-  const [formPdf, setFormPdf] = useState({ empresa: '', tecnicoId: '' })
-
-  // Extract unique companies for the PDF generation dropdown
-  const empresasDisponiveis = Array.from(new Set(atividades.map(a => a.empresa)))
+  const [formPdf, setFormPdf] = useState({ empresa: '', tecnicoId: '', mes: new Date().getMonth() + 1 })
 
   useEffect(() => {
     loadData()
@@ -46,13 +57,49 @@ export default function RelatoriosAtividadesPage() {
         if (res.success && res.data) setTecnicos(res.data)
       })
     }
-  }, [mesAtual, anoAtual, role])
+  }, [selectedYear, role])
 
   async function loadData() {
     setLoading(true)
-    const items = await getAtividadesRelatorio(mesAtual, anoAtual)
-    setAtividades(items)
+    // Busca todas do ano para filtrar localmente pelos meses selecionados
+    const promises = Array.from({ length: 12 }).map((_, i) => getAtividadesRelatorio(i + 1, selectedYear))
+    const results = await Promise.all(promises)
+    const all = results.flat()
+    setTodasAtividades(all)
     setLoading(false)
+  }
+
+  // Filtragem local baseada nos meses selecionados
+  const atividades = todasAtividades.filter(a => {
+    const dataAtiv = new Date(a.data)
+    const monthIndex = dataAtiv.getUTCMonth()
+    const monthKey = MONTHS_LIST[monthIndex].key
+    return selectedMonths.includes(monthKey)
+  })
+
+  // Extract unique companies for the PDF generation dropdown
+  const empresasDisponiveis = Array.from(new Set(todasAtividades.map(a => a.empresa)))
+  const totalAtividades = atividades.length
+  const empresasAtendidas = Array.from(new Set(atividades.map(a => a.empresa))).length
+
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+  function handleMonthClick(m: string) {
+    if (clickTimeout.current) {
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setSelectedMonths([m])
+    } else {
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+        setSelectedMonths(prev => {
+          if (prev.length === 1 && prev.includes(m)) {
+            return MONTHS_LIST.map(x => x.key)
+          }
+          if (prev.includes(m)) return prev.filter(x => x !== m)
+          return [...prev, m]
+        })
+      }, 250)
+    }
   }
 
   // --- Handlers ---
@@ -174,22 +221,75 @@ export default function RelatoriosAtividadesPage() {
         </div>
         
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <div style={{ display: 'flex', background: '#fff', borderRadius: 8, padding: 4, border: '1px solid #e2e8f0' }}>
-            <select value={mesAtual} onChange={e => setMesAtual(Number(e.target.value))} style={{ border: 'none', background: 'transparent', padding: '8px 12px', fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer' }}>
-              {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{new Date(2000, i).toLocaleString('pt-BR', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}</option>)}
-            </select>
-            <div style={{ width: 1, background: '#e2e8f0', margin: '4px 0' }} />
-            <select value={anoAtual} onChange={e => setAnoAtual(Number(e.target.value))} style={{ border: 'none', background: 'transparent', padding: '8px 12px', fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer' }}>
-              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-
           <button onClick={() => setShowGerarPdfModal(true)} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(34,197,94,0.3)' }}>
             <Printer size={18} /> Gerar PDF
           </button>
           <button onClick={() => setShowNovaAtividade(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(59,130,246,0.3)' }}>
             <Plus size={18} /> Lançar Atividade
           </button>
+        </div>
+      </div>
+
+      {/* DASHBOARD CONSOLIDADO & FILTROS */}
+      <div style={{ display: 'flex', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
+        
+        {/* CARD CONSOLIDADO */}
+        <div style={{ background: '#fff', borderRadius: 16, padding: '20px 24px', flex: 1, minWidth: 280, border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+              <FileText size={24} />
+            </div>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>Consolidado do Período</p>
+              <h2 style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalAtividades} <span style={{ fontSize: 14, fontWeight: 600, color: '#94a3b8' }}>atividades</span></h2>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 20, marginTop: 4, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+            <div>
+              <p style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Empresas Atendidas</p>
+              <p style={{ fontSize: 18, fontWeight: 800, color: '#334155' }}>{empresasAtendidas}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* FILTROS DE MESES E ANO */}
+        <div style={{ background: '#fff', borderRadius: 16, padding: '20px 24px', flex: 2, minWidth: 320, border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}><Filter size={16} /> Filtro por Mês</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', padding: '4px 8px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+              <Calendar size={14} color="#64748b" />
+              <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ border: 'none', background: 'transparent', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer' }}>
+                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {MONTHS_LIST.map(m => {
+              const isActive = selectedMonths.includes(m.key)
+              return (
+                <button
+                  key={m.key}
+                  onClick={() => handleMonthClick(m.key)}
+                  style={{
+                    flex: '1 1 60px',
+                    padding: '8px 4px',
+                    borderRadius: 8,
+                    border: isActive ? '1px solid #3b82f6' : '1px solid #e2e8f0',
+                    background: isActive ? '#eff6ff' : '#f8fafc',
+                    color: isActive ? '#1d4ed8' : '#64748b',
+                    fontWeight: isActive ? 700 : 600,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    userSelect: 'none'
+                  }}
+                >
+                  {m.label}
+                </button>
+              )
+            })}
+          </div>
+          <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 12 }}>* Clique simples para adicionar/remover. Duplo clique para isolar o mês.</p>
         </div>
       </div>
 
@@ -414,18 +514,25 @@ export default function RelatoriosAtividadesPage() {
               )}
 
               <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual Mês?</label>
+                <select value={formPdf.mes} onChange={(e) => setFormPdf(p => ({...p, mes: Number(e.target.value)}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
+                  {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{new Date(2000, i).toLocaleString('pt-BR', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}</option>)}
+                </select>
+              </div>
+
+              <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual Empresa?</label>
                 <select value={formPdf.empresa} onChange={(e) => setFormPdf(p => ({...p, empresa: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
                   <option value="">Selecione a empresa...</option>
                   {empresasDisponiveis.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
-                {empresasDisponiveis.length === 0 && <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>Nenhuma empresa cadastrada neste mês.</p>}
+                {empresasDisponiveis.length === 0 && <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>Nenhuma empresa encontrada no sistema.</p>}
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button onClick={() => setShowGerarPdfModal(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
                 <Link 
-                  href={`/dashboard/relatorios/print?mes=${mesAtual}&ano=${anoAtual}&empresa=${encodeURIComponent(formPdf.empresa)}${formPdf.tecnicoId ? `&tecnicoId=${formPdf.tecnicoId}` : ''}`} 
+                  href={`/dashboard/relatorios/print?mes=${formPdf.mes}&ano=${selectedYear}&empresa=${encodeURIComponent(formPdf.empresa)}${formPdf.tecnicoId ? `&tecnicoId=${formPdf.tecnicoId}` : ''}`} 
                   target="_blank"
                   onClick={(e) => {
                     if (!formPdf.empresa || (role !== 'TST' && !formPdf.tecnicoId)) {
