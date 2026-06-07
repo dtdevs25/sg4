@@ -50,7 +50,7 @@ export default function QuilometragemPage() {
 
   // Forms
   const [formStart, setFormStart] = useState({ tecnicoId: '', diaSemana: 'Segunda-feira', kmInicial: '', fotoBase64: '', fileName: '', contentType: '' })
-  const [formEnd, setFormEnd] = useState({ kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [formEnd, setFormEnd] = useState({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: '', valor: '', fotoBase64: '', fileName: '', contentType: '' })
   
   const [formEditKm, setFormEditKm] = useState({ diaSemana: '', kmInicial: '', fotoInicialBase64: '', kmFinal: '', fotoFinalBase64: '' })
@@ -161,10 +161,11 @@ export default function QuilometragemPage() {
         else return alert('Falha ao subir foto')
       }
 
-      const res = await fecharQuilometragem(showEndModal, parseFloat(formEnd.kmFinal), fotoUrl)
+      const dtFinal = formEnd.dataFinal ? new Date(formEnd.dataFinal + 'T12:00:00Z') : undefined
+      const res = await fecharQuilometragem(showEndModal, parseFloat(formEnd.kmFinal), fotoUrl, dtFinal)
       if (res.success) {
         setShowEndModal(null)
-        setFormEnd({ kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
+        setFormEnd({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
         loadData()
       } else {
         alert(res.error)
@@ -444,7 +445,9 @@ export default function QuilometragemPage() {
                     <td style={{ padding: '14px 20px' }}>
                       {k.kmFinal ? (
                         <>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Sexta-feira - {new Date(k.dataFinal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>
+                            {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][new Date(k.dataFinal).getUTCDay()]} - {new Date(k.dataFinal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
+                          </div>
                           <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                             {k.kmFinal} km
                             {k.fotoFinal && <button onClick={() => setShowPhotoModal(k.fotoFinal)} style={{ background: 'none', border: 'none', color: '#660099', cursor: 'pointer', padding: 0 }} title="Ver Foto Odômetro"><ImageIcon size={14} /></button>}
@@ -616,9 +619,15 @@ export default function QuilometragemPage() {
           <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24 }}>
             <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><StopCircle color="#ef4444" /> Fechar KM Semanal</h2>
             <form onSubmit={handleEndKm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>KM Final (Sexta-feira)</label>
-                <input type="number" step="0.1" required value={formEnd.kmFinal} onChange={(e) => setFormEnd(p => ({...p, kmFinal: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Data de Fechamento</label>
+                  <input type="date" required value={formEnd.dataFinal} onChange={(e) => setFormEnd(p => ({...p, dataFinal: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>KM Final (Odômetro)</label>
+                  <input type="number" step="0.1" required value={formEnd.kmFinal} onChange={(e) => setFormEnd(p => ({...p, kmFinal: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                </div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Foto do Odômetro</label>
@@ -703,12 +712,15 @@ export default function QuilometragemPage() {
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Nova Foto Odômetro Inicial (Opcional)</label>
                 {showEditKmModal?.fotoInicial && !formEditKm.fotoInicialBase64 && (
-                  <div style={{ marginBottom: 10 }}>
-                    <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Foto Atual:</span>
-                    <img src={showEditKmModal.fotoInicial} alt="Odômetro Inicial" style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+                  <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <img src={showEditKmModal.fotoInicial} alt="Odômetro Inicial" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Imagem Atual</span>
+                      <button type="button" onClick={() => { const input = document.getElementById('editKmInPic') as HTMLInputElement; input?.click() }} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Trocar Imagem</button>
+                    </div>
                   </div>
                 )}
-                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditKm)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                <input id="editKmInPic" type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditKm)} style={{ display: showEditKmModal?.fotoInicial && !formEditKm.fotoInicialBase64 ? 'none' : 'block', width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
               </div>
               
               <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '8px 0' }} />
@@ -720,12 +732,15 @@ export default function QuilometragemPage() {
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Nova Foto Odômetro Final (Opcional)</label>
                 {showEditKmModal?.fotoFinal && !formEditKm.fotoFinalBase64 && (
-                  <div style={{ marginBottom: 10 }}>
-                    <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Foto Atual:</span>
-                    <img src={showEditKmModal.fotoFinal} alt="Odômetro Final" style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+                  <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <img src={showEditKmModal.fotoFinal} alt="Odômetro Final" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Imagem Atual</span>
+                      <button type="button" onClick={() => { const input = document.getElementById('editKmFiPic') as HTMLInputElement; input?.click() }} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Trocar Imagem</button>
+                    </div>
                   </div>
                 )}
-                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditKm)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                <input id="editKmFiPic" type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditKm)} style={{ display: showEditKmModal?.fotoFinal && !formEditKm.fotoFinalBase64 ? 'none' : 'block', width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
@@ -758,12 +773,15 @@ export default function QuilometragemPage() {
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Novo Comprovante (Opcional)</label>
                 {showEditAbsModal?.fotoCupom && !formEditAbs.fotoCupomBase64 && (
-                  <div style={{ marginBottom: 10 }}>
-                    <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Comprovante Atual:</span>
-                    <img src={showEditAbsModal.fotoCupom} alt="Cupom Fiscal" style={{ width: '100%', height: 160, objectFit: 'contain', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0' }} />
+                  <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <img src={showEditAbsModal.fotoCupom} alt="Cupom Fiscal" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Comprovante Atual</span>
+                      <button type="button" onClick={() => { const input = document.getElementById('editAbsPic') as HTMLInputElement; input?.click() }} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Trocar Imagem</button>
+                    </div>
                   </div>
                 )}
-                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditAbs)} style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                <input id="editAbsPic" type="file" accept="image/*" onChange={(e) => handleFileChange(e, setFormEditAbs)} style={{ display: showEditAbsModal?.fotoCupom && !formEditAbs.fotoCupomBase64 ? 'none' : 'block', width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button type="button" disabled={pending} onClick={() => setShowEditAbsModal(null)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>

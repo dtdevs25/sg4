@@ -103,7 +103,7 @@ export async function createQuilometragem(data: {
   }
 }
 
-export async function fecharQuilometragem(id: string, kmFinal: number, fotoFinal?: string) {
+export async function fecharQuilometragem(id: string, kmFinal: number, fotoFinal?: string, dataFinal?: Date) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -116,7 +116,7 @@ export async function fecharQuilometragem(id: string, kmFinal: number, fotoFinal
     const item = await prisma.quilometragem.update({
       where: { id },
       data: {
-        dataFinal: new Date(),
+        dataFinal: dataFinal || new Date(),
         kmFinal,
         fotoFinal,
         diferenca
