@@ -199,9 +199,12 @@ export default function InspecoesPage() {
       clickTimeout.current = setTimeout(() => {
         clickTimeout.current = null
         setSelectedMonths(prev => {
+          // Se o mês clicado é o ÚNICO selecionado atualmente, seleciona TODOS novamente
+          if (prev.length === 1 && prev.includes(m)) {
+            return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+          }
+          
           if (prev.includes(m)) {
-            // Previne desmarcar se for o último mês
-            if (prev.length === 1) return prev
             return prev.filter(x => x !== m)
           } else {
             return [...prev, m]
@@ -210,17 +213,6 @@ export default function InspecoesPage() {
         setEditingId(null)
       }, 250)
     }
-  }
-
-  function toggleAllMonths() {
-    if (selectedMonths.length === 12) {
-      // Se todos estão selecionados, não podemos limpar todos (regra de no mínimo 1).
-      // Mas o usuário não deveria poder zerar. Então, por segurança, deixamos apenas Janeiro.
-      setSelectedMonths(['jan'])
-    } else {
-      setSelectedMonths(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
-    }
-    setEditingId(null)
   }
 
   // --- ESTADO: Visão Arkium ---
@@ -547,18 +539,6 @@ export default function InspecoesPage() {
                       </button>
                     )
                   })}
-                  <button
-                    onClick={toggleAllMonths}
-                    style={{
-                      padding: '8px 12px', borderRadius: 6, border: 'none',
-                      background: '#e2e8f0', color: '#475569',
-                      fontSize: 12, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s',
-                      whiteSpace: 'nowrap'
-                    }}
-                    title="Selecionar / Deselecionar Todos"
-                  >
-                    {selectedMonths.length === 12 ? 'Limpar' : 'Todos'}
-                  </button>
                 </div>
               </div>
             </div>
