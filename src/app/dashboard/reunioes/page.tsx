@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   CalendarDays, CheckCircle2, Clock, XCircle,
   PlusCircle, Search, Sparkles, X, Edit2, Trash2, Loader2, Save, FileText
@@ -33,7 +33,7 @@ export default function ReunioesPage() {
   const [pending, startTransition] = useTransition()
   
   const [search, setSearch] = useState('')
-  const [selectedMonths, setSelectedMonths] = useState<number[]>([new Date().getMonth() + 1])
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   
   // Modais
@@ -72,15 +72,31 @@ export default function ReunioesPage() {
     setLoading(false)
   }
 
-  function toggleMonth(m: number) {
-    setSelectedMonths(prev => {
-      if (prev.length === 12 && !prev.includes(m)) return [m] // Se "todos" estavam selecionados, seleciona só um
-      if (prev.includes(m)) {
-        if (prev.length === 1) return MONTHS_LIST.map(x => x.key) // Voltar todos
-        return prev.filter(x => x !== m)
-      }
-      return [...prev, m]
-    })
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  function handleMonthClick(m: number) {
+    if (clickTimeout.current) {
+      // Duplo clique detectado: seleciona APENAS este mês
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setSelectedMonths([m])
+    } else {
+      // Clique simples: espera para ver se é duplo clique
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+        setSelectedMonths(prev => {
+          // Se o mês clicado é o ÚNICO selecionado atualmente, seleciona TODOS novamente
+          if (prev.length === 1 && prev.includes(m)) {
+            return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+          }
+          if (prev.includes(m)) {
+            return prev.filter(x => x !== m)
+          } else {
+            return [...prev, m]
+          }
+        })
+      }, 250)
+    }
   }
 
   const filtered = logs.filter(l => {
@@ -219,7 +235,7 @@ export default function ReunioesPage() {
                 return (
                   <button
                     key={m.key}
-                    onClick={() => toggleMonth(m.key)}
+                    onClick={() => handleMonthClick(m.key)}
                     style={{
                       flex: 1, padding: '8px 0', borderRadius: 6,
                       border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
@@ -239,7 +255,7 @@ export default function ReunioesPage() {
                 return (
                   <button
                     key={m.key}
-                    onClick={() => toggleMonth(m.key)}
+                    onClick={() => handleMonthClick(m.key)}
                     style={{
                       flex: 1, padding: '8px 0', borderRadius: 6,
                       border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
