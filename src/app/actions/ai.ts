@@ -14,8 +14,7 @@ export async function optimizeTextWithAI(text: string) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
+    
     const prompt = `Você é um assistente especialista em redação e segurança do trabalho.
 Sua tarefa é corrigir e aprimorar o seguinte relato de atividade preenchido por um técnico.
 Siga estas regras estritamente:
@@ -28,7 +27,19 @@ Siga estas regras estritamente:
 Relato original:
 "${text}"`
 
-    const result = await model.generateContent(prompt)
+    let result
+    try {
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
+      result = await model.generateContent(prompt)
+    } catch (fallbackError: any) {
+      if (fallbackError.message?.includes('not found') || fallbackError.status === 404) {
+        console.log('Modelo gemini-1.5-flash-latest não encontrado. Tentando gemini-pro...')
+        const fallbackModel = genAI.getGenerativeModel({ model: 'gemini-pro' })
+        result = await fallbackModel.generateContent(prompt)
+      } else {
+        throw fallbackError
+      }
+    }
     const response = await result.response
     const correctedText = response.text().trim()
 
