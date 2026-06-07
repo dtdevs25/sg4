@@ -268,7 +268,7 @@ export default function InspecoesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
   const [arkiumSearch, setArkiumSearch] = useState('')
-  const [arkiumFilter, setArkiumFilter] = useState<'ALL' | 'FECHADO' | 'ABERTO'>('ALL')
+  const [arkiumFilter, setArkiumFilter] = useState<'ALL' | 'CONFORME' | 'NAO_CONFORME'>('ALL')
   const [treatingItem, setTreatingItem] = useState<ArkiumItem | null>(null)
   const [tratarData, setTratarData] = useState('')
   const [tratarObs, setTratarObs] = useState('')
@@ -441,14 +441,20 @@ export default function InspecoesPage() {
                       a.nomeQuestionario.toLowerCase().includes(arkiumSearch.toLowerCase())
     if (!textMatch) return false
 
-    if (arkiumFilter === 'FECHADO') return a.status === 'FECHADO'
-    if (arkiumFilter === 'ABERTO') return a.status === 'ABERTO'
+    if (arkiumFilter === 'CONFORME') return a.resultado.toLowerCase().trim() === 'conforme'
+    if (arkiumFilter === 'NAO_CONFORME') {
+      const res = a.resultado.toLowerCase().trim()
+      return res.includes('não conforme') || res.includes('nao conforme')
+    }
     return true
   })
   
   const totalArkium = arkiumData.length
-  const fechadasArkium = arkiumData.filter(a => a.status === 'FECHADO').length
-  const abertasArkium = arkiumData.filter(a => a.status === 'ABERTO').length
+  const conformesArkium = arkiumData.filter(a => a.resultado.toLowerCase().trim() === 'conforme').length
+  const naoConformesArkium = arkiumData.filter(a => {
+    const res = a.resultado.toLowerCase().trim()
+    return res.includes('não conforme') || res.includes('nao conforme')
+  }).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
@@ -763,25 +769,25 @@ export default function InspecoesPage() {
               </div>
               
               <div 
-                onClick={() => setArkiumFilter('ABERTO')}
-                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'ABERTO' ? '2px solid #f59e0b' : '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'ABERTO' ? '0 4px 6px -1px rgba(245,158,11,0.2)' : 'none' }}
-              >
-                <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#f59e0b' }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309' }}>
-                  <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Em Aberto</span>
-                </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{abertasArkium}</div>
-              </div>
-
-              <div 
-                onClick={() => setArkiumFilter('FECHADO')}
-                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'FECHADO' ? '2px solid #10b981' : '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'FECHADO' ? '0 4px 6px -1px rgba(16,185,129,0.2)' : 'none' }}
+                onClick={() => setArkiumFilter('CONFORME')}
+                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'CONFORME' ? '2px solid #10b981' : '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'CONFORME' ? '0 4px 6px -1px rgba(16,185,129,0.2)' : 'none' }}
               >
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#10b981' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857' }}>
-                  <CheckSquare size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Tratadas / Fechadas</span>
+                  <CheckCircle2 size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Conformes</span>
                 </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{fechadasArkium}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{conformesArkium}</div>
+              </div>
+
+              <div 
+                onClick={() => setArkiumFilter('NAO_CONFORME')}
+                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'NAO_CONFORME' ? '2px solid #ef4444' : '1px solid #fee2e2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'NAO_CONFORME' ? '0 4px 6px -1px rgba(239,68,68,0.2)' : 'none' }}
+              >
+                <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#ef4444' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b91c1c' }}>
+                  <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Não Conformes</span>
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{naoConformesArkium}</div>
               </div>
             </div>
           </div>
@@ -819,7 +825,7 @@ export default function InspecoesPage() {
                     <tbody>
                       {filteredArkium.map(a => (
                         <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#334155' }}>#{a.numero}</td>
+                          <td style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#334155' }}>{a.numero}</td>
                           <td style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               {a.dbTecnico?.fotoUrl ? (
