@@ -62,12 +62,18 @@ export default function RelatoriosAtividadesPage() {
 
   async function loadData() {
     setLoading(true)
-    // Busca todas do ano para filtrar localmente pelos meses selecionados
-    const promises = Array.from({ length: 12 }).map((_, i) => getAtividadesRelatorio(i + 1, selectedYear))
-    const results = await Promise.all(promises)
-    const all = results.flat()
-    setTodasAtividades(all)
-    setLoading(false)
+    try {
+      // Busca todas do ano para filtrar localmente pelos meses selecionados
+      const promises = Array.from({ length: 12 }).map((_, i) => getAtividadesRelatorio(i + 1, selectedYear))
+      const results = await Promise.all(promises)
+      const all = results.flat()
+      setTodasAtividades(all)
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err)
+      setTodasAtividades([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Filtragem local baseada nos meses selecionados
@@ -231,7 +237,8 @@ export default function RelatoriosAtividadesPage() {
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 16
+        gap: 16,
+        marginBottom: 24
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -461,13 +468,21 @@ export default function RelatoriosAtividadesPage() {
               
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Registro Fotográfico (Opcional)</label>
-                {formAtiv.fotoBase64 && (
+                {formAtiv.fotoBase64 ? (
                   <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
                     <img src={formAtiv.fotoBase64} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
                     <button type="button" onClick={() => setFormAtiv(p => ({...p, fotoBase64: ''}))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
                   </div>
+                ) : (
+                  <div 
+                    onClick={() => document.getElementById('fotoUploadInput')?.click()}
+                    style={{ border: '2px dashed #cbd5e1', borderRadius: 8, padding: '24px 20px', cursor: 'pointer', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}
+                  >
+                    <UploadCloud color="#64748b" size={28} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Clique para escolher uma imagem</span>
+                  </div>
                 )}
-                <input type="file" accept="image/*" onChange={e => handleFileChange(e, setFormAtiv)} style={{ display: formAtiv.fotoBase64 ? 'none' : 'block', width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                <input id="fotoUploadInput" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormAtiv)} style={{ display: 'none' }} />
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
@@ -531,7 +546,22 @@ export default function RelatoriosAtividadesPage() {
                     </div>
                   </div>
                 )}
-                <input id="editAtivPic" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormEdit)} style={{ display: showEditModal.fotoUrl && !formEdit.fotoBase64 ? 'none' : 'block', width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: 8 }} />
+                {formEdit.fotoBase64 && (
+                  <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <img src={formEdit.fotoBase64} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
+                    <button type="button" onClick={() => setFormEdit(p => ({...p, fotoBase64: ''}))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
+                  </div>
+                )}
+                {(!showEditModal.fotoUrl && !formEdit.fotoBase64) && (
+                   <div 
+                     onClick={() => document.getElementById('editAtivPic')?.click()}
+                     style={{ border: '2px dashed #cbd5e1', borderRadius: 8, padding: '24px 20px', cursor: 'pointer', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}
+                   >
+                     <UploadCloud color="#64748b" size={28} />
+                     <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Clique para escolher nova imagem</span>
+                   </div>
+                )}
+                <input id="editAtivPic" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormEdit)} style={{ display: 'none' }} />
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
