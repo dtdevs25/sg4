@@ -122,7 +122,7 @@ export default function DialogosPage() {
             return MONTH_NAMES[month] === mesName && year === selectedYear
           }).length
 
-          result[k] = totalMesAtv + totalMesArkium
+          result[k] = totalMesArkium
         })
         return result
       })
@@ -575,7 +575,6 @@ export default function DialogosPage() {
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Meta do Período</th>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Realizado</th>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -614,31 +613,6 @@ export default function DialogosPage() {
                               <span style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{realizado}/{meta}</span>
                             ) : (
                               <span style={{ background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Aguardando</span>
-                            )}
-                          </td>
-                          <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                            {editingId === t.id ? (
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                <button onClick={() => saveEdit(t.id)} style={{ padding: '4px 8px', borderRadius: 4, border: 'none', background: '#10b981', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
-                                <button onClick={() => setEditingId(null)} style={{ padding: '4px 8px', borderRadius: 4, border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Cancela</button>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                <button
-                                  onClick={() => { setEditingId(t.id); setEditValue(realizado) }}
-                                  title="Editar"
-                                  style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4 }}
-                                >
-                                  <Edit size={16} />
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmId(t.id)}
-                                  title="Excluir"
-                                  style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
                             )}
                           </td>
                         </tr>
