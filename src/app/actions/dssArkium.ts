@@ -30,7 +30,10 @@ export async function upsertDssArkiumBatch(items: DssArkiumPayload[]) {
     let inseridos = 0
     let ignorados = 0
 
-    for (const item of items) {
+    // Ignora itens sem número de diálogo
+    const itemsValidos = items.filter(item => item.numeroDialogo && item.numeroDialogo.trim() !== '')
+
+    for (const item of itemsValidos) {
       try {
         await prisma.dssArkium.upsert({
           where: {
@@ -121,5 +124,26 @@ export async function updateEstadoDssArkium(id: string, assinado: string, justif
   } catch (error) {
     console.error('Erro ao atualizar estado DSS:', error)
     return { success: false, error: 'Erro ao atualizar registro.' }
+  }
+}
+export async function limparDssArkiumInvalidos() {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    // Remove registros com numero_dialogo vazio ou nulo
+    const result = await prisma.dssArkium.deleteMany({
+      where: {
+        OR: [
+          { numeroDialogo: '' },
+          { numeroDialogo: null as any },
+        ]
+      }
+    })
+
+    return { success: true, removidos: result.count }
+  } catch (error) {
+    console.error('Erro ao limpar registros inválidos:', error)
+    return { success: false, error: 'Erro ao limpar registros.' }
   }
 }
