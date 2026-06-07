@@ -253,15 +253,17 @@ export default function QuilometragemPage() {
           >
             Controle de KM
           </button>
-          <button
-            onClick={() => setActiveTab('abastecimento')}
-            style={{
-              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-              background: activeTab === 'abastecimento' ? '#fff' : 'transparent', color: activeTab === 'abastecimento' ? '#660099' : '#64748b', boxShadow: activeTab === 'abastecimento' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-            }}
-          >
-            Abastecimentos
-          </button>
+          {role !== 'TST' && (
+            <button
+              onClick={() => setActiveTab('abastecimento')}
+              style={{
+                padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+                background: activeTab === 'abastecimento' ? '#fff' : 'transparent', color: activeTab === 'abastecimento' ? '#660099' : '#64748b', boxShadow: activeTab === 'abastecimento' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              Abastecimentos
+            </button>
+          )}
         </div>
       </div>
 
@@ -351,7 +353,21 @@ export default function QuilometragemPage() {
               <tbody>
                 {filteredKms.map(k => (
                   <tr key={k.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{k.tecnico.nome}</td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {k.tecnico.fotoUrl ? (
+                          <img src={k.tecnico.fotoUrl} alt={k.tecnico.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                            {k.tecnico.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{k.tecnico.nome}</span>
+                          <span style={{ fontSize: 10, color: '#94a3b8' }}>Admissão: {new Date(k.tecnico.admissao).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span>
+                        </div>
+                      </div>
+                    </td>
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>{k.diaSemana} - {new Date(k.dataInicial).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
                       <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
@@ -414,7 +430,21 @@ export default function QuilometragemPage() {
                 {filteredAbs.map(a => (
                   <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{new Date(a.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
-                    <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.tecnico.nome}</td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {a.tecnico.fotoUrl ? (
+                          <img src={a.tecnico.fotoUrl} alt={a.tecnico.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                            {a.tecnico.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.tecnico.nome}</span>
+                          <span style={{ fontSize: 10, color: '#94a3b8' }}>Admissão: {new Date(a.tecnico.admissao).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</span>
+                        </div>
+                      </div>
+                    </td>
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                       <div style={{ fontSize: 15, fontWeight: 800, color: '#ef4444' }}>R$ {a.valor.toFixed(2)}</div>
                     </td>
