@@ -367,5 +367,4 @@ model RelatorioAtividade {
 
   @@index([tecnicoId])
   @@index([data])
-  @@map("relatorios_atividades")
 }
