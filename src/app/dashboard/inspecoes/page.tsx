@@ -289,30 +289,63 @@ export default function InspecoesPage() {
     reader.onload = async (evt) => {
       try {
         setImportProgress('Processando planilha...')
-        const bstr = evt.target?.result
-        const wb = XLSX.read(bstr, { type: 'array' })
-        const wsname = wb.SheetNames[0]
-        if (!wsname) throw new Error("Planilha vazia ou não reconhecida")
-        const ws = wb.Sheets[wsname]
-        const parsed = XLSX.utils.sheet_to_json(ws) as any[]
+        const buffer = evt.target?.result as ArrayBuffer
+        let parsed: any[] = []
+
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          const decoder = new TextDecoder('windows-1252')
+          const csvText = decoder.decode(buffer)
+          const lines = csvText.split(/\r?\n/)
+          if (lines.length > 0) {
+            const separator = lines[0].includes(';') ? ';' : ','
+            const headers = lines[0].split(separator).map(h => h.trim())
+            for (let i = 1; i < lines.length; i++) {
+              if (!lines[i].trim()) continue
+              const values = lines[i].split(separator)
+              const obj: any = {}
+              headers.forEach((h, idx) => {
+                let val = values[idx] !== undefined ? values[idx].trim() : ''
+                if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1)
+                obj[h] = val
+              })
+              parsed.push(obj)
+            }
+          }
+        } else {
+          const wb = XLSX.read(buffer, { type: 'array' })
+          const wsname = wb.SheetNames[0]
+          if (!wsname) throw new Error("Planilha vazia ou não reconhecida")
+          const ws = wb.Sheets[wsname]
+          parsed = XLSX.utils.sheet_to_json(ws) as any[]
+        }
 
         const imported: ArkiumItem[] = parsed
           .map((row: any) => {
-            const dtFechamento = row['Data Fechamento'] || row['DataFechamento'] || ''
+            // Busca segura de chaves por causa de possíveis espaços ou acentos
+            const getKey = (keys: string[]) => {
+              const rowKeys = Object.keys(row)
+              for (const k of keys) {
+                const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, ''))
+                if (match && row[match] !== undefined && row[match] !== null) return row[match]
+              }
+              return ''
+            }
+
+            const dtFechamento = getKey(['Data Fechamento', 'DataFechamento'])
             return {
               id: Math.random().toString(36).substr(2, 9),
-              numero: String(row['Numero'] || row['Número'] || ''),
-              resultado: String(row['Resultado'] || ''),
-              dataAbertura: String(row['Data Abertura'] || row['DataAbertura'] || ''),
+              numero: String(getKey(['Numero', 'Número'])),
+              resultado: String(getKey(['Resultado'])),
+              dataAbertura: String(getKey(['Data Abertura', 'DataAbertura'])),
               dataFechamento: String(dtFechamento),
-              matriculaAuditor: String(row['Matricula Auditor'] || row['MatriculaAuditor'] || ''),
-              nomeAuditor: String(row['Nome Auditor'] || row['NomeAuditor'] || ''),
-              identificadorObjeto: String(row['Identificador Objeto'] || row['IdentificadorObjeto'] || ''),
-              nomeQuestionario: String(row['Nome Questionario'] || row['NomeQuestionario'] || ''),
-              clienteObjeto: String(row['Cliente Objeto'] || row['ClienteObjeto'] || ''),
-              localidadeObjeto: String(row['Localidade Objeto'] || row['LocalidadeObjeto'] || ''),
-              autocheck: String(row['Autocheck'] || ''),
-              observacao: String(row['Observação'] || row['Observacao'] || ''),
+              matriculaAuditor: String(getKey(['Matricula Auditor', 'MatriculaAuditor', 'Matrícula Auditor'])),
+              nomeAuditor: String(getKey(['Nome Auditor', 'NomeAuditor'])),
+              identificadorObjeto: String(getKey(['Identificador Objeto', 'IdentificadorObjeto'])),
+              nomeQuestionario: String(getKey(['Nome Questionario', 'NomeQuestionário', 'NomeQuestionario'])),
+              clienteObjeto: String(getKey(['Cliente Objeto', 'ClienteObjeto'])),
+              localidadeObjeto: String(getKey(['Localidade Objeto', 'LocalidadeObjeto'])),
+              autocheck: String(getKey(['Autocheck'])),
+              observacao: String(getKey(['Observação', 'Observacao', 'Observao'])),
               status: dtFechamento ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'
             }
           })

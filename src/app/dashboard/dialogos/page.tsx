@@ -296,17 +296,50 @@ export default function DialogosPage() {
     reader.onload = async (evt) => {
       try {
         setImportProgress('Processando planilha...')
-        const bstr = evt.target?.result
-        const wb = XLSX.read(bstr, { type: 'array' })
-        const wsname = wb.SheetNames[0]
-        if (!wsname) throw new Error("Planilha vazia ou não reconhecida")
-        const ws = wb.Sheets[wsname]
-        const parsed = XLSX.utils.sheet_to_json(ws) as any[]
+        const buffer = evt.target?.result as ArrayBuffer
+        let parsed: any[] = []
+
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          const decoder = new TextDecoder('windows-1252')
+          const csvText = decoder.decode(buffer)
+          const lines = csvText.split(/\r?\n/)
+          if (lines.length > 0) {
+            const separator = lines[0].includes(';') ? ';' : ','
+            const headers = lines[0].split(separator).map(h => h.trim())
+            for (let i = 1; i < lines.length; i++) {
+              if (!lines[i].trim()) continue
+              const values = lines[i].split(separator)
+              const obj: any = {}
+              headers.forEach((h, idx) => {
+                let val = values[idx] !== undefined ? values[idx].trim() : ''
+                if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1)
+                obj[h] = val
+              })
+              parsed.push(obj)
+            }
+          }
+        } else {
+          const wb = XLSX.read(buffer, { type: 'array' })
+          const wsname = wb.SheetNames[0]
+          if (!wsname) throw new Error("Planilha vazia ou não reconhecida")
+          const ws = wb.Sheets[wsname]
+          parsed = XLSX.utils.sheet_to_json(ws) as any[]
+        }
 
         const imported: ArkiumDSSItem[] = parsed
           .map((row: any) => {
-            const assinadoVal = String(row['Assinado'] || '')
-            const justifVal = String(row['Justificativa'] || '')
+            // Busca segura de chaves por causa de possíveis espaços ou acentos
+            const getKey = (keys: string[]) => {
+              const rowKeys = Object.keys(row)
+              for (const k of keys) {
+                const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, ''))
+                if (match && row[match] !== undefined && row[match] !== null) return row[match]
+              }
+              return ''
+            }
+
+            const assinadoVal = String(getKey(['Assinado']))
+            const justifVal = String(getKey(['Justificativa']))
             
             // Lógica de "ABERTO": Se não está assinado E não tem justificativa, consideramos aberto
             // Ou se a "Data Fechamento" estiver vazia. Depende do seu processo. 
@@ -315,18 +348,18 @@ export default function DialogosPage() {
 
             return {
               id: Math.random().toString(36).substr(2, 9),
-              assunto: String(row['Assunto'] || ''),
-              numeroDialogo: String(row['N\u00famero do Di\u00e1logo'] || row['Numero do Di\u00e1logo'] || row['Numero do Dialogo'] || row['Numero'] || row['N\u00b0 Di\u00e1logo'] || '').trim(),
-              lider: String(row['Lider'] || row['Líder'] || ''),
-              base: String(row['Base'] || ''),
-              uf: String(row['UF'] || ''),
-              localidade: String(row['Localidade'] || ''),
-              dataFechamento: String(row['Data Fechamento'] || row['DataFechamento'] || ''),
-              matricula: String(row['Matricula'] || row['Matrícula'] || ''),
-              nome: String(row['Nome'] || ''),
-              tipo: String(row['Tipo'] || ''),
-              statusDSS: String(row['Status'] || ''),
-              assinado: assinadoVal,
+              assunto: String(getKey(['Assunto'])),
+              numeroDialogo: String(getKey(['Número do Diálogo', 'Numero do Diálogo', 'Numero do Dialogo', 'Numero', 'N° Diálogo', 'N Diálogo'])).trim(),
+              lider: String(getKey(['Lider', 'Líder'])),
+              base: String(getKey(['Base'])),
+              uf: String(getKey(['UF'])),
+              localidade: String(getKey(['Localidade'])),
+              dataFechamento: String(getKey(['Data Fechamento', 'DataFechamento'])),
+              matricula: String(getKey(['Matricula', 'Matrícula'])),
+              nome: String(getKey(['Nome'])),
+              tipo: String(getKey(['Tipo'])),
+              statusDSS: String(getKey(['Status'])),
+              assinado: assinadoVal || 'NA',
               justificativa: justifVal,
               estado: isFechado ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'
             }
