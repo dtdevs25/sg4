@@ -9,6 +9,12 @@ import {
 import * as XLSX from 'xlsx'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
+import {
+  getInspecoesArkium,
+  upsertInspecoesArkiumBatch,
+  updateInspecoesArkiumItem,
+  limparInspecoesArkiumInvalidos
+} from '@/app/actions/inspecoesArkium'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
 
@@ -41,7 +47,7 @@ export default function InspecoesPage() {
 
   // --- ESTADO: Visão Consolidada ---
   const [data, setData] = useState<any[]>([])
-  const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['abr'])
+  const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -62,23 +68,75 @@ export default function InspecoesPage() {
 
   async function loadData() {
     const tecRes = await getTecnicos()
-    const atvRes = await getAtividades('INSPECAO')
+    const arkRes = await getInspecoesArkium()
 
     if (tecRes.success && tecRes.data) {
-      const tecnicos = tecRes.data.filter((t: any) => t.ativo)
-      const atividades = atvRes.success && atvRes.data ? atvRes.data : []
+      const tecnicos = tecRes.data // Busca todos, incluindo inativos
+      const arkiumList = arkRes.success && arkRes.data ? arkRes.data : []
 
       const newData = tecnicos.map((t: any) => {
-        const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
+        const tecArkium = arkiumList.filter((a: any) => {
+          if (!a.nomeAuditor || !t.nome) return false
+          const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          const nomePlanilha = removeAccents(a.nomeAuditor.toLowerCase().trim())
+          const nomeBd = removeAccents(t.nome.toLowerCase().trim())
+          if (nomePlanilha === nomeBd) return true
+          
+          const planTokens = nomePlanilha.split(' ')
+          const dbTokens = nomeBd.split(' ')
+          
+          if (planTokens[0] === dbTokens[0]) {
+             if (planTokens.length === 1 || dbTokens.length === 1) return true
+             for (let i = 1; i < planTokens.length; i++) {
+                for (let j = 1; j < dbTokens.length; j++) {
+                   if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+                      return true
+                   }
+                }
+             }
+          }
+          return false
+        })
+
         const result: any = { id: t.id, nome: t.nome, admissao: new Date(t.admissao).toLocaleDateString('pt-BR'), fotoUrl: t.fotoUrl }
         
         Object.keys(MES_MAP).forEach(k => {
           const mesName = MES_MAP[k as MesKey]
-          const totalMes = tecAtv.filter((a: any) => a.mes === mesName && a.ano === selectedYear).reduce((sum: number, a: any) => sum + a.realizado, 0)
-          result[k] = totalMes
+          const totalMesArkium = tecArkium.filter((a: any) => {
+            if (!a.dataFechamento) return false
+            let month = 0, year = 0
+            if (a.dataFechamento.includes('/')) {
+                const parts = a.dataFechamento.split('/')
+                if (parts.length >= 3) {
+                  month = parseInt(parts[1], 10)
+                  year = parseInt(parts[2], 10)
+                  if (parts[2].length === 2) year += 2000
+                }
+            } else if (a.dataFechamento.includes('-')) {
+                const parts = a.dataFechamento.split('-')
+                if (parts.length >= 3) {
+                  year = parseInt(parts[0], 10)
+                  month = parseInt(parts[1], 10)
+                }
+            } else {
+                const excelDateNum = Number(a.dataFechamento)
+                if (!isNaN(excelDateNum) && excelDateNum > 20000) {
+                    const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
+                    month = jsDate.getUTCDate()
+                    year = jsDate.getUTCFullYear()
+                }
+            }
+            if (month === 0 || year === 0) return false
+            const MONTH_NAMES = ["", "JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
+            return MONTH_NAMES[month] === mesName && year === selectedYear
+          }).length
+
+          result[k] = totalMesArkium
         })
+        result.ativo = t.ativo
         return result
-      })
+      }).filter((r: any) => r.ativo || Object.keys(MES_MAP).some(k => r[k] > 0))
+
       setData(newData)
     }
   }
@@ -127,16 +185,96 @@ export default function InspecoesPage() {
     { key: 'nov', label: 'Nov' }, { key: 'dez', label: 'Dez' }
   ]
 
-  function toggleMonth(m: MesKey) {
-    setSelectedMonths(prev => 
-      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
-    )
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  function handleMonthClick(m: MesKey) {
+    if (clickTimeout.current) {
+      // Duplo clique detectado: seleciona APENAS este mês
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setSelectedMonths([m])
+      setEditingId(null)
+    } else {
+      // Clique simples: espera para ver se é duplo clique
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+        setSelectedMonths(prev => {
+          if (prev.includes(m)) {
+            // Previne desmarcar se for o último mês
+            if (prev.length === 1) return prev
+            return prev.filter(x => x !== m)
+          } else {
+            return [...prev, m]
+          }
+        })
+        setEditingId(null)
+      }, 250)
+    }
+  }
+
+  function toggleAllMonths() {
+    if (selectedMonths.length === 12) {
+      // Se todos estão selecionados, não podemos limpar todos (regra de no mínimo 1).
+      // Mas o usuário não deveria poder zerar. Então, por segurança, deixamos apenas Janeiro.
+      setSelectedMonths(['jan'])
+    } else {
+      setSelectedMonths(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
+    }
     setEditingId(null)
   }
 
-
   // --- ESTADO: Visão Arkium ---
   const [arkiumData, setArkiumData] = useState<ArkiumItem[]>([])
+
+  useEffect(() => {
+    async function loadArkium() {
+      await limparInspecoesArkiumInvalidos()
+      const res = await getInspecoesArkium()
+      if (res.success && res.data && res.data.length > 0) {
+        const fromDb: ArkiumItem[] = res.data.map((r: any) => {
+          const dbTecnico = data.find((t: any) => {
+            const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            const nomeDb = removeAccents(t.nome.toLowerCase().trim())
+            const nomePlanilha = removeAccents(r.nomeAuditor.toLowerCase().trim())
+            if (nomePlanilha === nomeDb) return true
+            const planTokens = nomePlanilha.split(' ')
+            const dbTokens = nomeDb.split(' ')
+            if (planTokens[0] === dbTokens[0]) {
+               if (planTokens.length === 1 || dbTokens.length === 1) return true
+               for (let i = 1; i < planTokens.length; i++) {
+                  for (let j = 1; j < dbTokens.length; j++) {
+                     if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+                        return true
+                     }
+                  }
+               }
+            }
+            return false
+          })
+          return {
+            id: r.id,
+            numero: r.numero,
+            resultado: r.resultado || '',
+            dataAbertura: r.dataAbertura || '',
+            dataFechamento: r.dataFechamento || '',
+            matriculaAuditor: r.matriculaAuditor || '',
+            nomeAuditor: r.nomeAuditor || '',
+            identificadorObjeto: r.identificadorObjeto || '',
+            nomeQuestionario: r.nomeQuestionario || '',
+            clienteObjeto: r.clienteObjeto || '',
+            localidadeObjeto: r.localidadeObjeto || '',
+            autocheck: r.autocheck || '',
+            observacao: r.observacao || '',
+            status: r.status as 'ABERTO' | 'FECHADO',
+            dbTecnico,
+          }
+        })
+        setArkiumData(fromDb)
+      }
+    }
+    loadArkium()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
   const [arkiumSearch, setArkiumSearch] = useState('')
   const [treatingItem, setTreatingItem] = useState<ArkiumItem | null>(null)
   const [tratarData, setTratarData] = useState('')
@@ -155,7 +293,7 @@ export default function InspecoesPage() {
     setImportProgress('Lendo arquivo...')
 
     const reader = new FileReader()
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         setImportProgress('Processando planilha...')
         const bstr = evt.target?.result
@@ -195,18 +333,29 @@ export default function InspecoesPage() {
             })
             return { ...item, dbTecnico }
           })
-        setImportProgress('Analisando registros...')
+        setImportProgress('Salvando no banco de dados...')
+        const newItems = imported.filter(imp => !arkiumData.some(p => p.numero === imp.numero))
 
-        // Adiciona novos itens ignorando duplicações exatas de número se já existirem
-        setImportProgress('Salvando registros...')
-        setTimeout(() => {
-          setArkiumData(prev => {
-            const newItems = imported.filter(imp => !prev.some(p => p.numero === imp.numero))
-            setImportProgress(`${newItems.length} novos registros importados!`)
-            setTimeout(() => setIsImporting(false), 1200)
-            return [...prev, ...newItems]
-          })
-        }, 400)
+        const saveRes = await upsertInspecoesArkiumBatch(newItems.map(item => ({
+          numero: item.numero,
+          resultado: item.resultado,
+          dataAbertura: item.dataAbertura,
+          dataFechamento: item.dataFechamento,
+          matriculaAuditor: item.matriculaAuditor,
+          nomeAuditor: item.nomeAuditor,
+          identificadorObjeto: item.identificadorObjeto,
+          nomeQuestionario: item.nomeQuestionario,
+          clienteObjeto: item.clienteObjeto,
+          localidadeObjeto: item.localidadeObjeto,
+          autocheck: item.autocheck,
+          observacao: item.observacao,
+          status: item.status,
+        })))
+
+        const savedCount = saveRes.success ? (saveRes.inseridos ?? newItems.length) : newItems.length
+        setImportProgress(`${savedCount} novos registros importados!`)
+        setArkiumData(prev => [...prev, ...newItems])
+        setTimeout(() => setIsImporting(false), 1200)
       } catch (err) {
         setIsImporting(false)
         alert("Erro ao ler o arquivo. Certifique-se de que é um Excel (.xlsx) ou CSV válido.")
@@ -363,13 +512,14 @@ export default function InspecoesPage() {
                     return (
                       <button
                         key={m.key}
-                        onClick={() => toggleMonth(m.key as MesKey)}
+                        onClick={() => handleMonthClick(m.key as MesKey)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
                           background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
                           color: isSelected ? '#660099' : '#64748b',
-                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
                         }}
                       >
                         {m.label}
@@ -383,19 +533,32 @@ export default function InspecoesPage() {
                     return (
                       <button
                         key={m.key}
-                        onClick={() => toggleMonth(m.key as MesKey)}
+                        onClick={() => handleMonthClick(m.key as MesKey)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
                           background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
                           color: isSelected ? '#660099' : '#64748b',
-                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
                         }}
                       >
                         {m.label}
                       </button>
                     )
                   })}
+                  <button
+                    onClick={toggleAllMonths}
+                    style={{
+                      padding: '8px 12px', borderRadius: 6, border: 'none',
+                      background: '#e2e8f0', color: '#475569',
+                      fontSize: 12, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s',
+                      whiteSpace: 'nowrap'
+                    }}
+                    title="Selecionar / Deselecionar Todos"
+                  >
+                    {selectedMonths.length === 12 ? 'Limpar' : 'Todos'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -446,7 +609,6 @@ export default function InspecoesPage() {
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Realizado</th>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Progresso</th>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ação</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -505,31 +667,6 @@ export default function InspecoesPage() {
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700 }}>
                                 <AlertTriangle size={12} /> Aguardando
                               </span>
-                            )}
-                          </td>
-                          <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                            {editingId === t.id ? (
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                <button onClick={() => saveEdit(t.id)} style={{ padding: '4px 8px', borderRadius: 4, border: 'none', background: '#10b981', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>OK</button>
-                                <button onClick={() => setEditingId(null)} style={{ padding: '4px 8px', borderRadius: 4, border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Cancela</button>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                                <button
-                                  onClick={() => startEdit(t.id, realizado)}
-                                  title="Editar"
-                                  style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: 4 }}
-                                >
-                                  <Edit2 size={16} />
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmId(t.id)}
-                                  title="Excluir"
-                                  style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
                             )}
                           </td>
                         </tr>

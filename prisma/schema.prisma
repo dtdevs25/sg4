@@ -89,6 +89,7 @@ model Tecnico {
   programacoes Programacao[]
   reunioes    Reuniao[]
   entregas    Entrega[]
+  inspecoesArkium InspecoesArkium[]
 
   @@map("tecnicos")
 }
@@ -264,3 +265,32 @@ model DssArkium {
   @@map("arkium_dss")
 }
 
+// ─── INSPEÇÕES ARKIUM ───────────────────────────────────────────────────────
+
+model InspecoesArkium {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()::text"))
+  numero                String    @unique
+  resultado             String?
+  dataAbertura          String?   @map("data_abertura")
+  dataFechamento        String?   @map("data_fechamento")
+  matriculaAuditor      String?   @map("matricula_auditor")
+  nomeAuditor           String?   @map("nome_auditor")
+  identificadorObjeto   String?   @map("identificador_objeto")
+  nomeQuestionario      String?   @map("nome_questionario")
+  clienteObjeto         String?   @map("cliente_objeto")
+  localidadeObjeto      String?   @map("localidade_objeto")
+  autocheck             String?
+  observacao            String?
+  status                String    @default("ABERTO")
+  tecnicoId             String?   @map("tecnico_id")
+  importadoEm           DateTime  @default(now()) @map("importado_em")
+  atualizadoEm          DateTime  @default(now()) @updatedAt @map("atualizado_em")
+  importadoPor          String?   @map("importado_por")
+
+  tecnico               Tecnico?  @relation(fields: [tecnicoId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([matriculaAuditor])
+  @@index([tecnicoId])
+  @@map("arkium_inspecoes")
+}
