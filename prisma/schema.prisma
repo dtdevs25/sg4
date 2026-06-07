@@ -177,10 +177,12 @@ model Reuniao {
   id           String   @id @default(cuid())
   tecnicoId    String
   data         DateTime
+  assunto      String?
   presenca     PresencaReuniao @default(PRESENTE)
   pontualidade PontualidadeReuniao @default(PONTUAL)
   justificada  JustificativaReuniao @default(NAO_SE_APLICA)
   motivo       String?
+  observacao   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
