@@ -81,10 +81,25 @@ export default function DialogosPage() {
         const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
         const tecArkium = arkiumList.filter((a: any) => {
           if (!a.nome || !t.nome) return false
-          const nomePlanilha = a.nome.toLowerCase().trim()
-          const nomeBd = t.nome.toLowerCase().trim()
+          const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          const nomePlanilha = removeAccents(a.nome.toLowerCase().trim())
+          const nomeBd = removeAccents(t.nome.toLowerCase().trim())
+          if (nomePlanilha === nomeBd) return true
+          
+          const planTokens = nomePlanilha.split(' ')
           const dbTokens = nomeBd.split(' ')
-          return nomePlanilha === nomeBd || (nomePlanilha.includes(dbTokens[0]) && dbTokens.length > 1 && nomePlanilha.includes(dbTokens[dbTokens.length - 1]))
+          
+          if (planTokens[0] === dbTokens[0]) {
+             if (planTokens.length === 1 || dbTokens.length === 1) return true
+             for (let i = 1; i < planTokens.length; i++) {
+                for (let j = 1; j < dbTokens.length; j++) {
+                   if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+                      return true
+                   }
+                }
+             }
+          }
+          return false
         })
 
         const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl }
@@ -113,7 +128,8 @@ export default function DialogosPage() {
                 const excelDateNum = Number(a.dataFechamento)
                 if (!isNaN(excelDateNum) && excelDateNum > 20000) {
                     const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
-                    month = jsDate.getUTCMonth() + 1
+                    // Excel swap bug in PT-BR: if exported DD/MM/YYYY text gets converted to MM/DD/YYYY serial
+                    month = jsDate.getUTCDate()
                     year = jsDate.getUTCFullYear()
                 }
             }
@@ -199,10 +215,23 @@ export default function DialogosPage() {
       if (res.success && res.data && res.data.length > 0) {
         const fromDb: ArkiumDSSItem[] = res.data.map((r: any) => {
           const dbTecnico = data.find((t: any) => {
-            const nomeDb = t.nome.toLowerCase().trim()
-            const nomePlanilha = r.nome.toLowerCase().trim()
-            return nomePlanilha === nomeDb ||
-              (nomePlanilha.includes(nomeDb.split(' ')[0]) && nomePlanilha.includes(nomeDb.split(' ').pop()))
+            const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            const nomeDb = removeAccents(t.nome.toLowerCase().trim())
+            const nomePlanilha = removeAccents(r.nome.toLowerCase().trim())
+            if (nomePlanilha === nomeDb) return true
+            const planTokens = nomePlanilha.split(' ')
+            const dbTokens = nomeDb.split(' ')
+            if (planTokens[0] === dbTokens[0]) {
+               if (planTokens.length === 1 || dbTokens.length === 1) return true
+               for (let i = 1; i < planTokens.length; i++) {
+                  for (let j = 1; j < dbTokens.length; j++) {
+                     if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+                        return true
+                     }
+                  }
+               }
+            }
+            return false
           })
           return {
             id: r.id,
@@ -279,9 +308,23 @@ export default function DialogosPage() {
           .filter(item => item.matricula.toUpperCase().startsWith('SG4'))
           .map(item => {
             const dbTecnico = data.find(t => {
-               const nomePlanilha = item.nome.toLowerCase().trim()
-               const nomeBd = t.nome.toLowerCase().trim()
-               return nomePlanilha === nomeBd || nomePlanilha.includes(nomeBd.split(' ')[0]) && nomePlanilha.includes(nomeBd.split(' ').pop())
+               const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+               const nomePlanilha = removeAccents(item.nome.toLowerCase().trim())
+               const nomeBd = removeAccents(t.nome.toLowerCase().trim())
+               if (nomePlanilha === nomeBd) return true
+               const planTokens = nomePlanilha.split(' ')
+               const dbTokens = nomeBd.split(' ')
+               if (planTokens[0] === dbTokens[0]) {
+                  if (planTokens.length === 1 || dbTokens.length === 1) return true
+                  for (let i = 1; i < planTokens.length; i++) {
+                     for (let j = 1; j < dbTokens.length; j++) {
+                        if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+                           return true
+                        }
+                     }
+                  }
+               }
+               return false
             })
             return { ...item, dbTecnico }
           })
