@@ -290,8 +290,9 @@ export default function InspecoesPage() {
       try {
         setImportProgress('Processando planilha...')
         const bstr = evt.target?.result
-        const wb = XLSX.read(bstr, { type: 'binary' })
+        const wb = XLSX.read(bstr, { type: 'array' })
         const wsname = wb.SheetNames[0]
+        if (!wsname) throw new Error("Planilha vazia ou não reconhecida")
         const ws = wb.Sheets[wsname]
         const parsed = XLSX.utils.sheet_to_json(ws) as any[]
 
@@ -358,7 +359,7 @@ export default function InspecoesPage() {
       setIsImporting(false)
       alert("Não foi possível ler o arquivo. Tente novamente.")
     }
-    reader.readAsBinaryString(file)
+    reader.readAsArrayBuffer(file)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
