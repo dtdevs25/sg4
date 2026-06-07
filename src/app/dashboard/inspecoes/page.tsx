@@ -268,6 +268,7 @@ export default function InspecoesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
   const [arkiumSearch, setArkiumSearch] = useState('')
+  const [arkiumFilter, setArkiumFilter] = useState<'ALL' | 'FECHADO' | 'ABERTO'>('ALL')
   const [treatingItem, setTreatingItem] = useState<ArkiumItem | null>(null)
   const [tratarData, setTratarData] = useState('')
   const [tratarObs, setTratarObs] = useState('')
@@ -386,14 +387,20 @@ export default function InspecoesPage() {
     setTratarObs(item.observacao)
   }
 
-  const filteredArkium = arkiumData.filter(a => 
-    a.numero.toLowerCase().includes(arkiumSearch.toLowerCase()) || 
-    a.nomeAuditor.toLowerCase().includes(arkiumSearch.toLowerCase()) ||
-    a.nomeQuestionario.toLowerCase().includes(arkiumSearch.toLowerCase())
-  )
-  const totalArkium = filteredArkium.length
-  const fechadasArkium = filteredArkium.filter(a => a.status === 'FECHADO').length
-  const abertasArkium = filteredArkium.filter(a => a.status === 'ABERTO').length
+  const filteredArkium = arkiumData.filter(a => {
+    const textMatch = a.numero.toLowerCase().includes(arkiumSearch.toLowerCase()) || 
+                      a.nomeAuditor.toLowerCase().includes(arkiumSearch.toLowerCase()) ||
+                      a.nomeQuestionario.toLowerCase().includes(arkiumSearch.toLowerCase())
+    if (!textMatch) return false
+
+    if (arkiumFilter === 'FECHADO') return a.status === 'FECHADO'
+    if (arkiumFilter === 'ABERTO') return a.status === 'ABERTO'
+    return true
+  })
+  
+  const totalArkium = arkiumData.length
+  const fechadasArkium = arkiumData.filter(a => a.status === 'FECHADO').length
+  const abertasArkium = arkiumData.filter(a => a.status === 'ABERTO').length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
@@ -697,14 +704,20 @@ export default function InspecoesPage() {
 
             {/* Stats Cards */}
             <div style={{ flex: 2, display: 'flex', gap: 16, minWidth: 300 }}>
-              <div style={{ flex: 1, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b' }}>
+              <div 
+                onClick={() => setArkiumFilter('ALL')}
+                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'ALL' ? '2px solid #660099' : '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'ALL' ? '0 4px 6px -1px rgba(102,0,153,0.1)' : 'none' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: arkiumFilter === 'ALL' ? '#660099' : '#64748b' }}>
                   <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total Importadas</span>
                 </div>
                 <div style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalArkium}</div>
               </div>
               
-              <div style={{ flex: 1, background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden' }}>
+              <div 
+                onClick={() => setArkiumFilter('ABERTO')}
+                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'ABERTO' ? '2px solid #f59e0b' : '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'ABERTO' ? '0 4px 6px -1px rgba(245,158,11,0.2)' : 'none' }}
+              >
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#f59e0b' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309' }}>
                   <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Em Aberto</span>
@@ -712,7 +725,10 @@ export default function InspecoesPage() {
                 <div style={{ fontSize: 28, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{abertasArkium}</div>
               </div>
 
-              <div style={{ flex: 1, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden' }}>
+              <div 
+                onClick={() => setArkiumFilter('FECHADO')}
+                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'FECHADO' ? '2px solid #10b981' : '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'FECHADO' ? '0 4px 6px -1px rgba(16,185,129,0.2)' : 'none' }}
+              >
                 <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#10b981' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857' }}>
                   <CheckSquare size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Tratadas / Fechadas</span>
