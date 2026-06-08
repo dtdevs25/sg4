@@ -139,8 +139,7 @@ export async function getAtividadesForPrint(mes: number, ano: number, empresa: s
   const endDate = new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999))
 
   let whereClause: any = {
-    data: { gte: startDate, lte: endDate },
-    empresa: { equals: empresa, mode: 'insensitive' }
+    data: { gte: startDate, lte: endDate }
   }
 
   if (tecnicoId) {

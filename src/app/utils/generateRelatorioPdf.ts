@@ -97,8 +97,8 @@ export async function gerarPdfRelatorio(
     body: tableData,
     theme: 'grid',
     margin: { top: 185, bottom: 90, left: 40, right: 40 },
-    styles: { fontSize: 8, cellPadding: 4, valign: 'middle', lineColor: [180, 180, 180], lineWidth: 0.5 },
-    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', lineColor: [180, 180, 180], lineWidth: 0.5 },
+    styles: { fontSize: 8, cellPadding: 4, valign: 'middle', lineColor: [0, 0, 0], lineWidth: 0.5 },
+    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', lineColor: [0, 0, 0], lineWidth: 0.5 },
     columnStyles: {
       0: { cellWidth: 55, halign: 'center' },
       1: { cellWidth: 70, halign: 'center' },
@@ -222,12 +222,12 @@ export async function gerarPdfRelatorio(
     // --- Repete as Informações Gerais (Empresa, Projeto, Elaborador) em cada página ---
     // Linha 1: Empresa
     drawInfoRow(115, [
-      { offsetX: 40, wTitle: 70, title: 'EMPRESA:', wValue: 445, value: filtros.empresa }
+      { offsetX: 40, wTitle: 70, title: 'EMPRESA:', wValue: 445, value: 'Telefônica Brasil S. A' }
     ])
 
     // Linha 2: Projeto e Período
     drawInfoRow(135, [
-      { offsetX: 40, wTitle: 70, title: 'PROJETO:', wValue: 310, value: projeto },
+      { offsetX: 40, wTitle: 70, title: 'PROJETO:', wValue: 310, value: 'VIVO' },
       { offsetX: 430, wTitle: 60, title: 'PERÍODO:', wValue: 65, value: mesAno.replace('/', '.') }
     ])
 
