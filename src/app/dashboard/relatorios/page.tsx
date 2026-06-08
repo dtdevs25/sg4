@@ -7,11 +7,11 @@ import {
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import {
-  getAtividadesRelatorio, addAtividade, deleteAtividade, updateAtividade, uploadFotoRelatorio
+  getAtividadesRelatorio, addAtividade, deleteAtividade, updateAtividade, uploadFotoRelatorio, getAtividadesForPrint
 } from '@/app/actions/relatorios'
 import { optimizeTextWithAI } from '@/app/actions/ai'
 import { getTecnicos } from '@/app/actions/tecnicos'
-import Link from 'next/link'
+import { gerarPdfRelatorio } from '@/app/utils/generateRelatorioPdf'
 
 const MES_MAP: Record<string, string> = {
   jan: 'JANEIRO', fev: 'FEVEREIRO', mar: 'MARCO', abr: 'ABRIL', mai: 'MAIO', jun: 'JUNHO',
@@ -245,6 +245,40 @@ export default function RelatoriosAtividadesPage() {
       }
     } else {
       alert(res.error || 'Erro ao otimizar o texto.')
+    }
+  }
+
+  async function handleGeneratePdf() {
+    if (!formPdf.empresa || (role !== 'TST' && !formPdf.tecnicoId)) {
+      alert('Selecione todos os campos obrigatórios')
+      return
+    }
+    
+    try {
+      setLoading(true)
+      const data = await getAtividadesForPrint(formPdf.mes, selectedYear, formPdf.empresa, formPdf.tecnicoId)
+      
+      let elaborador = 'Não Identificado'
+      if (role === 'TST') {
+        elaborador = (session?.user as any)?.nome || 'TST'
+      } else {
+        const tecnicoData = tecnicos.find(t => t.id === formPdf.tecnicoId)
+        if (tecnicoData) elaborador = tecnicoData.nome
+      }
+
+      await gerarPdfRelatorio(data, {
+        mes: formPdf.mes,
+        ano: selectedYear,
+        empresa: formPdf.empresa,
+        elaborador
+      })
+
+      setShowGerarPdfModal(false)
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao gerar o PDF.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -554,9 +588,22 @@ export default function RelatoriosAtividadesPage() {
       {/* MODAL EDITAR ATIVIDADE */}
       {showEditModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 550, padding: 24, maxHeight: '95vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><Edit3 color="#3b82f6" /> Editar Atividade</h2>
-            <form onSubmit={handleEditAtividade} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ 
+            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600,
+            display: 'flex', flexDirection: 'column',
+            maxHeight: '90vh', overflow: 'hidden'
+          }}>
+            <div style={{
+              background: '#660099', padding: '20px 24px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              position: 'sticky', top: 0, zIndex: 10
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Editar Atividade</h2>
+              <button onClick={() => setShowEditModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 'bold' }}>X</button>
+            </div>
+            
+            <div style={{ padding: 24, overflowY: 'auto' }}>
+              <form onSubmit={handleEditAtividade} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
@@ -633,13 +680,14 @@ export default function RelatoriosAtividadesPage() {
                 <input id="editAtivPic" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormEdit)} style={{ display: 'none' }} />
               </div>
 
-              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <button type="button" disabled={pending} onClick={() => setShowEditModal(null)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
-                <button type="submit" disabled={pending} style={{ flex: 1, padding: 12, background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, display: 'flex', justifyContent: 'center' }}>
-                  {pending ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
-                </button>
-              </div>
-            </form>
+                <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                  <button type="button" disabled={pending} onClick={() => setShowEditModal(null)} style={{ flex: 1, padding: '12px', background: '#e2e8f0', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none' }}>Cancelar</button>
+                  <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: pending ? 0.7 : 1 }}>
+                    {pending ? 'Salvando...' : 'Salvar Alterações'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
@@ -679,21 +727,13 @@ export default function RelatoriosAtividadesPage() {
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button onClick={() => setShowGerarPdfModal(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
-                <Link 
-                  href={`/dashboard/relatorios/print?mes=${formPdf.mes}&ano=${selectedYear}&empresa=${encodeURIComponent(formPdf.empresa)}${formPdf.tecnicoId ? `&tecnicoId=${formPdf.tecnicoId}` : ''}`} 
-                  target="_blank"
-                  onClick={(e) => {
-                    if (!formPdf.empresa || (role !== 'TST' && !formPdf.tecnicoId)) {
-                      e.preventDefault()
-                      alert('Selecione todos os campos obrigatórios')
-                    } else {
-                      setShowGerarPdfModal(false)
-                    }
-                  }}
-                  style={{ flex: 1, padding: 12, background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', textDecoration: 'none' }}
+                <button 
+                  onClick={handleGeneratePdf}
+                  disabled={loading}
+                  style={{ flex: 1, padding: 12, background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: loading ? 'not-allowed' : 'pointer' }}
                 >
-                  Gerar PDF
-                </Link>
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : 'Gerar PDF'}
+                </button>
               </div>
             </div>
           </div>
