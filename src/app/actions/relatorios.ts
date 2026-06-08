@@ -147,9 +147,29 @@ export async function getAtividadesForPrint(mes: number, ano: number, empresa: s
     whereClause.tecnicoId = tecnicoId
   }
 
-  return await prisma.relatorioAtividade.findMany({
+  const items = await prisma.relatorioAtividade.findMany({
     where: whereClause,
     include: { tecnico: true },
     orderBy: { data: 'asc' }
   })
+
+  // Converter fotoUrl para fotoBase64 no backend para evitar CORS no client
+  for (let item of items) {
+    if (item.fotoUrl) {
+      try {
+        const url = item.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios')
+        const res = await fetch(url)
+        if (res.ok) {
+          const buffer = await res.arrayBuffer()
+          const base64 = Buffer.from(buffer).toString('base64')
+          const mime = res.headers.get('content-type') || 'image/jpeg'
+          ;(item as any).fotoBase64 = `data:${mime};base64,${base64}`
+        }
+      } catch (err) {
+        console.error('Erro ao converter fotoUrl para base64:', err)
+      }
+    }
+  }
+
+  return items
 }

@@ -64,12 +64,40 @@ export async function gerarPdfRelatorio(
   drawInfoRow(145, [
     { offsetX: 40, wTitle: 70, title: 'ELABORADOR:', wValue: 445, value: filtros.elaborador.toUpperCase() }
   ])
+  // Função auxiliar para desenhar imagens mantendo proporção (evita esticar)
+  const drawImageProp = (base64: string, x: number, y: number, maxW: number, maxH: number) => {
+    try {
+      const props = doc.getImageProperties(base64)
+      const ratio = props.width / props.height
+      const boxRatio = maxW / maxH
+      let finalW, finalH
+      if (ratio > boxRatio) {
+        finalW = maxW
+        finalH = maxW / ratio
+      } else {
+        finalH = maxH
+        finalW = maxH * ratio
+      }
+      const finalX = x + (maxW - finalW) / 2
+      const finalY = y + (maxH - finalH) / 2
+      doc.addImage(base64, props.fileType || 'PNG', finalX, finalY, finalW, finalH, undefined, 'FAST')
+    } catch (e) {
+      console.error('Erro ao processar imagem:', e)
+    }
+  }
+
+  // Título da Tabela
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(0, 0, 0)
+  doc.text('+ Descrição das atividades conduzidas:', 40, 166)
+
   // === TABELA ===
   const tableData = atividades.map(a => [
     new Date(a.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
     a.local,
     a.cidadeUf,
-    a.fotoUrl ? 'COM FOTO' : 'S/F', // Pode-se injetar a imagem depois, mas por texto é mais seguro contra CORS
+    a.fotoBase64 ? '' : 'S/F', // Célula vazia para podermos desenhar a imagem por cima
     a.descricao
   ])
 
@@ -78,19 +106,36 @@ export async function gerarPdfRelatorio(
   }
 
   autoTable(doc, {
-    startY: 170,
-    head: [['DATA', 'LOCAL', 'CIDADE/UF', 'REGISTRO', 'ATIVIDADE']],
+    startY: 172,
+    head: [['DATA', 'LOCAL', 'CIDADE/UF', 'REGISTRO (FOTO)', 'ATIVIDADE']],
     body: tableData,
     theme: 'grid',
     margin: { top: 110, bottom: 40, left: 40, right: 40 },
     styles: { fontSize: 8, cellPadding: 4, valign: 'middle' },
     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
     columnStyles: {
-      0: { cellWidth: 50, halign: 'center' },
-      1: { cellWidth: 80 },
-      2: { cellWidth: 70 },
-      3: { cellWidth: 60, halign: 'center' },
+      0: { cellWidth: 55, halign: 'center' },
+      1: { cellWidth: 70, halign: 'center' },
+      2: { cellWidth: 70, halign: 'center' },
+      3: { cellWidth: 140, halign: 'center' },
       4: { cellWidth: 'auto' }
+    },
+    didParseCell: function(data) {
+      // Força a altura mínima da célula para caber a foto
+      if (data.section === 'body' && data.column.index === 3) {
+        const rowData = atividades[data.row.index]
+        if (rowData && rowData.fotoBase64) {
+          data.cell.styles.minCellHeight = 85
+        }
+      }
+    },
+    didDrawCell: function(data) {
+      if (data.section === 'body' && data.column.index === 3) {
+        const rowData = atividades[data.row.index]
+        if (rowData && rowData.fotoBase64) {
+          drawImageProp(rowData.fotoBase64, data.cell.x + 4, data.cell.y + 4, data.cell.width - 8, data.cell.height - 8)
+        }
+      }
     }
   })
 
@@ -163,11 +208,11 @@ export async function gerarPdfRelatorio(
     doc.setFont('helvetica', 'normal')
     doc.text(`${i} de ${pageCount}`, 550, 94, { align: 'right' })
 
-    // Adiciona a logo se carregada com sucesso
+    // Adiciona a logo sem esticar
     if (logoBase64) {
-      // Ajuste as dimensões da logo dentro do box 40x40 -> 140x100
-      // Caixa tem larg 100, alt 60. Margem interna.
-      doc.addImage(logoBase64, 'PNG', 50, 45, 80, 50, undefined, 'FAST')
+      // Caixa do logo: X=40 a 140 (larg 100), Y=40 a 100 (alt 60)
+      // Centralizando logo 50x50 na caixa de 100x60
+      drawImageProp(logoBase64, 45, 42, 90, 56)
     }
   }
 
