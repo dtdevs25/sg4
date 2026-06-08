@@ -29,11 +29,13 @@ export async function gerarPdfRelatorio(
   // A borda da tabela começará em Y=165 na primeira página e Y=110 nas demais.
   // Vamos desenhar o cabeçalho no final, para todas as páginas.
 
-  // === INFORMAÇÕES GERAIS (Página 1) ===
+  // O cabeçalho completo (FO 40 + Info Gerais) será desenhado no loop no final, em todas as páginas.
+  // Função auxiliar para desenhar a grade de Informações Gerais
   const drawInfoRow = (y: number, items: { wTitle: number, title: string, wValue: number, value: string, offsetX: number }[]) => {
     items.forEach(item => {
-      // Caixa do Título (Fundo cinza)
+      // Caixa do Título
       doc.setDrawColor(0)
+      doc.setLineWidth(0.5)
       doc.setFillColor(240, 240, 240)
       doc.rect(item.offsetX, y, item.wTitle, 16, 'FD')
       doc.setFontSize(8)
@@ -41,29 +43,13 @@ export async function gerarPdfRelatorio(
       doc.setTextColor(0, 0, 0)
       doc.text(item.title, item.offsetX + (item.wTitle / 2), y + 11, { align: 'center' })
 
-      // Caixa do Valor (Fundo branco)
+      // Caixa do Valor
       doc.setFillColor(255, 255, 255)
       doc.rect(item.offsetX + item.wTitle, y, item.wValue, 16, 'FD')
       doc.setFont('helvetica', 'normal')
       doc.text(item.value, item.offsetX + item.wTitle + 6, y + 11)
     })
   }
-
-  // Linha 1: Empresa
-  drawInfoRow(115, [
-    { offsetX: 40, wTitle: 70, title: 'EMPRESA:', wValue: 445, value: filtros.empresa }
-  ])
-
-  // Linha 2: Projeto e Período
-  drawInfoRow(135, [
-    { offsetX: 40, wTitle: 70, title: 'PROJETO:', wValue: 310, value: projeto },
-    { offsetX: 430, wTitle: 60, title: 'PERÍODO:', wValue: 65, value: mesAno.replace('/', '.') }
-  ])
-
-  // Linha 3: Elaborador
-  drawInfoRow(155, [
-    { offsetX: 40, wTitle: 70, title: 'ELABORADOR:', wValue: 445, value: filtros.elaborador.toUpperCase() }
-  ])
   // Função auxiliar para desenhar imagens mantendo proporção (evita esticar)
   const drawImageProp = (base64: string, x: number, y: number, maxW: number, maxH: number) => {
     try {
@@ -86,11 +72,11 @@ export async function gerarPdfRelatorio(
     }
   }
 
-  // Título da Tabela
+  // Título da Tabela (Somente primeira página)
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(0, 0, 0)
-  doc.text('+ Descrição das atividades conduzidas:', 40, 195)
+  doc.text('Descrição das atividades conduzidas:', 40, 195)
 
   // === TABELA ===
   const tableData = atividades.map(a => [
@@ -110,7 +96,7 @@ export async function gerarPdfRelatorio(
     head: [['DATA', 'LOCAL', 'CIDADE/UF', 'REGISTRO (FOTO)', 'ATIVIDADE']],
     body: tableData,
     theme: 'grid',
-    margin: { top: 110, bottom: 40, left: 40, right: 40 },
+    margin: { top: 185, bottom: 90, left: 40, right: 40 },
     styles: { fontSize: 8, cellPadding: 4, valign: 'middle', lineColor: [180, 180, 180], lineWidth: 0.5 },
     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', lineColor: [180, 180, 180], lineWidth: 0.5 },
     columnStyles: {
@@ -139,29 +125,29 @@ export async function gerarPdfRelatorio(
     }
   })
 
-  // === FOOTER / VALIDAÇÃO ===
-  let finalY = (doc as any).lastAutoTable.finalY + 20
-  if (finalY > 750) {
+  // === FOOTER / VALIDAÇÃO NO RODAPÉ ===
+  // O rodapé ficará sempre no final da última página, posição Y=720
+  if ((doc as any).lastAutoTable.finalY > 700) {
     doc.addPage()
-    finalY = 110
   }
+  const footerY = 740
 
   // Caixa de Validação - Título
   doc.setDrawColor(0)
   doc.setLineWidth(0.5)
   doc.setFillColor(240, 240, 240)
-  doc.rect(40, finalY, 340, 16, 'FD')
+  doc.rect(40, footerY, 340, 16, 'FD')
   doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(120, 120, 120)
-  doc.text('VALIDAÇÃO', 210, finalY + 11, { align: 'center' })
+  doc.text('VALIDAÇÃO', 210, footerY + 11, { align: 'center' })
 
   // Caixa de Validação - Texto
   doc.setFillColor(255, 255, 255)
-  doc.rect(40, finalY + 16, 340, 24, 'FD')
+  doc.rect(40, footerY + 16, 340, 24, 'FD')
   doc.setFontSize(10)
   doc.setTextColor(120, 120, 120)
-  doc.text('A validação deste Relatório é feita através da confirmação via e-mail.', 210, finalY + 32, { align: 'center' })
+  doc.text('A validação deste Relatório é feita através da confirmação via e-mail.', 210, footerY + 32, { align: 'center' })
 
   // Legenda à direita
   doc.setFontSize(8)
@@ -169,19 +155,19 @@ export async function gerarPdfRelatorio(
   
   // "Legenda" com sublinhado
   doc.setFont('helvetica', 'bold')
-  doc.text('Legenda', 390, finalY + 10)
-  doc.line(390, finalY + 11, 425, finalY + 11)
+  doc.text('Legenda', 390, footerY + 10)
+  doc.line(390, footerY + 11, 425, footerY + 11)
 
   // Item S/M
-  doc.text('S/M:', 390, finalY + 22)
+  doc.text('S/M:', 390, footerY + 22)
   doc.setFont('helvetica', 'normal')
-  doc.text('Semana/Mês do projeto;', 410, finalY + 22)
+  doc.text('Semana/Mês do projeto;', 410, footerY + 22)
 
-  // Item HD/HR
+  // Item HD/HR (Com quebra de linha usando maxWidth)
   doc.setFont('helvetica', 'bold')
-  doc.text('HD/HR:', 390, finalY + 34)
+  doc.text('HD/HR:', 390, footerY + 34)
   doc.setFont('helvetica', 'normal')
-  doc.text('Quantidade de HD ou horas utilizadas para atividade.', 426, finalY + 34)
+  doc.text('Quantidade de HD ou horas utilizadas para atividade.', 426, footerY + 34, { maxWidth: 130 })
 
   // === CABEÇALHO EM TODAS AS PÁGINAS ===
   const pageCount = (doc as any).internal.getNumberOfPages()
@@ -230,10 +216,25 @@ export async function gerarPdfRelatorio(
 
     // Adiciona a logo sem esticar
     if (logoBase64) {
-      // Caixa do logo: X=40 a 140 (larg 100), Y=40 a 100 (alt 60)
-      // Centralizando logo 50x50 na caixa de 100x60
       drawImageProp(logoBase64, 45, 42, 90, 56)
     }
+
+    // --- Repete as Informações Gerais (Empresa, Projeto, Elaborador) em cada página ---
+    // Linha 1: Empresa
+    drawInfoRow(115, [
+      { offsetX: 40, wTitle: 70, title: 'EMPRESA:', wValue: 445, value: filtros.empresa }
+    ])
+
+    // Linha 2: Projeto e Período
+    drawInfoRow(135, [
+      { offsetX: 40, wTitle: 70, title: 'PROJETO:', wValue: 310, value: projeto },
+      { offsetX: 430, wTitle: 60, title: 'PERÍODO:', wValue: 65, value: mesAno.replace('/', '.') }
+    ])
+
+    // Linha 3: Elaborador
+    drawInfoRow(155, [
+      { offsetX: 40, wTitle: 70, title: 'ELABORADOR:', wValue: 445, value: filtros.elaborador.toUpperCase() }
+    ])
   }
 
   const mmYYYY = new Date(filtros.ano, filtros.mes - 1).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }).replace('/', '.')
