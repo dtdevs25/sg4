@@ -50,18 +50,18 @@ export async function gerarPdfRelatorio(
   }
 
   // Linha 1: Empresa
-  drawInfoRow(105, [
+  drawInfoRow(115, [
     { offsetX: 40, wTitle: 70, title: 'EMPRESA:', wValue: 445, value: filtros.empresa }
   ])
 
   // Linha 2: Projeto e Período
-  drawInfoRow(125, [
+  drawInfoRow(135, [
     { offsetX: 40, wTitle: 70, title: 'PROJETO:', wValue: 310, value: projeto },
     { offsetX: 430, wTitle: 60, title: 'PERÍODO:', wValue: 65, value: mesAno.replace('/', '.') }
   ])
 
   // Linha 3: Elaborador
-  drawInfoRow(145, [
+  drawInfoRow(155, [
     { offsetX: 40, wTitle: 70, title: 'ELABORADOR:', wValue: 445, value: filtros.elaborador.toUpperCase() }
   ])
   // Função auxiliar para desenhar imagens mantendo proporção (evita esticar)
@@ -90,7 +90,7 @@ export async function gerarPdfRelatorio(
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(0, 0, 0)
-  doc.text('+ Descrição das atividades conduzidas:', 40, 175)
+  doc.text('+ Descrição das atividades conduzidas:', 40, 195)
 
   // === TABELA ===
   const tableData = atividades.map(a => [
@@ -106,13 +106,13 @@ export async function gerarPdfRelatorio(
   }
 
   autoTable(doc, {
-    startY: 182,
+    startY: 205,
     head: [['DATA', 'LOCAL', 'CIDADE/UF', 'REGISTRO (FOTO)', 'ATIVIDADE']],
     body: tableData,
     theme: 'grid',
     margin: { top: 110, bottom: 40, left: 40, right: 40 },
-    styles: { fontSize: 8, cellPadding: 4, valign: 'middle', lineColor: [0, 0, 0], lineWidth: 0.5 },
-    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', lineColor: [0, 0, 0], lineWidth: 0.5 },
+    styles: { fontSize: 8, cellPadding: 4, valign: 'middle', lineColor: [180, 180, 180], lineWidth: 0.5 },
+    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', lineColor: [180, 180, 180], lineWidth: 0.5 },
     columnStyles: {
       0: { cellWidth: 55, halign: 'center' },
       1: { cellWidth: 70, halign: 'center' },
