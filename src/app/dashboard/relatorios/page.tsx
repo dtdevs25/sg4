@@ -40,6 +40,8 @@ export default function RelatoriosAtividadesPage() {
   const [search, setSearch] = useState('')
   const [pending, startTransition] = useTransition()
   const [aiLoading, setAiLoading] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
 
   // Modals
   const [showNovaAtividade, setShowNovaAtividade] = useState(false)
@@ -49,9 +51,9 @@ export default function RelatoriosAtividadesPage() {
   const [showGerarPdfModal, setShowGerarPdfModal] = useState(false)
 
   // Forms
-  const [formAtiv, setFormAtiv] = useState({ tecnicoId: '', data: '', empresa: '', projeto: '', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [formAtiv, setFormAtiv] = useState({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formEdit, setFormEdit] = useState({ data: '', empresa: '', projeto: '', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
-  const [formPdf, setFormPdf] = useState({ empresa: '', tecnicoId: '', mes: new Date().getMonth() + 1 })
+  const [formPdf, setFormPdf] = useState({ empresa: '', tecnicoId: '', mes: new Date().getMonth() + 1, ano: new Date().getFullYear() })
 
   useEffect(() => {
     loadData()
@@ -99,10 +101,17 @@ export default function RelatoriosAtividadesPage() {
            (a.local?.toLowerCase() || '').includes(term)
   })
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, selectedMonths, selectedYear])
+
+  const totalPages = Math.ceil(filteredAtividades.length / ITEMS_PER_PAGE)
+  const paginatedAtividades = filteredAtividades.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+
   // Extract unique companies for the PDF generation dropdown
   const empresasDisponiveis = Array.from(new Set(todasAtividades.map(a => a.empresa)))
-  const totalAtividades = atividades.length
-  const empresasAtendidas = Array.from(new Set(atividades.map(a => a.empresa))).length
+  const totalAtividades = filteredAtividades.length
+  const empresasAtendidas = Array.from(new Set(filteredAtividades.map(a => a.empresa))).length
 
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
   function handleMonthClick(m: string) {
@@ -167,7 +176,7 @@ export default function RelatoriosAtividadesPage() {
 
       if (res.success) {
         setShowNovaAtividade(false)
-        setFormAtiv({ tecnicoId: '', data: '', empresa: '', projeto: '', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
+        setFormAtiv({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
         loadData()
       } else {
         alert(res.error)
@@ -256,7 +265,7 @@ export default function RelatoriosAtividadesPage() {
     
     try {
       setLoading(true)
-      const data = await getAtividadesForPrint(formPdf.mes, selectedYear, 'VIVO', formPdf.tecnicoId)
+      const data = await getAtividadesForPrint(formPdf.mes, formPdf.ano, 'VIVO', formPdf.tecnicoId)
       
       let elaborador = 'Não Identificado'
       if (role === 'TST') {
@@ -268,7 +277,7 @@ export default function RelatoriosAtividadesPage() {
 
       await gerarPdfRelatorio(data, {
         mes: formPdf.mes,
-        ano: selectedYear,
+        ano: formPdf.ano,
         empresa: 'VIVO',
         elaborador
       })
@@ -426,9 +435,9 @@ export default function RelatoriosAtividadesPage() {
               <tbody>
               {loading ? (
                 <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center' }}><Loader2 className="animate-spin inline" color="#660099" size={32} /></td></tr>
-              ) : filteredAtividades.length === 0 ? (
+              ) : paginatedAtividades.length === 0 ? (
                 <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>Nenhuma atividade registrada.</td></tr>
-              ) : filteredAtividades.map(a => (
+              ) : paginatedAtividades.map(a => (
                 <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                   <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
                     {new Date(a.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
@@ -455,7 +464,7 @@ export default function RelatoriosAtividadesPage() {
                     {a.fotoUrl ? (
                       <img src={a.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios')} alt="Foto" onClick={() => setShowPhotoModal(a.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios'))} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', margin: '0 auto', border: '1px solid #e2e8f0' }} />
                     ) : (
-                      <span style={{ fontSize: 10, color: '#94a3b8', background: '#f1f5f9', padding: '4px 8px', borderRadius: 12, fontWeight: 700, textTransform: 'uppercase' }}>S/F</span>
+                      <span style={{ fontSize: 10, color: '#94a3b8', background: '#f1f5f9', padding: '4px 8px', borderRadius: 12, fontWeight: 700, textTransform: 'uppercase' }}>NÃO SE APLICA</span>
                     )}
                   </td>
                   <td style={{ padding: '14px 20px', textAlign: 'center' }}>
@@ -473,6 +482,31 @@ export default function RelatoriosAtividadesPage() {
             </tbody>
           </table>
         </div>
+        
+        {/* PAGINATION CONTROLS */}
+        {totalPages > 1 && (
+          <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+              Mostrando de {(currentPage - 1) * ITEMS_PER_PAGE + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredAtividades.length)} de {filteredAtividades.length} atividades
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f1f5f9' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f1f5f9' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       </div>
 
@@ -721,11 +755,20 @@ export default function RelatoriosAtividadesPage() {
                 </div>
               )}
 
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual Mês?</label>
-                <select value={formPdf.mes} onChange={(e) => setFormPdf(p => ({...p, mes: Number(e.target.value)}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
-                  {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{new Date(2000, i).toLocaleString('pt-BR', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}</option>)}
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual Mês?</label>
+                  <select value={formPdf.mes} onChange={(e) => setFormPdf(p => ({...p, mes: Number(e.target.value)}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
+                    {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{new Date(2000, i).toLocaleString('pt-BR', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual Ano?</label>
+                  <select value={formPdf.ano} onChange={(e) => setFormPdf(p => ({...p, ano: Number(e.target.value)}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
+                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
               </div>
 
 

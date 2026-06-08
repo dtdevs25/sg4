@@ -83,7 +83,7 @@ export async function gerarPdfRelatorio(
     new Date(a.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
     a.local,
     a.cidadeUf,
-    a.fotoBase64 ? '' : 'S/F', // Célula vazia para podermos desenhar a imagem por cima
+    a.fotoBase64 ? '' : 'NÃO SE APLICA', // Célula vazia para podermos desenhar a imagem por cima
     a.descricao
   ])
 
