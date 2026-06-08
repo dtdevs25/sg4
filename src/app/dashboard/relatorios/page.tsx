@@ -49,6 +49,7 @@ export default function RelatoriosAtividadesPage() {
   const [showDeleteModal, setShowDeleteModal] = useState<string | null>(null)
   const [showPhotoModal, setShowPhotoModal] = useState<string | null>(null)
   const [showGerarPdfModal, setShowGerarPdfModal] = useState(false)
+  const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false)
 
   // Forms
   const [formAtiv, setFormAtiv] = useState({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
@@ -445,9 +446,13 @@ export default function RelatoriosAtividadesPage() {
                   {(role === 'MASTER' || role === 'ADMIN') && (
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#660099' }}>
-                          {a.tecnico?.nome.substring(0, 2).toUpperCase()}
-                        </div>
+                        {a.tecnico?.fotoUrl ? (
+                          <img src={a.tecnico.fotoUrl} alt={a.tecnico.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff' }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #660099, #9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                            {a.tecnico?.nome.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
                         <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.tecnico?.nome}</span>
                       </div>
                     </td>
@@ -551,12 +556,76 @@ export default function RelatoriosAtividadesPage() {
               <form onSubmit={handleAddAtividade} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 
                 {(role === 'MASTER' || role === 'ADMIN') && (
-                  <div>
+                  <div style={{ position: 'relative' }}>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Técnico Responsável</label>
-                    <select required value={formAtiv.tecnicoId} onChange={(e) => setFormAtiv(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
-                      <option value="">Selecione...</option>
-                      {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                    </select>
+                    {/* Trigger do dropdown */}
+                    <div
+                      onClick={() => setShowTecnicoDropdown(v => !v)}
+                      style={{
+                        width: '100%', padding: '10px 14px', borderRadius: 8,
+                        border: `1px solid ${showTecnicoDropdown ? '#660099' : '#cbd5e1'}`,
+                        cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', gap: 10,
+                        boxShadow: showTecnicoDropdown ? '0 0 0 3px rgba(102,0,153,0.1)' : 'none', transition: 'all 0.2s'
+                      }}
+                    >
+                      {formAtiv.tecnicoId ? (() => {
+                        const t = tecnicos.find(x => x.id === formAtiv.tecnicoId)
+                        return t ? (
+                          <>
+                            {t.fotoUrl ? (
+                              <img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                            )}
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span>
+                          </>
+                        ) : null
+                      })() : (
+                        <span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico...</span>
+                      )}
+                      <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>{showTecnicoDropdown ? '▲' : '▼'}</span>
+                    </div>
+
+                    {/* Lista suspensa */}
+                    {showTecnicoDropdown && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
+                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4,
+                        maxHeight: 240, overflowY: 'auto'
+                      }}>
+                        {tecnicos.filter(t => t.ativo).map(t => (
+                          <div
+                            key={t.id}
+                            onClick={() => { setFormAtiv(p => ({...p, tecnicoId: t.id})); setShowTecnicoDropdown(false) }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                              cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
+                              background: formAtiv.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff',
+                              transition: 'background 0.15s'
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = formAtiv.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
+                          >
+                            {t.fotoUrl ? (
+                              <img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                            )}
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div>
+                              <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.cargo || 'Técnico de Segurança'}</div>
+                            </div>
+                            {formAtiv.tecnicoId === t.id && <span style={{ marginLeft:'auto', color:'#660099', fontWeight:800 }}>✓</span>}
+                          </div>
+                        ))}
+                        {tecnicos.filter(t => t.ativo).length === 0 && (
+                          <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhum técnico ativo encontrado.</div>
+                        )}
+                      </div>
+                    )}
+                    {/* Campo hidden para validação do form */}
+                    <input type="hidden" required={role === 'MASTER' || role === 'ADMIN'} value={formAtiv.tecnicoId} onChange={() => {}} />
                   </div>
                 )}
 
