@@ -10,32 +10,10 @@ export async function gerarPdfRelatorio(
   const mesAno = new Date(filtros.ano, filtros.mes - 1).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
   const projeto = atividades.length > 0 ? atividades[0].projeto : '-'
 
-  // === HEADER ===
-  // Borda externa do header
-  doc.rect(40, 40, 515, 60)
-  
-  // Linha separando a logo
-  doc.line(140, 40, 140, 100)
-  // Texto central
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'bold')
-  doc.text('PROCEDIMENTO TÉCNICO E GERENCIAL', 250, 65)
-  doc.text('RELATÓRIO DE ATIVIDADES', 280, 80)
-  
-  // Linha separando as infos da direita
-  doc.line(440, 40, 440, 100)
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Revisão: 00', 445, 55)
-  doc.line(440, 60, 555, 60)
-  doc.text(`Data: ${mesAno}`, 445, 75)
-  doc.line(440, 80, 555, 80)
-  doc.text('Página: 1', 445, 95)
+  // A borda da tabela começará em Y=160 na primeira página e Y=110 nas demais.
+  // Vamos desenhar o cabeçalho no final, para todas as páginas.
 
-  // Opcional: Adicionar a logo se você tiver a base64 (você pode colocar depois)
-  // doc.addImage(logoBase64, 'PNG', 45, 45, 90, 50)
-
-  // === INFORMAÇÕES GERAIS ===
+  // === INFORMAÇÕES GERAIS (Página 1) ===
   doc.rect(40, 110, 515, 40)
   doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
@@ -62,6 +40,7 @@ export async function gerarPdfRelatorio(
     head: [['DATA', 'LOCAL', 'CIDADE/UF', 'REGISTRO', 'ATIVIDADE']],
     body: tableData,
     theme: 'grid',
+    margin: { top: 110, bottom: 40, left: 40, right: 40 },
     styles: { fontSize: 8, cellPadding: 4, valign: 'middle' },
     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
     columnStyles: {
@@ -70,9 +49,6 @@ export async function gerarPdfRelatorio(
       2: { cellWidth: 70 },
       3: { cellWidth: 60, halign: 'center' },
       4: { cellWidth: 'auto' }
-    },
-    didDrawPage: function (data) {
-      // Opcional: Footer em cada página se necessário
     }
   })
 
@@ -99,6 +75,56 @@ export async function gerarPdfRelatorio(
 
   doc.line(350, finalY + 100, 450, finalY + 100)
   doc.text('Data', 390, finalY + 112)
+
+  // === CABEÇALHO EM TODAS AS PÁGINAS ===
+  const pageCount = (doc as any).internal.getNumberOfPages()
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i)
+    
+    // Borda externa
+    doc.setDrawColor(0)
+    doc.setLineWidth(0.5)
+    doc.rect(40, 40, 515, 60)
+    
+    // Separador esquerdo (Logo)
+    doc.line(140, 40, 140, 100)
+    
+    // Separador direito (Info Box)
+    doc.line(440, 40, 440, 100)
+    
+    // Linhas internas da direita
+    doc.line(440, 60, 555, 60)
+    doc.line(440, 80, 555, 80)
+    
+    // Textos do centro
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(80, 80, 80)
+    doc.text('FO 40 - Relatório de Visita', 290, 74, { align: 'center' })
+    
+    // Textos da direita
+    doc.setFontSize(9)
+    doc.setTextColor(100, 100, 100)
+    doc.setFont('helvetica', 'bold')
+    
+    doc.text('Revisão:', 445, 54)
+    doc.setFont('helvetica', 'normal')
+    doc.text('05', 545, 54, { align: 'right' })
+    
+    doc.setFont('helvetica', 'bold')
+    doc.text('Data Revisão:', 445, 74)
+    doc.setFont('helvetica', 'normal')
+    doc.text('06/09/2024', 545, 74, { align: 'right' })
+    
+    doc.setFont('helvetica', 'bold')
+    doc.text('Página:', 445, 94)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`${i} de ${pageCount}`, 545, 94, { align: 'right' })
+
+    // Opcional: Adicionar a imagem da logo SG4 no espaço da esquerda
+    // const logoBase64 = "..."
+    // doc.addImage(logoBase64, 'PNG', 45, 45, 90, 50)
+  }
 
   const mmYYYY = new Date(filtros.ano, filtros.mes - 1).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }).replace('/', '.')
   const safeName = filtros.elaborador.toUpperCase().replace(/[^A-Z0-9 \-]/g, '')
