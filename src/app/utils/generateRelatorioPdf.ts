@@ -90,7 +90,7 @@ export async function gerarPdfRelatorio(
   doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(0, 0, 0)
-  doc.text('+ Descrição das atividades conduzidas:', 40, 166)
+  doc.text('+ Descrição das atividades conduzidas:', 40, 175)
 
   // === TABELA ===
   const tableData = atividades.map(a => [
@@ -106,13 +106,13 @@ export async function gerarPdfRelatorio(
   }
 
   autoTable(doc, {
-    startY: 172,
+    startY: 182,
     head: [['DATA', 'LOCAL', 'CIDADE/UF', 'REGISTRO (FOTO)', 'ATIVIDADE']],
     body: tableData,
     theme: 'grid',
     margin: { top: 110, bottom: 40, left: 40, right: 40 },
-    styles: { fontSize: 8, cellPadding: 4, valign: 'middle' },
-    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
+    styles: { fontSize: 8, cellPadding: 4, valign: 'middle', lineColor: [0, 0, 0], lineWidth: 0.5 },
+    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', lineColor: [0, 0, 0], lineWidth: 0.5 },
     columnStyles: {
       0: { cellWidth: 55, halign: 'center' },
       1: { cellWidth: 70, halign: 'center' },
@@ -139,29 +139,49 @@ export async function gerarPdfRelatorio(
     }
   })
 
-  // === FOOTER / ASSINATURAS ===
-  let finalY = (doc as any).lastAutoTable.finalY + 30
-  if (finalY > 700) {
+  // === FOOTER / VALIDAÇÃO ===
+  let finalY = (doc as any).lastAutoTable.finalY + 20
+  if (finalY > 750) {
     doc.addPage()
-    finalY = 40
+    finalY = 110
   }
 
-  doc.rect(40, finalY, 515, 120)
-  doc.setFontSize(8)
+  // Caixa de Validação - Título
+  doc.setDrawColor(0)
+  doc.setLineWidth(0.5)
+  doc.setFillColor(240, 240, 240)
+  doc.rect(40, finalY, 340, 16, 'FD')
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
-  doc.text('LEGENDA: C - Conforme / NC - Não Conforme / NA - Não se Aplica', 45, finalY + 15)
+  doc.setTextColor(120, 120, 120)
+  doc.text('VALIDAÇÃO', 210, finalY + 11, { align: 'center' })
 
+  // Caixa de Validação - Texto
+  doc.setFillColor(255, 255, 255)
+  doc.rect(40, finalY + 16, 340, 24, 'FD')
+  doc.setFontSize(10)
+  doc.setTextColor(120, 120, 120)
+  doc.text('A validação deste Relatório é feita através da confirmação via e-mail.', 210, finalY + 32, { align: 'center' })
+
+  // Legenda à direita
+  doc.setFontSize(8)
+  doc.setTextColor(80, 80, 80)
+  
+  // "Legenda" com sublinhado
+  doc.setFont('helvetica', 'bold')
+  doc.text('Legenda', 390, finalY + 10)
+  doc.line(390, finalY + 11, 425, finalY + 11)
+
+  // Item S/M
+  doc.text('S/M:', 390, finalY + 22)
   doc.setFont('helvetica', 'normal')
-  doc.text('1. As informações contidas neste relatório são verdadeiras?', 45, finalY + 35)
-  doc.text('( X ) C       (  ) NC', 420, finalY + 35)
-  doc.text('2. As atividades foram realizadas conforme procedimentos?', 45, finalY + 50)
-  doc.text('( X ) C       (  ) NC', 420, finalY + 50)
+  doc.text('Semana/Mês do projeto;', 410, finalY + 22)
 
-  doc.line(100, finalY + 100, 250, finalY + 100)
-  doc.text('Assinatura Elaborador', 135, finalY + 112)
-
-  doc.line(350, finalY + 100, 450, finalY + 100)
-  doc.text('Data', 390, finalY + 112)
+  // Item HD/HR
+  doc.setFont('helvetica', 'bold')
+  doc.text('HD/HR:', 390, finalY + 34)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Quantidade de HD ou horas utilizadas para atividade.', 426, finalY + 34)
 
   // === CABEÇALHO EM TODAS AS PÁGINAS ===
   const pageCount = (doc as any).internal.getNumberOfPages()
