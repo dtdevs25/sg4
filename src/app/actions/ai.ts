@@ -23,8 +23,33 @@ Siga estas regras estritamente:
 Relato original:
 "${text}"`
 
-    // URL usando a API REST oficial do Gemini 1.5 Flash
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+    // Descobre dinamicamente os modelos disponíveis para esta chave de API
+    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+    const listRes = await fetch(listUrl)
+    const listData = await listRes.json()
+
+    if (!listRes.ok) {
+      return { success: false, error: listData?.error?.message || 'Falha ao validar a chave da API.' }
+    }
+
+    // Filtra modelos que suportam geração de texto e contêm 'gemini'
+    const availableModels = listData.models || []
+    const compatibleModels = availableModels.filter((m: any) => 
+      m.supportedGenerationMethods?.includes('generateContent') && 
+      m.name.includes('gemini')
+    )
+
+    if (compatibleModels.length === 0) {
+      return { success: false, error: 'Sua chave de API não possui acesso a modelos Gemini de texto.' }
+    }
+
+    // Prefere o 1.5 flash, senão pega o primeiro disponível (ex: gemini-1.0-pro)
+    let selectedModelName = compatibleModels[0].name
+    const flashModel = compatibleModels.find((m: any) => m.name.includes('1.5-flash'))
+    if (flashModel) selectedModelName = flashModel.name
+
+    // selectedModelName já vem no formato "models/gemini-..."
+    const url = `https://generativelanguage.googleapis.com/v1beta/${selectedModelName}:generateContent?key=${apiKey}`
     
     const response = await fetch(url, {
       method: 'POST',
