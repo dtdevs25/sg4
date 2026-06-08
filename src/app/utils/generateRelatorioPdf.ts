@@ -100,5 +100,7 @@ export async function gerarPdfRelatorio(
   doc.line(350, finalY + 100, 450, finalY + 100)
   doc.text('Data', 390, finalY + 112)
 
-  doc.save(`Relatorio_${filtros.empresa.replace(/[^a-z0-9]/gi, '_')}_${mesAno.replace('/', '-')}.pdf`)
+  const mmYYYY = new Date(filtros.ano, filtros.mes - 1).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }).replace('/', '.')
+  const safeName = filtros.elaborador.toUpperCase().replace(/[^A-Z0-9 \-]/g, '')
+  doc.save(`${safeName} - RELATÓRIO DE ATIVIDADES - ${mmYYYY}.pdf`)
 }

@@ -695,9 +695,21 @@ export default function RelatoriosAtividadesPage() {
       {/* MODAL GERAR PDF */}
       {showGerarPdfModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><Printer color="#22c55e" /> Gerar Relatório PDF</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ 
+            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450,
+            display: 'flex', flexDirection: 'column',
+            maxHeight: '90vh', overflow: 'hidden'
+          }}>
+            <div style={{
+              background: '#660099', padding: '20px 24px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              position: 'sticky', top: 0, zIndex: 10
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Gerar Relatório PDF</h2>
+              <button onClick={() => setShowGerarPdfModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 'bold' }}>X</button>
+            </div>
+            
+            <div style={{ padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
               
               {(role === 'MASTER' || role === 'ADMIN') && (
                 <div>
