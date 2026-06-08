@@ -1,7 +1,5 @@
 'use server'
 
-import { GoogleGenerativeAI } from '@google/generative-ai'
-
 export async function optimizeTextWithAI(text: string) {
   try {
     if (!text || text.trim().length === 0) {
@@ -13,8 +11,6 @@ export async function optimizeTextWithAI(text: string) {
       return { success: false, error: 'Chave da API do Gemini não configurada.' }
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-    
     const prompt = `Você é um assistente especialista em redação e segurança do trabalho.
 Sua tarefa é corrigir e aprimorar o seguinte relato de atividade preenchido por um técnico.
 Siga estas regras estritamente:
@@ -27,28 +23,44 @@ Siga estas regras estritamente:
 Relato original:
 "${text}"`
 
-    let result
-    try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
-      result = await model.generateContent(prompt)
-    } catch (fallbackError: any) {
-      if (fallbackError.message?.includes('not found') || fallbackError.status === 404) {
-        console.log('Modelo gemini-1.5-flash-latest não encontrado. Tentando gemini-pro...')
-        const fallbackModel = genAI.getGenerativeModel({ model: 'gemini-pro' })
-        result = await fallbackModel.generateContent(prompt)
-      } else {
-        throw fallbackError
-      }
-    }
-    const response = await result.response
-    const correctedText = response.text().trim()
+    // URL usando a API REST oficial do Gemini 1.5 Flash
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        }
+      })
+    })
 
-    // Caso a IA coloque aspas no começo e fim, vamos limpar:
+    const data = await response.json()
+
+    if (!response.ok) {
+      console.error('Erro Gemini REST:', data)
+      // Tenta extrair a mensagem de erro direto do payload do Google
+      const errMsg = data?.error?.message || `Erro da API: ${response.status} ${response.statusText}`
+      return { success: false, error: errMsg }
+    }
+
+    const correctedText = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
     const cleanText = correctedText.replace(/^["']|["']$/g, '').trim()
+
+    if (!cleanText) {
+      return { success: false, error: 'A IA não retornou um texto válido.' }
+    }
 
     return { success: true, text: cleanText }
   } catch (error: any) {
     console.error('Erro na integração com Gemini:', error)
-    return { success: false, error: 'Erro ao conectar com a inteligência artificial.' }
+    return { success: false, error: error.message || 'Erro ao conectar com a inteligência artificial.' }
   }
 }
