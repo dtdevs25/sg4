@@ -249,14 +249,14 @@ export default function RelatoriosAtividadesPage() {
   }
 
   async function handleGeneratePdf() {
-    if (!formPdf.empresa || (role !== 'TST' && !formPdf.tecnicoId)) {
+    if (role !== 'TST' && !formPdf.tecnicoId) {
       alert('Selecione todos os campos obrigatórios')
       return
     }
     
     try {
       setLoading(true)
-      const data = await getAtividadesForPrint(formPdf.mes, selectedYear, formPdf.empresa, formPdf.tecnicoId)
+      const data = await getAtividadesForPrint(formPdf.mes, selectedYear, 'VIVO', formPdf.tecnicoId)
       
       let elaborador = 'Não Identificado'
       if (role === 'TST') {
@@ -269,7 +269,7 @@ export default function RelatoriosAtividadesPage() {
       await gerarPdfRelatorio(data, {
         mes: formPdf.mes,
         ano: selectedYear,
-        empresa: formPdf.empresa,
+        empresa: 'VIVO',
         elaborador
       })
 
@@ -728,14 +728,7 @@ export default function RelatoriosAtividadesPage() {
                 </select>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual Empresa?</label>
-                <select value={formPdf.empresa} onChange={(e) => setFormPdf(p => ({...p, empresa: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
-                  <option value="">Selecione a empresa...</option>
-                  {empresasDisponiveis.map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
-                {empresasDisponiveis.length === 0 && <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>Nenhuma empresa encontrada no sistema.</p>}
-              </div>
+
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button onClick={() => setShowGerarPdfModal(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>

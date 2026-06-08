@@ -180,7 +180,7 @@ export async function gerarPdfRelatorio(
     doc.rect(40, 40, 515, 60)
     
     // Separador esquerdo (Logo)
-    doc.line(140, 40, 140, 100)
+    doc.line(110, 40, 110, 100)
     
     // Separador direito (Info Box)
     doc.line(440, 40, 440, 100)
@@ -193,7 +193,7 @@ export async function gerarPdfRelatorio(
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(80, 80, 80)
-    doc.text('FO 40 - Relatório de Visita', 290, 74, { align: 'center' })
+    doc.text('FO 40 - Relatório de Visita', 275, 74, { align: 'center' })
     
     // Textos da direita
     doc.setFontSize(8)
@@ -214,9 +214,9 @@ export async function gerarPdfRelatorio(
     doc.setFont('helvetica', 'normal')
     doc.text(`${i} de ${pageCount}`, 550, 94, { align: 'right' })
 
-    // Adiciona a logo sem esticar
+    // Adiciona a logo colada à esquerda (Caixa: X=40 a 110)
     if (logoBase64) {
-      drawImageProp(logoBase64, 45, 42, 90, 56)
+      drawImageProp(logoBase64, 42, 42, 66, 56)
     }
 
     // --- Repete as Informações Gerais (Empresa, Projeto, Elaborador) em cada página ---
