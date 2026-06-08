@@ -41,7 +41,7 @@ export default function RelatoriosAtividadesPage() {
   const [pending, startTransition] = useTransition()
   const [aiLoading, setAiLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 10
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   // Modals
   const [showNovaAtividade, setShowNovaAtividade] = useState(false)
@@ -99,14 +99,14 @@ export default function RelatoriosAtividadesPage() {
            (a.empresa?.toLowerCase() || '').includes(term) ||
            (a.projeto?.toLowerCase() || '').includes(term) ||
            (a.local?.toLowerCase() || '').includes(term)
-  })
+  }).sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
 
   useEffect(() => {
     setCurrentPage(1)
   }, [search, selectedMonths, selectedYear])
 
-  const totalPages = Math.ceil(filteredAtividades.length / ITEMS_PER_PAGE)
-  const paginatedAtividades = filteredAtividades.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(filteredAtividades.length / itemsPerPage)
+  const paginatedAtividades = filteredAtividades.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   // Extract unique companies for the PDF generation dropdown
   const empresasDisponiveis = Array.from(new Set(todasAtividades.map(a => a.empresa)))
@@ -484,27 +484,45 @@ export default function RelatoriosAtividadesPage() {
         </div>
         
         {/* PAGINATION CONTROLS */}
-        {totalPages > 1 && (
+        {filteredAtividades.length > 0 && (
           <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
-              Mostrando de {(currentPage - 1) * ITEMS_PER_PAGE + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, filteredAtividades.length)} de {filteredAtividades.length} atividades
-            </span>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f1f5f9' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                Mostrando de {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, filteredAtividades.length)} de {filteredAtividades.length} atividades
+              </span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value))
+                  setCurrentPage(1)
+                }}
+                style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', cursor: 'pointer' }}
               >
-                Anterior
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f1f5f9' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
-              >
-                Próxima
-              </button>
+                <option value={10}>10 por página</option>
+                <option value={20}>20 por página</option>
+                <option value={50}>50 por página</option>
+                <option value={100}>100 por página</option>
+              </select>
             </div>
+            
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f1f5f9' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f1f5f9' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  Próxima
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
