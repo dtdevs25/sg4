@@ -5,23 +5,65 @@ export async function gerarPdfRelatorio(
   atividades: any[],
   filtros: { mes: number, ano: number, empresa: string, elaborador: string }
 ) {
+  // Carrega a logo dinamicamente
+  const logoBase64 = await new Promise<string>((resolve) => {
+    const img = new Image()
+    img.src = '/logovermelho.png'
+    img.crossOrigin = 'Anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      ctx?.drawImage(img, 0, 0)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => resolve('')
+  })
+
   const doc = new jsPDF('p', 'pt', 'a4')
 
   const mesAno = new Date(filtros.ano, filtros.mes - 1).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
   const projeto = atividades.length > 0 ? atividades[0].projeto : '-'
 
-  // A borda da tabela começará em Y=160 na primeira página e Y=110 nas demais.
+  // A borda da tabela começará em Y=165 na primeira página e Y=110 nas demais.
   // Vamos desenhar o cabeçalho no final, para todas as páginas.
 
   // === INFORMAÇÕES GERAIS (Página 1) ===
-  doc.rect(40, 110, 515, 40)
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`Empresa: ${filtros.empresa}`, 45, 125)
-  doc.text(`Projeto: ${projeto}`, 45, 140)
-  doc.text(`Data: ${mesAno}`, 250, 140)
-  doc.text(`Elaborador: ${filtros.elaborador}`, 380, 140)
+  const drawInfoRow = (y: number, items: { wTitle: number, title: string, wValue: number, value: string, offsetX: number }[]) => {
+    items.forEach(item => {
+      // Caixa do Título (Fundo cinza)
+      doc.setDrawColor(0)
+      doc.setFillColor(240, 240, 240)
+      doc.rect(item.offsetX, y, item.wTitle, 16, 'FD')
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(0, 0, 0)
+      doc.text(item.title, item.offsetX + (item.wTitle / 2), y + 11, { align: 'center' })
 
+      // Caixa do Valor (Fundo branco)
+      doc.setFillColor(255, 255, 255)
+      doc.rect(item.offsetX + item.wTitle, y, item.wValue, 16, 'FD')
+      doc.setFont('helvetica', 'normal')
+      doc.text(item.value, item.offsetX + item.wTitle + 6, y + 11)
+    })
+  }
+
+  // Linha 1: Empresa
+  drawInfoRow(105, [
+    { offsetX: 40, wTitle: 70, title: 'EMPRESA:', wValue: 445, value: filtros.empresa }
+  ])
+
+  // Linha 2: Projeto e Período
+  drawInfoRow(125, [
+    { offsetX: 40, wTitle: 70, title: 'PROJETO:', wValue: 310, value: projeto },
+    { offsetX: 430, wTitle: 60, title: 'PERÍODO:', wValue: 65, value: mesAno.replace('/', '.') }
+  ])
+
+  // Linha 3: Elaborador
+  drawInfoRow(145, [
+    { offsetX: 40, wTitle: 70, title: 'ELABORADOR:', wValue: 445, value: filtros.elaborador.toUpperCase() }
+  ])
   // === TABELA ===
   const tableData = atividades.map(a => [
     new Date(a.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
@@ -36,7 +78,7 @@ export async function gerarPdfRelatorio(
   }
 
   autoTable(doc, {
-    startY: 160,
+    startY: 170,
     head: [['DATA', 'LOCAL', 'CIDADE/UF', 'REGISTRO', 'ATIVIDADE']],
     body: tableData,
     theme: 'grid',
@@ -103,27 +145,30 @@ export async function gerarPdfRelatorio(
     doc.text('FO 40 - Relatório de Visita', 290, 74, { align: 'center' })
     
     // Textos da direita
-    doc.setFontSize(9)
-    doc.setTextColor(100, 100, 100)
-    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(80, 80, 80)
     
+    doc.setFont('helvetica', 'bold')
     doc.text('Revisão:', 445, 54)
     doc.setFont('helvetica', 'normal')
-    doc.text('05', 545, 54, { align: 'right' })
+    doc.text('05', 550, 54, { align: 'right' })
     
     doc.setFont('helvetica', 'bold')
     doc.text('Data Revisão:', 445, 74)
     doc.setFont('helvetica', 'normal')
-    doc.text('06/09/2024', 545, 74, { align: 'right' })
+    doc.text('06/09/2024', 550, 74, { align: 'right' })
     
     doc.setFont('helvetica', 'bold')
     doc.text('Página:', 445, 94)
     doc.setFont('helvetica', 'normal')
-    doc.text(`${i} de ${pageCount}`, 545, 94, { align: 'right' })
+    doc.text(`${i} de ${pageCount}`, 550, 94, { align: 'right' })
 
-    // Opcional: Adicionar a imagem da logo SG4 no espaço da esquerda
-    // const logoBase64 = "..."
-    // doc.addImage(logoBase64, 'PNG', 45, 45, 90, 50)
+    // Adiciona a logo se carregada com sucesso
+    if (logoBase64) {
+      // Ajuste as dimensões da logo dentro do box 40x40 -> 140x100
+      // Caixa tem larg 100, alt 60. Margem interna.
+      doc.addImage(logoBase64, 'PNG', 50, 45, 80, 50, undefined, 'FAST')
+    }
   }
 
   const mmYYYY = new Date(filtros.ano, filtros.mes - 1).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }).replace('/', '.')
