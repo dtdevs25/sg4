@@ -472,9 +472,13 @@ export default function InspecoesPage() {
   }
 
   const filteredArkiumByDateAndActive = arkiumData.filter(a => {
-    if (!showInactive && (!a.dbTecnico || !a.dbTecnico.ativo)) return false
+    // 1. Filtro de inativos: só excluir se SABEMOS que o técnico é inativo
+    //    (dbTecnico encontrado e ativo===false). Se não há match no BD, não excluir.
+    if (!showInactive && a.dbTecnico && a.dbTecnico.ativo === false) return false
+
+    // 2. Filtro de data: se não conseguir parsear, incluir o registro
     const dateStr = a.dataAbertura || a.dataFechamento
-    if (!dateStr) return false
+    if (!dateStr) return true // sem data → mostrar
     let month = 0, year = 0
     if (dateStr.includes('/')) {
       const parts = dateStr.split('/')
@@ -489,11 +493,13 @@ export default function InspecoesPage() {
         month = jsDate.getUTCMonth() + 1; year = jsDate.getUTCFullYear()
       }
     }
-    const MONTH_KEYS: MesKey[] = ['jan','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
+    // Se não conseguiu parsear ano/mês → incluir o registro
+    if (year === 0 || month === 0) return true
     if (year !== selectedYear) return false
+    const MONTH_KEYS: MesKey[] = ['', 'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
     if (month >= 1 && month <= 12) {
-      if (!selectedMonths.includes(MONTH_KEYS[month])) return false
-    } else return false
+      if (!selectedMonths.includes(MONTH_KEYS[month] as MesKey)) return false
+    }
     return true
   })
 

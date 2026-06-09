@@ -502,10 +502,10 @@ export default function DialogosPage() {
   }
 
   const filteredArkiumByDateAndActive = arkiumData.filter(a => {
-    // 1. Inativos filter
-    if (!showInactive && (!a.dbTecnico || !a.dbTecnico.ativo)) return false
+    // 1. Filtro de inativos: só excluir se SABEMOS que o técnico é inativo
+    if (!showInactive && a.dbTecnico && a.dbTecnico.ativo === false) return false
 
-    // 2. Date filter
+    // 2. Filtro de data: se não conseguir parsear, incluir o registro
     let month = 0, year = 0
     if (a.dataFechamento) {
       if (a.dataFechamento.includes('/')) {
@@ -525,17 +525,17 @@ export default function DialogosPage() {
           const excelDateNum = Number(a.dataFechamento)
           if (!isNaN(excelDateNum) && excelDateNum > 20000) {
               const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
-              month = jsDate.getUTCDate()
+              month = jsDate.getUTCMonth() + 1  // FIX: era getUTCDate() (dia), deve ser mês
               year = jsDate.getUTCFullYear()
           }
       }
     }
-    const MONTH_KEYS: MesKey[] = ['jan', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+    // Se não conseguiu parsear → incluir o registro
+    if (year === 0 || month === 0) return true
     if (year !== selectedYear) return false
+    const MONTH_KEYS: MesKey[] = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
     if (month >= 1 && month <= 12) {
-      if (!selectedMonths.includes(MONTH_KEYS[month])) return false
-    } else {
-      return false
+      if (!selectedMonths.includes(MONTH_KEYS[month] as MesKey)) return false
     }
 
     return true
