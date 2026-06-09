@@ -1056,7 +1056,6 @@ export default function RelatoriosAtividadesPage() {
                         ))}
                       </div>
                     </div>
-                    </div>
                   )}
                   </div>
                 )}
