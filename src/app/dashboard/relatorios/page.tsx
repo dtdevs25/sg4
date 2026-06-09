@@ -956,13 +956,6 @@ export default function RelatoriosAtividadesPage() {
               {/* Header */}
               <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {selectedMesGrafico !== null && (
-                    <button onClick={() => setSelectedMesGrafico(null)}
-                      style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                    >
-                      ← Voltar
-                    </button>
-                  )}
                   <div>
                     <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>
                       {selectedMesGrafico !== null
@@ -1028,10 +1021,18 @@ export default function RelatoriosAtividadesPage() {
                   </>
                 ) : (
                   // === PIZZA ===
-                  totalMes === 0 ? (
-                    <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14, fontWeight: 600 }}>Nenhuma atividade neste mês.</div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    <button onClick={() => setSelectedMesGrafico(null)}
+                      style={{ alignSelf: 'flex-start', background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '8px 16px', color: '#475569', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
+                      onMouseLeave={e => e.currentTarget.style.background = '#f1f5f9'}
+                    >
+                      ← Voltar para todos os meses
+                    </button>
+                    {totalMes === 0 ? (
+                      <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14, fontWeight: 600 }}>Nenhuma atividade neste mês.</div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
                       {/* SVG Pizza */}
                       <svg width="200" height="200" viewBox="0 0 200 200">
                         {pieSlices.map((s, i) => (
@@ -1055,7 +1056,9 @@ export default function RelatoriosAtividadesPage() {
                         ))}
                       </div>
                     </div>
-                  )
+                    </div>
+                  )}
+                  </div>
                 )}
               </div>
             </div>
