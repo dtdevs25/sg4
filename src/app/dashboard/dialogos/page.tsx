@@ -48,6 +48,8 @@ export default function DialogosPage() {
 
   // --- ESTADO: Visão Consolidada ---
   const [data, setData] = useState<any[]>([])
+  const [showInactive, setShowInactive] = useState(false)
+  const [totalsTecnicos, setTotalsTecnicos] = useState({ ativos: 0, inativos: 0 })
   const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
@@ -56,7 +58,8 @@ export default function DialogosPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   const targetMeta = 8 // Meta de DSS da planilha (8/mês)
-  const filtered = data.filter(t => t.nome.toLowerCase().includes(search.toLowerCase()))
+  const baseData = data.filter(t => showInactive ? true : t.ativo)
+  const filtered = baseData.filter(t => t.nome.toLowerCase().includes(search.toLowerCase()))
   const totalRealizado = filtered.reduce((acc, curr) => {
     return acc + selectedMonths.reduce((sum, m) => sum + curr[m], 0)
   }, 0)
@@ -74,6 +77,10 @@ export default function DialogosPage() {
 
     if (tecRes.success && tecRes.data) {
       const tecnicos = tecRes.data
+      setTotalsTecnicos({
+        ativos: tecnicos.filter((t: any) => t.ativo).length,
+        inativos: tecnicos.filter((t: any) => !t.ativo).length
+      })
       const atividades = atvRes.success && atvRes.data ? atvRes.data : []
       const arkiumList = arkRes.success && arkRes.data ? arkRes.data : []
 
@@ -142,7 +149,7 @@ export default function DialogosPage() {
         })
         result.ativo = t.ativo
         return result
-      }).filter((r: any) => r.ativo || Object.keys(MES_MAP).some(k => r[k] > 0))
+      })
       
       setData(newData)
     }
@@ -669,8 +676,8 @@ export default function DialogosPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* ── Tabela de Lançamentos ── */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
-              <div style={{ position: 'relative', width: 300 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', width: 300, maxWidth: '100%' }}>
                 <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
                 <input
                   type="text"
@@ -679,6 +686,24 @@ export default function DialogosPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
                 />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 12, fontSize: 13, fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span>Ativos: <span style={{ color: '#10b981' }}>{totalsTecnicos.ativos}</span></span>
+                  <span style={{ color: '#cbd5e1' }}>|</span>
+                  <span>Inativos: <span style={{ color: '#ef4444' }}>{totalsTecnicos.inativos}</span></span>
+                </div>
+                
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={showInactive} 
+                    onChange={e => setShowInactive(e.target.checked)} 
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Mostrar inativos
+                </label>
               </div>
             </div>
 
@@ -705,9 +730,9 @@ export default function DialogosPage() {
                           <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                               {t.fotoUrl ? (
-                                <img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />
+                                <img src={t.fotoUrl} alt={t.nome} style={{ width: 48, height: 48, flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />
                               ) : (
-                                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                                <div style={{ width: 48, height: 48, flexShrink: 0, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
                                   {t.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                                 </div>
                               )}
