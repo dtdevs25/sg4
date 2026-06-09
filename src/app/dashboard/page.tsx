@@ -15,6 +15,8 @@ import { getAtividades } from '@/app/actions/atividades'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getQuilometragens } from '@/app/actions/quilometragem'
 import { getAtividadesRelatorio } from '@/app/actions/relatorios'
+import { getDssArkium } from '@/app/actions/dssArkium'
+import { getInspecoesArkium } from '@/app/actions/inspecoesArkium'
 
 /* ── Constantes Visuais ── */
 const RED   = '#660099'
@@ -41,6 +43,46 @@ function getInitials(name?: string | null) {
   return parts.length >= 2
     ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
     : name.slice(0, 2).toUpperCase()
+}
+
+function getArkiumMonthYear(dateStr?: string | null): { month: number, year: number } {
+  if (!dateStr) return { month: 0, year: 0 }
+  let month = 0, year = 0
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/')
+    if (parts.length >= 3) { month = parseInt(parts[1], 10); year = parseInt(parts[2], 10); if (parts[2].length === 2) year += 2000 }
+  } else if (dateStr.includes('-')) {
+    const parts = dateStr.split('-')
+    if (parts.length >= 3) { year = parseInt(parts[0], 10); month = parseInt(parts[1], 10) }
+  } else {
+    const excelDateNum = Number(dateStr)
+    if (!isNaN(excelDateNum) && excelDateNum > 20000) {
+      const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
+      month = jsDate.getUTCMonth() + 1; year = jsDate.getUTCFullYear()
+    }
+  }
+  return { month, year }
+}
+
+const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
+  if (!nomePlanilha || !nomeBd) return false
+  const nP = removeAccents(nomePlanilha.toLowerCase().trim())
+  const nB = removeAccents(nomeBd.toLowerCase().trim())
+  if (nP === nB) return true
+  const planTokens = nP.split(' ')
+  const dbTokens = nB.split(' ')
+  if (planTokens[0] === dbTokens[0]) {
+     if (planTokens.length === 1 || dbTokens.length === 1) return true
+     for (let i = 1; i < planTokens.length; i++) {
+        for (let j = 1; j < dbTokens.length; j++) {
+           if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+              return true
+           }
+        }
+     }
+  }
+  return false
 }
 
 /* ── Componentes de UI ── */
@@ -179,6 +221,8 @@ export default function DashboardPage() {
   const [tecnicosDb, setTecnicosDb] = useState<any[]>([])
   const [kmDb, setKmDb] = useState<any[]>([])
   const [relatoriosDb, setRelatoriosDb] = useState<any[]>([])
+  const [dssArkiumDb, setDssArkiumDb] = useState<any[]>([])
+  const [inspecoesArkiumDb, setInspecoesArkiumDb] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   // Fetch real data
@@ -187,15 +231,19 @@ export default function DashboardPage() {
       if (!role) return
       setLoading(true)
       try {
-        const [ativRes, tecRes, kmRes, ...relRes] = await Promise.all([
+        const [ativRes, tecRes, kmRes, dssRes, inspRes, ...relRes] = await Promise.all([
           getAtividades(),
           getTecnicos(),
           getQuilometragens(parseInt(ano)),
+          getDssArkium(),
+          getInspecoesArkium(),
           ...Array.from({ length: 12 }).map((_, i) => getAtividadesRelatorio(i + 1, parseInt(ano)))
         ])
         if (ativRes.success) setAtividadesDb(ativRes.data || [])
         if (tecRes.success) setTecnicosDb(tecRes.data || [])
         if (kmRes.success) setKmDb(kmRes.data || [])
+        if (dssRes.success) setDssArkiumDb(dssRes.data || [])
+        if (inspRes.success) setInspecoesArkiumDb(inspRes.data || [])
         setRelatoriosDb(relRes.flat())
       } catch (err) {
         console.error(err)
@@ -206,28 +254,50 @@ export default function DashboardPage() {
     loadData()
   }, [role, ano])
 
-  const ANOS = Array.from(new Set(atividadesDb.map(a => a.ano.toString()))).sort().reverse()
+  const anosSet = new Set<string>()
+  dssArkiumDb.forEach(a => { const { year } = getArkiumMonthYear(a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
+  inspecoesArkiumDb.forEach(a => { const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
+  relatoriosDb.forEach(a => { const year = new Date(a.data).getFullYear(); if (year > 2000) anosSet.add(year.toString()) })
+  
+  const ANOS = Array.from(anosSet).sort().reverse()
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
-  // Computa DADOS_MENSAIS e tecnicosStats para o ANO selecionado
-  const atividadesAno = atividadesDb.filter(a => a.ano.toString() === ano)
+  // Computa DADOS_MENSAIS e tecnicosStats para o ANO selecionado usando Arkium
+  const dssAno = dssArkiumDb.filter(a => {
+    const { year } = getArkiumMonthYear(a.dataFechamento)
+    return year.toString() === ano
+  })
+  const inspAno = inspecoesArkiumDb.filter(a => {
+    const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
+    return year.toString() === ano
+  })
   
   const dadosMensais = MESES.reduce((acc, m) => {
     acc[m] = { dss: 0, insp: 0 }
     return acc
   }, {} as Record<string, { dss: number; insp: number }>)
 
-  atividadesAno.forEach(a => {
-    const mesLabel = MESES_MAP[a.mes]
-    if (mesLabel && dadosMensais[mesLabel]) {
-      const field = a.tipo === 'DSS' ? 'dss' : 'insp'
-      dadosMensais[mesLabel][field] += a.realizado
+  dssAno.forEach(a => {
+    const { month } = getArkiumMonthYear(a.dataFechamento)
+    if (month >= 1 && month <= 12) {
+      dadosMensais[MESES[month - 1]].dss += 1
     }
   })
 
-  const atividadesFiltradas = mes
-    ? atividadesAno.filter(a => MESES_MAP[a.mes] === mes)
-    : atividadesAno
+  inspAno.forEach(a => {
+    const { month } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
+    if (month >= 1 && month <= 12) {
+      dadosMensais[MESES[month - 1]].insp += 1
+    }
+  })
+
+  const dssFiltrados = mes
+    ? dssAno.filter(a => { const { month } = getArkiumMonthYear(a.dataFechamento); return month >= 1 && month <= 12 && MESES[month - 1] === mes })
+    : dssAno
+
+  const inspFiltradas = mes
+    ? inspAno.filter(a => { const { month } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); return month >= 1 && month <= 12 && MESES[month - 1] === mes })
+    : inspAno
 
   // Dados de Relatório de Atividades
   const relatoriosFiltrados = mes 
@@ -236,10 +306,9 @@ export default function DashboardPage() {
   const totalRelatorios = relatoriosFiltrados.length
 
   const tecnicosStats = tecnicosDb.filter(t => t.ativo).map(t => {
-    const ativTec = atividadesFiltradas.filter(a => a.tecnicoId === t.id)
+    const dss = dssFiltrados.filter(a => matchTecnico(a.nome, t.nome)).length
+    const insp = inspFiltradas.filter(a => matchTecnico(a.nomeAuditor, t.nome) || a.tecnicoId === t.id).length
     const relTec = relatoriosFiltrados.filter(r => r.tecnicoId === t.id)
-    const dss = ativTec.filter(a => a.tipo === 'DSS').reduce((acc, a) => acc + a.realizado, 0)
-    const insp = ativTec.filter(a => a.tipo === 'INSPECAO').reduce((acc, a) => acc + a.realizado, 0)
     const rel = relTec.length
     return {
       nome: t.nome,
