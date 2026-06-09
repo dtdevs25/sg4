@@ -64,7 +64,7 @@ function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark,
             <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
             <div style={{ width: 2, height: 32, background: 'rgba(255,255,255,0.3)' }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, lineHeight: 1 }}>{percent}%</span>
+              <span style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
               <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 700 }}>Concluído</span>
             </div>
           </div>
@@ -229,15 +229,24 @@ export default function DashboardPage() {
     ? atividadesAno.filter(a => MESES_MAP[a.mes] === mes)
     : atividadesAno
 
+  // Dados de Relatório de Atividades
+  const relatoriosFiltrados = mes 
+    ? relatoriosDb.filter(r => new Date(r.data).getUTCMonth() === MESES.indexOf(mes))
+    : relatoriosDb
+  const totalRelatorios = relatoriosFiltrados.length
+
   const tecnicosStats = tecnicosDb.filter(t => t.ativo).map(t => {
     const ativTec = atividadesFiltradas.filter(a => a.tecnicoId === t.id)
+    const relTec = relatoriosFiltrados.filter(r => r.tecnicoId === t.id)
     const dss = ativTec.filter(a => a.tipo === 'DSS').reduce((acc, a) => acc + a.realizado, 0)
     const insp = ativTec.filter(a => a.tipo === 'INSPECAO').reduce((acc, a) => acc + a.realizado, 0)
+    const rel = relTec.length
     return {
       nome: t.nome,
       fotoUrl: t.fotoUrl,
       dss,
-      insp
+      insp,
+      rel
     }
   })
 
@@ -254,11 +263,7 @@ export default function DashboardPage() {
   const pctDss = metaDssTotal > 0 ? Math.round((totalDss / metaDssTotal) * 100) : 0
   const pctInsp = metaInspTotal > 0 ? Math.round((totalInsp / metaInspTotal) * 100) : 0
 
-  // Dados de Relatório de Atividades
-  const relatoriosFiltrados = mes 
-    ? relatoriosDb.filter(r => new Date(r.data).getUTCMonth() === MESES.indexOf(mes))
-    : relatoriosDb
-  const totalRelatorios = relatoriosFiltrados.length
+
 
   // Dados de Quilometragem (média)
   const kmFiltrados = mes 
@@ -312,16 +317,21 @@ export default function DashboardPage() {
                 </div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                 <div style={{ background: '#f0f9ff', padding: 16, borderRadius: 12, border: '1px solid #bae6fd' }}>
-                  <p style={{ fontSize: 12, color: '#0369a1', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>DSS</p>
-                  <p style={{ fontSize: 32, fontWeight: 900, color: '#0284c7', margin: 0 }}>{modalData.dss}</p>
-                  <p style={{ fontSize: 11, color: '#0ea5e9', fontWeight: 600, marginTop: 4 }}>Meta: {mes ? META_DSS_POR_TEC : META_DSS_POR_TEC * 4}</p>
+                  <p style={{ fontSize: 11, color: '#0369a1', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>DSS</p>
+                  <p style={{ fontSize: 28, fontWeight: 900, color: '#0284c7', margin: 0 }}>{modalData.dss}</p>
+                  <p style={{ fontSize: 10, color: '#0ea5e9', fontWeight: 600, marginTop: 4 }}>Meta: {mes ? META_DSS_POR_TEC : META_DSS_POR_TEC * 4}</p>
                 </div>
                 <div style={{ background: '#fffbeb', padding: 16, borderRadius: 12, border: '1px solid #fde68a' }}>
-                  <p style={{ fontSize: 12, color: '#b45309', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>Inspeções</p>
-                  <p style={{ fontSize: 32, fontWeight: 900, color: '#d97706', margin: 0 }}>{modalData.insp}</p>
-                  <p style={{ fontSize: 11, color: '#f59e0b', fontWeight: 600, marginTop: 4 }}>Meta: {mes ? META_INSP_POR_TEC : META_INSP_POR_TEC * 4}</p>
+                  <p style={{ fontSize: 11, color: '#b45309', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>Insp.</p>
+                  <p style={{ fontSize: 28, fontWeight: 900, color: '#d97706', margin: 0 }}>{modalData.insp}</p>
+                  <p style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600, marginTop: 4 }}>Meta: {mes ? META_INSP_POR_TEC : META_INSP_POR_TEC * 4}</p>
+                </div>
+                <div style={{ background: '#faf5ff', padding: 16, borderRadius: 12, border: '1px solid #e9d5ff' }}>
+                  <p style={{ fontSize: 11, color: '#7e22ce', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>Relatórios</p>
+                  <p style={{ fontSize: 28, fontWeight: 900, color: '#9333ea', margin: 0 }}>{modalData.rel}</p>
+                  <p style={{ fontSize: 10, color: '#a855f7', fontWeight: 600, marginTop: 4 }}>Atividades</p>
                 </div>
               </div>
             </div>
@@ -419,6 +429,7 @@ export default function DashboardPage() {
                 
                 <Bar dataKey="dss" name="DSS" fill={COLORS.dss} radius={[4, 4, 0, 0]} maxBarSize={30} style={{ cursor: 'pointer' }} />
                 <Bar dataKey="insp" name="Inspeções" fill={COLORS.insp} radius={[4, 4, 0, 0]} maxBarSize={30} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={30} style={{ cursor: 'pointer' }} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
