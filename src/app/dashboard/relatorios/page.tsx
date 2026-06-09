@@ -50,6 +50,7 @@ export default function RelatoriosAtividadesPage() {
   const [showPhotoModal, setShowPhotoModal] = useState<string | null>(null)
   const [showGerarPdfModal, setShowGerarPdfModal] = useState(false)
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false)
+  const [showGraficoModal, setShowGraficoModal] = useState(false)
 
   // Forms
   const [formAtiv, setFormAtiv] = useState({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
@@ -112,7 +113,14 @@ export default function RelatoriosAtividadesPage() {
   // Extract unique companies for the PDF generation dropdown
   const empresasDisponiveis = Array.from(new Set(todasAtividades.map(a => a.empresa)))
   const totalAtividades = filteredAtividades.length
-  const empresasAtendidas = Array.from(new Set(filteredAtividades.map(a => a.empresa))).length
+  const percentualDoTotal = todasAtividades.length > 0 ? Math.round((totalAtividades / todasAtividades.length) * 100) : 0
+
+  // Dados para o gráfico mês a mês
+  const dadosPorMes = MONTHS_LIST.map((m, i) => ({
+    label: m.label,
+    count: todasAtividades.filter(a => new Date(a.data).getUTCMonth() === i).length
+  }))
+  const maxContagem = Math.max(...dadosPorMes.map(d => d.count), 1)
 
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
   function handleMonthClick(m: string) {
@@ -385,20 +393,29 @@ export default function RelatoriosAtividadesPage() {
         </div>
 
         {/* CARD CONSOLIDADO */}
-        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div
+          onClick={() => setShowGraficoModal(true)}
+          style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+          onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(102,0,153,0.15)')}
+          onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)')}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Consolidado do Período</span>
             <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
               {selectedMonths.length} MÊS(ES)
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
             <span style={{ fontSize: 32, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalAtividades}</span>
             <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>atividades</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', fontWeight: 600 }}>
-            <span>Empresas Atendidas: <b style={{ color: '#1e293b' }}>{empresasAtendidas}</b></span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1, height: 6, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+              <div style={{ width: `${percentualDoTotal}%`, height: '100%', background: 'linear-gradient(90deg, #660099, #9333ea)', borderRadius: 99, transition: 'width 0.5s' }} />
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#660099', whiteSpace: 'nowrap' }}>{percentualDoTotal}% do ano</span>
           </div>
+          <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 8, fontWeight: 600 }}>📊 Clique para ver gráfico mês a mês</span>
         </div>
       </div>
 
@@ -558,76 +575,53 @@ export default function RelatoriosAtividadesPage() {
                 {(role === 'MASTER' || role === 'ADMIN') && (
                   <div style={{ position: 'relative' }}>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Técnico Responsável</label>
-                    {/* Trigger do dropdown */}
                     <div
                       onClick={() => setShowTecnicoDropdown(v => !v)}
-                      style={{
-                        width: '100%', padding: '10px 14px', borderRadius: 8,
-                        border: `1px solid ${showTecnicoDropdown ? '#660099' : '#cbd5e1'}`,
-                        cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', gap: 10,
-                        boxShadow: showTecnicoDropdown ? '0 0 0 3px rgba(102,0,153,0.1)' : 'none', transition: 'all 0.2s'
-                      }}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showTecnicoDropdown ? '#660099' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', gap: 10, boxShadow: showTecnicoDropdown ? '0 0 0 3px rgba(102,0,153,0.1)' : 'none', transition: 'all 0.2s' }}
                     >
                       {formAtiv.tecnicoId ? (() => {
                         const t = tecnicos.find(x => x.id === formAtiv.tecnicoId)
-                        return t ? (
-                          <>
-                            {t.fotoUrl ? (
-                              <img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                            ) : (
-                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>
-                            )}
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span>
-                          </>
-                        ) : null
-                      })() : (
-                        <span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico...</span>
-                      )}
+                        return t ? (<>{t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}<span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span></>) : null
+                      })() : (<span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico...</span>)}
                       <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>{showTecnicoDropdown ? '▲' : '▼'}</span>
                     </div>
-
-                    {/* Lista suspensa */}
                     {showTecnicoDropdown && (
-                      <div style={{
-                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
-                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
-                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4,
-                        maxHeight: 240, overflowY: 'auto'
-                      }}>
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 240, overflowY: 'auto' }}>
                         {tecnicos.filter(t => t.ativo).map(t => (
-                          <div
-                            key={t.id}
-                            onClick={() => { setFormAtiv(p => ({...p, tecnicoId: t.id})); setShowTecnicoDropdown(false) }}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                              cursor: 'pointer', borderBottom: '1px solid #f1f5f9',
-                              background: formAtiv.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff',
-                              transition: 'background 0.15s'
-                            }}
+                          <div key={t.id} onClick={() => { setFormAtiv(p => ({...p, tecnicoId: t.id})); setShowTecnicoDropdown(false) }}
+                            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formAtiv.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
                             onMouseLeave={e => (e.currentTarget.style.background = formAtiv.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
                           >
-                            {t.fotoUrl ? (
-                              <img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />
-                            ) : (
-                              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>
-                            )}
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div>
-                              <div style={{ fontSize: 11, color: '#94a3b8' }}>{t.cargo || 'Técnico de Segurança'}</div>
-                            </div>
+                            {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                            <div><div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div><div style={{ fontSize: 11, color: '#94a3b8' }}>{t.cargo || 'Técnico de Segurança'}</div></div>
                             {formAtiv.tecnicoId === t.id && <span style={{ marginLeft:'auto', color:'#660099', fontWeight:800 }}>✓</span>}
                           </div>
                         ))}
-                        {tecnicos.filter(t => t.ativo).length === 0 && (
-                          <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhum técnico ativo encontrado.</div>
-                        )}
+                        {tecnicos.filter(t => t.ativo).length === 0 && (<div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhum técnico ativo encontrado.</div>)}
                       </div>
                     )}
-                    {/* Campo hidden para validação do form */}
-                    <input type="hidden" required={role === 'MASTER' || role === 'ADMIN'} value={formAtiv.tecnicoId} onChange={() => {}} />
+                    <input type="hidden" required value={formAtiv.tecnicoId} onChange={() => {}} />
                   </div>
                 )}
+
+                {role === 'TST' && tecnicos.length > 0 && (() => {
+                  const t = tecnicos[0]
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'rgba(102,0,153,0.04)', border: '1px solid rgba(102,0,153,0.15)', borderRadius: 10 }}>
+                      {t.fotoUrl ? (
+                        <img src={t.fotoUrl} alt={t.nome} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                      )}
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t.nome}</div>
+                        <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600 }}>{t.cargo || 'Técnico de Segurança do Trabalho'}</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Atividade será registrada em seu nome</div>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
@@ -683,15 +677,23 @@ export default function RelatoriosAtividadesPage() {
                       <button type="button" onClick={() => setFormAtiv(p => ({...p, fotoBase64: ''}))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
                     </div>
                   ) : (
-                    <div 
-                      onClick={() => document.getElementById('fotoUploadInput')?.click()}
-                      style={{ border: '2px dashed #cbd5e1', borderRadius: 8, padding: '24px 20px', cursor: 'pointer', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}
-                    >
-                      <UploadCloud color="#64748b" size={28} />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Clique para escolher uma imagem</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <button type="button" onClick={() => document.getElementById('fotoGaleriaInput')?.click()}
+                        style={{ border: '2px dashed #cbd5e1', borderRadius: 8, padding: '18px 12px', cursor: 'pointer', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'all 0.2s' }}
+                      >
+                        <UploadCloud color="#64748b" size={24} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Galeria</span>
+                      </button>
+                      <button type="button" onClick={() => document.getElementById('fotoCameraInput')?.click()}
+                        style={{ border: '2px dashed #7c3aed', borderRadius: 8, padding: '18px 12px', cursor: 'pointer', background: 'rgba(124,58,237,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'all 0.2s' }}
+                      >
+                        <Camera color="#7c3aed" size={24} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#7c3aed' }}>Câmera</span>
+                      </button>
                     </div>
                   )}
-                  <input id="fotoUploadInput" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormAtiv)} style={{ display: 'none' }} />
+                  <input id="fotoGaleriaInput" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormAtiv)} style={{ display: 'none' }} />
+                  <input id="fotoCameraInput" type="file" accept="image/*" capture="environment" onChange={e => handleFileChange(e, setFormAtiv)} style={{ display: 'none' }} />
                 </div>
 
                 <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
@@ -898,6 +900,87 @@ export default function RelatoriosAtividadesPage() {
       {showPhotoModal && (
         <div onClick={() => setShowPhotoModal(null)} style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', padding: 20 }}>
           <img src={showPhotoModal} alt="Foto" style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }} />
+        </div>
+      )}
+
+      {/* Modal Gráfico Mês a Mês */}
+      {showGraficoModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>📊 Evolução Mês a Mês</h2>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Atividades por mês em {selectedYear}</span>
+              </div>
+              <button onClick={() => setShowGraficoModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 20, fontWeight: 'bold', lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Chart Body */}
+            <div style={{ padding: 24, overflowY: 'auto' }}>
+              {/* Bar Chart SVG */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 200, marginBottom: 8 }}>
+                {dadosPorMes.map((d, i) => {
+                  const isSelected = selectedMonths.includes(MONTHS_LIST[i].key)
+                  const barH = maxContagem > 0 ? Math.round((d.count / maxContagem) * 180) : 0
+                  return (
+                    <div key={d.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: d.count > 0 ? '#660099' : '#cbd5e1' }}>{d.count > 0 ? d.count : ''}</span>
+                      <div style={{
+                        width: '100%', height: barH || 4, minHeight: 4,
+                        background: isSelected
+                          ? 'linear-gradient(180deg, #9333ea, #660099)'
+                          : '#e2e8f0',
+                        borderRadius: '4px 4px 0 0',
+                        transition: 'height 0.4s ease',
+                        boxShadow: isSelected && d.count > 0 ? '0 2px 8px rgba(102,0,153,0.3)' : 'none'
+                      }} />
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* X-axis labels */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                {dadosPorMes.map((d, i) => {
+                  const isSelected = selectedMonths.includes(MONTHS_LIST[i].key)
+                  return (
+                    <div key={d.label} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, color: isSelected ? '#660099' : '#94a3b8' }}>
+                      {d.label}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Legenda */}
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 2, background: 'linear-gradient(180deg,#9333ea,#660099)', display: 'inline-block' }} />
+                  Meses selecionados
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 2, background: '#e2e8f0', display: 'inline-block' }} />
+                  Fora do filtro
+                </span>
+              </div>
+
+              {/* Resumo */}
+              <div style={{ marginTop: 20, padding: 16, background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, textAlign: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{todasAtividades.length}</div>
+                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Total no ano</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#660099' }}>{totalAtividades}</div>
+                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Período filtrado</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#22c55e' }}>{percentualDoTotal}%</div>
+                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Do total do ano</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
