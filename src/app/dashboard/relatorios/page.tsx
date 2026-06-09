@@ -115,12 +115,24 @@ export default function RelatoriosAtividadesPage() {
   const totalAtividades = filteredAtividades.length
   const percentualDoTotal = todasAtividades.length > 0 ? Math.round((totalAtividades / todasAtividades.length) * 100) : 0
 
-  // Dados para o gráfico mês a mês
+  // Aplica o mesmo filtro de busca no total do ano (para o gráfico respeitar a pessoa filtrada)
+  const todasFiltradas = search.trim()
+    ? todasAtividades.filter(a => {
+        const term = search.toLowerCase()
+        return (a.tecnico?.nome?.toLowerCase() || '').includes(term) ||
+               (a.empresa?.toLowerCase() || '').includes(term) ||
+               (a.projeto?.toLowerCase() || '').includes(term) ||
+               (a.local?.toLowerCase() || '').includes(term)
+      })
+    : todasAtividades
+
+  // Dados para o gráfico mês a mês (respeitando filtro de busca)
   const dadosPorMes = MONTHS_LIST.map((m, i) => ({
     label: m.label,
-    count: todasAtividades.filter(a => new Date(a.data).getUTCMonth() === i).length
+    count: todasFiltradas.filter(a => new Date(a.data).getUTCMonth() === i).length
   }))
   const maxContagem = Math.max(...dadosPorMes.map(d => d.count), 1)
+
 
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
   function handleMonthClick(m: string) {
