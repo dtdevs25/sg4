@@ -51,6 +51,7 @@ export default function RelatoriosAtividadesPage() {
   const [showGerarPdfModal, setShowGerarPdfModal] = useState(false)
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false)
   const [showGraficoModal, setShowGraficoModal] = useState(false)
+  const [selectedMesGrafico, setSelectedMesGrafico] = useState<number | null>(null)
 
   // Forms
   const [formAtiv, setFormAtiv] = useState({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
@@ -916,85 +917,151 @@ export default function RelatoriosAtividadesPage() {
       )}
 
       {/* Modal Gráfico Mês a Mês */}
-      {showGraficoModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
-            {/* Header */}
-            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>📊 Evolução Mês a Mês</h2>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Atividades por mês em {selectedYear}</span>
-              </div>
-              <button onClick={() => setShowGraficoModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 20, fontWeight: 'bold', lineHeight: 1 }}>×</button>
-            </div>
+      {showGraficoModal && (() => {
+        // Dados do pizza (quando um mês está selecionado)
+        const mesAtividades = selectedMesGrafico !== null
+          ? todasFiltradas.filter(a => new Date(a.data).getUTCMonth() === selectedMesGrafico)
+          : []
+        const totalMes = mesAtividades.length
+        const byTecnico = mesAtividades.reduce((acc: Record<string, number>, a: any) => {
+          const nome = a.tecnico?.nome || 'Sem técnico'
+          acc[nome] = (acc[nome] || 0) + 1
+          return acc
+        }, {})
+        const slices = Object.entries(byTecnico).sort((a, b) => b[1] - a[1])
+        const COLORS = ['#660099','#9333ea','#06b6d4','#f59e0b','#ef4444','#22c55e','#3b82f6','#ec4899','#8b5cf6','#14b8a6']
 
-            {/* Chart Body */}
-            <div style={{ padding: 24, overflowY: 'auto' }}>
-              {/* Bar Chart SVG */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 200, marginBottom: 8 }}>
-                {dadosPorMes.map((d, i) => {
-                  const isSelected = selectedMonths.includes(MONTHS_LIST[i].key)
-                  const barH = maxContagem > 0 ? Math.round((d.count / maxContagem) * 180) : 0
-                  return (
-                    <div key={d.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: d.count > 0 ? '#660099' : '#cbd5e1' }}>{d.count > 0 ? d.count : ''}</span>
-                      <div style={{
-                        width: '100%', height: barH || 4, minHeight: 4,
-                        background: isSelected
-                          ? 'linear-gradient(180deg, #9333ea, #660099)'
-                          : '#e2e8f0',
-                        borderRadius: '4px 4px 0 0',
-                        transition: 'height 0.4s ease',
-                        boxShadow: isSelected && d.count > 0 ? '0 2px 8px rgba(102,0,153,0.3)' : 'none'
-                      }} />
+        // Função para calcular arcos SVG do gráfico de pizza
+        const buildPie = () => {
+          if (totalMes === 0) return []
+          let cumAngle = -Math.PI / 2
+          const cx = 100, cy = 100, r = 90
+          return slices.map(([nome, count], i) => {
+            const angle = (count / totalMes) * 2 * Math.PI
+            const x1 = cx + r * Math.cos(cumAngle)
+            const y1 = cy + r * Math.sin(cumAngle)
+            cumAngle += angle
+            const x2 = cx + r * Math.cos(cumAngle)
+            const y2 = cy + r * Math.sin(cumAngle)
+            const largeArc = angle > Math.PI ? 1 : 0
+            const d = `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`
+            return { d, color: COLORS[i % COLORS.length], nome, count, pct: Math.round((count / totalMes) * 100) }
+          })
+        }
+        const pieSlices = buildPie()
+
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+            <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
+              {/* Header */}
+              <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {selectedMesGrafico !== null && (
+                    <button onClick={() => setSelectedMesGrafico(null)}
+                      style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: '6px 12px', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                    >
+                      ← Voltar
+                    </button>
+                  )}
+                  <div>
+                    <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>
+                      {selectedMesGrafico !== null
+                        ? `🍕 ${MONTHS_LIST[selectedMesGrafico].label} — Por Técnico`
+                        : '📊 Evolução Mês a Mês'}
+                    </h2>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
+                      {selectedMesGrafico !== null
+                        ? `${totalMes} atividade${totalMes !== 1 ? 's' : ''} em ${MONTHS_LIST[selectedMesGrafico].label}/${selectedYear}`
+                        : `Atividades por mês em ${selectedYear}`}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => { setShowGraficoModal(false); setSelectedMesGrafico(null) }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 20, fontWeight: 'bold', lineHeight: 1 }}>×</button>
+              </div>
+
+              {/* Chart Body */}
+              <div style={{ padding: 24, overflowY: 'auto' }}>
+
+                {selectedMesGrafico === null ? (
+                  // === BARRAS ===
+                  <>
+                    <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, textAlign: 'center', marginBottom: 12, marginTop: 0 }}>Clique em uma barra para ver o detalhamento por técnico</p>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 200, marginBottom: 8 }}>
+                      {dadosPorMes.map((d, i) => {
+                        const isFiltered = selectedMonths.includes(MONTHS_LIST[i].key)
+                        const barH = maxContagem > 0 ? Math.round((d.count / maxContagem) * 180) : 0
+                        return (
+                          <div key={d.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
+                            onClick={() => d.count > 0 && setSelectedMesGrafico(i)}
+                          >
+                            <span style={{ fontSize: 10, fontWeight: 800, color: d.count > 0 ? '#660099' : '#cbd5e1' }}>{d.count > 0 ? d.count : ''}</span>
+                            <div style={{
+                              width: '100%', height: barH || 4, minHeight: 4,
+                              background: isFiltered ? 'linear-gradient(180deg,#9333ea,#660099)' : '#e2e8f0',
+                              borderRadius: '4px 4px 0 0', transition: 'all 0.2s',
+                              cursor: d.count > 0 ? 'pointer' : 'default',
+                              boxShadow: isFiltered && d.count > 0 ? '0 2px 8px rgba(102,0,153,0.3)' : 'none',
+                              opacity: 1
+                            }}
+                              onMouseEnter={e => { if (d.count > 0) (e.currentTarget as HTMLElement).style.opacity = '0.75' }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1' }}
+                            />
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                      {dadosPorMes.map((d, i) => (
+                        <div key={d.label} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, color: selectedMonths.includes(MONTHS_LIST[i].key) ? '#660099' : '#94a3b8' }}>{d.label}</div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: 'linear-gradient(180deg,#9333ea,#660099)', display: 'inline-block' }} />Meses selecionados</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#e2e8f0', display: 'inline-block' }} />Fora do filtro</span>
+                    </div>
+                    <div style={{ marginTop: 20, padding: 16, background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, textAlign: 'center' }}>
+                      <div><div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{todasAtividades.length}</div><div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Total no ano</div></div>
+                      <div><div style={{ fontSize: 22, fontWeight: 800, color: '#660099' }}>{totalAtividades}</div><div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Período filtrado</div></div>
+                      <div><div style={{ fontSize: 22, fontWeight: 800, color: '#22c55e' }}>{percentualDoTotal}%</div><div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Do total do ano</div></div>
+                    </div>
+                  </>
+                ) : (
+                  // === PIZZA ===
+                  totalMes === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14, fontWeight: 600 }}>Nenhuma atividade neste mês.</div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      {/* SVG Pizza */}
+                      <svg width="200" height="200" viewBox="0 0 200 200">
+                        {pieSlices.map((s, i) => (
+                          <path key={i} d={s.d} fill={s.color} stroke="#fff" strokeWidth="2" />
+                        ))}
+                        {/* Centro branco para efeito donut */}
+                        <circle cx="100" cy="100" r="42" fill="#fff" />
+                        <text x="100" y="96" textAnchor="middle" fontSize="18" fontWeight="800" fill="#1e293b">{totalMes}</text>
+                        <text x="100" y="112" textAnchor="middle" fontSize="10" fontWeight="600" fill="#94a3b8">atividades</text>
+                      </svg>
+
+                      {/* Legenda */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 200 }}>
+                        {pieSlices.map((s, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: `1px solid ${s.color}22` }}>
+                            <span style={{ width: 12, height: 12, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', flex: 1 }}>{s.nome}</span>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: s.color }}>{s.count}</span>
+                            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, minWidth: 36, textAlign: 'right' }}>{s.pct}%</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )
-                })}
-              </div>
-
-              {/* X-axis labels */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                {dadosPorMes.map((d, i) => {
-                  const isSelected = selectedMonths.includes(MONTHS_LIST[i].key)
-                  return (
-                    <div key={d.label} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, color: isSelected ? '#660099' : '#94a3b8' }}>
-                      {d.label}
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Legenda */}
-              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 11, color: '#64748b', fontWeight: 600 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 2, background: 'linear-gradient(180deg,#9333ea,#660099)', display: 'inline-block' }} />
-                  Meses selecionados
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 2, background: '#e2e8f0', display: 'inline-block' }} />
-                  Fora do filtro
-                </span>
-              </div>
-
-              {/* Resumo */}
-              <div style={{ marginTop: 20, padding: 16, background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, textAlign: 'center' }}>
-                <div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{todasAtividades.length}</div>
-                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Total no ano</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: '#660099' }}>{totalAtividades}</div>
-                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Período filtrado</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: '#22c55e' }}>{percentualDoTotal}%</div>
-                  <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Do total do ano</div>
-                </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
