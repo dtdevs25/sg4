@@ -858,7 +858,6 @@ export default function DialogosPage() {
                 <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1, paddingLeft: 8 }}>{assinadasArkium}</div>
               </div>
             </div>
-          </div>
 
           {/* Table Area */}
           {arkiumData.length > 0 && (
