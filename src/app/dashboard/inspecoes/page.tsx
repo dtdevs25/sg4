@@ -42,6 +42,16 @@ export type ArkiumItem = {
   status: 'ABERTO' | 'FECHADO'
   dbTecnico?: any
 }
+function formatDataInspecao(dateStr: string) {
+  if (!dateStr) return '-'
+  if (dateStr.includes('/') || dateStr.includes('-')) return dateStr
+  const excelDateNum = Number(dateStr)
+  if (!isNaN(excelDateNum) && excelDateNum > 20000) {
+    const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
+    return `${jsDate.getUTCDate().toString().padStart(2,'0')}/${(jsDate.getUTCMonth()+1).toString().padStart(2,'0')}/${jsDate.getUTCFullYear()}`
+  }
+  return dateStr
+}
 
 export default function InspecoesPage() {
   const { data: session } = useSession()
@@ -55,6 +65,7 @@ export default function InspecoesPage() {
   const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
+  const [showInactive, setShowInactive] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState<number>(0)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
@@ -282,6 +293,7 @@ export default function InspecoesPage() {
   const [isImporting, setIsImporting] = useState(false)
   const [importingFileName, setImportingFileName] = useState('')
   const [importProgress, setImportProgress] = useState('')
+  const [showInspecoesPie, setShowInspecoesPie] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -454,12 +466,42 @@ export default function InspecoesPage() {
     setTratarObs(item.observacao)
   }
 
-  const filteredArkium = arkiumData.filter(a => {
+  const totalsTecnicos = {
+    ativos: data.filter((t: any) => t.ativo !== false).length,
+    inativos: data.filter((t: any) => t.ativo === false).length
+  }
+
+  const filteredArkiumByDateAndActive = arkiumData.filter(a => {
+    if (!showInactive && (!a.dbTecnico || !a.dbTecnico.ativo)) return false
+    const dateStr = a.dataAbertura || a.dataFechamento
+    if (!dateStr) return false
+    let month = 0, year = 0
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split('/')
+      if (parts.length >= 3) { month = parseInt(parts[1],10); year = parseInt(parts[2],10); if (parts[2].length===2) year+=2000 }
+    } else if (dateStr.includes('-')) {
+      const parts = dateStr.split('-')
+      if (parts.length >= 3) { year = parseInt(parts[0],10); month = parseInt(parts[1],10) }
+    } else {
+      const excelDateNum = Number(dateStr)
+      if (!isNaN(excelDateNum) && excelDateNum > 20000) {
+        const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
+        month = jsDate.getUTCMonth() + 1; year = jsDate.getUTCFullYear()
+      }
+    }
+    const MONTH_KEYS: MesKey[] = ['jan','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
+    if (year !== selectedYear) return false
+    if (month >= 1 && month <= 12) {
+      if (!selectedMonths.includes(MONTH_KEYS[month])) return false
+    } else return false
+    return true
+  })
+
+  const filteredArkium = filteredArkiumByDateAndActive.filter(a => {
     const textMatch = a.numero.toLowerCase().includes(arkiumSearch.toLowerCase()) || 
                       a.nomeAuditor.toLowerCase().includes(arkiumSearch.toLowerCase()) ||
                       a.nomeQuestionario.toLowerCase().includes(arkiumSearch.toLowerCase())
     if (!textMatch) return false
-
     if (arkiumFilter === 'CONFORME') return a.resultado.toLowerCase().trim() === 'conforme'
     if (arkiumFilter === 'NAO_CONFORME') {
       const res = a.resultado.toLowerCase().trim()
@@ -468,9 +510,9 @@ export default function InspecoesPage() {
     return true
   })
   
-  const totalArkium = arkiumData.length
-  const conformesArkium = arkiumData.filter(a => a.resultado.toLowerCase().trim() === 'conforme').length
-  const naoConformesArkium = arkiumData.filter(a => {
+  const totalArkium = filteredArkiumByDateAndActive.length
+  const conformesArkium = filteredArkiumByDateAndActive.filter(a => a.resultado.toLowerCase().trim() === 'conforme').length
+  const naoConformesArkium = filteredArkiumByDateAndActive.filter(a => {
     const res = a.resultado.toLowerCase().trim()
     return res.includes('não conforme') || res.includes('nao conforme')
   }).length
@@ -684,9 +726,9 @@ export default function InspecoesPage() {
                           <td style={{ padding: '14px 20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                               {t.fotoUrl ? (
-                                <img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />
+                                <img src={t.fotoUrl} alt={t.nome} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />
                               ) : (
-                                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800 }}>
+                                <div style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
                                   {t.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                                 </div>
                               )}
@@ -745,77 +787,104 @@ export default function InspecoesPage() {
       ======================================================== */}
       {activeTab === 'arkium' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          
-          {/* Top Actions e Stats */}
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-            {/* Upload Area */}
-            <div style={{ flex: 1, background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minWidth: 260 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <FileSpreadsheet color="#660099" size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Importar Arkium</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Excel (.xlsx) ou CSV</div>
-                </div>
+
+          {/* Stats Cards */}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div 
+              onClick={() => { setArkiumFilter('ALL'); setShowInspecoesPie(true); }}
+              style={{ flex: 1, background: '#fff', border: arkiumFilter === 'ALL' ? '2px solid #660099' : '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'ALL' ? '0 4px 6px -1px rgba(102,0,153,0.1)' : 'none' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: arkiumFilter === 'ALL' ? '#660099' : '#64748b' }}>
+                <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total</span>
               </div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                accept=".xlsx, .xls, .csv" 
-                onChange={handleFileUpload} 
-                style={{ display: 'none' }} 
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                style={{ background: '#660099', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
-              >
-                <UploadCloud size={14} />
-                Importar
-              </button>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalArkium}</div>
+            </div>
+            
+            <div 
+              onClick={() => setArkiumFilter('CONFORME')}
+              style={{ flex: 1, background: '#fff', border: arkiumFilter === 'CONFORME' ? '2px solid #10b981' : '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'CONFORME' ? '0 4px 6px -1px rgba(16,185,129,0.2)' : 'none' }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#10b981' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857', paddingLeft: 8 }}>
+                <CheckCircle2 size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Conformes</span>
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1, paddingLeft: 8 }}>{conformesArkium}</div>
             </div>
 
-            {/* Stats Cards */}
-            <div style={{ flex: 2, display: 'flex', gap: 16, minWidth: 300 }}>
-              <div 
-                onClick={() => setArkiumFilter('ALL')}
-                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'ALL' ? '2px solid #660099' : '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'ALL' ? '0 4px 6px -1px rgba(102,0,153,0.1)' : 'none' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: arkiumFilter === 'ALL' ? '#660099' : '#64748b' }}>
-                  <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total Inspeções</span>
-                </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalArkium}</div>
+            <div 
+              onClick={() => setArkiumFilter('NAO_CONFORME')}
+              style={{ flex: 1, background: '#fff', border: arkiumFilter === 'NAO_CONFORME' ? '2px solid #ef4444' : '1px solid #fee2e2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'NAO_CONFORME' ? '0 4px 6px -1px rgba(239,68,68,0.2)' : 'none' }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#ef4444' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b91c1c', paddingLeft: 8 }}>
+                <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Não Conformes</span>
               </div>
-              
-              <div 
-                onClick={() => setArkiumFilter('CONFORME')}
-                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'CONFORME' ? '2px solid #10b981' : '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'CONFORME' ? '0 4px 6px -1px rgba(16,185,129,0.2)' : 'none' }}
-              >
-                <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#10b981' }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857' }}>
-                  <CheckCircle2 size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Conformes</span>
-                </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{conformesArkium}</div>
-              </div>
-
-              <div 
-                onClick={() => setArkiumFilter('NAO_CONFORME')}
-                style={{ flex: 1, background: '#fff', border: arkiumFilter === 'NAO_CONFORME' ? '2px solid #ef4444' : '1px solid #fee2e2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'NAO_CONFORME' ? '0 4px 6px -1px rgba(239,68,68,0.2)' : 'none' }}
-              >
-                <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: '#ef4444' }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b91c1c' }}>
-                  <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Não Conformes</span>
-                </div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{naoConformesArkium}</div>
-              </div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#ef4444', lineHeight: 1, paddingLeft: 8 }}>{naoConformesArkium}</div>
             </div>
           </div>
+
 
           {/* Table Area */}
           {arkiumData.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
-                <div style={{ position: 'relative', width: 350 }}>
+              {/* Filtros e Importação */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+                {/* Filtro de Meses e Ano */}
+                <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 8, gridColumn: 'span 2' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                    <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+                      <option value={2024}>2024</option>
+                      <option value={2025}>2025</option>
+                      <option value={2026}>2026</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {MONTHS_LIST.slice(0, 6).map(m => {
+                        const isSelected = selectedMonths.includes(m.key as MesKey)
+                        return (
+                          <button key={m.key} onClick={() => handleMonthClick(m.key as MesKey)}
+                            style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0', background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc', color: isSelected ? '#660099' : '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none' }}
+                          >{m.label}</button>
+                        )
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {MONTHS_LIST.slice(6, 12).map(m => {
+                        const isSelected = selectedMonths.includes(m.key as MesKey)
+                        return (
+                          <button key={m.key} onClick={() => handleMonthClick(m.key as MesKey)}
+                            style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0', background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc', color: isSelected ? '#660099' : '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none' }}
+                          >{m.label}</button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upload Area */}
+                <div style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10, padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                  <div style={{ width: 48, height: 48, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <FileSpreadsheet color="#660099" size={24} />
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>Importar Inspeções Arkium</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>Excel (.xlsx) ou CSV</div>
+                  </div>
+                  <input type="file" ref={fileInputRef} accept=".xlsx, .xls, .csv" onChange={handleFileUpload} style={{ display: 'none' }} />
+                  <button onClick={() => fileInputRef.current?.click()}
+                    style={{ background: '#660099', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}
+                  >
+                    <UploadCloud size={16} />
+                    Selecionar Arquivo
+                  </button>
+                </div>
+              </div>
+
+              {/* Busca e Inativos */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 16 }}>
+                <div style={{ position: 'relative', width: 350, maxWidth: '100%' }}>
                   <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
                   <input
                     type="text"
@@ -825,6 +894,17 @@ export default function InspecoesPage() {
                     style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
                   />
                 </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 13, fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                    <span>Ativos: <span style={{ color: '#10b981' }}>{totalsTecnicos.ativos}</span></span>
+                    <span style={{ color: '#cbd5e1' }}>|</span>
+                    <span>Inativos: <span style={{ color: '#ef4444' }}>{totalsTecnicos.inativos}</span></span>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} style={{ cursor: 'pointer' }} />
+                    Mostrar inativos
+                  </label>
+                </div>
               </div>
 
               <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -833,6 +913,7 @@ export default function InspecoesPage() {
                     <thead>
                       <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Número</th>
+                        <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data Ab.</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Auditor</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Questionário / Objeto</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data Ab.</th>
@@ -845,12 +926,13 @@ export default function InspecoesPage() {
                       {filteredArkium.map(a => (
                         <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                           <td style={{ padding: '12px 16px', fontSize: 12, fontWeight: 700, color: '#334155' }}>{a.numero}</td>
+                          <td style={{ padding: '12px 16px', fontSize: 12, color: '#475569', fontWeight: 600 }}>{formatDataInspecao(a.dataAbertura)}</td>
                           <td style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               {a.dbTecnico?.fotoUrl ? (
-                                <img src={a.dbTecnico.fotoUrl} alt={a.dbTecnico.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }} />
+                                <img src={a.dbTecnico.fotoUrl} alt={a.dbTecnico.nome} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }} />
                               ) : (
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                                <div style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
                                   {(a.dbTecnico?.nome || a.nomeAuditor).split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
                                 </div>
                               )}
@@ -911,6 +993,77 @@ export default function InspecoesPage() {
           )}
         </div>
       )}
+
+      {/* MODAL PIE CHART INSPEÇÕES */}
+      {showInspecoesPie && (() => {
+        const mapTec = new Map<string, number>()
+        filteredArkiumByDateAndActive.forEach(a => {
+          const nome = a.dbTecnico?.nome || a.nomeAuditor
+          mapTec.set(nome, (mapTec.get(nome) || 0) + 1)
+        })
+        const slices = Array.from(mapTec.entries()).map(([nome, count]) => ({ nome, count })).sort((a,b) => b.count - a.count)
+        const total = slices.reduce((acc, s) => acc + s.count, 0)
+        const COLORS = ['#660099','#9333ea','#06b6d4','#f59e0b','#ef4444','#22c55e','#3b82f6','#ec4899','#8b5cf6','#14b8a6']
+
+        const buildPie = () => {
+          if (total === 0) return []
+          let cumAngle = -Math.PI / 2
+          const cx = 100, cy = 100, r = 90
+          return slices.map(({ nome, count }, i) => {
+            const angle = (count / total) * 2 * Math.PI
+            const x1 = cx + r * Math.cos(cumAngle)
+            const y1 = cy + r * Math.sin(cumAngle)
+            cumAngle += angle
+            const x2 = cx + r * Math.cos(cumAngle)
+            const y2 = cy + r * Math.sin(cumAngle)
+            const largeArc = angle > Math.PI ? 1 : 0
+            const d = `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`
+            return { d, color: COLORS[i % COLORS.length], nome, count, pct: Math.round((count / total) * 100) }
+          })
+        }
+        const pieSlices = buildPie()
+
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+            <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)' }}>
+              <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>🍕 Inspeções — Participação por Técnico</h2>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{total} inspeções no período selecionado</span>
+                </div>
+                <button onClick={() => setShowInspecoesPie(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 24, fontWeight: 'bold', lineHeight: 1 }}>×</button>
+              </div>
+              <div style={{ padding: 24, overflowY: 'auto' }}>
+                {total === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14, fontWeight: 600 }}>Nenhuma inspeção no período.</div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <svg width="200" height="200" viewBox="0 0 200 200">
+                      {pieSlices.map((s, i) => (
+                        <path key={i} d={s.d} fill={s.color} stroke="#fff" strokeWidth="2" />
+                      ))}
+                      <circle cx="100" cy="100" r="42" fill="#fff" />
+                      <text x="100" y="96" textAnchor="middle" fontSize="18" fontWeight="800" fill="#1e293b">{total}</text>
+                      <text x="100" y="112" textAnchor="middle" fontSize="10" fontWeight="600" fill="#94a3b8">insp.</text>
+                    </svg>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 200 }}>
+                      {pieSlices.map((s, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: `1px solid ${s.color}22` }}>
+                          <span style={{ width: 12, height: 12, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', flex: 1 }}>{s.nome}</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: s.color }}>{s.count}</span>
+                          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, minWidth: 36, textAlign: 'right' }}>{s.pct}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* MODAL TRATAR ARKIUM (NOVO DESIGN) */}
       {treatingItem && (

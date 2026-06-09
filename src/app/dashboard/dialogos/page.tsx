@@ -981,8 +981,8 @@ export default function DialogosPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 1000 }}>
                     <thead>
                       <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                        <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Nº Diálogo</th>
+                        <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Nome / Matrícula</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Assunto</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Assinado?</th>
@@ -993,11 +993,11 @@ export default function DialogosPage() {
                     <tbody>
                       {filteredArkium.map(a => (
                         <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9', background: a.estado === 'ABERTO' ? '#fefce8' : '#fff' }}>
-                          <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
-                            {formatDataFechamento(a.dataFechamento)}
-                          </td>
                           <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
                             {a.numeroDialogo}
+                          </td>
+                          <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                            {formatDataFechamento(a.dataFechamento)}
                           </td>
                           <td style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1246,76 +1246,76 @@ export default function DialogosPage() {
         </div>
       )}
       {/* MODAL PIE CHART ARKIUM */}
-      {showArkiumPie && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 600, maxWidth: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1e293b' }}>Participação por Técnico</h3>
-              <button onClick={() => setShowArkiumPie(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
-            </div>
-            <div style={{ padding: 24 }}>
-              {(() => {
-                const mapTec = new Map<string, number>()
-                filteredArkiumByDateAndActive.forEach(a => {
-                   mapTec.set(a.nome, (mapTec.get(a.nome) || 0) + 1)
-                })
-                const chartData = Array.from(mapTec.entries()).map(([nome, val]) => ({ name: nome, value: val })).sort((a,b) => b.value - a.value)
-                const total = chartData.reduce((acc, curr) => acc + curr.value, 0)
-                
-                let cumulativePercent = 0
-                const getCoordinatesForPercent = (percent: number) => {
-                  const x = Math.cos(2 * Math.PI * percent) * 100
-                  const y = Math.sin(2 * Math.PI * percent) * 100
-                  return [x, y]
-                }
-                const colors = ['#660099', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b']
+      {showArkiumPie && (() => {
+        const mapTec = new Map<string, number>()
+        filteredArkiumByDateAndActive.forEach(a => {
+          mapTec.set(a.nome, (mapTec.get(a.nome) || 0) + 1)
+        })
+        const slices = Array.from(mapTec.entries()).map(([nome, val]) => ({ nome, count: val })).sort((a,b) => b.count - a.count)
+        const total = slices.reduce((acc, s) => acc + s.count, 0)
+        const COLORS = ['#660099','#9333ea','#06b6d4','#f59e0b','#ef4444','#22c55e','#3b82f6','#ec4899','#8b5cf6','#14b8a6']
 
-                return (
-                  <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-                    <div style={{ width: 200, height: 200, flexShrink: 0 }}>
-                      <svg viewBox="-100 -100 200 200" style={{ transform: 'rotate(-90deg)', overflow: 'visible' }}>
-                        {total > 0 ? chartData.map((slice, i) => {
-                          const percent = slice.value / total
-                          if (percent === 1) {
-                            return <circle key={slice.name} r="100" fill={colors[i % colors.length]} />
-                          }
-                          const [startX, startY] = getCoordinatesForPercent(cumulativePercent)
-                          cumulativePercent += percent
-                          const [endX, endY] = getCoordinatesForPercent(cumulativePercent)
-                          const largeArcFlag = percent > 0.5 ? 1 : 0
-                          const pathData = [
-                            `M ${startX} ${startY}`,
-                            `A 100 100 0 ${largeArcFlag} 1 ${endX} ${endY}`,
-                            `L 0 0`,
-                          ].join(' ')
-                          return <path key={slice.name} d={pathData} fill={colors[i % colors.length]} style={{ transition: 'all 0.3s' }} />
-                        }) : (
-                          <circle r="100" fill="#f1f5f9" />
-                        )}
-                      </svg>
-                    </div>
-                    <div style={{ flex: 1, maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 8 }}>
-                      {chartData.map((slice, i) => (
-                        <div key={slice.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, fontWeight: 600 }}>
-                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                             <span style={{ width: 12, height: 12, borderRadius: '50%', background: colors[i % colors.length], flexShrink: 0 }} />
-                             <span style={{ color: '#334155' }}>{slice.name}</span>
-                           </div>
-                           <div style={{ display: 'flex', gap: 12, color: '#64748b', flexShrink: 0 }}>
-                             <span>{slice.value} DSS</span>
-                             <span style={{ fontWeight: 800, color: '#1e293b', width: 40, textAlign: 'right' }}>{Math.round((slice.value / total) * 100)}%</span>
-                           </div>
+        const buildPie = () => {
+          if (total === 0) return []
+          let cumAngle = -Math.PI / 2
+          const cx = 100, cy = 100, r = 90
+          return slices.map(({ nome, count }, i) => {
+            const angle = (count / total) * 2 * Math.PI
+            const x1 = cx + r * Math.cos(cumAngle)
+            const y1 = cy + r * Math.sin(cumAngle)
+            cumAngle += angle
+            const x2 = cx + r * Math.cos(cumAngle)
+            const y2 = cy + r * Math.sin(cumAngle)
+            const largeArc = angle > Math.PI ? 1 : 0
+            const d = `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`
+            return { d, color: COLORS[i % COLORS.length], nome, count, pct: Math.round((count / total) * 100) }
+          })
+        }
+        const pieSlices = buildPie()
+
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+            <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)' }}>
+              {/* Header */}
+              <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>🍕 DSS — Participação por Técnico</h2>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{total} DSS no período selecionado</span>
+                </div>
+                <button onClick={() => setShowArkiumPie(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 24, fontWeight: 'bold', lineHeight: 1 }}>×</button>
+              </div>
+              {/* Body */}
+              <div style={{ padding: 24, overflowY: 'auto' }}>
+                {total === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14, fontWeight: 600 }}>Nenhum DSS no período.</div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <svg width="200" height="200" viewBox="0 0 200 200">
+                      {pieSlices.map((s, i) => (
+                        <path key={i} d={s.d} fill={s.color} stroke="#fff" strokeWidth="2" />
+                      ))}
+                      <circle cx="100" cy="100" r="42" fill="#fff" />
+                      <text x="100" y="96" textAnchor="middle" fontSize="18" fontWeight="800" fill="#1e293b">{total}</text>
+                      <text x="100" y="112" textAnchor="middle" fontSize="10" fontWeight="600" fill="#94a3b8">DSS</text>
+                    </svg>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 200 }}>
+                      {pieSlices.map((s, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: `1px solid ${s.color}22` }}>
+                          <span style={{ width: 12, height: 12, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', flex: 1 }}>{s.nome}</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: s.color }}>{s.count}</span>
+                          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, minWidth: 36, textAlign: 'right' }}>{s.pct}%</span>
                         </div>
                       ))}
                     </div>
                   </div>
-                )
-              })()}
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
+        )
+      })()}
     </div>
   )
 }
