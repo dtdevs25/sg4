@@ -824,37 +824,8 @@ export default function DialogosPage() {
       {activeTab === 'arkium' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           
-          {/* Top Actions e Stats */}
-          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-            {/* Upload Area */}
-            <div style={{ flex: 1, background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minWidth: 260 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 36, height: 36, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <FileSpreadsheet color="#660099" size={18} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Importar DSS Arkium</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Excel (.xlsx) ou CSV</div>
-                </div>
-              </div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                accept=".xlsx, .xls, .csv" 
-                onChange={handleFileUpload} 
-                style={{ display: 'none' }} 
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                style={{ background: '#660099', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
-              >
-                <UploadCloud size={14} />
-                Importar
-              </button>
-            </div>
-
-            {/* Stats Cards - Clicáveis para filtrar */}
-            <div style={{ flex: 2, display: 'flex', gap: 16, minWidth: 300 }}>
+          {/* Stats Cards - Clicáveis para filtrar */}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <div 
                 onClick={() => { setArkiumFilter('ALL'); setShowArkiumPie(true); }}
                 style={{ flex: 1, background: '#fff', border: arkiumFilter === 'ALL' ? '2px solid #660099' : '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'ALL' ? '0 4px 6px -1px rgba(102,0,153,0.1)' : 'none' }}
@@ -892,10 +863,12 @@ export default function DialogosPage() {
           {/* Table Area */}
           {arkiumData.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Filtro de Meses e Ano na Estratificação */}
-              <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+              {/* Filtros e Importação */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+                {/* Filtro de Meses e Ano na Estratificação */}
+                <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 8, gridColumn: 'span 2' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
                   <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
                     <option value={2024}>2024</option>
                     <option value={2025}>2025</option>
@@ -945,6 +918,32 @@ export default function DialogosPage() {
                       )
                     })}
                   </div>
+                </div>
+                </div>
+
+                {/* Upload Area */}
+                <div style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10, padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                  <div style={{ width: 48, height: 48, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <FileSpreadsheet color="#660099" size={24} />
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>Importar DSS Arkium</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>Excel (.xlsx) ou CSV</div>
+                  </div>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    accept=".xlsx, .xls, .csv" 
+                    onChange={handleFileUpload} 
+                    style={{ display: 'none' }} 
+                  />
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ background: '#660099', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}
+                  >
+                    <UploadCloud size={16} />
+                    Selecionar Arquivo
+                  </button>
                 </div>
               </div>
 
