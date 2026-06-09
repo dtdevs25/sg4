@@ -475,15 +475,20 @@ export default function RelatoriosAtividadesPage() {
                   </td>
                   {(role === 'MASTER' || role === 'ADMIN') && (
                     <td style={{ padding: '14px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         {a.tecnico?.fotoUrl ? (
-                          <img src={a.tecnico.fotoUrl} alt={a.tecnico.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff' }} />
+                          <img src={a.tecnico.fotoUrl} alt={a.tecnico.nome} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff' }} />
                         ) : (
-                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #660099, #9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                          <div style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', background: 'linear-gradient(135deg, #660099, #9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
                             {a.tecnico?.nome.substring(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.tecnico?.nome}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.tecnico?.nome}</span>
+                          {a.tecnico?.admissao && (
+                            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Admissão: {new Date(a.tecnico.admissao).toLocaleDateString('pt-BR')}</span>
+                          )}
+                        </div>
                       </div>
                     </td>
                   )}

@@ -119,7 +119,7 @@ export default function DialogosPage() {
           return false
         })
 
-        const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl }
+        const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl, admissao: t.admissao ? new Date(t.admissao).toLocaleDateString('pt-BR') : '--', ativo: t.ativo }
         
         Object.keys(MES_MAP).forEach(k => {
           const mesName = MES_MAP[k as MesKey]
@@ -787,7 +787,10 @@ export default function DialogosPage() {
                                   {t.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                                 </div>
                               )}
-                              <span>{t.nome}</span>
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>{t.nome}</span>
+                                <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Admissão: {t.admissao}</span>
+                              </div>
                             </div>
                           </td>
                           <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>{meta}</td>
