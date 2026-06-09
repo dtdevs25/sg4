@@ -37,6 +37,16 @@ export type ArkiumDSSItem = {
   estado: 'ABERTO' | 'FECHADO'
   dbTecnico?: any
 }
+function formatDataFechamento(dateStr: string) {
+  if (!dateStr) return '-'
+  if (dateStr.includes('/') || dateStr.includes('-')) return dateStr
+  const excelDateNum = Number(dateStr)
+  if (!isNaN(excelDateNum) && excelDateNum > 20000) {
+      const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
+      return `${jsDate.getUTCDate().toString().padStart(2, '0')}/${(jsDate.getUTCMonth()+1).toString().padStart(2, '0')}/${jsDate.getUTCFullYear()}`
+  }
+  return dateStr
+}
 
 export default function DialogosPage() {
   const { data: session } = useSession()
@@ -236,6 +246,7 @@ export default function DialogosPage() {
   const [importingFileName, setImportingFileName] = useState('')
   const [importProgress, setImportProgress] = useState('')
   const [deleteArkiumConfirmId, setDeleteArkiumConfirmId] = useState<string | null>(null)
+  const [showArkiumPie, setShowArkiumPie] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Carrega registros Arkium do banco ao montar (e limpa inválidos de importações anteriores)
@@ -490,20 +501,60 @@ export default function DialogosPage() {
     setDeleteArkiumConfirmId(null)
   }
 
-  const filteredArkium = arkiumData.filter(a => {
+  const filteredArkiumByDateAndActive = arkiumData.filter(a => {
+    // 1. Inativos filter
+    if (!showInactive && (!a.dbTecnico || !a.dbTecnico.ativo)) return false
+
+    // 2. Date filter
+    let month = 0, year = 0
+    if (a.dataFechamento) {
+      if (a.dataFechamento.includes('/')) {
+          const parts = a.dataFechamento.split('/')
+          if (parts.length >= 3) {
+            month = parseInt(parts[1], 10)
+            year = parseInt(parts[2], 10)
+            if (parts[2].length === 2) year += 2000
+          }
+      } else if (a.dataFechamento.includes('-')) {
+          const parts = a.dataFechamento.split('-')
+          if (parts.length >= 3) {
+            year = parseInt(parts[0], 10)
+            month = parseInt(parts[1], 10)
+          }
+      } else {
+          const excelDateNum = Number(a.dataFechamento)
+          if (!isNaN(excelDateNum) && excelDateNum > 20000) {
+              const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
+              month = jsDate.getUTCDate()
+              year = jsDate.getUTCFullYear()
+          }
+      }
+    }
+    const MONTH_KEYS: MesKey[] = ['jan', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+    if (year !== selectedYear) return false
+    if (month >= 1 && month <= 12) {
+      if (!selectedMonths.includes(MONTH_KEYS[month])) return false
+    } else {
+      return false
+    }
+
+    return true
+  })
+
+  const filteredArkium = filteredArkiumByDateAndActive.filter(a => {
     const textMatch = a.numeroDialogo.toLowerCase().includes(arkiumSearch.toLowerCase()) || 
                       a.nome.toLowerCase().includes(arkiumSearch.toLowerCase()) ||
                       a.assunto.toLowerCase().includes(arkiumSearch.toLowerCase())
     if (!textMatch) return false
     
-    if (arkiumFilter === 'SIM') return a.assinado.toLowerCase() === 'sim'
-    if (arkiumFilter === 'NA') return a.assinado.toLowerCase() !== 'sim'
+    if (arkiumFilter === 'SIM') return a.assinado.toLowerCase() === 'sim' || a.assinado.toLowerCase() === 'yes'
+    if (arkiumFilter === 'NA') return a.assinado.toLowerCase() !== 'sim' && a.assinado.toLowerCase() !== 'yes'
     return true
   })
 
-  const totalArkium = arkiumData.length
-  const assinadasArkium = arkiumData.filter(a => a.assinado.toLowerCase() === 'sim').length
-  const naoAssinadasArkium = arkiumData.filter(a => a.assinado.toLowerCase() !== 'sim').length
+  const totalArkium = filteredArkiumByDateAndActive.length
+  const assinadasArkium = filteredArkiumByDateAndActive.filter(a => a.assinado.toLowerCase() === 'sim' || a.assinado.toLowerCase() === 'yes').length
+  const naoAssinadasArkium = filteredArkiumByDateAndActive.filter(a => a.assinado.toLowerCase() !== 'sim' && a.assinado.toLowerCase() !== 'yes').length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
@@ -730,9 +781,9 @@ export default function DialogosPage() {
                           <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                               {t.fotoUrl ? (
-                                <img src={t.fotoUrl} alt={t.nome} style={{ width: 48, height: 48, flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />
+                                <img src={t.fotoUrl} alt={t.nome} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '2px solid #f1f5f9' }} />
                               ) : (
-                                <div style={{ width: 48, height: 48, flexShrink: 0, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
+                                <div style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
                                   {t.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                                 </div>
                               )}
@@ -805,11 +856,11 @@ export default function DialogosPage() {
             {/* Stats Cards - Clicáveis para filtrar */}
             <div style={{ flex: 2, display: 'flex', gap: 16, minWidth: 300 }}>
               <div 
-                onClick={() => setArkiumFilter('ALL')}
+                onClick={() => { setArkiumFilter('ALL'); setShowArkiumPie(true); }}
                 style={{ flex: 1, background: '#fff', border: arkiumFilter === 'ALL' ? '2px solid #660099' : '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'ALL' ? '0 4px 6px -1px rgba(102,0,153,0.1)' : 'none' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: arkiumFilter === 'ALL' ? '#660099' : '#64748b' }}>
-                  <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total DSS</span>
+                  <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total</span>
                 </div>
                 <div style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalArkium}</div>
               </div>
@@ -841,8 +892,64 @@ export default function DialogosPage() {
           {/* Table Area */}
           {arkiumData.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
-                <div style={{ position: 'relative', width: 350 }}>
+              {/* Filtro de Meses e Ano na Estratificação */}
+              <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                  <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+                    <option value={2024}>2024</option>
+                    <option value={2025}>2025</option>
+                    <option value={2026}>2026</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {MONTHS_LIST.slice(0, 6).map(m => {
+                      const isSelected = selectedMonths.includes(m.key as MesKey)
+                      return (
+                        <button
+                          key={m.key}
+                          onClick={() => handleMonthClick(m.key as MesKey)}
+                          style={{
+                            flex: 1, padding: '8px 0', borderRadius: 6,
+                            border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                            background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                            color: isSelected ? '#660099' : '#64748b',
+                            fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                            userSelect: 'none'
+                          }}
+                        >
+                          {m.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {MONTHS_LIST.slice(6, 12).map(m => {
+                      const isSelected = selectedMonths.includes(m.key as MesKey)
+                      return (
+                        <button
+                          key={m.key}
+                          onClick={() => handleMonthClick(m.key as MesKey)}
+                          style={{
+                            flex: 1, padding: '8px 0', borderRadius: 6,
+                            border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                            background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                            color: isSelected ? '#660099' : '#64748b',
+                            fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                            userSelect: 'none'
+                          }}
+                        >
+                          {m.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 16 }}>
+                <div style={{ position: 'relative', width: 350, maxWidth: '100%' }}>
                   <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
                   <input
                     type="text"
@@ -852,6 +959,23 @@ export default function DialogosPage() {
                     style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
                   />
                 </div>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 13, fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                    <span>Ativos: <span style={{ color: '#10b981' }}>{totalsTecnicos.ativos}</span></span>
+                    <span style={{ color: '#cbd5e1' }}>|</span>
+                    <span>Inativos: <span style={{ color: '#ef4444' }}>{totalsTecnicos.inativos}</span></span>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={showInactive} 
+                      onChange={e => setShowInactive(e.target.checked)} 
+                      style={{ cursor: 'pointer' }}
+                    />
+                    Mostrar inativos
+                  </label>
+                </div>
               </div>
 
               <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -859,6 +983,7 @@ export default function DialogosPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 1000 }}>
                     <thead>
                       <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                        <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Nº Diálogo</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Nome / Matrícula</th>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Assunto</th>
@@ -870,15 +995,18 @@ export default function DialogosPage() {
                     <tbody>
                       {filteredArkium.map(a => (
                         <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9', background: a.estado === 'ABERTO' ? '#fefce8' : '#fff' }}>
+                          <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                            {formatDataFechamento(a.dataFechamento)}
+                          </td>
                           <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
                             {a.numeroDialogo}
                           </td>
                           <td style={{ padding: '12px 16px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               {a.dbTecnico?.fotoUrl ? (
-                                <img src={a.dbTecnico.fotoUrl} alt={a.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                                <img src={a.dbTecnico.fotoUrl} alt={a.nome} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', objectFit: 'cover' }} />
                               ) : (
-                                <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                                <div style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
                                   {a.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                                 </div>
                               )}
@@ -1119,6 +1247,77 @@ export default function DialogosPage() {
           </div>
         </div>
       )}
+      {/* MODAL PIE CHART ARKIUM */}
+      {showArkiumPie && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 600, maxWidth: '100%', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9' }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1e293b' }}>Participação por Técnico</h3>
+              <button onClick={() => setShowArkiumPie(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: 24 }}>
+              {(() => {
+                const mapTec = new Map<string, number>()
+                filteredArkiumByDateAndActive.forEach(a => {
+                   mapTec.set(a.nome, (mapTec.get(a.nome) || 0) + 1)
+                })
+                const chartData = Array.from(mapTec.entries()).map(([nome, val]) => ({ name: nome, value: val })).sort((a,b) => b.value - a.value)
+                const total = chartData.reduce((acc, curr) => acc + curr.value, 0)
+                
+                let cumulativePercent = 0
+                const getCoordinatesForPercent = (percent: number) => {
+                  const x = Math.cos(2 * Math.PI * percent) * 100
+                  const y = Math.sin(2 * Math.PI * percent) * 100
+                  return [x, y]
+                }
+                const colors = ['#660099', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b']
+
+                return (
+                  <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+                    <div style={{ width: 200, height: 200, flexShrink: 0 }}>
+                      <svg viewBox="-100 -100 200 200" style={{ transform: 'rotate(-90deg)', overflow: 'visible' }}>
+                        {total > 0 ? chartData.map((slice, i) => {
+                          const percent = slice.value / total
+                          if (percent === 1) {
+                            return <circle key={slice.name} r="100" fill={colors[i % colors.length]} />
+                          }
+                          const [startX, startY] = getCoordinatesForPercent(cumulativePercent)
+                          cumulativePercent += percent
+                          const [endX, endY] = getCoordinatesForPercent(cumulativePercent)
+                          const largeArcFlag = percent > 0.5 ? 1 : 0
+                          const pathData = [
+                            `M ${startX} ${startY}`,
+                            `A 100 100 0 ${largeArcFlag} 1 ${endX} ${endY}`,
+                            `L 0 0`,
+                          ].join(' ')
+                          return <path key={slice.name} d={pathData} fill={colors[i % colors.length]} style={{ transition: 'all 0.3s' }} />
+                        }) : (
+                          <circle r="100" fill="#f1f5f9" />
+                        )}
+                      </svg>
+                    </div>
+                    <div style={{ flex: 1, maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 8 }}>
+                      {chartData.map((slice, i) => (
+                        <div key={slice.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, fontWeight: 600 }}>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                             <span style={{ width: 12, height: 12, borderRadius: '50%', background: colors[i % colors.length], flexShrink: 0 }} />
+                             <span style={{ color: '#334155' }}>{slice.name}</span>
+                           </div>
+                           <div style={{ display: 'flex', gap: 12, color: '#64748b', flexShrink: 0 }}>
+                             <span>{slice.value} DSS</span>
+                             <span style={{ fontWeight: 800, color: '#1e293b', width: 40, textAlign: 'right' }}>{Math.round((slice.value / total) * 100)}%</span>
+                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
