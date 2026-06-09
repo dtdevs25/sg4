@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
@@ -8,8 +8,13 @@ import {
   Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import {
-  ClipboardCheck, Clock, FileText, Award, ChevronDown, X, Target, TrendingUp
+  ClipboardCheck, Clock, FileText, Award, ChevronDown, X, Target, TrendingUp, Loader2
 } from 'lucide-react'
+
+import { getAtividades } from '@/app/actions/atividades'
+import { getTecnicos } from '@/app/actions/tecnicos'
+import { getQuilometragens } from '@/app/actions/quilometragem'
+import { getAtividadesRelatorio } from '@/app/actions/relatorios'
 
 /* ── Constantes Visuais ── */
 const RED   = '#660099'
@@ -19,37 +24,13 @@ const COLORS = {
   insp: '#8e44ad',   // Roxo
 }
 
-/* ── Dados Mock (lógica do sistema original) ── */
+/* ── Constantes Dinâmicas ── */
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-const ANOS  = ['2026', '2025']
-
-const DADOS_MENSAIS: Record<string, { dss: number; insp: number }> = {
-  Jan: { dss: 70,  insp: 148 },
-  Fev: { dss: 68,  insp: 148 },
-  Mar: { dss: 84,  insp: 165 },
-  Abr: { dss: 66,  insp: 134 },
-  Mai: { dss: 0,   insp: 0   },
-  Jun: { dss: 0,   insp: 0   },
-  Jul: { dss: 0,   insp: 0   },
-  Ago: { dss: 0,   insp: 0   },
-  Set: { dss: 0,   insp: 0   },
-  Out: { dss: 0,   insp: 0   },
-  Nov: { dss: 0,   insp: 0   },
-  Dez: { dss: 0,   insp: 0   },
+const MESES_MAP: Record<string, string> = {
+  JANEIRO: 'Jan', FEVEREIRO: 'Fev', MARCO: 'Mar', ABRIL: 'Abr',
+  MAIO: 'Mai', JUNHO: 'Jun', JULHO: 'Jul', AGOSTO: 'Ago',
+  SETEMBRO: 'Set', OUTUBRO: 'Out', NOVEMBRO: 'Nov', DEZEMBRO: 'Dez'
 }
-
-const TECNICOS = [
-  { nome: 'Antonio C.',  dss: 32, insp: 74  },
-  { nome: 'Daniel G.',   dss: 44, insp: 92  },
-  { nome: 'Dara A.',     dss: 3,  insp: 5   },
-  { nome: 'Djonatê C.',  dss: 27, insp: 66  },
-  { nome: 'Jonas R.',    dss: 28, insp: 82  },
-  { nome: 'Karine N.',   dss: 40, insp: 83  },
-  { nome: 'Luis C.',     dss: 19, insp: 41  },
-  { nome: 'Rogério L.',  dss: 29, insp: 60  },
-  { nome: 'Rosicleide F.', dss: 62, insp: 88 },
-  { nome: 'Samuel S.',   dss: 4,  insp: 4   },
-]
 
 const META_DSS_POR_TEC = 8
 const META_INSP_POR_TEC = 20
@@ -63,6 +44,39 @@ function getInitials(name?: string | null) {
 }
 
 /* ── Componentes de UI ── */
+function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark, onClick }: any) {
+  return (
+    <div 
+      onClick={onClick}
+      style={{
+        background: bg, borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform .15s', display: 'flex', flexDirection: 'column',
+        justifyContent: 'space-between', flex: 1,
+      }}
+      onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
+      onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
+    >
+      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: 0.3 }}>{label}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
+            <div style={{ width: 2, height: 32, background: 'rgba(255,255,255,0.3)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ color: '#fff', fontSize: 20, fontWeight: 800, lineHeight: 1 }}>{percent}%</span>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: 700 }}>Concluído</span>
+            </div>
+          </div>
+          {subtitle && <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: 600, marginTop: 10, background: 'rgba(0,0,0,0.15)', padding: '4px 8px', borderRadius: 6, display: 'inline-block', alignSelf: 'flex-start' }}>Meta: {subtitle}</div>}
+        </div>
+        <Icon size={48} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+      </div>
+      <div style={{ height: 10, background: bgDark }} />
+    </div>
+  )
+}
+
 function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: any) {
   return (
     <div 
@@ -86,7 +100,7 @@ function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: a
         <div>
           <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>{label}</p>
           <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{value}</h3>
-          {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, marginTop: 6, background: 'rgba(0,0,0,0.1)', padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>Meta: {subtitle}</div>}
+          {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, marginTop: 6, background: 'rgba(0,0,0,0.1)', padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>{subtitle}</div>}
         </div>
         <Icon size={48} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
       </div>
@@ -154,32 +168,121 @@ export default function DashboardPage() {
   const router = useRouter()
   const { data: session } = useSession()
   const firstName = session?.user?.name?.split(' ')[0] || 'Gestor'
+  const role = (session?.user as any)?.role
 
-  const [ano, setAno] = useState('2026')
+  const currentYear = new Date().getFullYear().toString()
+  const [ano, setAno] = useState(currentYear)
   const [mes, setMes] = useState<string | null>(null)
   const [modalData, setModalData] = useState<any>(null) // Modal state
 
+  const [atividadesDb, setAtividadesDb] = useState<any[]>([])
+  const [tecnicosDb, setTecnicosDb] = useState<any[]>([])
+  const [kmDb, setKmDb] = useState<any[]>([])
+  const [relatoriosDb, setRelatoriosDb] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Fetch real data
+  useEffect(() => {
+    async function loadData() {
+      if (!role) return
+      setLoading(true)
+      try {
+        const [ativRes, tecRes, kmRes, ...relRes] = await Promise.all([
+          getAtividades(),
+          getTecnicos(),
+          getQuilometragens(parseInt(ano)),
+          ...Array.from({ length: 12 }).map((_, i) => getAtividadesRelatorio(i + 1, parseInt(ano)))
+        ])
+        if (ativRes.success) setAtividadesDb(ativRes.data || [])
+        if (tecRes.success) setTecnicosDb(tecRes.data || [])
+        if (kmRes.success) setKmDb(kmRes.data || [])
+        setRelatoriosDb(relRes.flat())
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [role, ano])
+
+  const ANOS = Array.from(new Set(atividadesDb.map(a => a.ano.toString()))).sort().reverse()
+  if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
+
+  // Computa DADOS_MENSAIS e tecnicosStats para o ANO selecionado
+  const atividadesAno = atividadesDb.filter(a => a.ano.toString() === ano)
+  
+  const dadosMensais = MESES.reduce((acc, m) => {
+    acc[m] = { dss: 0, insp: 0 }
+    return acc
+  }, {} as Record<string, { dss: number; insp: number }>)
+
+  atividadesAno.forEach(a => {
+    const mesLabel = MESES_MAP[a.mes]
+    if (mesLabel && dadosMensais[mesLabel]) {
+      const field = a.tipo === 'DSS' ? 'dss' : 'insp'
+      dadosMensais[mesLabel][field] += a.realizado
+    }
+  })
+
+  const atividadesFiltradas = mes
+    ? atividadesAno.filter(a => MESES_MAP[a.mes] === mes)
+    : atividadesAno
+
+  const tecnicosStats = tecnicosDb.filter(t => t.ativo).map(t => {
+    const ativTec = atividadesFiltradas.filter(a => a.tecnicoId === t.id)
+    const dss = ativTec.filter(a => a.tipo === 'DSS').reduce((acc, a) => acc + a.realizado, 0)
+    const insp = ativTec.filter(a => a.tipo === 'INSPECAO').reduce((acc, a) => acc + a.realizado, 0)
+    return {
+      nome: t.nome,
+      fotoUrl: t.fotoUrl,
+      dss,
+      insp
+    }
+  })
+
   // Lógica de Metas
-  const nTecnicos = TECNICOS.length
-  const metaDssTotal = mes ? (nTecnicos * META_DSS_POR_TEC) : (nTecnicos * META_DSS_POR_TEC * 4)
-  const metaInspTotal = mes ? (nTecnicos * META_INSP_POR_TEC) : (nTecnicos * META_INSP_POR_TEC * 4)
+  const nTecnicos = tecnicosDb.filter(t => t.ativo).length || 1
+  const metaDssTotal = mes ? (nTecnicos * META_DSS_POR_TEC) : (nTecnicos * META_DSS_POR_TEC * 12)
+  const metaInspTotal = mes ? (nTecnicos * META_INSP_POR_TEC) : (nTecnicos * META_INSP_POR_TEC * 12)
 
   // Valores reais baseados no filtro
-  const totalDss = mes ? DADOS_MENSAIS[mes].dss : Object.values(DADOS_MENSAIS).reduce((a, v) => a + v.dss, 0)
-  const totalInsp = mes ? DADOS_MENSAIS[mes].insp : Object.values(DADOS_MENSAIS).reduce((a, v) => a + v.insp, 0)
+  const totalDss = mes ? dadosMensais[mes].dss : Object.values(dadosMensais).reduce((a, v) => a + v.dss, 0)
+  const totalInsp = mes ? dadosMensais[mes].insp : Object.values(dadosMensais).reduce((a, v) => a + v.insp, 0)
 
   // Percentuais
-  const pctDss = Math.round((totalDss / metaDssTotal) * 100)
-  const pctInsp = Math.round((totalInsp / metaInspTotal) * 100)
+  const pctDss = metaDssTotal > 0 ? Math.round((totalDss / metaDssTotal) * 100) : 0
+  const pctInsp = metaInspTotal > 0 ? Math.round((totalInsp / metaInspTotal) * 100) : 0
 
-  // Dados do Gráfico (Simula dividindo por 4 para mês específico, acumulado caso geral)
-  const barData = mes
-    ? TECNICOS.map(t => ({ nome: t.nome, dss: Math.round(t.dss / 4), insp: Math.round(t.insp / 4) }))
-    : TECNICOS
+  // Dados de Relatório de Atividades
+  const relatoriosFiltrados = mes 
+    ? relatoriosDb.filter(r => new Date(r.data).getUTCMonth() === MESES.indexOf(mes))
+    : relatoriosDb
+  const totalRelatorios = relatoriosFiltrados.length
+
+  // Dados de Quilometragem (média)
+  const kmFiltrados = mes 
+    ? kmDb.filter(k => new Date(k.dataInicial).getUTCMonth() === MESES.indexOf(mes))
+    : kmDb
+  const kmsValidos = kmFiltrados.filter(k => k.diferenca != null && k.diferenca > 0)
+  const totalKm = kmsValidos.reduce((acc, k) => acc + (k.diferenca || 0), 0)
+  const mediaKm = kmsValidos.length > 0 ? Math.round(totalKm / kmsValidos.length) : 0
+
+  // Dados do Gráfico
+  const barData = tecnicosStats
 
   // Rankings
   const rankDss = [...barData].sort((a, b) => b.dss - a.dss)
   const rankInsp = [...barData].sort((a, b) => b.insp - a.insp)
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 16 }}>
+        <Loader2 className="animate-spin" size={48} color={RED} />
+        <span style={{ color: '#64748b', fontWeight: 600 }}>Carregando dados do dashboard...</span>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
@@ -196,8 +299,12 @@ export default function DashboardPage() {
             </div>
             <div style={{ padding: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: '#334155', border: '2px solid #cbd5e1' }}>
-                  {getInitials(modalData.nome)}
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: '#334155', border: '2px solid #cbd5e1', overflow: 'hidden' }}>
+                  {modalData.fotoUrl ? (
+                    <img src={modalData.fotoUrl} alt={modalData.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    getInitials(modalData.nome)
+                  )}
                 </div>
                 <div>
                   <p style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>{modalData.nome}</p>
@@ -281,10 +388,10 @@ export default function DashboardPage() {
 
       {/* ── 4 Stat cards ── */}
       <div style={{ display: 'flex', gap: 20 }}>
-        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS"       value={totalDss} bg="#660099" bgDark="#4a0072" />
-        <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock}          label="Inspeções" value={totalInsp} bg="#8e44ad" bgDark="#732d91" />
-        <StatCard onClick={() => router.push('/dashboard/dialogos')} icon={Target}          label="% DSS"     value={`${pctDss}%`} subtitle={metaDssTotal} bg="#9c27b0" bgDark="#7b1fa2" />
-        <StatCard onClick={() => router.push('/dashboard/inspecoes')} icon={TrendingUp}          label="% Inspeções" value={`${pctInsp}%`} subtitle={metaInspTotal} bg="#673ab7" bgDark="#512da8" />
+        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#660099" bgDark="#4a0072" />
+        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#8e44ad" bgDark="#732d91" />
+        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#9c27b0" bgDark="#7b1fa2" />
+        <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#673ab7" bgDark="#512da8" />
       </div>
 
       {/* ── Charts & Rankings (2/3 + 1/3) ── */}
