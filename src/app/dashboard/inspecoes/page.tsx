@@ -71,7 +71,10 @@ export default function InspecoesPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   
   const targetMeta = 20
-  const filtered = data.filter(t => t.nome.toLowerCase().includes(search.toLowerCase()))
+  const filtered = data.filter(t => {
+    if (!showInactive && t.ativo === false) return false
+    return t.nome.toLowerCase().includes(search.toLowerCase())
+  })
   const totalRealizado = filtered.reduce((acc, curr) => {
     return acc + selectedMonths.reduce((sum, m) => sum + curr[m], 0)
   }, 0)
@@ -496,7 +499,7 @@ export default function InspecoesPage() {
     // Se não conseguiu parsear ano/mês → incluir o registro
     if (year === 0 || month === 0) return true
     if (year !== selectedYear) return false
-    const MONTH_KEYS: MesKey[] = ['', 'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
+    const MONTH_KEYS: string[] = ['', 'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
     if (month >= 1 && month <= 12) {
       if (!selectedMonths.includes(MONTH_KEYS[month] as MesKey)) return false
     }
@@ -704,6 +707,17 @@ export default function InspecoesPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
                 />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 12, fontSize: 13, fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span>Ativos: <span style={{ color: '#10b981' }}>{data.filter((t: any) => t.ativo !== false).length}</span></span>
+                  <span style={{ color: '#cbd5e1' }}>|</span>
+                  <span>Inativos: <span style={{ color: '#ef4444' }}>{data.filter((t: any) => t.ativo === false).length}</span></span>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} style={{ cursor: 'pointer' }} />
+                  Mostrar inativos
+                </label>
               </div>
             </div>
 

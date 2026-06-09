@@ -533,7 +533,7 @@ export default function DialogosPage() {
     // Se não conseguiu parsear → incluir o registro
     if (year === 0 || month === 0) return true
     if (year !== selectedYear) return false
-    const MONTH_KEYS: MesKey[] = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+    const MONTH_KEYS: string[] = ['', 'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
     if (month >= 1 && month <= 12) {
       if (!selectedMonths.includes(MONTH_KEYS[month] as MesKey)) return false
     }
