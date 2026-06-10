@@ -88,64 +88,65 @@ function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
 /* ── Componentes de UI ── */
 function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark, onClick }: any) {
   return (
-    <div
+    <div 
       onClick={onClick}
       style={{
-        background: bg, borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        background: bg, borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
         overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform .15s, box-shadow .15s', flex: 1, minWidth: 200,
-        display: 'flex', flexDirection: 'column',
+        transition: 'transform .15s', display: 'flex', flexDirection: 'column',
+        justifyContent: 'space-between', flex: 1, minWidth: 260
       }}
       onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
       onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
     >
-      {/* Header bar */}
-      <div style={{ height: 4, background: bgDark }} />
-      <div style={{ padding: '16px 18px', flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <p style={{ color: bgDark, fontSize: 13, fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.85 }}>{label}</p>
-          <Icon size={28} strokeWidth={1.5} style={{ color: bgDark, flexShrink: 0, opacity: 0.4 }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
-          <div>
-            <div style={{ color: bgDark, fontSize: 40, fontWeight: 900, lineHeight: 1, letterSpacing: -1 }}>{value}</div>
-            <div style={{ color: bgDark, fontSize: 11, fontWeight: 600, marginTop: 2, opacity: 0.6 }}>realizado</div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              <span style={{ color: bgDark, fontSize: 28, fontWeight: 900, lineHeight: 1 }}>{percent}%</span>
+      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: 0.3 }}>{label}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
+            <div style={{ width: 2, height: 32, background: 'rgba(255,255,255,0.3)' }} />
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 700 }}>concluído</span>
             </div>
-            <div style={{ color: bgDark, fontSize: 11, fontWeight: 600, opacity: 0.6 }}>concluído</div>
           </div>
+          {subtitle && <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: 600, marginTop: 10, background: 'rgba(0,0,0,0.15)', padding: '4px 8px', borderRadius: 6, display: 'inline-block', alignSelf: 'flex-start' }}>Meta: {subtitle}</div>}
         </div>
-        {subtitle && <div style={{ color: bgDark, fontSize: 11, fontWeight: 700, marginTop: 10, background: 'rgba(0,0,0,0.08)', padding: '3px 8px', borderRadius: 6, display: 'inline-block', opacity: 0.85 }}>Meta: {subtitle}</div>}
+        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
       </div>
+      <div style={{ height: 10, background: bgDark }} />
     </div>
   )
 }
 
 function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: any) {
   return (
-    <div
+    <div 
       onClick={onClick}
       style={{
-        background: bg, borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform .15s', flex: 1, minWidth: 160,
-        display: 'flex', flexDirection: 'column',
+        background: bg,
+        borderRadius: 10,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        overflow: 'hidden',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform .15s',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        flex: 1, minWidth: 200
       }}
       onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
       onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
     >
-      <div style={{ height: 4, background: bgDark }} />
-      <div style={{ padding: '16px 18px', flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <p style={{ color: bgDark, fontSize: 13, fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.85 }}>{label}</p>
-          <Icon size={28} strokeWidth={1.5} style={{ color: bgDark, flexShrink: 0, opacity: 0.4 }} />
+      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>{label}</p>
+          <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{value}</h3>
+          {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, marginTop: 6, background: 'rgba(0,0,0,0.1)', padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>{subtitle}</div>}
         </div>
-        <div style={{ color: bgDark, fontSize: 40, fontWeight: 900, lineHeight: 1, letterSpacing: -1 }}>{value}</div>
-        {subtitle && <div style={{ color: bgDark, fontSize: 11, fontWeight: 600, marginTop: 8, opacity: 0.7 }}>{subtitle}</div>}
+        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
       </div>
+      <div style={{ height: 10, background: bgDark }} />
     </div>
   )
 }
@@ -473,16 +474,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── 4 Stat cards — cores pasteis (Tons de Roxo) ── */}
+      {/* ── 4 Stat cards — cores Vivo (Roxo/Violeta) ── */}
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {/* Roxo pastel */}
-        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#f3e8ff" bgDark="#7e22ce" />
-        {/* Violeta pastel */}
-        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#ede9fe" bgDark="#6d28d9" />
-        {/* Fuchsia pastel */}
-        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#fae8ff" bgDark="#a21caf" />
-        {/* Índigo pastel */}
-        <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#e0e7ff" bgDark="#4338ca" />
+        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#660099" bgDark="#4a0072" />
+        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#8e44ad" bgDark="#732d91" />
+        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#9c27b0" bgDark="#7b1fa2" />
+        <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#673ab7" bgDark="#512da8" />
       </div>
 
       {/* ── Charts & Rankings (2/3 + 1/3) ── */}
@@ -508,9 +505,9 @@ export default function DashboardPage() {
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(102,0,153,0.04)', cursor: 'pointer' }} />
                 <Legend verticalAlign="top" wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingBottom: 16 }} />
                 
-                <Bar dataKey="dss" name="DSS" fill="#7e22ce" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
-                <Bar dataKey="insp" name="Inspeções" fill="#6d28d9" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
-                <Bar dataKey="rel" name="Relatórios" fill="#a21caf" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
