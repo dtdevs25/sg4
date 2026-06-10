@@ -38,18 +38,23 @@ export async function uploadFotoRelatorio(base64: string, fileName: string, cont
 // ATIVIDADES CRUD
 // ===========================
 
-export async function getAtividadesRelatorio(mes: number, ano: number) {
+export async function getAtividadesRelatorio(mes?: number, ano?: number) {
   const session = await auth()
   if (!session?.user) return []
 
   const role = (session.user as any).role
   const userId = session.user.id
 
-  const startDate = new Date(Date.UTC(ano, mes - 1, 1))
-  const endDate = new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999))
-
-  let whereClause: any = {
-    data: { gte: startDate, lte: endDate }
+  let whereClause: any = {}
+  
+  if (mes && ano) {
+    const startDate = new Date(Date.UTC(ano, mes - 1, 1))
+    const endDate = new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999))
+    whereClause.data = { gte: startDate, lte: endDate }
+  } else if (ano) {
+    const startDate = new Date(Date.UTC(ano, 0, 1))
+    const endDate = new Date(Date.UTC(ano, 11, 31, 23, 59, 59, 999))
+    whereClause.data = { gte: startDate, lte: endDate }
   }
 
   if (role === 'TST') {

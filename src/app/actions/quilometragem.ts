@@ -36,7 +36,7 @@ export async function uploadFotoKm(fileData: string, fileName: string, contentTy
 }
 
 // ─── QUILOMETRAGEM ───
-export async function getQuilometragens(ano: number, mes?: number) {
+export async function getQuilometragens(ano?: number, mes?: number) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -49,15 +49,17 @@ export async function getQuilometragens(ano: number, mes?: number) {
       where.tecnicoId = tecnicoId
     }
     
-    if (mes) {
-      where.dataInicial = {
-        gte: new Date(ano, mes - 1, 1),
-        lte: new Date(ano, mes, 0, 23, 59, 59)
-      }
-    } else {
-      where.dataInicial = {
-        gte: new Date(ano, 0, 1),
-        lte: new Date(ano, 11, 31, 23, 59, 59)
+    if (ano && !isNaN(ano)) {
+      if (mes) {
+        where.dataInicial = {
+          gte: new Date(ano, mes - 1, 1),
+          lte: new Date(ano, mes, 0, 23, 59, 59)
+        }
+      } else {
+        where.dataInicial = {
+          gte: new Date(ano, 0, 1),
+          lte: new Date(ano, 11, 31, 23, 59, 59)
+        }
       }
     }
 

@@ -222,7 +222,7 @@ export default function DashboardPage() {
   const role = (session?.user as any)?.role
 
   const currentYear = new Date().getFullYear().toString()
-  const [ano, setAno] = useState(currentYear)
+  const [ano, setAno] = useState<string>(currentYear)
   const [mes, setMes] = useState<string | null>(null)
   const [modalData, setModalData] = useState<any>(null) // Modal state
 
@@ -234,26 +234,26 @@ export default function DashboardPage() {
   const [inspecoesArkiumDb, setInspecoesArkiumDb] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch real data
+  // Fetch real data (once)
   useEffect(() => {
     async function loadData() {
       if (!role) return
       setLoading(true)
       try {
-        const [ativRes, tecRes, kmRes, dssRes, inspRes, ...relRes] = await Promise.all([
+        const [ativRes, tecRes, kmRes, dssRes, inspRes, relRes] = await Promise.all([
           getAtividades(),
           getTecnicos(),
-          getQuilometragens(parseInt(ano)),
+          getQuilometragens(),
           getDssArkium(),
           getInspecoesArkium(),
-          ...Array.from({ length: 12 }).map((_, i) => getAtividadesRelatorio(i + 1, parseInt(ano)))
+          getAtividadesRelatorio()
         ])
         if (ativRes.success) setAtividadesDb(ativRes.data || [])
         if (tecRes.success) setTecnicosDb(tecRes.data || [])
         if (kmRes.success) setKmDb(kmRes.data || [])
         if (dssRes.success) setDssArkiumDb(dssRes.data || [])
         if (inspRes.success) setInspecoesArkiumDb(inspRes.data || [])
-        setRelatoriosDb(relRes.flat())
+        setRelatoriosDb(Array.isArray(relRes) ? relRes : [])
       } catch (err) {
         console.error(err)
       } finally {
@@ -261,7 +261,7 @@ export default function DashboardPage() {
       }
     }
     loadData()
-  }, [role, ano])
+  }, [role])
 
   const anosSet = new Set<string>()
   dssArkiumDb.forEach(a => { const { year } = getArkiumMonthYear(a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
@@ -271,15 +271,18 @@ export default function DashboardPage() {
   const ANOS = Array.from(anosSet).sort().reverse()
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
-  // Computa DADOS_MENSAIS e tecnicosStats para o ANO selecionado usando Arkium
-  const dssAno = dssArkiumDb.filter(a => {
+  const dssAno = ano ? dssArkiumDb.filter(a => {
     const { year } = getArkiumMonthYear(a.dataFechamento)
     return year.toString() === ano
-  })
-  const inspAno = inspecoesArkiumDb.filter(a => {
+  }) : dssArkiumDb
+
+  const inspAno = ano ? inspecoesArkiumDb.filter(a => {
     const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
     return year.toString() === ano
-  })
+  }) : inspecoesArkiumDb
+
+  const relatoriosAno = ano ? relatoriosDb.filter(r => new Date(r.data).getFullYear().toString() === ano) : relatoriosDb
+  const kmAno = ano ? kmDb.filter(k => new Date(k.dataInicial).getFullYear().toString() === ano) : kmDb
   
   const dadosMensais = MESES.reduce((acc, m) => {
     acc[m] = { dss: 0, insp: 0 }
@@ -310,8 +313,8 @@ export default function DashboardPage() {
 
   // Dados de Relatório de Atividades
   const relatoriosFiltrados = mes 
-    ? relatoriosDb.filter(r => new Date(r.data).getUTCMonth() === MESES.indexOf(mes))
-    : relatoriosDb
+    ? relatoriosAno.filter(r => new Date(r.data).getUTCMonth() === MESES.indexOf(mes))
+    : relatoriosAno
   const totalRelatorios = relatoriosFiltrados.length
 
   const tecnicosStats = tecnicosDb.filter(t => t.ativo).map(t => {
@@ -319,8 +322,14 @@ export default function DashboardPage() {
     const insp = inspFiltradas.filter(a => matchTecnico(a.nomeAuditor, t.nome) || a.tecnicoId === t.id).length
     const relTec = relatoriosFiltrados.filter(r => r.tecnicoId === t.id)
     const rel = relTec.length
+    
+    // Abreviação do nome: "PrimeiroNome InicialSegundoNome."
+    const parts = t.nome.trim().split(' ')
+    const nomeAbrev = parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : parts[0]
+
     return {
       nome: t.nome,
+      nomeAbrev,
       fotoUrl: t.fotoUrl,
       dss,
       insp,
@@ -330,8 +339,9 @@ export default function DashboardPage() {
 
   // Lógica de Metas
   const nTecnicos = tecnicosDb.filter(t => t.ativo).length || 1
-  const metaDssTotal = mes ? (nTecnicos * META_DSS_POR_TEC) : (nTecnicos * META_DSS_POR_TEC * 12)
-  const metaInspTotal = mes ? (nTecnicos * META_INSP_POR_TEC) : (nTecnicos * META_INSP_POR_TEC * 12)
+  const numYears = ano ? 1 : (ANOS.length || 1)
+  const metaDssTotal = mes ? (nTecnicos * META_DSS_POR_TEC * numYears) : (nTecnicos * META_DSS_POR_TEC * 12 * numYears)
+  const metaInspTotal = mes ? (nTecnicos * META_INSP_POR_TEC * numYears) : (nTecnicos * META_INSP_POR_TEC * 12 * numYears)
 
   // Valores reais baseados no filtro
   const totalDss = mes ? dadosMensais[mes].dss : Object.values(dadosMensais).reduce((a, v) => a + v.dss, 0)
@@ -345,14 +355,16 @@ export default function DashboardPage() {
 
   // Dados de Quilometragem (média)
   const kmFiltrados = mes 
-    ? kmDb.filter(k => new Date(k.dataInicial).getUTCMonth() === MESES.indexOf(mes))
-    : kmDb
+    ? kmAno.filter(k => new Date(k.dataInicial).getUTCMonth() === MESES.indexOf(mes))
+    : kmAno
   const kmsValidos = kmFiltrados.filter(k => k.diferenca != null && k.diferenca > 0)
   const totalKm = kmsValidos.reduce((acc, k) => acc + (k.diferenca || 0), 0)
   const mediaKm = kmsValidos.length > 0 ? Math.round(totalKm / kmsValidos.length) : 0
 
-  // Dados do Gráfico — nomes abreviados
-  const barData = tecnicosStats.map(t => ({ ...t, nome: abbreviateName(t.nome) }))
+  // Dados do Gráfico (Ordenado alfabeticamente e nomes abreviados)
+  const barData = [...tecnicosStats]
+    .sort((a, b) => a.nome.localeCompare(b.nome))
+    .map(t => ({ ...t, nomeAbrev: abbreviateName(t.nome) }))
 
   // Rankings
   const rankDss = [...barData].sort((a, b) => b.dss - a.dss)
@@ -451,6 +463,7 @@ export default function DashboardPage() {
                 fontWeight: 600, color: '#475569', cursor: 'pointer', outline: 'none'
               }}
             >
+              <option value="">Geral (Todos os Anos)</option>
               {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
             <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 11, pointerEvents: 'none', color: '#94a3b8' }} />
@@ -496,14 +509,14 @@ export default function DashboardPage() {
               }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
-                  dataKey="nome"
-                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
-                  tickLine={false} axisLine={false} angle={-20} textAnchor="end" height={60}
+                  dataKey="nomeAbrev"
+                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 700 }}
+                  tickLine={false} axisLine={false} angle={-25} textAnchor="end" height={70}
                   style={{ cursor: 'pointer' }}
                 />
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(102,0,153,0.04)', cursor: 'pointer' }} />
-                <Legend verticalAlign="top" wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingBottom: 16 }} />
+                <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingBottom: 16 }} />
                 
                 <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
                 <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
