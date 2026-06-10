@@ -527,17 +527,27 @@ export default function InspecoesPage() {
   }).length
 
   return (
-    <div className="flex flex-col gap-[24px] pb-[40px]">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
 
       {/* ── Overlay de Importação ── */}
       {isImporting && (
-        <div className="fixed inset-0 z-[9999] bg-[rgba(15,23,42,0.85)] backdrop-blur-[6px] flex flex-col items-center justify-center gap-[20px] p-[16px]">
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(15,23,42,0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column', gap: 20,
+        }}>
           <style>{`
             @keyframes sg4-spin { to { transform: rotate(360deg); } }
             @keyframes sg4-pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
             @keyframes sg4-progress { 0%{width:0%;margin-left:0%} 50%{width:70%;margin-left:15%} 100%{width:0%;margin-left:100%} }
           `}</style>
-          <div className="bg-white rounded-[20px] px-[24px] py-[40px] md:px-[48px] py-[40px] flex flex-col items-center gap-[20px] shadow-[0_25px_50px_rgba(0,0,0,0.4)] w-full max-w-[400px]">
+          <div style={{
+            background: '#fff', borderRadius: 20, padding: '40px 48px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
+            boxShadow: '0 25px 50px rgba(0,0,0,0.4)', maxWidth: 400, width: '90%',
+          }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(102,0,153,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Loader2 size={32} color="#660099" style={{ animation: 'sg4-spin 1s linear infinite' }} />
             </div>
@@ -553,25 +563,48 @@ export default function InspecoesPage() {
           </div>
         </div>
       )}
-      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-[20px] py-[14px] flex items-center justify-between flex-wrap gap-[16px]">
-        <div className="flex items-baseline gap-[10px]">
-          <h1 className="text-[20px] font-extrabold text-[#1e293b] m-0 flex items-center gap-[8px]">
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ClipboardCheck color="#660099" size={22} />
             Inspeções de Segurança
           </h1>
         </div>
         
         {/* Navegação de Abas */}
-        <div className="flex bg-[#f1f5f9] p-[4px] rounded-[8px] gap-[4px] overflow-x-auto w-full md:w-auto">
+        <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4 }}>
           <button
             onClick={() => setActiveTab('consolidado')}
-            className={`whitespace-nowrap px-[16px] py-[6px] rounded-[6px] border-none cursor-pointer text-[13px] font-bold transition-all duration-200 ${activeTab === 'consolidado' ? 'bg-white text-[#660099] shadow-[0_1px_3px_rgba(0,0,0,0.1)]' : 'bg-transparent text-[#64748b]'}`}
+            style={{
+              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+              background: activeTab === 'consolidado' ? '#fff' : 'transparent',
+              color: activeTab === 'consolidado' ? '#660099' : '#64748b',
+              boxShadow: activeTab === 'consolidado' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+            }}
           >
             Visão Consolidada
           </button>
           <button
             onClick={() => setActiveTab('arkium')}
-            className={`whitespace-nowrap px-[16px] py-[6px] rounded-[6px] border-none cursor-pointer text-[13px] font-bold transition-all duration-200 ${activeTab === 'arkium' ? 'bg-white text-[#660099] shadow-[0_1px_3px_rgba(0,0,0,0.1)]' : 'bg-transparent text-[#64748b]'}`}
+            style={{
+              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+              background: activeTab === 'arkium' ? '#fff' : 'transparent',
+              color: activeTab === 'arkium' ? '#660099' : '#64748b',
+              boxShadow: activeTab === 'arkium' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+            }}
           >
             Estratificação Arkium
           </button>
@@ -583,9 +616,9 @@ export default function InspecoesPage() {
       ======================================================== */}
       {activeTab === 'consolidado' && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-[24px]">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
             {/* Filtro de Meses e Ano */}
-            <div className="bg-white border border-[#f1f5f9] rounded-[10px] p-[20px] flex flex-col gap-[12px] lg:col-span-2">
+            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
                 <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
@@ -642,7 +675,7 @@ export default function InspecoesPage() {
             </div>
 
             {/* Card de Estatística */}
-            <div className="bg-white border border-[#f1f5f9] rounded-[10px] p-[20px] lg:col-span-1">
+            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atingimento do Período</span>
                 <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
@@ -663,10 +696,10 @@ export default function InspecoesPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-[16px]">
-            <div className="flex flex-col md:flex-row items-center justify-between bg-white px-[20px] py-[12px] rounded-[10px] border border-[#f1f5f9] gap-[16px]">
-              <div className="relative w-full md:w-[300px]">
-                <Search size={16} className="absolute left-[12px] top-[10px] text-[#94a3b8]" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+              <div style={{ position: 'relative', width: 300 }}>
+                <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
                 <input
                   type="text"
                   placeholder="Filtrar por técnico..."
@@ -675,7 +708,7 @@ export default function InspecoesPage() {
                   style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
                 />
               </div>
-              <div className="flex items-center gap-[16px] w-full md:w-auto justify-between md:justify-end">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ display: 'flex', gap: 12, fontSize: 13, fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                   <span>Ativos: <span style={{ color: '#10b981' }}>{data.filter((t: any) => t.ativo !== false).length}</span></span>
                   <span style={{ color: '#cbd5e1' }}>|</span>
@@ -688,9 +721,9 @@ export default function InspecoesPage() {
               </div>
             </div>
 
-            <div className="bg-white border border-[#f1f5f9] rounded-[10px] overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-              <div className="overflow-x-auto w-full">
-                <table className="w-full border-collapse text-left min-w-[700px]">
+            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
@@ -773,10 +806,10 @@ export default function InspecoesPage() {
           ABA: ESTRATIFICAÇÃO ARKIUM
       ======================================================== */}
       {activeTab === 'arkium' && (
-        <div className="flex flex-col gap-[24px]">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
           {/* Stats Cards */}
-          <div className="flex flex-col md:flex-row gap-[16px] flex-wrap">
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             <div 
               onClick={() => { setArkiumFilter('ALL'); setShowInspecoesPie(true); }}
               style={{ flex: 1, background: '#fff', border: arkiumFilter === 'ALL' ? '2px solid #660099' : '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: 'all 0.2s', boxShadow: arkiumFilter === 'ALL' ? '0 4px 6px -1px rgba(102,0,153,0.1)' : 'none' }}
@@ -815,9 +848,9 @@ export default function InspecoesPage() {
           {arkiumData.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Filtros e Importação */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-[24px]">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
                 {/* Filtro de Meses e Ano */}
-                <div className="bg-white border border-[#f1f5f9] rounded-[10px] px-[16px] py-[10px] flex flex-col gap-[8px] lg:col-span-2">
+                <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 8, gridColumn: 'span 2' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
                     <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
@@ -851,7 +884,7 @@ export default function InspecoesPage() {
                 </div>
 
                 {/* Upload Area */}
-                <div className="bg-white border border-dashed border-[#cbd5e1] rounded-[10px] p-[16px] flex flex-col items-center justify-center gap-[12px] lg:col-span-1">
+                <div style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10, padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                   <div style={{ width: 48, height: 48, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <FileSpreadsheet color="#660099" size={24} />
                   </div>
@@ -870,9 +903,9 @@ export default function InspecoesPage() {
               </div>
 
               {/* Busca e Inativos */}
-              <div className="flex flex-col md:flex-row items-center justify-between bg-white px-[20px] py-[12px] rounded-[10px] border border-[#f1f5f9] flex-wrap gap-[16px]">
-                <div className="relative w-full md:w-[350px]">
-                  <Search size={16} className="absolute left-[12px] top-[10px] text-[#94a3b8]" />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 16 }}>
+                <div style={{ position: 'relative', width: 350, maxWidth: '100%' }}>
+                  <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
                   <input
                     type="text"
                     placeholder="Buscar por número, auditor ou questionário..."
@@ -881,7 +914,7 @@ export default function InspecoesPage() {
                     style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
                   />
                 </div>
-                <div className="flex items-center gap-[16px] w-full md:w-auto justify-between md:justify-end">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <div style={{ display: 'flex', gap: 12, fontSize: 13, fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                     <span>Ativos: <span style={{ color: '#10b981' }}>{totalsTecnicos.ativos}</span></span>
                     <span style={{ color: '#cbd5e1' }}>|</span>
@@ -894,9 +927,9 @@ export default function InspecoesPage() {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#f1f5f9] rounded-[10px] overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full border-collapse text-left min-w-[1000px]">
+              <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 1000 }}>
                     <thead>
                       <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                         <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Número</th>

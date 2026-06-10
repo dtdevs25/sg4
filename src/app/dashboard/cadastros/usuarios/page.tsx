@@ -120,11 +120,22 @@ export default function UsuariosPage() {
   }
 
   return (
-    <div className="flex flex-col gap-[24px] pb-[40px]">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
       {/* ── Cabeçalho Padronizado ── */}
-      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-[20px] py-[14px] flex items-center justify-between flex-wrap gap-[16px]">
-        <div className="flex items-baseline gap-[10px]">
-          <h1 className="text-[20px] font-extrabold text-[#1e293b] m-0 flex items-center gap-[8px]">
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Users color="#660099" size={22} />
             Gestão de Usuários
           </h1>
@@ -144,8 +155,8 @@ export default function UsuariosPage() {
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center justify-between bg-white px-[20px] py-[12px] rounded-[10px] border border-[#f1f5f9] gap-[16px]">
-        <div className="relative w-full md:w-[300px]">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+        <div style={{ position: 'relative', width: 300 }}>
           <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
           <input
             type="text"
@@ -158,9 +169,9 @@ export default function UsuariosPage() {
         <div style={{ fontSize: 13, color: '#64748b' }}>Encontrados: <b>{filtered.length}</b></div>
       </div>
 
-      <div className="bg-white border border-[#f1f5f9] rounded-[10px] overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-        <div className="overflow-x-auto w-full">
-          <table className="w-full border-collapse text-left min-w-[800px]">
+      <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Usuário</th>
@@ -218,8 +229,8 @@ export default function UsuariosPage() {
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
-          <div className="bg-white rounded-[16px] w-full max-w-[480px] p-[24px] shadow-2xl">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 480, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Sparkles color="#660099" size={20} /> Cadastrar Usuário
@@ -279,8 +290,8 @@ export default function UsuariosPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
-          <div className="bg-white rounded-[16px] w-full max-w-[400px] p-[24px] shadow-2xl text-center">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 400, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
             <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <AlertCircle color="#ef4444" size={24} />
             </div>
@@ -304,8 +315,8 @@ export default function UsuariosPage() {
 
       {/* Resend Confirmation Modal */}
       {showResendModal && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
-          <div className="bg-white rounded-[16px] w-full max-w-[400px] p-[24px] shadow-2xl text-center">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 400, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
             <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Mail color="#6366f1" size={24} />
             </div>
