@@ -127,6 +127,11 @@ export default function DialogosPage() {
           
           const totalMesArkium = tecArkium.filter((a: any) => {
             if (!a.dataFechamento) return false
+            
+            // Só conta se estiver assinado
+            const s = (a.assinado || '').toLowerCase().trim()
+            if (!s || s.includes('não') || s.includes('nao') || s.includes('pendente')) return false
+
             let month = 0, year = 0
             if (a.dataFechamento.includes('/')) {
                 const parts = a.dataFechamento.split('/')

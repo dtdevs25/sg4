@@ -85,6 +85,13 @@ function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
   return false
 }
 
+function isDssAssinado(assinadoStr?: string | null) {
+  if (!assinadoStr) return false
+  const s = assinadoStr.toLowerCase().trim()
+  if (s.includes('não') || s.includes('nao') || s.includes('pendente')) return false
+  return true
+}
+
 /* ── Componentes de UI ── */
 function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark, onClick }: any) {
   return (
@@ -101,16 +108,26 @@ function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark,
     >
       <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: 0.3 }}>{label}</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
-            <div style={{ width: 2, height: 32, background: 'rgba(255,255,255,0.3)' }} />
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: 0.3 }}>{label}</p>
+            {subtitle && (
+              <>
+                <div style={{ width: 2, height: 16, background: 'rgba(255,255,255,0.4)' }} />
+                <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: 600 }}>Meta: {subtitle}</span>
+              </>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 700, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Realizados</span>
+            </div>
+            <div style={{ width: 2, height: 40, background: 'rgba(255,255,255,0.3)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 700 }}>concluído</span>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 700, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Concluído</span>
             </div>
           </div>
-          {subtitle && <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: 600, marginTop: 10, background: 'rgba(0,0,0,0.15)', padding: '4px 8px', borderRadius: 6, display: 'inline-block', alignSelf: 'flex-start' }}>Meta: {subtitle}</div>}
         </div>
         <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
       </div>
@@ -271,10 +288,12 @@ export default function DashboardPage() {
   const ANOS = Array.from(anosSet).sort().reverse()
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
-  const dssAno = ano ? dssArkiumDb.filter(a => {
+  const dssArkiumValidos = dssArkiumDb.filter(a => isDssAssinado(a.assinado))
+
+  const dssAno = ano ? dssArkiumValidos.filter(a => {
     const { year } = getArkiumMonthYear(a.dataFechamento)
     return year.toString() === ano
-  }) : dssArkiumDb
+  }) : dssArkiumValidos
 
   const inspAno = ano ? inspecoesArkiumDb.filter(a => {
     const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
