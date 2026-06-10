@@ -153,14 +153,14 @@ function CustomXAxisTick({ x, y, payload, width }: any) {
         </text>
       )}
 
-      {/* Linha vertical separadora das colunas - mais visível (cinza médio/escuro e tracejado) */}
+      {/* Linha vertical separadora das colunas — centered at right edge of tick group */}
       <line
         x1={width / 2}
-        y1={-360}
+        y1={-450}
         x2={width / 2}
         y2={-4}
-        stroke="#cbd5e1"
-        strokeWidth={1.5}
+        stroke="#94a3b8"
+        strokeWidth={1}
         strokeDasharray="4 3"
       />
     </g>
@@ -779,7 +779,7 @@ export default function DashboardPage() {
             }
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50 }} onClick={(data: any) => {
+              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50, top: 30 }} onClick={(data: any) => {
                 if (data && data.activePayload && data.activePayload.length > 0) {
                   setModalData(data.activePayload[0].payload)
                 }
