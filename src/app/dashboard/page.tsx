@@ -94,50 +94,65 @@ function isDssAssinado(assinadoStr?: string | null) {
 
 /* ── Tick personalizado do gráfico com foto ── */
 function CustomXAxisTick({ x, y, payload }: any) {
-  // barData tem { nome, nomeAbrev, fotoUrl, ... }
-  // payload.value = nomeAbrev, precisamos encontrar fotoUrl
-  // Passamos os dados completos via tickDataMap definido no scope do componente pai
   const tickData = (window as any).__barDataMap?.[payload.value]
   const fotoUrl = tickData?.fotoUrl
-  const size = 32
+  const size = 42
   const clipId = `clip-${payload.value.replace(/\s/g, '-').replace(/\./g, '')}`
 
   return (
-    <g transform={`translate(${x},${y})`}>
+    <g transform={`translate(${x},${y + 4})`}>
       <defs>
         <clipPath id={clipId}>
-          <circle cx={0} cy={size / 2 + 4} r={size / 2} />
+          <circle cx={0} cy={size / 2 + 2} r={size / 2} />
         </clipPath>
       </defs>
+      {/* borda/anel ao redor da foto */}
+      <circle cx={0} cy={size / 2 + 2} r={size / 2 + 2} fill="#ede9f6" />
       {fotoUrl ? (
         <image
           href={fotoUrl}
           x={-size / 2}
-          y={4}
+          y={2}
           width={size}
           height={size}
           clipPath={`url(#${clipId})`}
-          style={{ objectFit: 'cover' }}
+          preserveAspectRatio="xMidYMid slice"
         />
       ) : (
         <>
-          <circle cx={0} cy={size / 2 + 4} r={size / 2} fill="#8e44ad" />
-          <text x={0} y={size / 2 + 9} textAnchor="middle" fill="#fff" fontSize={11} fontWeight={700}>
+          <circle cx={0} cy={size / 2 + 2} r={size / 2} fill="#8e44ad" />
+          <text x={0} y={size / 2 + 7} textAnchor="middle" fill="#fff" fontSize={13} fontWeight={700}>
             {payload.value.slice(0, 2).toUpperCase()}
           </text>
         </>
       )}
       <text
         x={0}
-        y={size + 16}
+        y={size + 20}
         textAnchor="middle"
-        fill="#64748b"
+        fill="#475569"
         fontSize={10}
         fontWeight={700}
       >
         {payload.value}
       </text>
     </g>
+  )
+}
+
+/* ── Separador vertical entre grupos de barras ── */
+function GroupDivider(props: any) {
+  const { x, y, width, height } = props
+  return (
+    <line
+      x1={x + width + 3}
+      y1={y}
+      x2={x + width + 3}
+      y2={y + height}
+      stroke="#e2e8f0"
+      strokeWidth={1.5}
+      strokeDasharray="4 3"
+    />
   )
 }
 
@@ -593,7 +608,7 @@ export default function DashboardPage() {
                 
                 <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
                 <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
-                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} background={<GroupDivider />} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
