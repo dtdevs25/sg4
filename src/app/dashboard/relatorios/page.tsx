@@ -315,43 +315,31 @@ export default function RelatoriosAtividadesPage() {
 
   // --- Render ---
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+    <div className="flex flex-col gap-[24px] pb-[40px]">
       
       {/* HEADER */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-[14px_20px] flex items-center justify-between flex-wrap gap-[16px]">
+        <div className="flex items-baseline gap-[10px]">
+          <h1 className="text-[20px] font-extrabold text-[#1e293b] m-0 flex items-center gap-[8px]">
             <FileText color="#660099" size={22} />
             Lançamento de Atividades (Relatórios)
           </h1>
         </div>
-        
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button onClick={() => setShowGerarPdfModal(true)} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(34,197,94,0.3)', fontSize: 13 }}>
+        <div className="flex gap-[12px] items-center w-full md:w-auto overflow-x-auto">
+          <button onClick={() => setShowGerarPdfModal(true)} className="bg-[#22c55e] text-white border-none p-[8px_16px] rounded-[8px] font-bold flex items-center gap-[8px] cursor-pointer shadow-[0_4px_12px_rgba(34,197,94,0.3)] text-[13px] whitespace-nowrap">
             <Printer size={16} /> Gerar PDF
           </button>
-          <button onClick={() => setShowNovaAtividade(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(59,130,246,0.3)', fontSize: 13 }}>
+          <button onClick={() => setShowNovaAtividade(true)} className="bg-[#3b82f6] text-white border-none p-[8px_16px] rounded-[8px] font-bold flex items-center gap-[8px] cursor-pointer shadow-[0_4px_12px_rgba(59,130,246,0.3)] text-[13px] whitespace-nowrap">
             <Plus size={16} /> Lançar Atividade
           </button>
         </div>
       </div>
 
       {/* DASHBOARD CONSOLIDADO & FILTROS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[24px]">
         
         {/* FILTROS DE MESES E ANO */}
-        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
+        <div className="bg-white border border-[#f1f5f9] rounded-[10px] p-[20px] flex flex-col gap-[12px] lg:col-span-2">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
             <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer' }}>
@@ -408,9 +396,7 @@ export default function RelatoriosAtividadesPage() {
         {/* CARD CONSOLIDADO */}
         <div
           onClick={() => setShowGraficoModal(true)}
-          style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-          onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(102,0,153,0.15)')}
-          onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)')}
+          className="bg-white border border-[#f1f5f9] rounded-[10px] p-[16px_20px] flex flex-col justify-center cursor-pointer transition-all duration-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(102,0,153,0.15)]"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Consolidado do Período</span>
@@ -433,10 +419,10 @@ export default function RelatoriosAtividadesPage() {
       </div>
 
       {/* TABELA GERAL */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="flex flex-col gap-[16px]">
         {/* Search Bar matching other modules */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
-          <div style={{ position: 'relative', width: 300 }}>
+        <div className="flex flex-col md:flex-row items-center justify-between bg-white p-[12px_20px] rounded-[10px] border border-[#f1f5f9] gap-[16px]">
+          <div className="relative w-full md:w-[300px]">
             <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
             <input
               type="text"
@@ -448,9 +434,9 @@ export default function RelatoriosAtividadesPage() {
           </div>
         </div>
 
-        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="bg-white border border-[#f1f5f9] rounded-[10px] overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full border-collapse text-left min-w-[1000px]">
               <thead style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                 <tr>
                   <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>DATA</th>
@@ -525,7 +511,7 @@ export default function RelatoriosAtividadesPage() {
         
         {/* PAGINATION CONTROLS */}
         {filteredAtividades.length > 0 && (
-          <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="flex flex-col md:flex-row items-center justify-between p-[16px_20px] bg-[#f8fafc] border-t border-[#f1f5f9] gap-[16px]">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
                 Mostrando de {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, filteredAtividades.length)} de {filteredAtividades.length} atividades
@@ -570,12 +556,8 @@ export default function RelatoriosAtividadesPage() {
 
       {/* MODAL NOVA ATIVIDADE */}
       {showNovaAtividade && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ 
-            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600,
-            display: 'flex', flexDirection: 'column',
-            maxHeight: '90vh', overflow: 'hidden'
-          }}>
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
+          <div className="bg-white rounded-[16px] w-full max-w-[600px] flex flex-col max-h-[90vh] overflow-hidden">
             {/* Modal Header Fixo Roxo */}
             <div style={{
               background: '#660099', padding: '20px 24px',
@@ -728,12 +710,8 @@ export default function RelatoriosAtividadesPage() {
 
       {/* MODAL EDITAR ATIVIDADE */}
       {showEditModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ 
-            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600,
-            display: 'flex', flexDirection: 'column',
-            maxHeight: '90vh', overflow: 'hidden'
-          }}>
+        <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
+          <div className="bg-white rounded-[16px] w-full max-w-[600px] flex flex-col max-h-[90vh] overflow-hidden">
             <div style={{
               background: '#660099', padding: '20px 24px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -835,12 +813,8 @@ export default function RelatoriosAtividadesPage() {
 
       {/* MODAL GERAR PDF */}
       {showGerarPdfModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ 
-            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450,
-            display: 'flex', flexDirection: 'column',
-            maxHeight: '90vh', overflow: 'hidden'
-          }}>
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
+          <div className="bg-white rounded-[16px] w-full max-w-[450px] flex flex-col max-h-[90vh] overflow-hidden">
             <div style={{
               background: '#660099', padding: '20px 24px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -897,8 +871,8 @@ export default function RelatoriosAtividadesPage() {
 
       {/* Modal Confirmar Exclusão */}
       {showDeleteModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 24, textAlign: 'center' }}>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
+          <div className="bg-white rounded-[16px] w-full max-w-[400px] p-[24px] text-center">
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <AlertTriangle size={32} />
             </div>
@@ -916,8 +890,8 @@ export default function RelatoriosAtividadesPage() {
 
       {/* Modal Foto */}
       {showPhotoModal && (
-        <div onClick={() => setShowPhotoModal(null)} style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <img src={showPhotoModal} alt="Foto" style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }} />
+        <div onClick={() => setShowPhotoModal(null)} className="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(0,0,0,0.8)] backdrop-blur-[4px] p-[20px] cursor-pointer">
+          <img src={showPhotoModal} alt="Foto" className="max-w-full max-h-[90vh] rounded-[8px] object-contain cursor-default" onClick={e => e.stopPropagation()} />
         </div>
       )}
 
@@ -956,8 +930,8 @@ export default function RelatoriosAtividadesPage() {
         const pieSlices = buildPie()
 
         return (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-            <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
+          <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
+            <div className="bg-white rounded-[16px] w-full max-w-[700px] flex flex-col max-h-[90vh] overflow-hidden">
               {/* Header */}
               <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

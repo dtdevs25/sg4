@@ -90,31 +90,25 @@ function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark,
   return (
     <div 
       onClick={onClick}
-      style={{
-        background: bg, borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-        overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform .15s', display: 'flex', flexDirection: 'column',
-        justifyContent: 'space-between', flex: 1,
-      }}
-      onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
-      onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
+      className={`rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col justify-between flex-1 transition-transform duration-150 ${onClick ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'}`}
+      style={{ background: bg }}
     >
-      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: 0.3 }}>{label}</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
-            <div style={{ width: 2, height: 32, background: 'rgba(255,255,255,0.3)' }} />
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 700 }}>concluído</span>
+      <div className="p-[12px_16px] flex justify-between items-center">
+        <div className="flex flex-col">
+          <p className="text-white text-[16px] font-bold mb-[8px] tracking-[0.3px]">{label}</p>
+          <div className="flex items-center gap-[12px]">
+            <h3 className="text-white text-[36px] font-extrabold leading-none tracking-[-1px] m-0">{value}</h3>
+            <div className="w-[2px] h-[32px] bg-[rgba(255,255,255,0.3)]" />
+            <div className="flex items-baseline gap-[6px]">
+              <span className="text-white text-[36px] font-extrabold leading-none tracking-[-1px]">{percent}%</span>
+              <span className="text-[rgba(255,255,255,0.85)] text-[14px] font-bold">concluído</span>
             </div>
           </div>
-          {subtitle && <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: 600, marginTop: 10, background: 'rgba(0,0,0,0.15)', padding: '4px 8px', borderRadius: 6, display: 'inline-block', alignSelf: 'flex-start' }}>Meta: {subtitle}</div>}
+          {subtitle && <div className="text-[rgba(255,255,255,0.9)] text-[12px] font-semibold mt-[10px] bg-[rgba(0,0,0,0.15)] px-[8px] py-[4px] rounded-[6px] inline-block self-start">Meta: {subtitle}</div>}
         </div>
-        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+        <Icon size={72} strokeWidth={1.2} className="text-[rgba(255,255,255,0.25)] shrink-0" />
       </div>
-      <div style={{ height: 10, background: bgDark }} />
+      <div className="h-[10px]" style={{ background: bgDark }} />
     </div>
   )
 }
@@ -123,59 +117,30 @@ function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: a
   return (
     <div 
       onClick={onClick}
-      style={{
-        background: bg,
-        borderRadius: 10,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-        overflow: 'hidden',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform .15s',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        flex: 1,
-      }}
-      onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
-      onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
+      className={`rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col justify-between flex-1 transition-transform duration-150 ${onClick ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'}`}
+      style={{ background: bg }}
     >
-      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="p-[12px_16px] flex justify-between items-center">
         <div>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>{label}</p>
-          <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{value}</h3>
-          {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, marginTop: 6, background: 'rgba(0,0,0,0.1)', padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>{subtitle}</div>}
+          <p className="text-white text-[16px] font-bold mb-[4px] tracking-[0.3px]">{label}</p>
+          <h3 className="text-white text-[36px] font-extrabold leading-none tracking-[-1px]">{value}</h3>
+          {subtitle && <div className="text-[rgba(255,255,255,0.85)] text-[13px] font-semibold mt-[6px] bg-[rgba(0,0,0,0.1)] px-[8px] py-[2px] rounded-[4px] inline-block">{subtitle}</div>}
         </div>
-        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+        <Icon size={72} strokeWidth={1.2} className="text-[rgba(255,255,255,0.25)] shrink-0" />
       </div>
-      <div style={{ height: 10, background: bgDark }} />
+      <div className="h-[10px]" style={{ background: bgDark }} />
     </div>
   )
 }
 
 function ChartCard({ icon: Icon, title, children, style }: any) {
   return (
-    <div style={{
-      background: '#fff',
-      borderRadius: 10,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      ...style,
-    }}>
-      <div style={{
-        background: RED,
-        padding: '14px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        color: '#fff',
-        fontWeight: 700,
-        fontSize: 15,
-      }}>
+    <div className="bg-white rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col" style={style}>
+      <div className="bg-[#660099] p-[14px_18px] flex items-center gap-[10px] text-white font-bold text-[15px]">
         <Icon size={18} />
         <span>{title}</span>
       </div>
-      <div style={{ flex: 1, padding: 20, overflow: 'hidden' }}>
+      <div className="flex-1 p-[20px] overflow-hidden">
         {children}
       </div>
     </div>
@@ -359,7 +324,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+    <div className="flex flex-col gap-[24px] pb-[40px]">
 
       {/* ── Modal de Detalhes ── */}
       {modalData && (
@@ -409,23 +374,12 @@ export default function DashboardPage() {
       )}
 
       {/* ── Barra superior com Filtros ── */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-[14px_20px] flex items-center justify-between flex-wrap gap-[16px]">
+        <div className="flex items-baseline gap-[10px] flex-wrap">
+          <h1 className="text-[20px] font-extrabold text-[#1e293b] m-0">
             Olá, {firstName}!
           </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
+          <span className="text-[14px] text-[#94a3b8] font-medium hidden sm:inline">
             Bem-vindo ao painel SG4
           </span>
         </div>
@@ -466,7 +420,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── 4 Stat cards ── */}
-      <div style={{ display: 'flex', gap: 20 }}>
+      <div className="flex flex-col lg:flex-row gap-[20px]">
         <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#660099" bgDark="#4a0072" />
         <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#8e44ad" bgDark="#732d91" />
         <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#9c27b0" bgDark="#7b1fa2" />
@@ -474,10 +428,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Charts & Rankings (2/3 + 1/3) ── */}
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div className="flex flex-col lg:flex-row gap-[20px] items-start">
 
         {/* Coluna Esquerda: Gráfico BarChart */}
-        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="flex-[2] flex flex-col gap-[20px] w-full">
           <ChartCard icon={FileText} title="Desempenho por Técnico" style={{ height: 500 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50 }} onClick={(data: any) => {
@@ -505,7 +459,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Coluna Direita: Rankings */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="flex-1 flex flex-col gap-[20px] w-full">
           
           {/* Ranking DSS */}
           <ChartCard icon={Target} title="Ranking - DSS" style={{ height: 240 }}>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -272,6 +272,12 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
+  useEffect(() => {
+    const handleToggle = () => setMobileOpen(p => !p)
+    window.addEventListener('toggleSidebar', handleToggle)
+    return () => window.removeEventListener('toggleSidebar', handleToggle)
+  }, [])
+
   return (
     <>
       {/* Tooltip CSS */}
@@ -279,37 +285,18 @@ export function Sidebar() {
         .nav-item-wrap:hover .nav-tooltip { opacity: 1 !important; }
       `}</style>
 
-      {/* Mobile toggle */}
-      <button
-        className="md:hidden"
-        style={{
-          position: 'fixed', top: 24, left: 16, zIndex: 200,
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: '#94a3b8', padding: 6, borderRadius: 8,
-        }}
-        onClick={() => setMobileOpen(p => !p)}
-      >
-        {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-      </button>
-
       {/* Mobile drawer */}
       {mobileOpen && (
         <div
-          className="md:hidden"
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 150, backdropFilter: 'blur(4px)' }}
+          className="md:hidden fixed inset-0 bg-[rgba(0,0,0,0.5)] z-[150] backdrop-blur-[4px]"
           onClick={() => setMobileOpen(false)}
         >
           <aside
-            style={{
-              position: 'absolute', left: 0, top: 0, height: '100%', width: 288,
-              background: '#fff', display: 'flex', flexDirection: 'column',
-              boxShadow: '4px 0 24px rgba(0,0,0,0.15)',
-              borderRight: '1px solid #f1f5f9',
-            }}
+            className="absolute left-0 top-0 h-full w-[288px] bg-white flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.15)] border-r border-[#f1f5f9]"
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ padding: 16, display: 'flex', justifyContent: 'flex-end', borderBottom: '1px solid #f1f5f9' }}>
-              <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', borderRadius: 10, padding: 8, cursor: 'pointer', color: '#94a3b8' }}>
+            <div className="p-[16px] flex justify-end border-b border-[#f1f5f9]">
+              <button onClick={() => setMobileOpen(false)} className="bg-transparent border-none rounded-[10px] p-[8px] cursor-pointer text-[#94a3b8] hover:bg-[#f1f5f9] transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -320,16 +307,7 @@ export function Sidebar() {
 
       {/* Desktop sidebar */}
       <aside
-        className="hidden md:flex flex-col"
-        style={{
-          background: '#ffffff',
-          width: collapsed ? 76 : 272,
-          transition: 'width 0.35s ease',
-          flexShrink: 0,
-          position: 'relative',
-          borderRight: '1px solid #f1f5f9',
-          boxShadow: '2px 0 8px rgba(0,0,0,0.04)',
-        }}
+        className={`hidden md:flex flex-col bg-white shrink-0 relative border-r border-[#f1f5f9] shadow-[2px_0_8px_rgba(0,0,0,0.04)] transition-[width] duration-350 ease-in-out ${collapsed ? 'w-[76px]' : 'w-[272px]'}`}
       >
         {/* Collapse toggle */}
         <div style={{ position: 'absolute', right: -12, top: 44, zIndex: 10 }}>

@@ -95,49 +95,26 @@ export default function AtividadesEntregasPage() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+    <div className="flex flex-col gap-[24px] pb-[40px]">
       {/* CABEÇALHO UNIFICADO */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-[14px_20px] flex items-center justify-between flex-wrap gap-[16px]">
+        <div className="flex items-baseline gap-[10px]">
+          <h1 className="text-[20px] font-extrabold text-[#1e293b] m-0 flex items-center gap-[8px]">
             <Activity color="#660099" size={22} />
             Gestão Operacional e Entregas
           </h1>
         </div>
 
-        <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4 }}>
+        <div className="flex bg-[#f1f5f9] p-[4px] rounded-[8px] gap-[4px] overflow-x-auto w-full md:w-auto">
           <button
             onClick={() => setActiveTab('atividades')}
-            style={{
-              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-              fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-              background: activeTab === 'atividades' ? '#fff' : 'transparent',
-              color: activeTab === 'atividades' ? '#660099' : '#64748b',
-              boxShadow: activeTab === 'atividades' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-            }}
+            className={`whitespace-nowrap px-[16px] py-[6px] rounded-[6px] border-none cursor-pointer text-[13px] font-bold transition-all duration-200 ${activeTab === 'atividades' ? 'bg-white text-[#660099] shadow-[0_1px_3px_rgba(0,0,0,0.1)]' : 'bg-transparent text-[#64748b]'}`}
           >
             Atividades Diárias
           </button>
           <button
             onClick={() => setActiveTab('entregas')}
-            style={{
-              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-              fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-              background: activeTab === 'entregas' ? '#fff' : 'transparent',
-              color: activeTab === 'entregas' ? '#660099' : '#64748b',
-              boxShadow: activeTab === 'entregas' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-            }}
+            className={`whitespace-nowrap px-[16px] py-[6px] rounded-[6px] border-none cursor-pointer text-[13px] font-bold transition-all duration-200 ${activeTab === 'entregas' ? 'bg-white text-[#660099] shadow-[0_1px_3px_rgba(0,0,0,0.1)]' : 'bg-transparent text-[#64748b]'}`}
           >
             Controle de Entregas
           </button>
@@ -158,11 +135,11 @@ export default function AtividadesEntregasPage() {
       {activeTab === 'atividades' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* Filtros Atividades */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, flex: 1 }}>
-              <div style={{ position: 'relative', minWidth: 200, flex: 1 }}>
-                <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
-                <input type="text" placeholder="Buscar por descrição, local..." value={searchAct} onChange={(e) => setSearchAct(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
+          <div className="flex flex-col lg:flex-row items-center justify-between bg-white p-[12px_20px] rounded-[10px] border border-[#f1f5f9] flex-wrap gap-[12px]">
+            <div className="flex flex-wrap gap-[12px] flex-1 w-full lg:w-auto">
+              <div className="relative min-w-[200px] flex-1">
+                <Search size={16} className="absolute left-[12px] top-[10px] text-[#94a3b8]" />
+                <input type="text" placeholder="Buscar por descrição, local..." value={searchAct} onChange={(e) => setSearchAct(e.target.value)} className="w-full p-[8px_16px_8px_36px] rounded-[8px] border border-[#e2e8f0] text-[13px] outline-none" />
               </div>
               <select value={filterRespAct} disabled={role === 'TST'} onChange={(e) => setFilterRespAct(e.target.value)} style={{ width: 220, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
                 <option value="TODOS">Todos os Técnicos</option>
@@ -172,13 +149,14 @@ export default function AtividadesEntregasPage() {
                 <option value="TODOS">Todas as Categorias</option>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+              </div>
             </div>
-            <div style={{ fontSize: 13, color: '#64748b' }}>Encontradas: <b>{filteredAct.length}</b> atividades</div>
+            <div className="text-[13px] text-[#64748b]">Encontradas: <b>{filteredAct.length}</b> atividades</div>
           </div>
 
-          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div className="bg-white border border-[#f1f5f9] rounded-[10px] overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full border-collapse text-left min-w-[800px]">
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                     <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
@@ -225,8 +203,8 @@ export default function AtividadesEntregasPage() {
       {activeTab === 'entregas' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* KPI Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
-            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[20px]">
+            <div className="bg-white border border-[#f1f5f9] rounded-[10px] p-[20px] flex flex-col justify-between">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Eficiência</span>
                 <Award color="#10b981" size={18} />
@@ -239,7 +217,7 @@ export default function AtividadesEntregasPage() {
                 <div style={{ background: '#10b981', height: '100%', width: `${eficienciaEnt}%` }} />
               </div>
             </div>
-            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div className="bg-white border border-[#f1f5f9] rounded-[10px] p-[20px] flex flex-col justify-between">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atrasados</span>
                 <ShieldAlert color="#ef4444" size={16} />
@@ -251,19 +229,19 @@ export default function AtividadesEntregasPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 1 }}>
+          <div className="flex flex-col md:flex-row items-center justify-between bg-white p-[12px_20px] rounded-[10px] border border-[#f1f5f9] flex-wrap gap-[12px]">
+            <div className="flex flex-wrap gap-[12px] flex-1 w-full md:w-auto">
               <select value={selectedTecnicoEnt} disabled={role === 'TST'} onChange={(e) => setSelectedTecnicoEnt(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b', fontWeight: 600 }}>
                 <option value="TODOS">Todos os Técnicos</option>
                 {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-            <div style={{ fontSize: 13, color: '#64748b' }}>Encontradas: <b>{filteredEnt.length}</b> entregas</div>
+            <div className="text-[13px] text-[#64748b]">Encontradas: <b>{filteredEnt.length}</b> entregas</div>
           </div>
 
-          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div className="bg-white border border-[#f1f5f9] rounded-[10px] overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full border-collapse text-left min-w-[700px]">
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                     <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Período</th>
@@ -304,8 +282,8 @@ export default function AtividadesEntregasPage() {
 
       {/* --- MODAIS DE INSERÇÃO SIMPLIFICADOS (Atividades e Entregas) --- */}
       {showAddAct && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 600, padding: 24 }}>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[16px]">
+          <div className="bg-white rounded-[16px] w-full max-w-[600px] p-[24px]">
             <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20 }}>Lançar Atividade</h2>
             <form onSubmit={handleCreateAct} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
@@ -322,8 +300,8 @@ export default function AtividadesEntregasPage() {
       )}
 
       {showAddEnt && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24 }}>
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[16px]">
+          <div className="bg-white rounded-[16px] w-full max-w-[500px] p-[24px]">
             <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20 }}>Lançar Entrega</h2>
             <form onSubmit={handleCreateEnt} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
