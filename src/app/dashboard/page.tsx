@@ -304,8 +304,9 @@ export default function DashboardPage() {
 
   const currentYear = new Date().getFullYear().toString()
   const [ano, setAno] = useState<string>(currentYear)
-  const [mes, setMes] = useState<string | null>(null)
-  const [modalData, setModalData] = useState<any>(null) // Modal state
+  const [meses, setMeses] = useState<string[]>([]) // multi-select de meses
+  const [legendaAtiva, setLegendaAtiva] = useState<string[]>(['dss', 'insp', 'rel']) // filtro de legenda
+  const [modalData, setModalData] = useState<any>(null)
 
   const [atividadesDb, setAtividadesDb] = useState<any[]>([])
   const [tecnicosDb, setTecnicosDb] = useState<any[]>([])
@@ -386,17 +387,17 @@ export default function DashboardPage() {
     }
   })
 
-  const dssFiltrados = mes
-    ? dssAno.filter(a => { const { month } = getArkiumMonthYear(a.dataFechamento); return month >= 1 && month <= 12 && MESES[month - 1] === mes })
+  const dssFiltrados = meses.length > 0
+    ? dssAno.filter(a => { const { month } = getArkiumMonthYear(a.dataFechamento); return month >= 1 && month <= 12 && meses.includes(MESES[month - 1]) })
     : dssAno
 
-  const inspFiltradas = mes
-    ? inspAno.filter(a => { const { month } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); return month >= 1 && month <= 12 && MESES[month - 1] === mes })
+  const inspFiltradas = meses.length > 0
+    ? inspAno.filter(a => { const { month } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); return month >= 1 && month <= 12 && meses.includes(MESES[month - 1]) })
     : inspAno
 
   // Dados de Relatório de Atividades
-  const relatoriosFiltrados = mes 
-    ? relatoriosAno.filter(r => new Date(r.data).getUTCMonth() === MESES.indexOf(mes))
+  const relatoriosFiltrados = meses.length > 0
+    ? relatoriosAno.filter(r => meses.includes(MESES[new Date(r.data).getUTCMonth()]))
     : relatoriosAno
   const totalRelatorios = relatoriosFiltrados.length
 
@@ -423,12 +424,17 @@ export default function DashboardPage() {
   // Lógica de Metas
   const nTecnicos = tecnicosDb.filter(t => t.ativo).length || 1
   const numYears = ano ? 1 : (ANOS.length || 1)
-  const metaDssTotal = mes ? (nTecnicos * META_DSS_POR_TEC * numYears) : (nTecnicos * META_DSS_POR_TEC * 12 * numYears)
-  const metaInspTotal = mes ? (nTecnicos * META_INSP_POR_TEC * numYears) : (nTecnicos * META_INSP_POR_TEC * 12 * numYears)
+  const numMeses = meses.length > 0 ? meses.length : 12
+  const metaDssTotal = nTecnicos * META_DSS_POR_TEC * numMeses * numYears
+  const metaInspTotal = nTecnicos * META_INSP_POR_TEC * numMeses * numYears
 
   // Valores reais baseados no filtro
-  const totalDss = mes ? dadosMensais[mes].dss : Object.values(dadosMensais).reduce((a, v) => a + v.dss, 0)
-  const totalInsp = mes ? dadosMensais[mes].insp : Object.values(dadosMensais).reduce((a, v) => a + v.insp, 0)
+  const totalDss = meses.length > 0
+    ? meses.reduce((acc, m) => acc + (dadosMensais[m]?.dss || 0), 0)
+    : Object.values(dadosMensais).reduce((a, v) => a + v.dss, 0)
+  const totalInsp = meses.length > 0
+    ? meses.reduce((acc, m) => acc + (dadosMensais[m]?.insp || 0), 0)
+    : Object.values(dadosMensais).reduce((a, v) => a + v.insp, 0)
 
   // Percentuais
   const pctDss = metaDssTotal > 0 ? Math.round((totalDss / metaDssTotal) * 100) : 0
@@ -437,8 +443,8 @@ export default function DashboardPage() {
 
 
   // Dados de Quilometragem (média)
-  const kmFiltrados = mes 
-    ? kmAno.filter(k => new Date(k.dataInicial).getUTCMonth() === MESES.indexOf(mes))
+  const kmFiltrados = meses.length > 0
+    ? kmAno.filter(k => meses.includes(MESES[new Date(k.dataInicial).getUTCMonth()]))
     : kmAno
   const kmsValidos = kmFiltrados.filter(k => k.diferenca != null && k.diferenca > 0)
   const totalKm = kmsValidos.reduce((acc, k) => acc + (k.diferenca || 0), 0)
@@ -491,7 +497,9 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>{modalData.nome}</p>
-                  <p style={{ fontSize: 13, color: '#64748b', fontWeight: 500, margin: 0 }}>{mes ? `Dados de ${mes}/${ano}` : `Acumulado ${ano}`}</p>
+                  <p style={{ fontSize: 13, color: '#64748b', fontWeight: 500, margin: 0 }}>
+                    {meses.length > 0 ? `Dados de ${meses.join(', ')}/${ano || 'Todos'}` : `Acumulado ${ano || 'Geral'}`}
+                  </p>
                 </div>
               </div>
               
@@ -557,20 +565,35 @@ export default function DashboardPage() {
             <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 11, pointerEvents: 'none', color: '#94a3b8' }} />
           </div>
 
-          <div style={{ position: 'relative' }}>
-            <select
-              value={mes || ''}
-              onChange={e => setMes(e.target.value || null)}
-              style={{
-                appearance: 'none', background: '#f8fafc', border: '1px solid #e2e8f0',
-                borderRadius: 8, padding: '8px 36px 8px 16px', fontSize: 13,
-                fontWeight: 600, color: '#475569', cursor: 'pointer', outline: 'none'
-              }}
-            >
-              <option value="">Geral (Acumulado)</option>
-              {MESES.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 11, pointerEvents: 'none', color: '#94a3b8' }} />
+          {/* Multi-select de meses — chips clicáveis */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', marginRight: 2 }}>MÊSES:</span>
+            {MESES.map(m => {
+              const ativo = meses.includes(m)
+              return (
+                <button
+                  key={m}
+                  onClick={() => setMeses(prev => ativo ? prev.filter(x => x !== m) : [...prev, m])}
+                  style={{
+                    padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+                    cursor: 'pointer', border: `1.5px solid ${ativo ? '#660099' : '#e2e8f0'}`,
+                    background: ativo ? '#660099' : '#f8fafc',
+                    color: ativo ? '#fff' : '#64748b',
+                    transition: 'all .15s'
+                  }}
+                >
+                  {m}
+                </button>
+              )
+            })}
+            {meses.length > 0 && (
+              <button
+                onClick={() => setMeses([])}
+                style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid #e2e8f0', background: '#fff1f2', color: '#e11d48' }}
+              >
+                Limpar
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -604,11 +627,30 @@ export default function DashboardPage() {
                 />
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(102,0,153,0.04)', cursor: 'pointer' }} />
-                <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingBottom: 16 }} />
-                
-                <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
-                <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
-                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} background={<GroupDivider />} />
+                <Legend
+                  verticalAlign="top"
+                  align="right"
+                  wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingBottom: 16, cursor: 'pointer' }}
+                  onClick={(e: any) => {
+                    const key = e.dataKey as string
+                    setLegendaAtiva(prev =>
+                      prev.includes(key)
+                        ? prev.length === 1 ? ['dss', 'insp', 'rel'] : prev.filter(k => k !== key)
+                        : [...prev, key]
+                    )
+                  }}
+                  formatter={(value: string, entry: any) => (
+                    <span style={{
+                      color: legendaAtiva.includes(entry.dataKey) ? '#1e293b' : '#cbd5e1',
+                      textDecoration: legendaAtiva.includes(entry.dataKey) ? 'none' : 'line-through',
+                      transition: 'all .2s'
+                    }}>{value}</span>
+                  )}
+                />
+
+                {legendaAtiva.includes('dss') && <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />}
+                {legendaAtiva.includes('insp') && <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />}
+                {legendaAtiva.includes('rel') && <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} background={<GroupDivider />} />}
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
