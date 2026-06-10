@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
@@ -98,44 +98,60 @@ function CustomXAxisTick({ x, y, payload, width }: any) {
   const fotoUrl = tickData?.fotoUrl
   const size = 36
   const clipId = `clip-${payload.value.replace(/\s/g, '-').replace(/\./g, '')}`
+  const mostrarFotos = (window as any).__mostrarFotosGrafico !== false
 
   return (
     <g transform={`translate(${x},${y + 4})`}>
-      <defs>
-        <clipPath id={clipId}>
-          <circle cx={0} cy={size / 2 + 2} r={size / 2} />
-        </clipPath>
-      </defs>
-      {/* borda/anel ao redor da foto */}
-      <circle cx={0} cy={size / 2 + 2} r={size / 2 + 2} fill="#ede9f6" />
-      {fotoUrl ? (
-        <image
-          href={fotoUrl}
-          x={-size / 2}
-          y={2}
-          width={size}
-          height={size}
-          clipPath={`url(#${clipId})`}
-          preserveAspectRatio="xMidYMid slice"
-        />
-      ) : (
+      {mostrarFotos ? (
         <>
-          <circle cx={0} cy={size / 2 + 2} r={size / 2} fill="#8e44ad" />
-          <text x={0} y={size / 2 + 7} textAnchor="middle" fill="#fff" fontSize={11} fontWeight={700}>
-            {payload.value.slice(0, 2).toUpperCase()}
+          <defs>
+            <clipPath id={clipId}>
+              <circle cx={0} cy={size / 2 + 2} r={size / 2} />
+            </clipPath>
+          </defs>
+          {/* borda/anel ao redor da foto */}
+          <circle cx={0} cy={size / 2 + 2} r={size / 2 + 2} fill="#ede9f6" />
+          {fotoUrl ? (
+            <image
+              href={fotoUrl}
+              x={-size / 2}
+              y={2}
+              width={size}
+              height={size}
+              clipPath={`url(#${clipId})`}
+              preserveAspectRatio="xMidYMid slice"
+            />
+          ) : (
+            <>
+              <circle cx={0} cy={size / 2 + 2} r={size / 2} fill="#8e44ad" />
+              <text x={0} y={size / 2 + 7} textAnchor="middle" fill="#fff" fontSize={11} fontWeight={700}>
+                {payload.value.slice(0, 2).toUpperCase()}
+              </text>
+            </>
+          )}
+          <text
+            x={0}
+            y={size + 16}
+            textAnchor="middle"
+            fill="#475569"
+            fontSize={10}
+            fontWeight={700}
+          >
+            {payload.value}
           </text>
         </>
+      ) : (
+        <text
+          x={0}
+          y={14}
+          textAnchor="middle"
+          fill="#475569"
+          fontSize={11}
+          fontWeight={700}
+        >
+          {payload.value}
+        </text>
       )}
-      <text
-        x={0}
-        y={size + 16}
-        textAnchor="middle"
-        fill="#475569"
-        fontSize={10}
-        fontWeight={700}
-      >
-        {payload.value}
-      </text>
 
       {/* Linha vertical separadora das colunas - mais visível (cinza médio/escuro e tracejado) */}
       <line
@@ -243,7 +259,7 @@ function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: a
   )
 }
 
-function ChartCard({ icon: Icon, title, children, style }: any) {
+function ChartCard({ icon: Icon, title, children, style, headerAction }: any) {
   return (
     <div style={{
       background: '#fff',
@@ -259,13 +275,16 @@ function ChartCard({ icon: Icon, title, children, style }: any) {
         padding: '14px 18px',
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
+        justifyContent: 'space-between',
         color: '#fff',
         fontWeight: 700,
         fontSize: 15,
       }}>
-        <Icon size={18} />
-        <span>{title}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Icon size={18} />
+          <span>{title}</span>
+        </div>
+        {headerAction}
       </div>
       <div style={{ flex: 1, padding: 20, overflow: 'hidden' }}>
         {children}
@@ -315,7 +334,32 @@ export default function DashboardPage() {
 
   const currentYear = new Date().getFullYear().toString()
   const [ano, setAno] = useState<string>(currentYear)
-  const [meses, setMeses] = useState<string[]>([]) // multi-select de meses
+  const [meses, setMeses] = useState<string[]>(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']) // multi-select de meses
+  const [mostrarFotosGrafico, setMostrarFotosGrafico] = useState<boolean>(true)
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  function handleMonthClick(m: string) {
+    if (clickTimeout.current) {
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setMeses([m])
+    } else {
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+        setMeses(prev => {
+          if (prev.length === 1 && prev.includes(m)) {
+            return ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+          }
+          if (prev.includes(m)) {
+            return prev.filter(x => x !== m)
+          } else {
+            return [...prev, m]
+          }
+        })
+      }, 250)
+    }
+  }
+
   const [legendaAtiva, setLegendaAtiva] = useState<string[]>(['dss', 'insp', 'rel']) // filtro de legenda
   const [modalData, setModalData] = useState<any>(null)
 
@@ -469,6 +513,7 @@ export default function DashboardPage() {
   // Mapa global para o CustomXAxisTick acessar fotoUrl via nomeAbrev
   if (typeof window !== 'undefined') {
     ;(window as any).__barDataMap = Object.fromEntries(barData.map(t => [t.nomeAbrev, t]))
+    ;(window as any).__mostrarFotosGrafico = mostrarFotosGrafico
   }
 
   // Rankings
@@ -559,7 +604,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Filtros */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          {/* Seletor de Ano */}
           <div style={{ position: 'relative' }}>
             <select
               value={ano}
@@ -576,35 +622,50 @@ export default function DashboardPage() {
             <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 11, pointerEvents: 'none', color: '#94a3b8' }} />
           </div>
 
-          {/* Multi-select de meses — chips clicáveis */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', marginRight: 2 }}>MÊSES:</span>
-            {MESES.map(m => {
-              const ativo = meses.includes(m)
-              return (
-                <button
-                  key={m}
-                  onClick={() => setMeses(prev => ativo ? prev.filter(x => x !== m) : [...prev, m])}
-                  style={{
-                    padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-                    cursor: 'pointer', border: `1.5px solid ${ativo ? '#660099' : '#e2e8f0'}`,
-                    background: ativo ? '#660099' : '#f8fafc',
-                    color: ativo ? '#fff' : '#64748b',
-                    transition: 'all .15s'
-                  }}
-                >
-                  {m}
-                </button>
-              )
-            })}
-            {meses.length > 0 && (
-              <button
-                onClick={() => setMeses([])}
-                style={{ padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid #e2e8f0', background: '#fff1f2', color: '#e11d48' }}
-              >
-                Limpar
-              </button>
-            )}
+          {/* Grid de Meses - 2 Linhas */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 280 }}>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {MESES.slice(0, 6).map(m => {
+                const ativo = meses.includes(m)
+                return (
+                  <button
+                    key={m}
+                    onClick={() => handleMonthClick(m)}
+                    style={{
+                      flex: 1, padding: '6px 10px', borderRadius: 6,
+                      border: ativo ? '1px solid #660099' : '1px solid #e2e8f0',
+                      background: ativo ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                      color: ativo ? '#660099' : '#64748b',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                      userSelect: 'none', textAlign: 'center', minWidth: 42
+                    }}
+                  >
+                    {m}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {MESES.slice(6, 12).map(m => {
+                const ativo = meses.includes(m)
+                return (
+                  <button
+                    key={m}
+                    onClick={() => handleMonthClick(m)}
+                    style={{
+                      flex: 1, padding: '6px 10px', borderRadius: 6,
+                      border: ativo ? '1px solid #660099' : '1px solid #e2e8f0',
+                      background: ativo ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                      color: ativo ? '#660099' : '#64748b',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                      userSelect: 'none', textAlign: 'center', minWidth: 42
+                    }}
+                  >
+                    {m}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -622,7 +683,32 @@ export default function DashboardPage() {
 
         {/* Coluna Esquerda: Gráfico BarChart */}
         <div style={{ flex: 2, minWidth: 300, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <ChartCard icon={FileText} title="Desempenho por Técnico" style={{ height: 500 }}>
+          <ChartCard
+            icon={FileText}
+            title="Desempenho por Técnico"
+            style={{ height: 500 }}
+            headerAction={
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 6, 
+                  fontSize: 12, 
+                  cursor: 'pointer', 
+                  fontWeight: 600, 
+                  userSelect: 'none', 
+                  background: 'rgba(255,255,255,0.15)', 
+                  padding: '4px 10px', 
+                  borderRadius: 20, 
+                  border: '1px solid rgba(255,255,255,0.3)' 
+                }} 
+                onClick={() => setMostrarFotosGrafico(!mostrarFotosGrafico)}
+              >
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: mostrarFotosGrafico ? '#10b981' : '#ef4444' }} />
+                <span>{mostrarFotosGrafico ? 'Fotos Ativas' : 'Apenas Nomes'}</span>
+              </div>
+            }
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50 }} onClick={(data: any) => {
                 if (data && data.activePayload && data.activePayload.length > 0) {
