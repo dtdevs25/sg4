@@ -88,65 +88,64 @@ function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
 /* ── Componentes de UI ── */
 function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark, onClick }: any) {
   return (
-    <div 
+    <div
       onClick={onClick}
       style={{
-        background: bg, borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        background: bg, borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform .15s', display: 'flex', flexDirection: 'column',
-        justifyContent: 'space-between', flex: 1,
+        transition: 'transform .15s, box-shadow .15s', flex: 1, minWidth: 200,
+        display: 'flex', flexDirection: 'column',
       }}
       onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
       onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
     >
-      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: 0.3 }}>{label}</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
-            <div style={{ width: 2, height: 32, background: 'rgba(255,255,255,0.3)' }} />
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 700 }}>concluído</span>
-            </div>
-          </div>
-          {subtitle && <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: 600, marginTop: 10, background: 'rgba(0,0,0,0.15)', padding: '4px 8px', borderRadius: 6, display: 'inline-block', alignSelf: 'flex-start' }}>Meta: {subtitle}</div>}
+      {/* Header bar */}
+      <div style={{ height: 4, background: bgDark }} />
+      <div style={{ padding: '16px 18px', flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <p style={{ color: bgDark, fontSize: 13, fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.85 }}>{label}</p>
+          <Icon size={28} strokeWidth={1.5} style={{ color: bgDark, flexShrink: 0, opacity: 0.4 }} />
         </div>
-        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ color: bgDark, fontSize: 40, fontWeight: 900, lineHeight: 1, letterSpacing: -1 }}>{value}</div>
+            <div style={{ color: bgDark, fontSize: 11, fontWeight: 600, marginTop: 2, opacity: 0.6 }}>realizado</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+              <span style={{ color: bgDark, fontSize: 28, fontWeight: 900, lineHeight: 1 }}>{percent}%</span>
+            </div>
+            <div style={{ color: bgDark, fontSize: 11, fontWeight: 600, opacity: 0.6 }}>concluído</div>
+          </div>
+        </div>
+        {subtitle && <div style={{ color: bgDark, fontSize: 11, fontWeight: 700, marginTop: 10, background: 'rgba(0,0,0,0.08)', padding: '3px 8px', borderRadius: 6, display: 'inline-block', opacity: 0.85 }}>Meta: {subtitle}</div>}
       </div>
-      <div style={{ height: 10, background: bgDark }} />
     </div>
   )
 }
 
 function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: any) {
   return (
-    <div 
+    <div
       onClick={onClick}
       style={{
-        background: bg,
-        borderRadius: 10,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-        overflow: 'hidden',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform .15s',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        flex: 1,
+        background: bg, borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform .15s', flex: 1, minWidth: 160,
+        display: 'flex', flexDirection: 'column',
       }}
       onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
       onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
     >
-      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>{label}</p>
-          <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{value}</h3>
-          {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, marginTop: 6, background: 'rgba(0,0,0,0.1)', padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>{subtitle}</div>}
+      <div style={{ height: 4, background: bgDark }} />
+      <div style={{ padding: '16px 18px', flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <p style={{ color: bgDark, fontSize: 13, fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.85 }}>{label}</p>
+          <Icon size={28} strokeWidth={1.5} style={{ color: bgDark, flexShrink: 0, opacity: 0.4 }} />
         </div>
-        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+        <div style={{ color: bgDark, fontSize: 40, fontWeight: 900, lineHeight: 1, letterSpacing: -1 }}>{value}</div>
+        {subtitle && <div style={{ color: bgDark, fontSize: 11, fontWeight: 600, marginTop: 8, opacity: 0.7 }}>{subtitle}</div>}
       </div>
-      <div style={{ height: 10, background: bgDark }} />
     </div>
   )
 }
@@ -197,11 +196,20 @@ function CustomTooltip({ active, payload, label }: any) {
   )
 }
 
+/* ── Helper: abreviar nome ── */
+function abbreviateName(fullName: string): string {
+  const parts = fullName.trim().split(' ').filter(Boolean)
+  if (parts.length <= 1) return fullName
+  const firstName = parts[0]
+  const lastInitial = parts[parts.length - 1][0].toUpperCase()
+  return `${firstName} ${lastInitial}.`
+}
+
 /* ── Helper de Medalha ── */
 function getMedal(index: number) {
-  if (index === 0) return { bg: 'linear-gradient(135deg, #FDE047 0%, #EAB308 100%)', color: '#713F12', border: '2px solid #CA8A04', label: '1' } // Ouro
-  if (index === 1) return { bg: 'linear-gradient(135deg, #F1F5F9 0%, #CBD5E1 100%)', color: '#334155', border: '2px solid #94A3B8', label: '2' } // Prata
-  if (index === 2) return { bg: 'linear-gradient(135deg, #FED7AA 0%, #F97316 100%)', color: '#7C2D12', border: '2px solid #EA580C', label: '3' } // Bronze
+  if (index === 0) return { bg: 'linear-gradient(135deg, #FDE047 0%, #EAB308 100%)', color: '#713F12', border: '2px solid #CA8A04', label: '1' }
+  if (index === 1) return { bg: 'linear-gradient(135deg, #F1F5F9 0%, #CBD5E1 100%)', color: '#334155', border: '2px solid #94A3B8', label: '2' }
+  if (index === 2) return { bg: 'linear-gradient(135deg, #FED7AA 0%, #F97316 100%)', color: '#7C2D12', border: '2px solid #EA580C', label: '3' }
   return { bg: '#f8fafc', color: '#94a3b8', border: '2px solid transparent', label: (index + 1).toString() }
 }
 
@@ -342,8 +350,8 @@ export default function DashboardPage() {
   const totalKm = kmsValidos.reduce((acc, k) => acc + (k.diferenca || 0), 0)
   const mediaKm = kmsValidos.length > 0 ? Math.round(totalKm / kmsValidos.length) : 0
 
-  // Dados do Gráfico
-  const barData = tecnicosStats
+  // Dados do Gráfico — nomes abreviados
+  const barData = tecnicosStats.map(t => ({ ...t, nome: abbreviateName(t.nome) }))
 
   // Rankings
   const rankDss = [...barData].sort((a, b) => b.dss - a.dss)
@@ -465,12 +473,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── 4 Stat cards ── */}
-      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#660099" bgDark="#4a0072" />
-        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#8e44ad" bgDark="#732d91" />
-        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#9c27b0" bgDark="#7b1fa2" />
-        <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#673ab7" bgDark="#512da8" />
+      {/* ── 4 Stat cards — cores pasteis ── */}
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {/* Lilás pastel — DSS */}
+        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#ede9fe" bgDark="#7c3aed" />
+        {/* Azul céu pastel — Inspeções */}
+        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#e0f2fe" bgDark="#0284c7" />
+        {/* Menta pastel — Relatórios */}
+        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#d1fae5" bgDark="#059669" />
+        {/* Pêssego pastel — Km */}
+        <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#fef3c7" bgDark="#d97706" />
       </div>
 
       {/* ── Charts & Rankings (2/3 + 1/3) ── */}
@@ -488,17 +500,17 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
                   dataKey="nome"
-                  tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }}
-                  tickLine={false} axisLine={false} angle={-25} textAnchor="end" height={70}
+                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                  tickLine={false} axisLine={false} angle={-20} textAnchor="end" height={60}
                   style={{ cursor: 'pointer' }}
                 />
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(102,0,153,0.04)', cursor: 'pointer' }} />
-                <Legend wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingTop: 10 }} />
+                <Legend verticalAlign="top" wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingBottom: 16 }} />
                 
-                <Bar dataKey="dss" name="DSS" fill={COLORS.dss} radius={[4, 4, 0, 0]} maxBarSize={30} style={{ cursor: 'pointer' }} />
-                <Bar dataKey="insp" name="Inspeções" fill={COLORS.insp} radius={[4, 4, 0, 0]} maxBarSize={30} style={{ cursor: 'pointer' }} />
-                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={30} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="dss" name="DSS" fill="#a78bfa" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="insp" name="Inspeções" fill="#7dd3fc" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="rel" name="Relatórios" fill="#6ee7b7" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
