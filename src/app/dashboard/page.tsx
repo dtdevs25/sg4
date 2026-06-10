@@ -183,12 +183,12 @@ function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark,
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 16px)' }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ color: '#fff', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
+              <h3 style={{ color: '#fff', fontSize: 'clamp(20px, 3vw, 28px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
               <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(10px, 1.5vw, 13px)', fontWeight: 700, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Realizados</span>
             </div>
             <div style={{ width: 2, height: 'clamp(30px, 4vw, 40px)', background: 'rgba(255,255,255,0.3)' }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ color: '#fff', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
+              <span style={{ color: '#fff', fontSize: 'clamp(20px, 3vw, 28px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
               <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(10px, 1.5vw, 13px)', fontWeight: 700, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Concluído</span>
             </div>
           </div>
