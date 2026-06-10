@@ -20,7 +20,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <div style={{ display: 'flex', flex: 1, marginTop: 80, overflow: 'hidden' }}>
           <Sidebar />
           <main style={{ flex: 1, overflowY: 'auto', background: '#F8FAFC' }}>
-            <div style={{ padding: '2rem', maxWidth: 1600, margin: '0 auto' }}>
+            <div style={{ padding: 'clamp(1rem, 4vw, 2rem)', maxWidth: 1600, margin: '0 auto' }}>
               {children}
             </div>
           </main>

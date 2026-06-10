@@ -267,10 +267,21 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
   )
 }
 
-/* ── Main export ─────────────────────────────────────────────────────────── */
+/* ── Main export ───────────────────────────────────────────────────── */
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const pathname = usePathname()
+
+  // Close mobile drawer on route change
+  useEffect(() => { setMobileOpen(false) }, [pathname])
+
+  // Listen to hamburger event dispatched from Header
+  useEffect(() => {
+    const handleToggle = () => setMobileOpen(p => !p)
+    window.addEventListener('toggleSidebar', handleToggle)
+    return () => window.removeEventListener('toggleSidebar', handleToggle)
+  }, [])
 
   return (
     <>
@@ -279,20 +290,7 @@ export function Sidebar() {
         .nav-item-wrap:hover .nav-tooltip { opacity: 1 !important; }
       `}</style>
 
-      {/* Mobile toggle */}
-      <button
-        className="md:hidden"
-        style={{
-          position: 'fixed', top: 24, left: 16, zIndex: 200,
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: '#94a3b8', padding: 6, borderRadius: 8,
-        }}
-        onClick={() => setMobileOpen(p => !p)}
-      >
-        {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-      </button>
-
-      {/* Mobile drawer */}
+      {/* Mobile drawer — triggered by Header hamburger */}
       {mobileOpen && (
         <div
           className="md:hidden"

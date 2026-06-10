@@ -1,7 +1,7 @@
 'use client'
 
 import { signOut } from 'next-auth/react'
-import { LogOut } from 'lucide-react'
+import { LogOut, Menu } from 'lucide-react'
 
 export function Header() {
   return (
@@ -20,6 +20,19 @@ export function Header() {
     }}>
       {/* Logos */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('toggleSidebar'))}
+          className="md:hidden"
+          style={{
+            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: 8, padding: 8, cursor: 'pointer', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginRight: 8,
+          }}
+        >
+          <Menu size={22} />
+        </button>
         <img
           src="/logo.png"
           alt="SG4"

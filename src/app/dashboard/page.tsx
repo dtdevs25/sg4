@@ -466,7 +466,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── 4 Stat cards ── */}
-      <div style={{ display: 'flex', gap: 20 }}>
+      <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
         <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#660099" bgDark="#4a0072" />
         <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#8e44ad" bgDark="#732d91" />
         <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#9c27b0" bgDark="#7b1fa2" />
@@ -474,10 +474,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Charts & Rankings (2/3 + 1/3) ── */}
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
 
         {/* Coluna Esquerda: Gráfico BarChart */}
-        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ flex: 2, minWidth: 300, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <ChartCard icon={FileText} title="Desempenho por Técnico" style={{ height: 500 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50 }} onClick={(data: any) => {
@@ -505,7 +505,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Coluna Direita: Rankings */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ flex: 1, minWidth: 280, display: 'flex', flexDirection: 'column', gap: 20 }}>
           
           {/* Ranking DSS */}
           <ChartCard icon={Target} title="Ranking - DSS" style={{ height: 240 }}>
