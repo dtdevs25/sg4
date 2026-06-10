@@ -92,6 +92,55 @@ function isDssAssinado(assinadoStr?: string | null) {
   return true
 }
 
+/* ── Tick personalizado do gráfico com foto ── */
+function CustomXAxisTick({ x, y, payload }: any) {
+  // barData tem { nome, nomeAbrev, fotoUrl, ... }
+  // payload.value = nomeAbrev, precisamos encontrar fotoUrl
+  // Passamos os dados completos via tickDataMap definido no scope do componente pai
+  const tickData = (window as any).__barDataMap?.[payload.value]
+  const fotoUrl = tickData?.fotoUrl
+  const size = 32
+  const clipId = `clip-${payload.value.replace(/\s/g, '-').replace(/\./g, '')}`
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <defs>
+        <clipPath id={clipId}>
+          <circle cx={0} cy={size / 2 + 4} r={size / 2} />
+        </clipPath>
+      </defs>
+      {fotoUrl ? (
+        <image
+          href={fotoUrl}
+          x={-size / 2}
+          y={4}
+          width={size}
+          height={size}
+          clipPath={`url(#${clipId})`}
+          style={{ objectFit: 'cover' }}
+        />
+      ) : (
+        <>
+          <circle cx={0} cy={size / 2 + 4} r={size / 2} fill="#8e44ad" />
+          <text x={0} y={size / 2 + 9} textAnchor="middle" fill="#fff" fontSize={11} fontWeight={700}>
+            {payload.value.slice(0, 2).toUpperCase()}
+          </text>
+        </>
+      )}
+      <text
+        x={0}
+        y={size + 16}
+        textAnchor="middle"
+        fill="#64748b"
+        fontSize={10}
+        fontWeight={700}
+      >
+        {payload.value}
+      </text>
+    </g>
+  )
+}
+
 /* ── Componentes de UI ── */
 function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark, onClick }: any) {
   return (
@@ -385,6 +434,11 @@ export default function DashboardPage() {
     .sort((a, b) => a.nome.localeCompare(b.nome))
     .map(t => ({ ...t, nomeAbrev: abbreviateName(t.nome) }))
 
+  // Mapa global para o CustomXAxisTick acessar fotoUrl via nomeAbrev
+  if (typeof window !== 'undefined') {
+    ;(window as any).__barDataMap = Object.fromEntries(barData.map(t => [t.nomeAbrev, t]))
+  }
+
   // Rankings
   const rankDss = [...barData].sort((a, b) => b.dss - a.dss)
   const rankInsp = [...barData].sort((a, b) => b.insp - a.insp)
@@ -529,8 +583,8 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis
                   dataKey="nomeAbrev"
-                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 700 }}
-                  tickLine={false} axisLine={false} angle={-25} textAnchor="end" height={70}
+                  tick={<CustomXAxisTick />}
+                  tickLine={false} axisLine={false} height={80}
                   style={{ cursor: 'pointer' }}
                 />
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
