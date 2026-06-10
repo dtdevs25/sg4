@@ -772,6 +772,7 @@ export default function InspecoesPage() {
       {/* ========================================================
           ABA: ESTRATIFICAÇÃO ARKIUM
       ======================================================== */}
+      {activeTab === 'arkium' && (
         <div className="flex flex-col gap-[24px]">
 
           {/* Stats Cards */}

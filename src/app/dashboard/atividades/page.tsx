@@ -149,7 +149,6 @@ export default function AtividadesEntregasPage() {
                 <option value="TODOS">Todas as Categorias</option>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              </div>
             </div>
             <div className="text-[13px] text-[#64748b]">Encontradas: <b>{filteredAct.length}</b> atividades</div>
           </div>
