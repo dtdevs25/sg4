@@ -336,29 +336,18 @@ export default function DashboardPage() {
   const [ano, setAno] = useState<string>(currentYear)
   const [meses, setMeses] = useState<string[]>(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']) // multi-select de meses
   const [mostrarFotosGrafico, setMostrarFotosGrafico] = useState<boolean>(true)
-  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+  const [dropdownAberto, setDropdownAberto] = useState<boolean>(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  function handleMonthClick(m: string) {
-    if (clickTimeout.current) {
-      clearTimeout(clickTimeout.current)
-      clickTimeout.current = null
-      setMeses([m])
-    } else {
-      clickTimeout.current = setTimeout(() => {
-        clickTimeout.current = null
-        setMeses(prev => {
-          if (prev.length === 1 && prev.includes(m)) {
-            return ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-          }
-          if (prev.includes(m)) {
-            return prev.filter(x => x !== m)
-          } else {
-            return [...prev, m]
-          }
-        })
-      }, 250)
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownAberto(false)
+      }
     }
-  }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const [legendaAtiva, setLegendaAtiva] = useState<string[]>(['dss', 'insp', 'rel']) // filtro de legenda
   const [modalData, setModalData] = useState<any>(null)
@@ -622,50 +611,130 @@ export default function DashboardPage() {
             <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 11, pointerEvents: 'none', color: '#94a3b8' }} />
           </div>
 
-          {/* Grid de Meses - 2 Linhas */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 280 }}>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {MESES.slice(0, 6).map(m => {
-                const ativo = meses.includes(m)
-                return (
-                  <button
-                    key={m}
-                    onClick={() => handleMonthClick(m)}
-                    style={{
-                      flex: 1, padding: '6px 10px', borderRadius: 6,
-                      border: ativo ? '1px solid #660099' : '1px solid #e2e8f0',
-                      background: ativo ? 'rgba(102,0,153,0.1)' : '#f8fafc',
-                      color: ativo ? '#660099' : '#64748b',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                      userSelect: 'none', textAlign: 'center', minWidth: 42
-                    }}
-                  >
-                    {m}
-                  </button>
-                )
-              })}
-            </div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {MESES.slice(6, 12).map(m => {
-                const ativo = meses.includes(m)
-                return (
-                  <button
-                    key={m}
-                    onClick={() => handleMonthClick(m)}
-                    style={{
-                      flex: 1, padding: '6px 10px', borderRadius: 6,
-                      border: ativo ? '1px solid #660099' : '1px solid #e2e8f0',
-                      background: ativo ? 'rgba(102,0,153,0.1)' : '#f8fafc',
-                      color: ativo ? '#660099' : '#64748b',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                      userSelect: 'none', textAlign: 'center', minWidth: 42
-                    }}
-                  >
-                    {m}
-                  </button>
-                )
-              })}
-            </div>
+          {/* Custom Dropdown Multi-select de Meses */}
+          <div ref={dropdownRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setDropdownAberto(!dropdownAberto)}
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                padding: '8px 16px',
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#475569',
+                cursor: 'pointer',
+                outline: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                minWidth: 180,
+                justifyContent: 'space-between'
+              }}
+            >
+              <span>
+                {meses.length === 12
+                  ? 'Todos os Meses'
+                  : meses.length === 0
+                  ? 'Nenhum Mês'
+                  : meses.length <= 3
+                  ? meses.join(', ')
+                  : `${meses.length} Meses`}
+              </span>
+              <ChevronDown size={14} style={{ color: '#94a3b8' }} />
+            </button>
+
+            {dropdownAberto && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                zIndex: 1000,
+                width: 200,
+                maxHeight: 280,
+                overflowY: 'auto',
+                padding: 6
+              }}>
+                {/* Opção Selecionar Todos / Desmarcar Todos */}
+                <div 
+                  onClick={() => {
+                    if (meses.length === 12) {
+                      setMeses([])
+                    } else {
+                      setMeses([...MESES])
+                    }
+                  }}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: meses.length === 12 ? '#f1f5f9' : 'transparent',
+                    color: '#475569',
+                    borderBottom: '1px solid #f1f5f9',
+                    marginBottom: 4,
+                    userSelect: 'none'
+                  }}
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={meses.length === 12}
+                    readOnly
+                    style={{ cursor: 'pointer', accentColor: '#660099' }}
+                  />
+                  <span>{meses.length === 12 ? 'Desmarcar Todos' : 'Selecionar Todos'}</span>
+                </div>
+
+                {/* Lista de Meses */}
+                {MESES.map(m => {
+                  const ativo = meses.includes(m)
+                  return (
+                    <div
+                      key={m}
+                      onClick={() => {
+                        setMeses(prev => 
+                          ativo 
+                            ? prev.filter(x => x !== m) 
+                            : [...prev, m]
+                        )
+                      }}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        background: ativo ? 'rgba(102,0,153,0.06)' : 'transparent',
+                        color: ativo ? '#660099' : '#475569',
+                        transition: 'background 0.15s',
+                        userSelect: 'none'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = ativo ? 'rgba(102,0,153,0.08)' : '#f8fafc'}
+                      onMouseLeave={e => e.currentTarget.style.background = ativo ? 'rgba(102,0,153,0.06)' : 'transparent'}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={ativo}
+                        readOnly
+                        style={{ cursor: 'pointer', accentColor: '#660099' }}
+                      />
+                      <span>{m}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
