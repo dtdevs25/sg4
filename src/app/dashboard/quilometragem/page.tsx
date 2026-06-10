@@ -300,7 +300,7 @@ export default function QuilometragemPage() {
   return (
     <div className="flex flex-col gap-[24px] pb-[40px]">
       {/* ── Cabeçalho Padronizado ── */}
-      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-[14px_20px] flex items-center justify-between flex-wrap gap-[16px]">
+      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-[20px] py-[14px] flex items-center justify-between flex-wrap gap-[16px]">
         <div className="flex items-baseline gap-[10px]">
           <h1 className="text-[20px] font-extrabold text-[#1e293b] m-0 flex items-center gap-[8px]">
             <Car color="#660099" size={22} /> Frota e Quilometragem
@@ -375,7 +375,7 @@ export default function QuilometragemPage() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center justify-between bg-white p-[12px_20px] rounded-[10px] border border-[#f1f5f9] gap-[16px]">
+      <div className="flex flex-col md:flex-row items-center justify-between bg-white px-[20px] py-[12px] rounded-[10px] border border-[#f1f5f9] gap-[16px]">
         <div className="relative w-full md:w-[300px]">
           <Search size={16} className="absolute left-[12px] top-[10px] text-[#94a3b8]" />
           <input type="text" placeholder="Buscar técnico..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
@@ -681,7 +681,7 @@ export default function QuilometragemPage() {
       {/* Modal Editar KM */}
       {showEditKmModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
-          <div className="bg-white rounded-[16px] w-full max-w-[450px] p-[16px_24px] max-h-[95vh] overflow-y-auto">
+          <div className="bg-white rounded-[16px] w-full max-w-[450px] px-[24px] py-[16px] max-h-[95vh] overflow-y-auto">
             <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><PlayCircle color="#3b82f6" /> Editar Registro de KM</h2>
             <form onSubmit={handleEditKm} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -748,7 +748,7 @@ export default function QuilometragemPage() {
       {/* Modal Editar Abastecimento */}
       {showEditAbsModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.6)] backdrop-blur-[4px] p-[20px]">
-          <div className="bg-white rounded-[16px] w-full max-w-[450px] p-[16px_24px] max-h-[95vh] overflow-y-auto">
+          <div className="bg-white rounded-[16px] w-full max-w-[450px] px-[24px] py-[16px] max-h-[95vh] overflow-y-auto">
             <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Fuel color="#3b82f6" /> Editar Abastecimento</h2>
             <form onSubmit={handleEditAbs} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

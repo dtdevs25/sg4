@@ -567,7 +567,7 @@ export default function DialogosPage() {
             @keyframes sg4-pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
             @keyframes sg4-progress { 0%{width:0%;margin-left:0%} 50%{width:70%;margin-left:15%} 100%{width:0%;margin-left:100%} }
           `}</style>
-          <div className="bg-white rounded-[20px] p-[40px_24px] md:p-[40px_48px] flex flex-col items-center gap-[20px] shadow-[0_25px_50px_rgba(0,0,0,0.4)] w-full max-w-[400px]">
+          <div className="bg-white rounded-[20px] px-[24px] py-[40px] md:px-[48px] py-[40px] flex flex-col items-center gap-[20px] shadow-[0_25px_50px_rgba(0,0,0,0.4)] w-full max-w-[400px]">
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(102,0,153,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Loader2 size={32} color="#660099" style={{ animation: 'sg4-spin 1s linear infinite' }} />
             </div>
@@ -583,7 +583,7 @@ export default function DialogosPage() {
           </div>
         </div>
       )}
-      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-[14px_20px] flex items-center justify-between flex-wrap gap-[16px]">
+      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-[20px] py-[14px] flex items-center justify-between flex-wrap gap-[16px]">
         <div className="flex items-baseline gap-[10px]">
           <h1 className="text-[20px] font-extrabold text-[#1e293b] m-0 flex items-center gap-[8px]">
             <MessageSquare color="#660099" size={22} />
@@ -835,7 +835,7 @@ export default function DialogosPage() {
               {/* Filtros e Importação */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-[24px]">
                 {/* Filtro de Meses e Ano na Estratificação */}
-                <div className="bg-white border border-[#f1f5f9] rounded-[10px] p-[10px_16px] flex flex-col gap-[8px] lg:col-span-2">
+                <div className="bg-white border border-[#f1f5f9] rounded-[10px] px-[16px] py-[10px] flex flex-col gap-[8px] lg:col-span-2">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
                   <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
@@ -916,7 +916,7 @@ export default function DialogosPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col md:flex-row items-center justify-between bg-white p-[12px_20px] rounded-[10px] border border-[#f1f5f9] flex-wrap gap-[16px]">
+              <div className="flex flex-col md:flex-row items-center justify-between bg-white px-[20px] py-[12px] rounded-[10px] border border-[#f1f5f9] flex-wrap gap-[16px]">
                 <div className="relative w-full md:w-[350px]">
                   <Search size={16} className="absolute left-[12px] top-[10px] text-[#94a3b8]" />
                   <input

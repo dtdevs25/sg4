@@ -93,7 +93,7 @@ function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark,
       className={`rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col justify-between flex-1 transition-transform duration-150 ${onClick ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'}`}
       style={{ background: bg }}
     >
-      <div className="p-[12px_16px] flex justify-between items-center">
+      <div className="px-[16px] py-[12px] flex justify-between items-center">
         <div className="flex flex-col">
           <p className="text-white text-[16px] font-bold mb-[8px] tracking-[0.3px]">{label}</p>
           <div className="flex items-center gap-[12px]">
@@ -120,7 +120,7 @@ function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: a
       className={`rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col justify-between flex-1 transition-transform duration-150 ${onClick ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'}`}
       style={{ background: bg }}
     >
-      <div className="p-[12px_16px] flex justify-between items-center">
+      <div className="px-[16px] py-[12px] flex justify-between items-center">
         <div>
           <p className="text-white text-[16px] font-bold mb-[4px] tracking-[0.3px]">{label}</p>
           <h3 className="text-white text-[36px] font-extrabold leading-none tracking-[-1px]">{value}</h3>
@@ -136,7 +136,7 @@ function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: a
 function ChartCard({ icon: Icon, title, children, style }: any) {
   return (
     <div className="bg-white rounded-[10px] shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col" style={style}>
-      <div className="bg-[#660099] p-[14px_18px] flex items-center gap-[10px] text-white font-bold text-[15px]">
+      <div className="bg-[#660099] px-[18px] py-[14px] flex items-center gap-[10px] text-white font-bold text-[15px]">
         <Icon size={18} />
         <span>{title}</span>
       </div>
@@ -374,7 +374,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── Barra superior com Filtros ── */}
-      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-[14px_20px] flex items-center justify-between flex-wrap gap-[16px]">
+      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-[20px] py-[14px] flex items-center justify-between flex-wrap gap-[16px]">
         <div className="flex items-baseline gap-[10px] flex-wrap">
           <h1 className="text-[20px] font-extrabold text-[#1e293b] m-0">
             Olá, {firstName}!

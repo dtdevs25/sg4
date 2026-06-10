@@ -318,7 +318,7 @@ export default function RelatoriosAtividadesPage() {
     <div className="flex flex-col gap-[24px] pb-[40px]">
       
       {/* HEADER */}
-      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] p-[14px_20px] flex items-center justify-between flex-wrap gap-[16px]">
+      <div className="bg-white rounded-[10px] border border-[#f1f5f9] shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-[20px] py-[14px] flex items-center justify-between flex-wrap gap-[16px]">
         <div className="flex items-baseline gap-[10px]">
           <h1 className="text-[20px] font-extrabold text-[#1e293b] m-0 flex items-center gap-[8px]">
             <FileText color="#660099" size={22} />
@@ -326,10 +326,10 @@ export default function RelatoriosAtividadesPage() {
           </h1>
         </div>
         <div className="flex gap-[12px] items-center w-full md:w-auto overflow-x-auto">
-          <button onClick={() => setShowGerarPdfModal(true)} className="bg-[#22c55e] text-white border-none p-[8px_16px] rounded-[8px] font-bold flex items-center gap-[8px] cursor-pointer shadow-[0_4px_12px_rgba(34,197,94,0.3)] text-[13px] whitespace-nowrap">
+          <button onClick={() => setShowGerarPdfModal(true)} className="bg-[#22c55e] text-white border-none px-[16px] py-[8px] rounded-[8px] font-bold flex items-center gap-[8px] cursor-pointer shadow-[0_4px_12px_rgba(34,197,94,0.3)] text-[13px] whitespace-nowrap">
             <Printer size={16} /> Gerar PDF
           </button>
-          <button onClick={() => setShowNovaAtividade(true)} className="bg-[#3b82f6] text-white border-none p-[8px_16px] rounded-[8px] font-bold flex items-center gap-[8px] cursor-pointer shadow-[0_4px_12px_rgba(59,130,246,0.3)] text-[13px] whitespace-nowrap">
+          <button onClick={() => setShowNovaAtividade(true)} className="bg-[#3b82f6] text-white border-none px-[16px] py-[8px] rounded-[8px] font-bold flex items-center gap-[8px] cursor-pointer shadow-[0_4px_12px_rgba(59,130,246,0.3)] text-[13px] whitespace-nowrap">
             <Plus size={16} /> Lançar Atividade
           </button>
         </div>
@@ -396,7 +396,7 @@ export default function RelatoriosAtividadesPage() {
         {/* CARD CONSOLIDADO */}
         <div
           onClick={() => setShowGraficoModal(true)}
-          className="bg-white border border-[#f1f5f9] rounded-[10px] p-[16px_20px] flex flex-col justify-center cursor-pointer transition-all duration-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(102,0,153,0.15)]"
+          className="bg-white border border-[#f1f5f9] rounded-[10px] px-[20px] py-[16px] flex flex-col justify-center cursor-pointer transition-all duration-200 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(102,0,153,0.15)]"
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Consolidado do Período</span>
@@ -421,7 +421,7 @@ export default function RelatoriosAtividadesPage() {
       {/* TABELA GERAL */}
       <div className="flex flex-col gap-[16px]">
         {/* Search Bar matching other modules */}
-        <div className="flex flex-col md:flex-row items-center justify-between bg-white p-[12px_20px] rounded-[10px] border border-[#f1f5f9] gap-[16px]">
+        <div className="flex flex-col md:flex-row items-center justify-between bg-white px-[20px] py-[12px] rounded-[10px] border border-[#f1f5f9] gap-[16px]">
           <div className="relative w-full md:w-[300px]">
             <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
             <input
@@ -511,7 +511,7 @@ export default function RelatoriosAtividadesPage() {
         
         {/* PAGINATION CONTROLS */}
         {filteredAtividades.length > 0 && (
-          <div className="flex flex-col md:flex-row items-center justify-between p-[16px_20px] bg-[#f8fafc] border-t border-[#f1f5f9] gap-[16px]">
+          <div className="flex flex-col md:flex-row items-center justify-between px-[20px] py-[16px] bg-[#f8fafc] border-t border-[#f1f5f9] gap-[16px]">
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
                 Mostrando de {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, filteredAtividades.length)} de {filteredAtividades.length} atividades
