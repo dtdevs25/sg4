@@ -473,16 +473,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── 4 Stat cards — cores pasteis ── */}
+      {/* ── 4 Stat cards — cores pasteis (Tons de Roxo) ── */}
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {/* Lilás pastel — DSS */}
-        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#ede9fe" bgDark="#7c3aed" />
-        {/* Azul céu pastel — Inspeções */}
-        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#e0f2fe" bgDark="#0284c7" />
-        {/* Menta pastel — Relatórios */}
-        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#d1fae5" bgDark="#059669" />
-        {/* Pêssego pastel — Km */}
-        <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#fef3c7" bgDark="#d97706" />
+        {/* Roxo pastel */}
+        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#f3e8ff" bgDark="#7e22ce" />
+        {/* Violeta pastel */}
+        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#ede9fe" bgDark="#6d28d9" />
+        {/* Fuchsia pastel */}
+        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#fae8ff" bgDark="#a21caf" />
+        {/* Índigo pastel */}
+        <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#e0e7ff" bgDark="#4338ca" />
       </div>
 
       {/* ── Charts & Rankings (2/3 + 1/3) ── */}
@@ -508,9 +508,9 @@ export default function DashboardPage() {
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(102,0,153,0.04)', cursor: 'pointer' }} />
                 <Legend verticalAlign="top" wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingBottom: 16 }} />
                 
-                <Bar dataKey="dss" name="DSS" fill="#a78bfa" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
-                <Bar dataKey="insp" name="Inspeções" fill="#7dd3fc" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
-                <Bar dataKey="rel" name="Relatórios" fill="#6ee7b7" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="dss" name="DSS" fill="#7e22ce" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="insp" name="Inspeções" fill="#6d28d9" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
+                <Bar dataKey="rel" name="Relatórios" fill="#a21caf" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
