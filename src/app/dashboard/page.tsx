@@ -106,30 +106,30 @@ function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark,
       onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
       onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
     >
-      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: 0.3 }}>{label}</p>
+      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, paddingRight: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(4px, 1.5vw, 8px)', marginBottom: 16 }}>
+            <p style={{ color: '#fff', fontSize: 'clamp(14px, 2vw, 16px)', fontWeight: 700, margin: 0, letterSpacing: 0.3, whiteSpace: 'nowrap' }}>{label}</p>
             {subtitle && (
               <>
                 <div style={{ width: 2, height: 16, background: 'rgba(255,255,255,0.4)' }} />
-                <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: 600 }}>Meta: {subtitle}</span>
+                <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'clamp(11px, 1.8vw, 14px)', fontWeight: 600, whiteSpace: 'nowrap' }}>Meta: {subtitle}</span>
               </>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(8px, 2vw, 16px)' }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 700, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Realizados</span>
+              <h3 style={{ color: '#fff', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(10px, 1.5vw, 13px)', fontWeight: 700, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Realizados</span>
             </div>
-            <div style={{ width: 2, height: 40, background: 'rgba(255,255,255,0.3)' }} />
+            <div style={{ width: 2, height: 'clamp(30px, 4vw, 40px)', background: 'rgba(255,255,255,0.3)' }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 700, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Concluído</span>
+              <span style={{ color: '#fff', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(10px, 1.5vw, 13px)', fontWeight: 700, marginTop: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Concluído</span>
             </div>
           </div>
         </div>
-        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', zIndex: 0, pointerEvents: 'none' }} />
       </div>
       <div style={{ height: 10, background: bgDark }} />
     </div>
@@ -155,13 +155,13 @@ function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: a
       onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
       onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
     >
-      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <p style={{ color: '#fff', fontSize: 16, fontWeight: 700, marginBottom: 4, letterSpacing: 0.3 }}>{label}</p>
-          <h3 style={{ color: '#fff', fontSize: 36, fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{value}</h3>
-          {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: 600, marginTop: 6, background: 'rgba(0,0,0,0.1)', padding: '2px 8px', borderRadius: 4, display: 'inline-block' }}>{subtitle}</div>}
+      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
+        <div style={{ position: 'relative', zIndex: 1, paddingRight: 32 }}>
+          <p style={{ color: '#fff', fontSize: 'clamp(14px, 2vw, 16px)', fontWeight: 700, marginBottom: 4, letterSpacing: 0.3, whiteSpace: 'nowrap' }}>{label}</p>
+          <h3 style={{ color: '#fff', fontSize: 'clamp(24px, 4vw, 36px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
+          {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(10px, 1.5vw, 13px)', fontWeight: 600, marginTop: 12, background: 'rgba(0,0,0,0.1)', padding: '4px 8px', borderRadius: 6, display: 'inline-block', whiteSpace: 'nowrap' }}>{subtitle}</div>}
         </div>
-        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', flexShrink: 0 }} />
+        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', zIndex: 0, pointerEvents: 'none' }} />
       </div>
       <div style={{ height: 10, background: bgDark }} />
     </div>
