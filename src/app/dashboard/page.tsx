@@ -93,10 +93,10 @@ function isDssAssinado(assinadoStr?: string | null) {
 }
 
 /* ── Tick personalizado do gráfico com foto ── */
-function CustomXAxisTick({ x, y, payload }: any) {
+function CustomXAxisTick({ x, y, payload, width }: any) {
   const tickData = (window as any).__barDataMap?.[payload.value]
   const fotoUrl = tickData?.fotoUrl
-  const size = 42
+  const size = 36
   const clipId = `clip-${payload.value.replace(/\s/g, '-').replace(/\./g, '')}`
 
   return (
@@ -121,14 +121,14 @@ function CustomXAxisTick({ x, y, payload }: any) {
       ) : (
         <>
           <circle cx={0} cy={size / 2 + 2} r={size / 2} fill="#8e44ad" />
-          <text x={0} y={size / 2 + 7} textAnchor="middle" fill="#fff" fontSize={13} fontWeight={700}>
+          <text x={0} y={size / 2 + 7} textAnchor="middle" fill="#fff" fontSize={11} fontWeight={700}>
             {payload.value.slice(0, 2).toUpperCase()}
           </text>
         </>
       )}
       <text
         x={0}
-        y={size + 20}
+        y={size + 16}
         textAnchor="middle"
         fill="#475569"
         fontSize={10}
@@ -136,6 +136,17 @@ function CustomXAxisTick({ x, y, payload }: any) {
       >
         {payload.value}
       </text>
+
+      {/* Linha vertical separadora das colunas - mais visível (cinza médio/escuro e tracejado) */}
+      <line
+        x1={width / 2}
+        y1={-360}
+        x2={width / 2}
+        y2={-4}
+        stroke="#cbd5e1"
+        strokeWidth={1.5}
+        strokeDasharray="4 3"
+      />
     </g>
   )
 }
@@ -651,7 +662,7 @@ export default function DashboardPage() {
 
                 <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('dss')} />
                 <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('insp')} />
-                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} background={<GroupDivider />} hide={!legendaAtiva.includes('rel')} />
+                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('rel')} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
