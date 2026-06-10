@@ -96,7 +96,7 @@ function isDssAssinado(assinadoStr?: string | null) {
 function CustomXAxisTick({ x, y, payload }: any) {
   const tickData = (window as any).__barDataMap?.[payload.value]
   const fotoUrl = tickData?.fotoUrl
-  const size = 42
+  const size = 50
   const clipId = `clip-${payload.value.replace(/\s/g, '-').replace(/\./g, '')}`
 
   return (
@@ -599,7 +599,7 @@ export default function DashboardPage() {
                 <XAxis
                   dataKey="nomeAbrev"
                   tick={<CustomXAxisTick />}
-                  tickLine={false} axisLine={false} height={80}
+                  tickLine={false} axisLine={false} height={95}
                   style={{ cursor: 'pointer' }}
                 />
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
