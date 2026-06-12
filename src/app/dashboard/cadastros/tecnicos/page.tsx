@@ -313,11 +313,26 @@ export default function TecnicosPage() {
 
       {/* Modal Add/Edit */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginTop: 0, marginBottom: 4 }}>
-              {isEditing ? 'Editar Técnico' : 'Novo Técnico'}
-            </h2>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ 
+            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500,
+            display: 'flex', flexDirection: 'column',
+            maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{
+              background: '#660099', padding: '20px 24px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              position: 'sticky', top: 0, zIndex: 10
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>
+                {isEditing ? 'Editar Técnico' : 'Novo Técnico'}
+              </h2>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: 24, overflowY: 'auto' }}>
             <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Preencha os dados do técnico de segurança do trabalho.</p>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -395,6 +410,7 @@ export default function TecnicosPage() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

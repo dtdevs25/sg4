@@ -11,6 +11,7 @@ import { getTecnicos } from '@/app/actions/tecnicos'
 import {
   getPlanejamentos, savePlanejamento, modificarExecucao, concluirPlanejamento, deletePlanejamento
 } from '@/app/actions/planejamento'
+import { getUnidades } from '@/app/actions/unidades'
 
 // --- Cores de Prioridade ---
 const PR_COLORS: any = {
@@ -32,6 +33,7 @@ export default function PlanejamentoPage() {
   const [selectedTecnico, setSelectedTecnico] = useState<string>('TODOS')
   
   const [tecnicos, setTecnicos] = useState<any[]>([])
+  const [unidades, setUnidades] = useState<any[]>([])
   const [planejamentos, setPlanejamentos] = useState<any[]>([])
   const [pending, startTransition] = useTransition()
 
@@ -42,8 +44,8 @@ export default function PlanejamentoPage() {
 
   // Form State
   const [form, setForm] = useState({
-    id: '', tecnicoId: '', dataAtividade: '', categoria: 'INSPEÇÃO DE SEGURANÇA',
-    descricaoOriginal: '', equipe: 'Não se aplica', local: '', cidade: '', estado: 'SP',
+    id: '', tecnicoId: '', dataAtividade: '', categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
+    descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
     prioridade: 'MEDIA'
   })
   
@@ -57,6 +59,9 @@ export default function PlanejamentoPage() {
         if (res.success && res.data) setTecnicos(res.data)
       })
     }
+    getUnidades().then(res => {
+      if (res.success && res.data) setUnidades(res.data)
+    })
   }, [isTst])
 
   useEffect(() => {
@@ -113,8 +118,8 @@ export default function PlanejamentoPage() {
   function handleAdd(dateStr?: string) {
     setForm({
       id: '', tecnicoId: isTst ? userTecnicoId : (selectedTecnico !== 'TODOS' ? selectedTecnico : ''),
-      dataAtividade: dateStr || formatStrDate(new Date()), categoria: 'INSPEÇÃO DE SEGURANÇA',
-      descricaoOriginal: '', equipe: 'Não se aplica', local: '', cidade: '', estado: 'SP',
+      dataAtividade: dateStr || formatStrDate(new Date()), categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
+      descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
       prioridade: 'MEDIA'
     })
     setShowAddModal(true)
@@ -125,9 +130,15 @@ export default function PlanejamentoPage() {
     startTransition(async () => {
       const payload = {
         ...form,
+        categoria: form.categoria === 'OUTROS' && form.outraCategoria ? form.outraCategoria : form.categoria,
+        local: form.local === 'OUTROS' && form.outroLocal ? form.outroLocal : form.local,
         dataAtividade: new Date(`${form.dataAtividade}T12:00:00Z`), // Força meio-dia para evitar fuso
         prioridade: form.prioridade as any
       }
+      // remover props temporárias antes de enviar
+      delete (payload as any).outraCategoria
+      delete (payload as any).outroLocal
+
       const res = await savePlanejamento(payload)
       if (res.success) {
         setShowAddModal(false)
@@ -309,26 +320,46 @@ export default function PlanejamentoPage() {
 
       {/* MODAL ADICIONAR */}
       {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 600, maxWidth: '95%', padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: '#1e293b' }}>Planejar Atividade</h2>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20} color="#64748b" /></button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ 
+            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600,
+            display: 'flex', flexDirection: 'column',
+            maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{
+              background: '#660099', padding: '20px 24px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              position: 'sticky', top: 0, zIndex: 10
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Planejar Atividade</h2>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}>
+                <X size={20} />
+              </button>
             </div>
 
+            <div style={{ padding: 24, overflowY: 'auto' }}>
             <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>DATA</label>
                   <input type="date" required value={form.dataAtividade} onChange={e => setForm({...form, dataAtividade: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>PRIORIDADE</label>
-                  <select value={form.prioridade} onChange={e => setForm({...form, prioridade: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
-                    <option value="ALTA">Alta (Vermelho)</option>
-                    <option value="MEDIA">Média (Amarelo)</option>
-                    <option value="BAIXA">Baixa (Azul)</option>
-                  </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>PRIORIDADE</label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  {[
+                    { val: 'ALTA', label: 'Alta', color: '#ef4444', bg: '#fee2e2' },
+                    { val: 'MEDIA', label: 'Média', color: '#f59e0b', bg: '#fef3c7' },
+                    { val: 'BAIXA', label: 'Baixa', color: '#6366f1', bg: '#e0e7ff' }
+                  ].map(p => (
+                    <label key={p.val} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', borderRadius: 8, border: `2px solid ${form.prioridade === p.val ? p.color : '#cbd5e1'}`, background: form.prioridade === p.val ? p.bg : '#fff', cursor: 'pointer', transition: 'all 0.2s' }}>
+                      <input type="radio" name="prioridade" value={p.val} checked={form.prioridade === p.val} onChange={e => setForm({...form, prioridade: e.target.value})} style={{ display: 'none' }} />
+                      <div style={{ width: 12, height: 12, borderRadius: '50%', background: p.color, marginRight: 8 }}></div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: form.prioridade === p.val ? p.color : '#64748b' }}>{p.label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
@@ -347,6 +378,9 @@ export default function PlanejamentoPage() {
                 <select value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
                   {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
+                {form.categoria === 'OUTROS' && (
+                  <input type="text" placeholder="Qual categoria?" required value={form.outraCategoria} onChange={e => setForm({...form, outraCategoria: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', marginTop: 8 }} />
+                )}
               </div>
 
               <div>
@@ -363,8 +397,15 @@ export default function PlanejamentoPage() {
                   </div>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>LOCAL ESPECÍFICO</label>
-                  <input type="text" placeholder="Ex: Base Central" value={form.local} onChange={e => setForm({...form, local: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>LOCAL ESPECÍFICO (UNIDADE)</label>
+                  <select value={unidades.find(u => u.nome === form.local) ? form.local : form.local === 'OUTROS' ? 'OUTROS' : ''} onChange={e => setForm({...form, local: e.target.value, outroLocal: ''})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
+                    <option value="">Selecione ou digite em Outros...</option>
+                    {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
+                    <option value="OUTROS">Outros...</option>
+                  </select>
+                  {(!unidades.find(u => u.nome === form.local) && form.local === 'OUTROS') && (
+                    <input type="text" placeholder="Especifique o local..." required value={form.outroLocal} onChange={e => setForm({...form, outroLocal: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', marginTop: 8 }} />
+                  )}
                 </div>
               </div>
 
@@ -373,6 +414,7 @@ export default function PlanejamentoPage() {
                 <button type="submit" disabled={pending} style={{ padding: '10px 20px', borderRadius: 8, background: '#660099', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Salvar Planejamento</button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
