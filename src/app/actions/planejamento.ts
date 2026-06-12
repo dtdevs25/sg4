@@ -1,10 +1,9 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { PrismaClient, PrioridadePlanejamento, StatusPlanejamento } from '@prisma/client'
+import { PrioridadePlanejamento, StatusPlanejamento } from '@prisma/client'
+import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
-
-const prisma = new PrismaClient()
 
 export async function getPlanejamentos(tecnicoId?: string, startDate?: Date, endDate?: Date) {
   try {
