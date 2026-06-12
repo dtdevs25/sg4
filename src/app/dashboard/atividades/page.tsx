@@ -37,10 +37,10 @@ export default function PlanejamentoPage() {
   const [planejamentos, setPlanejamentos] = useState<any[]>([])
   const [pending, startTransition] = useTransition()
 
-  // Modais
   const [showAddModal, setShowAddModal] = useState(false)
   const [showExecModal, setShowExecModal] = useState<any>(null)
   const [isModifying, setIsModifying] = useState(false)
+  const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false)
 
   // Form State
   const [form, setForm] = useState({
@@ -363,15 +363,55 @@ export default function PlanejamentoPage() {
                 </div>
               </div>
 
-              {!isTst && (
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>TÉCNICO</label>
-                  <select required value={form.tecnicoId} onChange={e => setForm({...form, tecnicoId: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
-                    <option value="">Selecione um técnico...</option>
-                    {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                  </select>
+              {!isTst ? (
+                <div style={{ position: 'relative' }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>TÉCNICO</label>
+                  <div
+                    onClick={() => setShowTecnicoDropdown(v => !v)}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showTecnicoDropdown ? '#660099' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', gap: 10, transition: 'all 0.2s' }}
+                  >
+                    {form.tecnicoId ? (() => {
+                      const t = tecnicos.find(x => x.id === form.tecnicoId)
+                      return t ? (<>{t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}<span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span></>) : null
+                    })() : (<span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico...</span>)}
+                    <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>{showTecnicoDropdown ? '▲' : '▼'}</span>
+                  </div>
+                  {showTecnicoDropdown && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 240, overflowY: 'auto' }}>
+                      {tecnicos.filter(t => t.ativo).map(t => (
+                        <div key={t.id} onClick={() => { setForm(p => ({...p, tecnicoId: t.id})); setShowTecnicoDropdown(false) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: form.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = form.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
+                        >
+                          {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                          <div><div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div><div style={{ fontSize: 11, color: '#94a3b8' }}>{t.cargo || 'Técnico de Segurança'}</div></div>
+                          {form.tecnicoId === t.id && <span style={{ marginLeft:'auto', color:'#660099', fontWeight:800 }}>✓</span>}
+                        </div>
+                      ))}
+                      {tecnicos.filter(t => t.ativo).length === 0 && (<div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhum técnico ativo encontrado.</div>)}
+                    </div>
+                  )}
+                  <input type="hidden" required value={form.tecnicoId} onChange={() => {}} />
                 </div>
-              )}
+              ) : (() => {
+                // TST Role -> Show fixed card
+                const t = tecnicos.find(x => x.id === form.tecnicoId) || { nome: session?.user?.name || 'Você', cargo: 'Técnico de Segurança', fotoUrl: null }
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'rgba(102,0,153,0.04)', border: '1px solid rgba(102,0,153,0.15)', borderRadius: 10 }}>
+                    {t.fotoUrl ? (
+                      <img src={t.fotoUrl} alt={t.nome} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                    )}
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t.nome}</div>
+                      <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 600 }}>{t.cargo}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Atividade será registrada em seu nome</div>
+                    </div>
+                  </div>
+                )
+              })()}
 
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>CATEGORIA</label>
@@ -388,24 +428,23 @@ export default function PlanejamentoPage() {
                 <textarea required rows={3} value={form.descricaoOriginal} onChange={e => setForm({...form, descricaoOriginal: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', resize: 'none' }} placeholder="Descreva o que foi planejado para este dia..."></textarea>
               </div>
 
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>CIDADE/ESTADO</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input type="text" placeholder="Cidade" value={form.cidade} onChange={e => setForm({...form, cidade: e.target.value})} style={{ flex: 2, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
-                    <input type="text" placeholder="UF" value={form.estado} maxLength={2} onChange={e => setForm({...form, estado: e.target.value.toUpperCase()})} style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
-                  </div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>LOCAL ESPECÍFICO (UNIDADE)</label>
-                  <select value={unidades.find(u => u.nome === form.local) ? form.local : form.local === 'OUTROS' ? 'OUTROS' : ''} onChange={e => setForm({...form, local: e.target.value, outroLocal: ''})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
-                    <option value="">Selecione ou digite em Outros...</option>
-                    {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
-                    <option value="OUTROS">Outros...</option>
-                  </select>
-                  {(!unidades.find(u => u.nome === form.local) && form.local === 'OUTROS') && (
-                    <input type="text" placeholder="Especifique o local..." required value={form.outroLocal} onChange={e => setForm({...form, outroLocal: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', marginTop: 8 }} />
-                  )}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>LOCAL ESPECÍFICO (UNIDADE)</label>
+                <select value={unidades.find(u => u.nome === form.local) ? form.local : form.local === 'OUTROS' ? 'OUTROS' : ''} onChange={e => setForm({...form, local: e.target.value, outroLocal: ''})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
+                  <option value="">Selecione ou digite em Outros...</option>
+                  {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
+                  <option value="OUTROS">Outros...</option>
+                </select>
+                {(!unidades.find(u => u.nome === form.local) && form.local === 'OUTROS') && (
+                  <input type="text" placeholder="Especifique o local..." required value={form.outroLocal} onChange={e => setForm({...form, outroLocal: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', marginTop: 8 }} />
+                )}
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>CIDADE/ESTADO</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="text" placeholder="Cidade" value={form.cidade} onChange={e => setForm({...form, cidade: e.target.value})} style={{ flex: 2, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                  <input type="text" placeholder="UF" value={form.estado} maxLength={2} onChange={e => setForm({...form, estado: e.target.value.toUpperCase()})} style={{ width: 80, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                 </div>
               </div>
 
