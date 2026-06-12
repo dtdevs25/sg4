@@ -41,6 +41,7 @@ export default function PlanejamentoPage() {
   const [showExecModal, setShowExecModal] = useState<any>(null)
   const [isModifying, setIsModifying] = useState(false)
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false)
+  const [showSidebarDropdown, setShowSidebarDropdown] = useState(false)
 
   // Form State
   const [form, setForm] = useState({
@@ -318,12 +319,49 @@ export default function PlanejamentoPage() {
         </div>
 
         {!isTst && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>Técnico:</span>
-            <select value={selectedTecnico} onChange={e => setSelectedTecnico(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}>
-              <option value="TODOS">Todos os Técnicos</option>
-              {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-            </select>
+            <div
+              onClick={() => setShowSidebarDropdown(v => !v)}
+              style={{ padding: '6px 12px', borderRadius: 8, border: `1px solid ${showSidebarDropdown ? '#660099' : '#e2e8f0'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', gap: 8, minWidth: 200 }}
+            >
+              {selectedTecnico !== 'TODOS' ? (() => {
+                const t = tecnicos.find(x => x.id === selectedTecnico)
+                return t ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {t.fotoUrl ? (
+                      <img src={t.fotoUrl} alt={t.nome} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:800, color:'#fff' }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                    )}
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span>
+                  </div>
+                ) : <span style={{ fontSize: 13, color: '#1e293b' }}>Todos os Técnicos</span>
+              })() : <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>Todos os Técnicos</span>}
+              <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 10 }}>{showSidebarDropdown ? '▲' : '▼'}</span>
+            </div>
+            
+            {showSidebarDropdown && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, width: 260, maxHeight: 300, overflowY: 'auto' }}>
+                <div onClick={() => { setSelectedTecnico('TODOS'); setShowSidebarDropdown(false) }}
+                  style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: selectedTecnico === 'TODOS' ? 'rgba(102,0,153,0.06)' : '#fff', fontSize: 13, fontWeight: 700, color: '#1e293b' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = selectedTecnico === 'TODOS' ? 'rgba(102,0,153,0.06)' : '#fff')}
+                >
+                  Todos os Técnicos
+                </div>
+                {tecnicos.map(t => (
+                  <div key={t.id} onClick={() => { setSelectedTecnico(t.id); setShowSidebarDropdown(false) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: selectedTecnico === t.id ? 'rgba(102,0,153,0.06)' : '#fff' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = selectedTecnico === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
+                  >
+                    {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -521,14 +559,41 @@ export default function PlanejamentoPage() {
                 ) : (
                   <div style={{ textAlign: 'center', padding: '20px 0' }}>
                     <p style={{ fontSize: 15, color: '#475569', fontWeight: 500, margin: '0 0 24px 0' }}>O que você deseja fazer com esta atividade?</p>
-                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                      <button type="button" onClick={() => setIsModifying(true)} style={{ flex: 1, padding: '12px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <Edit2 size={16} /> Alterei a Rota / Tarefa
-                      </button>
-                      <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <button type="submit" disabled={pending} style={{ flex: '1 1 200px', padding: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                         <Check size={18} /> Concluir como Planejado
                       </button>
+                      <button type="button" onClick={() => setIsModifying(true)} style={{ flex: '1 1 200px', padding: '12px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <AlertCircle size={16} /> Fazer Check-in com Alteração
+                      </button>
                     </div>
+
+                    {!isTst && showExecModal.status === 'PENDENTE' && (
+                      <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px dashed #e2e8f0' }}>
+                        <button type="button" onClick={() => {
+                          setShowExecModal(null)
+                          const catBase = ['DSS', 'INSPEÇÃO DE SEGURANÇA', 'INTEGRAÇÃO', 'TREINAMENTO', 'REUNIÃO', 'AUDITORIA', 'VISITA TÉCNICA'].includes(showExecModal.categoria)
+                          const locBase = unidades.find(u => u.nome === showExecModal.local)
+                          setForm({
+                            id: showExecModal.id,
+                            tecnicoId: showExecModal.tecnicoId,
+                            dataAtividade: formatStrDate(new Date(showExecModal.dataAtividade)),
+                            categoria: catBase ? showExecModal.categoria : 'OUTROS',
+                            outraCategoria: catBase ? '' : showExecModal.categoria,
+                            descricaoOriginal: showExecModal.descricaoOriginal,
+                            equipe: showExecModal.equipe || 'Não se aplica',
+                            local: locBase ? showExecModal.local : (showExecModal.local ? 'OUTROS' : ''),
+                            outroLocal: locBase ? '' : (showExecModal.local || ''),
+                            cidade: showExecModal.cidade || '',
+                            estado: showExecModal.estado || 'SP',
+                            prioridade: showExecModal.prioridade
+                          })
+                          setShowAddModal(true)
+                        }} style={{ padding: '10px 16px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <Edit2 size={14} /> Editar Planejamento Original
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
