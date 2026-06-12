@@ -206,18 +206,28 @@ export default function UnidadesPage() {
 
       {/* ── Modal de Cadastro/Edição ── */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ 
+            background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500,
+            display: 'flex', flexDirection: 'column',
+            maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            {/* Modal Header Fixo Roxo */}
+            <div style={{
+              background: '#660099', padding: '20px 24px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              position: 'sticky', top: 0, zIndex: 10
+            }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>
                 {isEditing ? 'Editar Unidade' : 'Nova Unidade'}
               </h2>
-              <button onClick={() => setShowModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}>
                 <X size={20} />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} style={{ padding: 24 }}>
+            <div style={{ padding: 24, overflowY: 'auto' }}>
+            <form onSubmit={handleSubmit}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Nome da Unidade *</label>
@@ -263,6 +273,7 @@ export default function UnidadesPage() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
