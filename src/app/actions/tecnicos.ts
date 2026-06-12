@@ -20,7 +20,10 @@ export async function getTecnicos() {
 
     const tecnicos = await prisma.tecnico.findMany({
       where,
-      orderBy: { nome: 'asc' }
+      orderBy: { nome: 'asc' },
+      include: {
+        unidades: true
+      }
     })
     return { success: true, data: tecnicos }
   } catch (error) {
@@ -62,7 +65,7 @@ export async function uploadFotoTecnico(fileData: string, fileName: string, cont
   }
 }
 
-export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, fotoUrl?: string }) {
+export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, fotoUrl?: string, unidadeIds?: string[] }) {
   try {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
@@ -71,13 +74,19 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
     const parts = data.admissao.split('/')
     const admissaoDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00Z`)
 
-    const payload = {
+    const payload: any = {
       nome: data.nome,
       email: data.email,
       telefone: data.telefone,
       cargo: 'Técnico de Segurança do Trabalho',
       admissao: admissaoDate,
       fotoUrl: data.fotoUrl,
+    }
+
+    if (data.unidadeIds !== undefined) {
+      payload.unidades = {
+        set: data.unidadeIds.map(id => ({ id }))
+      }
     }
 
     if (data.id) {

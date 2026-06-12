@@ -2,16 +2,18 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import {
-  Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2, Camera, Power, X, AlertCircle
+  Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2, Camera, Power, X, AlertCircle, Building
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getTecnicos, saveTecnico, toggleTecnicoStatus, uploadFotoTecnico, deleteTecnico } from '@/app/actions/tecnicos'
+import { getUnidades } from '@/app/actions/unidades'
 
 export default function TecnicosPage() {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
   const [tecnicos, setTecnicos] = useState<any[]>([])
+  const [unidadesList, setUnidadesList] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -20,10 +22,13 @@ export default function TecnicosPage() {
   const [pending, startTransition] = useTransition()
   
   // Form state
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    nome: string; email: string; telefone: string; admissao: string; fotoUrl: string; unidadeIds: string[]
+  }>({
     nome: '', email: '', telefone: '',
     admissao: new Date().toLocaleDateString('pt-BR'),
     fotoUrl: '',
+    unidadeIds: []
   })
   
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -40,9 +45,15 @@ export default function TecnicosPage() {
   }, [])
 
   async function load() {
-    const res = await getTecnicos()
-    if (res.success && res.data) {
-      setTecnicos(res.data)
+    const [resTecnicos, resUnidades] = await Promise.all([
+      getTecnicos(),
+      getUnidades()
+    ])
+    if (resTecnicos.success && resTecnicos.data) {
+      setTecnicos(resTecnicos.data)
+    }
+    if (resUnidades.success && resUnidades.data) {
+      setUnidadesList(resUnidades.data)
     }
   }
 
@@ -52,6 +63,7 @@ export default function TecnicosPage() {
       nome: '', email: '', telefone: '',
       admissao: new Date().toLocaleDateString('pt-BR'),
       fotoUrl: '',
+      unidadeIds: []
     })
     setFotoFile(null)
     setPreviewUrl('')
@@ -65,6 +77,7 @@ export default function TecnicosPage() {
       nome: tecnico.nome, email: tecnico.email || '', telefone: tecnico.telefone || '',
       admissao,
       fotoUrl: tecnico.fotoUrl || '',
+      unidadeIds: tecnico.unidades?.map((u: any) => u.id) || []
     })
     setFotoFile(null)
     setPreviewUrl(tecnico.fotoUrl || '')
@@ -107,7 +120,8 @@ export default function TecnicosPage() {
         email: form.email,
         telefone: form.telefone,
         admissao: form.admissao,
-        fotoUrl: finalFotoUrl
+        fotoUrl: finalFotoUrl,
+        unidadeIds: form.unidadeIds
       })
 
       setShowModal(false)
@@ -217,6 +231,7 @@ export default function TecnicosPage() {
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Contato</th>
+                <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Unidades</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Admissão</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
                 <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ações</th>
@@ -243,6 +258,17 @@ export default function TecnicosPage() {
                   <td style={{ padding: '14px 20px' }}>
                     <div style={{ fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}><Mail size={12} /> {tecnico.email}</div>
                     <div style={{ fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}><Phone size={12} /> {tecnico.telefone}</div>
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {tecnico.unidades?.length > 0 ? tecnico.unidades.map((u: any) => (
+                        <span key={u.id} style={{ background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Building size={10} /> {u.nome}
+                        </span>
+                      )) : (
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>Nenhuma unidade</span>
+                      )}
+                    </div>
                   </td>
                   <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {new Date(tecnico.admissao).toLocaleDateString('pt-BR')}</div>
@@ -325,6 +351,33 @@ export default function TecnicosPage() {
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Admissão (DD/MM/AAAA)</label>
                   <input type="text" value={form.admissao} onChange={(e) => setForm(p => ({ ...p, admissao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Ex: 05/08/2025" />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Unidades de Atuação</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', maxHeight: 120, overflowY: 'auto' }}>
+                  {unidadesList.length === 0 && <span style={{ fontSize: 13, color: '#94a3b8' }}>Nenhuma unidade cadastrada.</span>}
+                  {unidadesList.map(u => {
+                    const isSelected = form.unidadeIds.includes(u.id)
+                    return (
+                      <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc', padding: '4px 10px', borderRadius: 20, border: `1px solid ${isSelected ? '#660099' : '#e2e8f0'}`, transition: 'all 0.2s' }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setForm(p => ({ ...p, unidadeIds: [...p.unidadeIds, u.id] }))
+                            } else {
+                              setForm(p => ({ ...p, unidadeIds: p.unidadeIds.filter(id => id !== u.id) }))
+                            }
+                          }}
+                          style={{ margin: 0, accentColor: '#660099' }}
+                        />
+                        <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? '#660099' : '#475569' }}>{u.nome}</span>
+                      </label>
+                    )
+                  })}
                 </div>
               </div>
 

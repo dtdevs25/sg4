@@ -94,8 +94,26 @@ model Tecnico {
   abastecimentos  Abastecimento[]
   atividadesRelatorio RelatorioAtividade[]
 
+  unidades    Unidade[]
+
   @@map("tecnicos")
 }
+
+// ─── UNIDADES (BASES) ───────────────────────────────────────────────────────
+
+model Unidade {
+  id          String    @id @default(cuid())
+  nome        String    @unique
+  endereco    String?
+  responsavel String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tecnicos    Tecnico[]
+
+  @@map("unidades")
+}
+
 
 // ─── ATIVIDADES (DSS + INSPEÇÃO) ────────────────────────────────────────────
 

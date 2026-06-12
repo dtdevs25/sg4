@@ -31,6 +31,7 @@ const NAV: NavItemType[] = [
     subItems: [
       { href: '/dashboard/cadastros/usuarios', label: 'Usuários' },
       { href: '/dashboard/cadastros/tecnicos', label: 'Técnicos' },
+      { href: '/dashboard/cadastros/unidades', label: 'Unidades' },
     ]
   },
   {
