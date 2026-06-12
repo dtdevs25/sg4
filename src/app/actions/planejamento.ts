@@ -34,7 +34,7 @@ export async function getPlanejamentos(tecnicoId?: string, startDate?: Date, end
       where,
       orderBy: { dataAtividade: 'asc' },
       include: {
-        tecnico: { select: { nome: true } }
+        tecnico: { select: { nome: true, fotoUrl: true } }
       }
     })
 

@@ -21,7 +21,7 @@ export default function UnidadesPage() {
   
   // Form state
   const [form, setForm] = useState({
-    nome: '', endereco: '', responsavel: ''
+    nome: '', endereco: '', cidade: '', estado: 'SP', responsavel: ''
   })
 
   const filtered = unidades.filter(u => 
@@ -43,7 +43,7 @@ export default function UnidadesPage() {
 
   function handleOpenAdd() {
     setIsEditing(null)
-    setForm({ nome: '', endereco: '', responsavel: '' })
+    setForm({ nome: '', endereco: '', cidade: '', estado: 'SP', responsavel: '' })
     setShowModal(true)
   }
 
@@ -52,6 +52,8 @@ export default function UnidadesPage() {
     setForm({
       nome: unidade.nome,
       endereco: unidade.endereco || '',
+      cidade: unidade.cidade || '',
+      estado: unidade.estado || 'SP',
       responsavel: unidade.responsavel || ''
     })
     setShowModal(true)
@@ -245,11 +247,35 @@ export default function UnidadesPage() {
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Endereço</label>
                   <input 
                     type="text"
-                    placeholder="Ex: Av. Paulista, 1000 - SP"
+                    placeholder="Ex: Av. Paulista, 1000"
                     value={form.endereco}
                     onChange={e => setForm({ ...form, endereco: e.target.value })}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box', outlineColor: '#660099' }}
                   />
+                </div>
+
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Cidade</label>
+                    <input 
+                      type="text"
+                      placeholder="Cidade"
+                      value={form.cidade}
+                      onChange={e => setForm({ ...form, cidade: e.target.value })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box', outlineColor: '#660099' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Estado (UF)</label>
+                    <input 
+                      type="text"
+                      placeholder="UF"
+                      maxLength={2}
+                      value={form.estado}
+                      onChange={e => setForm({ ...form, estado: e.target.value.toUpperCase() })}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box', outlineColor: '#660099' }}
+                    />
+                  </div>
                 </div>
 
                 <div>

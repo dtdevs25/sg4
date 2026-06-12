@@ -92,13 +92,16 @@ export default function PlanejamentoPage() {
   // --- Funções de Data ---
   function getStartOfWeek(date: Date) {
     const d = new Date(date)
+    d.setHours(0, 0, 0, 0)
     const day = d.getDay()
     const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Seg a Dom
     return new Date(d.setDate(diff))
   }
 
   function formatStrDate(d: Date) {
-    return d.toISOString().split('T')[0]
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
+    return localISOTime;
   }
 
   function handlePrev() {
@@ -198,21 +201,21 @@ export default function PlanejamentoPage() {
           const isToday = formatStrDate(d) === formatStrDate(new Date())
 
           return (
-            <div key={i} style={{ minWidth: 160, background: '#f8fafc', borderRadius: 10, border: isToday ? '2px solid #660099' : '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ padding: '12px 14px', borderBottom: '1px solid #e2e8f0', background: isToday ? '#faf5ff' : 'transparent', borderRadius: '8px 8px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div key={i} style={{ minWidth: 140, background: '#f8fafc', borderRadius: 8, border: isToday ? '2px solid #660099' : '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #e2e8f0', background: isToday ? '#faf5ff' : 'transparent', borderRadius: '6px 6px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
                     {d.toLocaleDateString('pt-BR', { weekday: 'short' })}
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
                     {d.getDate()}
                   </div>
                 </div>
-                <button onClick={() => handleAdd(dateStr)} style={{ background: '#e2e8f0', border: 'none', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569' }}>
+                <button onClick={() => handleAdd(dateStr)} style={{ background: '#e2e8f0', border: 'none', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569' }}>
                   <Plus size={14} />
                 </button>
               </div>
-              <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minHeight: 200 }}>
+              <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 150 }}>
                 {dayPlans.map(p => <PlanCard key={p.id} plan={p} onClick={() => handleActionExecute(p)} />)}
               </div>
             </div>
@@ -239,24 +242,34 @@ export default function PlanejamentoPage() {
         {gridDays.map((_, i) => {
           const dayNum = i - offset + 1
           const isValid = dayNum > 0 && dayNum <= daysInMonth
-          if (!isValid) return <div key={i} style={{ minHeight: 100, background: '#f8fafc', borderRadius: 8, border: '1px dashed #e2e8f0' }} />
+          if (!isValid) return <div key={i} style={{ minHeight: 80, background: '#f8fafc', borderRadius: 8, border: '1px dashed #e2e8f0' }} />
 
           const d = new Date(year, month, dayNum)
           const dateStr = formatStrDate(d)
           const dayPlans = planejamentos.filter(p => formatStrDate(new Date(p.dataAtividade)) === dateStr)
 
           return (
-            <div key={i} style={{ minHeight: 100, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', padding: 8, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b' }}>{dayNum}</span>
+            <div key={i} style={{ minHeight: 80, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', padding: 6, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#1e293b' }}>{dayNum}</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {dayPlans.map(p => (
-                  <div key={p.id} onClick={() => handleActionExecute(p)} style={{ fontSize: 10, padding: '4px 6px', borderRadius: 4, background: PR_COLORS[p.prioridade].bg, borderLeft: `3px solid ${PR_COLORS[p.prioridade].border}`, color: PR_COLORS[p.prioridade].text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>
-                    {p.status === 'CONCLUIDO' && <CheckCircle2 size={10} style={{ display: 'inline', marginRight: 4 }} />}
-                    {p.categoria}
-                  </div>
-                ))}
+                {dayPlans.map(p => {
+                  const isConcluido = p.status === 'CONCLUIDO'
+                  return (
+                    <div key={p.id} onClick={() => handleActionExecute(p)} style={{ fontSize: 9, padding: '3px 4px', borderRadius: 4, background: PR_COLORS[p.prioridade].bg, borderLeft: `3px solid ${PR_COLORS[p.prioridade].border}`, color: PR_COLORS[p.prioridade].text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: isConcluido ? 0.6 : 1 }}>
+                      {p.tecnico?.fotoUrl ? (
+                        <img src={p.tecnico.fotoUrl} alt={p.tecnico.nome} style={{ width: 14, height: 14, borderRadius: '50%', objectFit: 'cover' }} title={p.tecnico.nome} />
+                      ) : (
+                        <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#660099', color: '#fff', fontSize: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }} title={p.tecnico?.nome}>{p.tecnico?.nome?.substring(0,1).toUpperCase() || 'T'}</div>
+                      )}
+                      <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {isConcluido && <CheckCircle2 size={9} style={{ display: 'inline', marginRight: 2 }} />}
+                        {p.categoria}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )
@@ -545,18 +558,26 @@ export default function PlanejamentoPage() {
 
 function PlanCard({ plan, onClick }: { plan: any, onClick: () => void }) {
   const c = PR_COLORS[plan.prioridade]
+  const isConcluido = plan.status === 'CONCLUIDO'
   return (
-    <div onClick={onClick} style={{ background: '#fff', border: `1px solid ${c.border}`, borderRadius: 8, padding: 10, cursor: 'pointer', position: 'relative', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', transition: 'transform 0.1s' }} onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}>
+    <div onClick={onClick} style={{ background: '#fff', border: `1px solid ${c.border}`, borderRadius: 8, padding: 8, cursor: 'pointer', position: 'relative', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'transform 0.1s', opacity: isConcluido ? 0.6 : 1 }} onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}>
       <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: c.border }}></div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, paddingLeft: 6 }}>
-        <span style={{ fontSize: 10, fontWeight: 800, color: c.text }}>{plan.categoria}</span>
-        {plan.status === 'CONCLUIDO' && <CheckCircle2 size={12} color="#10b981" />}
+        <span style={{ fontSize: 10, fontWeight: 800, color: c.text, display: 'flex', alignItems: 'center', gap: 4 }}>
+          {plan.tecnico?.fotoUrl ? (
+            <img src={plan.tecnico.fotoUrl} alt={plan.tecnico.nome} style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover' }} title={plan.tecnico.nome} />
+          ) : (
+            <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#660099', color: '#fff', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }} title={plan.tecnico?.nome}>{plan.tecnico?.nome?.substring(0,2).toUpperCase() || 'TS'}</div>
+          )}
+          {plan.categoria}
+        </span>
+        {isConcluido && <CheckCircle2 size={12} color="#10b981" />}
       </div>
-      <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.4, paddingLeft: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+      <div style={{ fontSize: 11, color: '#334155', lineHeight: 1.4, paddingLeft: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
         {plan.descricaoOriginal}
       </div>
       {plan.alteradaOriginal && (
-        <div style={{ marginTop: 6, paddingLeft: 6, fontSize: 10, color: '#ef4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ marginTop: 4, paddingLeft: 6, fontSize: 9, color: '#ef4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
           <AlertTriangle size={10} /> ROTA ALTERADA
         </div>
       )}

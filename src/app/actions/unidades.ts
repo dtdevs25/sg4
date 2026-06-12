@@ -20,18 +20,18 @@ export async function getUnidades() {
   }
 }
 
-export async function saveUnidade(data: { id?: string; nome: string; endereco?: string; responsavel?: string }) {
+export async function saveUnidade(data: { id?: string; nome: string; endereco?: string; responsavel?: string; cidade?: string; estado?: string }) {
   try {
-    const { id, nome, endereco, responsavel } = data
+    const { id, nome, endereco, responsavel, cidade, estado } = data
     
     if (id) {
       await prisma.unidade.update({
         where: { id },
-        data: { nome, endereco, responsavel }
+        data: { nome, endereco, responsavel, cidade, estado }
       })
     } else {
       await prisma.unidade.create({
-        data: { nome, endereco, responsavel }
+        data: { nome, endereco, responsavel, cidade, estado }
       })
     }
 

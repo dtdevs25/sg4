@@ -106,6 +106,8 @@ model Unidade {
   id          String    @id @default(cuid())
   nome        String    @unique
   endereco    String?
+  cidade      String?
+  estado      String?
   responsavel String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
