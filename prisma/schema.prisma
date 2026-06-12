@@ -95,6 +95,7 @@ model Tecnico {
   atividadesRelatorio RelatorioAtividade[]
 
   unidades    Unidade[]
+  planejamentos Planejamento[]
 
   @@map("tecnicos")
 }
@@ -141,6 +142,45 @@ model Atividade {
 enum TipoAtividade {
   DSS
   INSPECAO
+}
+
+// ─── PLANEJAMENTO (CALENDÁRIO DE TÉCNICOS) ──────────────────────────────────
+
+model Planejamento {
+  id                  String    @id @default(cuid())
+  tecnicoId           String
+  dataAtividade       DateTime
+  categoria           String
+  descricaoOriginal   String
+  descricaoExecutada  String?
+  alteradaOriginal    Boolean   @default(false)
+  equipe              String?
+  local               String?
+  cidade              String?
+  estado              String?
+  prioridade          PrioridadePlanejamento @default(MEDIA)
+  status              StatusPlanejamento     @default(PENDENTE)
+  observacoes         String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  tecnico             Tecnico   @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+
+  @@index([tecnicoId])
+  @@index([dataAtividade])
+  @@map("planejamentos")
+}
+
+enum PrioridadePlanejamento {
+  ALTA
+  MEDIA
+  BAIXA
+}
+
+enum StatusPlanejamento {
+  PENDENTE
+  CONCLUIDO
+  CANCELADO
 }
 
 enum Mes {

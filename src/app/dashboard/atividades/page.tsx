@@ -1,341 +1,482 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import {
-  Activity, Plus, Search, CheckCircle, Clock, Trash2, Sparkles, X,
-  FileCheck, Calendar, Filter, User, CheckCircle2,
-  AlertTriangle, PlusCircle, Award, ShieldAlert
+  CalendarDays, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
+  Plus, Edit2, CheckCircle2, AlertTriangle, User, MapPin, Search, 
+  X, Check, AlertCircle
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
+import { getTecnicos } from '@/app/actions/tecnicos'
+import {
+  getPlanejamentos, savePlanejamento, modificarExecucao, concluirPlanejamento, deletePlanejamento
+} from '@/app/actions/planejamento'
 
-// --- DADOS MOCK (ATIVIDADES) ---
-const INITIAL_ATIVIDADES = [
-  { id: 'act-1', data: '02/01/2026', responsavel: 'ANTONIO CARLOS JUNIOR DIAS', descricao: 'Planejamento das atividades, leitura de e-mail e elaboração do plano semanal.', equipe: 'Não se aplica', categoria: 'ADMINISTRATIVA', local: 'Base Humaitá', cidade: 'São José dos Campos', estado: 'SP', status: 'CONCLUÍDO', observacao: '' },
-  { id: 'act-2', data: '02/01/2026', responsavel: 'ANTONIO CARLOS JUNIOR DIAS', descricao: 'Inspeção de segurança em campo.', equipe: 'Não se aplica', categoria: 'INSPEÇÃO DE SEGURANÇA', local: 'No município', cidade: 'Lorena', estado: 'SP', status: 'PENDENTE', observacao: 'Não foi encontrada nenhuma equipe para realizar a inspeção.' },
-  { id: 'act-3', data: '02/01/2026', responsavel: 'ANTONIO CARLOS JUNIOR DIAS', descricao: 'Inspeção de segurança em campo.', equipe: 'Não se aplica', categoria: 'INSPEÇÃO DE SEGURANÇA', local: 'No município', cidade: 'Guaratinguetá', estado: 'SP', status: 'PENDENTE', observacao: 'Não foi encontrada nenhuma equipe para realizar a inspeção.' },
-  { id: 'act-4', data: '02/01/2026', responsavel: 'DANIEL JOSÉ GREGORIO JUNIOR', descricao: 'Planejamento das atividades, leitura de e-mails, relatórios semanais.', equipe: 'Não se aplica', categoria: 'ADMINISTRATIVA', local: 'Base', cidade: 'Bauru', estado: 'SP', status: 'CONCLUÍDO', observacao: '' },
-]
+// --- Cores de Prioridade ---
+const PR_COLORS: any = {
+  ALTA: { bg: '#fee2e2', border: '#ef4444', text: '#b91c1c' },
+  MEDIA: { bg: '#fef3c7', border: '#f59e0b', text: '#b45309' },
+  BAIXA: { bg: '#e0e7ff', border: '#6366f1', text: '#4338ca' }
+}
 
-// --- DADOS MOCK (ENTREGAS) ---
-const INITIAL_ENTREGAS = [
-  { id: '1', tecnico: 'ANTONIO CARLOS JUNIOR DIAS', periodo: '02/03/2026 a 06/03/2026', tipo: 'Relatório de Atividades', dataEntrega: '09/03/2026 14:05', status: 'Atrasado' },
-  { id: '2', tecnico: 'ANTONIO CARLOS JUNIOR DIAS', periodo: '02/03/2026 a 06/03/2026', tipo: 'Registro de KM Inicial/Final', dataEntrega: '09/03/2026 09:12', status: 'No Prazo' },
-  { id: '7', tecnico: 'DANIEL JOSÉ GREGORIO JUNIOR', periodo: '02/03/2026 a 06/03/2026', tipo: 'Relatório de Atividades', dataEntrega: '09/03/2026 08:28', status: 'No Prazo' },
-  { id: '8', tecnico: 'DANIEL JOSÉ GREGORIO JUNIOR', periodo: '02/03/2026 a 06/03/2026', tipo: 'Registro de KM Inicial/Final', dataEntrega: '09/03/2026 07:36', status: 'No Prazo' },
-]
+const CATEGORIES = ['ADMINISTRATIVA', 'INSPEÇÃO DE SEGURANÇA', 'GESTÃO DSS', 'REUNIÃO DE ALINHAMENTO', 'TREINAMENTO', 'OUTROS']
 
-const TECNICOS = [
-  'ANTONIO CARLOS JUNIOR DIAS', 'DANIEL JOSÉ GREGORIO JUNIOR', 'DJONATÊ CRUZ DOS SANTOS',
-  'JONAS RODRIGUES PEREIRA', 'KARINE NOVAES ASSEM', 'LUIS CLAUDIO SOARES',
-  'ROGÉRIO LIMA DA SILVA', 'ROSICLEIDE FERNANDES SANTOS DAVINO', 'SAMUEL DA SILVA SANTOS',
-  'DARA AMORIM SILVA DE LIMA'
-]
-
-const CATEGORIES = ['ADMINISTRATIVA', 'INSPEÇÃO DE SEGURANÇA', 'GESTÃO DSS', 'REUNIÃO DE ALINHAMENTO', 'TREINAMENTO']
-const PERIODS = ['02/03/2026 a 06/03/2026', '09/03/2026 a 13/03/2026', '16/03/2026 a 20/03/2026', '23/03/2026 a 27/03/2026']
-
-export default function AtividadesEntregasPage() {
+export default function PlanejamentoPage() {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
+  const userTecnicoId = (session?.user as any)?.tecnicoId
+  const isTst = role === 'TST'
 
-  const [activeTab, setActiveTab] = useState<'atividades' | 'entregas'>('atividades')
+  const [view, setView] = useState<'semana' | 'mes'>('semana')
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedTecnico, setSelectedTecnico] = useState<string>('TODOS')
+  
+  const [tecnicos, setTecnicos] = useState<any[]>([])
+  const [planejamentos, setPlanejamentos] = useState<any[]>([])
+  const [pending, startTransition] = useTransition()
 
-  // --- ESTADO: ATIVIDADES ---
-  const [atividades, setAtividades] = useState(INITIAL_ATIVIDADES)
-  const [searchAct, setSearchAct] = useState('')
-  const [filterRespAct, setFilterRespAct] = useState('TODOS')
-  const [filterCatAct, setFilterCatAct] = useState('TODOS')
-  const [showAddAct, setShowAddAct] = useState(false)
-  const [formAct, setFormAct] = useState({
-    data: new Date().toLocaleDateString('pt-BR'), responsavel: 'ANTONIO CARLOS JUNIOR DIAS',
-    descricao: '', equipe: 'Não se aplica', categoria: 'INSPEÇÃO DE SEGURANÇA',
-    local: '', cidade: '', estado: 'SP', status: 'CONCLUÍDO', observacao: ''
+  // Modais
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showExecModal, setShowExecModal] = useState<any>(null)
+  const [isModifying, setIsModifying] = useState(false)
+
+  // Form State
+  const [form, setForm] = useState({
+    id: '', tecnicoId: '', dataAtividade: '', categoria: 'INSPEÇÃO DE SEGURANÇA',
+    descricaoOriginal: '', equipe: 'Não se aplica', local: '', cidade: '', estado: 'SP',
+    prioridade: 'MEDIA'
+  })
+  
+  const [execForm, setExecForm] = useState({
+    descricaoExecutada: '', observacoes: ''
   })
 
-  const filteredAct = atividades.filter(act => {
-    const matchSearch = act.descricao.toLowerCase().includes(searchAct.toLowerCase()) || act.local.toLowerCase().includes(searchAct.toLowerCase()) || act.cidade.toLowerCase().includes(searchAct.toLowerCase())
-    const matchResp = filterRespAct === 'TODOS' || act.responsavel === filterRespAct
-    const matchCat = filterCatAct === 'TODOS' || act.categoria === filterCatAct
-    return matchSearch && matchResp && matchCat
-  })
+  useEffect(() => {
+    if (!isTst) {
+      getTecnicos().then(res => {
+        if (res.success && res.data) setTecnicos(res.data)
+      })
+    }
+  }, [isTst])
 
-  function handleCreateAct(e: React.FormEvent) {
-    e.preventDefault()
-    setAtividades(prev => [ { id: 'act-' + Date.now(), ...formAct }, ...prev ])
-    setShowAddAct(false)
-    setFormAct(p => ({ ...p, descricao: '', local: '', cidade: '', observacao: '' }))
+  useEffect(() => {
+    load()
+  }, [currentDate, view, selectedTecnico, userTecnicoId])
+
+  async function load() {
+    let start, end;
+    if (view === 'semana') {
+      start = getStartOfWeek(currentDate)
+      end = new Date(start)
+      end.setDate(end.getDate() + 6)
+      end.setHours(23, 59, 59, 999)
+    } else {
+      start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+      end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999)
+    }
+
+    const tId = isTst ? userTecnicoId : (selectedTecnico === 'TODOS' ? undefined : selectedTecnico)
+    if (isTst && !userTecnicoId) return // Aguarda carregar sessão
+
+    const res = await getPlanejamentos(tId, start, end)
+    if (res.success && res.data) {
+      setPlanejamentos(res.data)
+    }
   }
 
-  // --- ESTADO: ENTREGAS ---
-  const [entregas, setEntregas] = useState(INITIAL_ENTREGAS)
-  const [selectedTecnicoEnt, setSelectedTecnicoEnt] = useState('TODOS')
-  const [selectedTypeEnt, setSelectedTypeEnt] = useState('TODOS')
-  const [showAddEnt, setShowAddEnt] = useState(false)
-  const [formEnt, setFormEnt] = useState({
-    tecnico: 'ANTONIO CARLOS JUNIOR DIAS', periodo: '23/03/2026 a 27/03/2026',
-    tipo: 'Relatório de Atividades', dataEntrega: '', status: 'No Prazo'
-  })
+  // --- Funções de Data ---
+  function getStartOfWeek(date: Date) {
+    const d = new Date(date)
+    const day = d.getDay()
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Seg a Dom
+    return new Date(d.setDate(diff))
+  }
 
-  const filteredEnt = entregas.filter(e => {
-    const matchTec = selectedTecnicoEnt === 'TODOS' || e.tecnico === selectedTecnicoEnt
-    const matchType = selectedTypeEnt === 'TODOS' || e.tipo === selectedTypeEnt
-    return matchTec && matchType
-  })
+  function formatStrDate(d: Date) {
+    return d.toISOString().split('T')[0]
+  }
 
-  const totalEnt = filteredEnt.length
-  const noPrazoEnt = filteredEnt.filter(e => e.status === 'No Prazo').length
-  const atrasadosEnt = filteredEnt.filter(e => e.status === 'Atrasado').length
-  const eficienciaEnt = totalEnt > 0 ? Math.round((noPrazoEnt / totalEnt) * 100) : 0
+  function handlePrev() {
+    const d = new Date(currentDate)
+    if (view === 'semana') d.setDate(d.getDate() - 7)
+    else d.setMonth(d.getMonth() - 1)
+    setCurrentDate(d)
+  }
 
-  function handleCreateEnt(e: React.FormEvent) {
+  function handleNext() {
+    const d = new Date(currentDate)
+    if (view === 'semana') d.setDate(d.getDate() + 7)
+    else d.setMonth(d.getMonth() + 1)
+    setCurrentDate(d)
+  }
+
+  function handleAdd(dateStr?: string) {
+    setForm({
+      id: '', tecnicoId: isTst ? userTecnicoId : (selectedTecnico !== 'TODOS' ? selectedTecnico : ''),
+      dataAtividade: dateStr || formatStrDate(new Date()), categoria: 'INSPEÇÃO DE SEGURANÇA',
+      descricaoOriginal: '', equipe: 'Não se aplica', local: '', cidade: '', estado: 'SP',
+      prioridade: 'MEDIA'
+    })
+    setShowAddModal(true)
+  }
+
+  function handleSaveForm(e: React.FormEvent) {
     e.preventDefault()
-    setEntregas(prev => [ { id: 'ent-' + Date.now(), ...formEnt }, ...prev ])
-    setShowAddEnt(false)
-    setFormEnt(p => ({ ...p, dataEntrega: '' }))
+    startTransition(async () => {
+      const payload = {
+        ...form,
+        dataAtividade: new Date(`${form.dataAtividade}T12:00:00Z`), // Força meio-dia para evitar fuso
+        prioridade: form.prioridade as any
+      }
+      const res = await savePlanejamento(payload)
+      if (res.success) {
+        setShowAddModal(false)
+        load()
+      } else {
+        alert(res.error)
+      }
+    })
+  }
+
+  function handleActionExecute(plan: any) {
+    setShowExecModal(plan)
+    setIsModifying(false)
+    setExecForm({
+      descricaoExecutada: plan.descricaoExecutada || plan.descricaoOriginal,
+      observacoes: plan.observacoes || ''
+    })
+  }
+
+  function handleExecutar(e: React.FormEvent) {
+    e.preventDefault()
+    startTransition(async () => {
+      if (isModifying) {
+        await modificarExecucao(showExecModal.id, execForm.descricaoExecutada, execForm.observacoes)
+      } else {
+        await concluirPlanejamento(showExecModal.id)
+      }
+      setShowExecModal(null)
+      load()
+    })
+  }
+
+  function handleDeletePlan(id: string) {
+    if(!confirm('Deseja realmente remover esta atividade planejada?')) return
+    startTransition(async () => {
+      await deletePlanejamento(id)
+      setShowExecModal(null)
+      load()
+    })
+  }
+
+  // --- RenderHelpers ---
+  function renderWeek() {
+    const start = getStartOfWeek(currentDate)
+    const days = []
+    for(let i=0; i<6; i++) { // Seg a Sábado
+      const d = new Date(start)
+      d.setDate(d.getDate() + i)
+      days.push(d)
+    }
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, overflowX: 'auto' }}>
+        {days.map((d, i) => {
+          const dateStr = formatStrDate(d)
+          const dayPlans = planejamentos.filter(p => formatStrDate(new Date(p.dataAtividade)) === dateStr)
+          const isToday = formatStrDate(d) === formatStrDate(new Date())
+
+          return (
+            <div key={i} style={{ minWidth: 160, background: '#f8fafc', borderRadius: 10, border: isToday ? '2px solid #660099' : '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '12px 14px', borderBottom: '1px solid #e2e8f0', background: isToday ? '#faf5ff' : 'transparent', borderRadius: '8px 8px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                    {d.toLocaleDateString('pt-BR', { weekday: 'short' })}
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
+                    {d.getDate()}
+                  </div>
+                </div>
+                <button onClick={() => handleAdd(dateStr)} style={{ background: '#e2e8f0', border: 'none', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569' }}>
+                  <Plus size={14} />
+                </button>
+              </div>
+              <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10, flex: 1, minHeight: 200 }}>
+                {dayPlans.map(p => <PlanCard key={p.id} plan={p} onClick={() => handleActionExecute(p)} />)}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  function renderMonth() {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const firstDay = new Date(year, month, 1).getDay()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+    const offset = firstDay === 0 ? 6 : firstDay - 1 // Faz Seg ser 0
+    const gridDays = Array.from({ length: 42 })
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+        {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(wd => (
+          <div key={wd} style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#64748b', paddingBottom: 8 }}>{wd}</div>
+        ))}
+        {gridDays.map((_, i) => {
+          const dayNum = i - offset + 1
+          const isValid = dayNum > 0 && dayNum <= daysInMonth
+          if (!isValid) return <div key={i} style={{ minHeight: 100, background: '#f8fafc', borderRadius: 8, border: '1px dashed #e2e8f0' }} />
+
+          const d = new Date(year, month, dayNum)
+          const dateStr = formatStrDate(d)
+          const dayPlans = planejamentos.filter(p => formatStrDate(new Date(p.dataAtividade)) === dateStr)
+
+          return (
+            <div key={i} style={{ minHeight: 100, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', padding: 8, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b' }}>{dayNum}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {dayPlans.map(p => (
+                  <div key={p.id} onClick={() => handleActionExecute(p)} style={{ fontSize: 10, padding: '4px 6px', borderRadius: 4, background: PR_COLORS[p.prioridade].bg, borderLeft: `3px solid ${PR_COLORS[p.prioridade].border}`, color: PR_COLORS[p.prioridade].text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}>
+                    {p.status === 'CONCLUIDO' && <CheckCircle2 size={10} style={{ display: 'inline', marginRight: 4 }} />}
+                    {p.categoria}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  const getWeekLabel = () => {
+    const s = getStartOfWeek(currentDate)
+    const e = new Date(s)
+    e.setDate(e.getDate() + 6)
+    return `${s.toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})} a ${e.toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', year: 'numeric'})}`
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
-      {/* CABEÇALHO UNIFICADO */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Activity color="#660099" size={22} />
-            Gestão Operacional e Entregas
-          </h1>
-        </div>
-
-        <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4 }}>
-          <button
-            onClick={() => setActiveTab('atividades')}
-            style={{
-              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-              fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-              background: activeTab === 'atividades' ? '#fff' : 'transparent',
-              color: activeTab === 'atividades' ? '#660099' : '#64748b',
-              boxShadow: activeTab === 'atividades' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-            }}
-          >
-            Atividades Diárias
-          </button>
-          <button
-            onClick={() => setActiveTab('entregas')}
-            style={{
-              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-              fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-              background: activeTab === 'entregas' ? '#fff' : 'transparent',
-              color: activeTab === 'entregas' ? '#660099' : '#64748b',
-              boxShadow: activeTab === 'entregas' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-            }}
-          >
-            Controle de Entregas
+    <div style={{ paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* HEADER */}
+      <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CalendarDays color="#660099" size={24} />
+          Planejamento de Atividades
+        </h1>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button onClick={() => handleAdd()} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <Plus size={16} /> Novo Planejamento
           </button>
         </div>
+      </div>
 
-        {activeTab === 'atividades' ? (
-          <button onClick={() => setShowAddAct(true)} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <Plus size={16} /> Lançar Atividade
-          </button>
-        ) : (
-          <button onClick={() => setShowAddEnt(true)} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <PlusCircle size={16} /> Lançar Entrega
-          </button>
+      {/* CONTROLES */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ display: 'flex', background: '#e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+            <button onClick={() => setView('semana')} style={{ background: view === 'semana' ? '#fff' : 'transparent', color: view === 'semana' ? '#660099' : '#64748b', border: 'none', padding: '6px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', margin: 2, borderRadius: 6 }}>Semana</button>
+            <button onClick={() => setView('mes')} style={{ background: view === 'mes' ? '#fff' : 'transparent', color: view === 'mes' ? '#660099' : '#64748b', border: 'none', padding: '6px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', margin: 2, borderRadius: 6 }}>Mês</button>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '4px 8px' }}>
+            <button onClick={handlePrev} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}><ChevronLeft size={18} color="#64748b" /></button>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', minWidth: 150, textAlign: 'center' }}>
+              {view === 'semana' ? getWeekLabel() : currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()}
+            </span>
+            <button onClick={handleNext} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex' }}><ChevronRight size={18} color="#64748b" /></button>
+          </div>
+        </div>
+
+        {!isTst && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>Técnico:</span>
+            <select value={selectedTecnico} onChange={e => setSelectedTecnico(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}>
+              <option value="TODOS">Todos os Técnicos</option>
+              {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+            </select>
+          </div>
         )}
       </div>
 
-      {/* --- CONTEÚDO ATIVIDADES --- */}
-      {activeTab === 'atividades' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Filtros Atividades */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, flex: 1 }}>
-              <div style={{ position: 'relative', minWidth: 200, flex: 1 }}>
-                <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
-                <input type="text" placeholder="Buscar por descrição, local..." value={searchAct} onChange={(e) => setSearchAct(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
-              </div>
-              <select value={filterRespAct} disabled={role === 'TST'} onChange={(e) => setFilterRespAct(e.target.value)} style={{ width: 220, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
-                <option value="TODOS">Todos os Técnicos</option>
-                {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <select value={filterCatAct} onChange={(e) => setFilterCatAct(e.target.value)} style={{ width: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b' }}>
-                <option value="TODOS">Todas as Categorias</option>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div style={{ fontSize: 13, color: '#64748b' }}>Encontradas: <b>{filteredAct.length}</b> atividades</div>
-          </div>
+      {/* CALENDÁRIO */}
+      {view === 'semana' ? renderWeek() : renderMonth()}
 
-          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Responsável</th>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Descrição</th>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Categoria</th>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
-                    {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Excluir</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAct.map(act => (
-                    <tr key={act.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{act.data}</td>
-                      <td style={{ padding: '14px 20px' }}><div style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{act.responsavel}</div></td>
-                      <td style={{ padding: '14px 20px', maxWidth: 300 }}>
-                        <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{act.descricao}</p>
-                      </td>
-                      <td style={{ padding: '14px 20px' }}>
-                        <span style={{ fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, background: '#f1f5f9', color: '#64748b' }}>{act.categoria}</span>
-                      </td>
-                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                        <button onClick={() => setAtividades(prev => prev.map(a => a.id === act.id ? { ...a, status: a.status === 'CONCLUÍDO' ? 'PENDENTE' : 'CONCLUÍDO' } : a))} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 12, border: 'none', background: act.status === 'CONCLUÍDO' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: act.status === 'CONCLUÍDO' ? '#10b981' : '#f59e0b', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
-                          {act.status}
-                        </button>
-                      </td>
-                      {role !== 'TST' && (
-                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                          <button onClick={() => setAtividades(prev => prev.filter(a => a.id !== act.id))} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}>
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* MODAL ADICIONAR */}
+      {showAddModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 600, maxWidth: '95%', padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: '#1e293b' }}>Planejar Atividade</h2>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20} color="#64748b" /></button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* --- CONTEÚDO ENTREGAS --- */}
-      {activeTab === 'entregas' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* KPI Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
-            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Eficiência</span>
-                <Award color="#10b981" size={18} />
-              </div>
-              <div style={{ margin: '12px 0' }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{eficienciaEnt}%</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Entregas no prazo legal</div>
-              </div>
-              <div style={{ background: '#f1f5f9', borderRadius: 4, height: 6, overflow: 'hidden' }}>
-                <div style={{ background: '#10b981', height: '100%', width: `${eficienciaEnt}%` }} />
-              </div>
-            </div>
-            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atrasados</span>
-                <ShieldAlert color="#ef4444" size={16} />
-              </div>
-              <div style={{ margin: '12px 0' }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{atrasadosEnt}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Requer atenção do gestor</div>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 12 }}>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 1 }}>
-              <select value={selectedTecnicoEnt} disabled={role === 'TST'} onChange={(e) => setSelectedTecnicoEnt(e.target.value)} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none', background: '#fff', color: '#64748b', fontWeight: 600 }}>
-                <option value="TODOS">Todos os Técnicos</option>
-                {TECNICOS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div style={{ fontSize: 13, color: '#64748b' }}>Encontradas: <b>{filteredEnt.length}</b> entregas</div>
-          </div>
-
-          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Período</th>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Tipo</th>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Data da Entrega</th>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Status</th>
-                    {role !== 'TST' && <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ações</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredEnt.map(e => (
-                    <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{e.periodo}</td>
-                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155' }}>{e.tecnico}</td>
-                      <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>{e.tipo}</td>
-                      <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, color: '#64748b', fontWeight: 600 }}>{e.dataEntrega || '—'}</td>
-                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: e.status === 'No Prazo' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: e.status === 'No Prazo' ? '#10b981' : '#ef4444' }}>
-                          {e.status}
-                        </span>
-                      </td>
-                      {role !== 'TST' && (
-                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                          <button onClick={() => setEntregas(prev => prev.filter(x => x.id !== e.id))} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAIS DE INSERÇÃO SIMPLIFICADOS (Atividades e Entregas) --- */}
-      {showAddAct && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 600, padding: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20 }}>Lançar Atividade</h2>
-            <form onSubmit={handleCreateAct} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>Descrição</label>
-                <textarea required value={formAct.descricao} onChange={(e) => setFormAct(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} />
-              </div>
+            <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', gap: 12 }}>
-                <button type="button" onClick={() => setShowAddAct(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
-                <button type="submit" style={{ flex: 1, padding: 12, background: '#660099', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700 }}>Salvar</button>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>DATA</label>
+                  <input type="date" required value={form.dataAtividade} onChange={e => setForm({...form, dataAtividade: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>PRIORIDADE</label>
+                  <select value={form.prioridade} onChange={e => setForm({...form, prioridade: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
+                    <option value="ALTA">Alta (Vermelho)</option>
+                    <option value="MEDIA">Média (Amarelo)</option>
+                    <option value="BAIXA">Baixa (Azul)</option>
+                  </select>
+                </div>
+              </div>
+
+              {!isTst && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>TÉCNICO</label>
+                  <select required value={form.tecnicoId} onChange={e => setForm({...form, tecnicoId: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
+                    <option value="">Selecione um técnico...</option>
+                    {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>CATEGORIA</label>
+                <select value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>O QUE ESTÁ PLANEJADO? (Descrição)</label>
+                <textarea required rows={3} value={form.descricaoOriginal} onChange={e => setForm({...form, descricaoOriginal: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', resize: 'none' }} placeholder="Descreva o que foi planejado para este dia..."></textarea>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>CIDADE/ESTADO</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input type="text" placeholder="Cidade" value={form.cidade} onChange={e => setForm({...form, cidade: e.target.value})} style={{ flex: 2, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                    <input type="text" placeholder="UF" value={form.estado} maxLength={2} onChange={e => setForm({...form, estado: e.target.value.toUpperCase()})} style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>LOCAL ESPECÍFICO</label>
+                  <input type="text" placeholder="Ex: Base Central" value={form.local} onChange={e => setForm({...form, local: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+                <button type="button" onClick={() => setShowAddModal(false)} style={{ padding: '10px 20px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" disabled={pending} style={{ padding: '10px 20px', borderRadius: 8, background: '#660099', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Salvar Planejamento</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {showAddEnt && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20 }}>Lançar Entrega</h2>
-            <form onSubmit={handleCreateEnt} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* MODAL EXECUÇÃO (CHECK-IN) */}
+      {showExecModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700 }}>Data da Entrega</label>
-                <input required value={formEnt.dataEntrega} onChange={(e) => setFormEnt(p => ({...p, dataEntrega: e.target.value}))} style={{ width: '100%', padding: 8, border: '1px solid #e2e8f0', borderRadius: 6 }} />
+                <span style={{ fontSize: 11, fontWeight: 800, color: PR_COLORS[showExecModal.prioridade].text, background: PR_COLORS[showExecModal.prioridade].bg, padding: '4px 8px', borderRadius: 12, marginBottom: 8, display: 'inline-block' }}>
+                  PRIORIDADE {showExecModal.prioridade}
+                </span>
+                <h2 style={{ fontSize: 18, fontWeight: 800, margin: '4px 0 0 0', color: '#1e293b' }}>{showExecModal.categoria}</h2>
               </div>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button type="button" onClick={() => setShowAddEnt(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
-                <button type="submit" style={{ flex: 1, padding: 12, background: '#660099', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700 }}>Salvar</button>
+              <button onClick={() => setShowExecModal(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20} color="#64748b" /></button>
+            </div>
+
+            <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, marginBottom: 20 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: '#64748b', margin: '0 0 4px 0' }}>PLANEJADO ORIGINALMENTE:</p>
+              <p style={{ fontSize: 14, color: '#334155', margin: 0, lineHeight: 1.5 }}>{showExecModal.descricaoOriginal}</p>
+              <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 12, color: '#64748b' }}>
+                {showExecModal.cidade && <span><MapPin size={12} style={{display:'inline', marginBottom:-2}} /> {showExecModal.cidade}/{showExecModal.estado}</span>}
+                {showExecModal.tecnico && <span><User size={12} style={{display:'inline', marginBottom:-2}} /> {showExecModal.tecnico.nome}</span>}
               </div>
-            </form>
+            </div>
+
+            {showExecModal.status === 'CONCLUIDO' ? (
+              <div style={{ background: '#ecfdf5', padding: 16, borderRadius: 8, border: '1px solid #10b981', textAlign: 'center' }}>
+                <CheckCircle2 color="#10b981" size={32} style={{ marginBottom: 8 }} />
+                <h3 style={{ margin: 0, color: '#047857', fontSize: 16, fontWeight: 800 }}>Atividade Concluída</h3>
+                {showExecModal.alteradaOriginal && (
+                  <p style={{ fontSize: 13, color: '#047857', marginTop: 8 }}>⚠️ Rota/Tarefa foi alterada do planejamento original.</p>
+                )}
+                {showExecModal.descricaoExecutada && (
+                  <div style={{ marginTop: 12, background: '#fff', padding: 12, borderRadius: 8, textAlign: 'left', border: '1px solid #6ee7b7' }}>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#047857' }}>O QUE FOI EXECUTADO:</p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#064e3b' }}>{showExecModal.descricaoExecutada}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleExecutar}>
+                {isModifying ? (
+                  <div style={{ marginBottom: 20, animation: 'fadeIn 0.3s' }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                      <AlertCircle size={14} /> DESCREVA O QUE FOI FEITO NA REALIDADE
+                    </label>
+                    <textarea required rows={4} value={execForm.descricaoExecutada} onChange={e => setExecForm({...execForm, descricaoExecutada: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fef2f2', boxSizing: 'border-box', resize: 'none', outlineColor: '#ef4444' }}></textarea>
+                    <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>O status "Alterada da Original" será ativado automaticamente.</p>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                    <p style={{ fontSize: 15, color: '#475569', fontWeight: 500, margin: '0 0 24px 0' }}>O que você deseja fazer com esta atividade?</p>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                      <button type="button" onClick={() => setIsModifying(true)} style={{ flex: 1, padding: '12px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <Edit2 size={16} /> Alterei a Rota / Tarefa
+                      </button>
+                      <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <Check size={18} /> Concluir como Planejado
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {isModifying && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                    <button type="button" onClick={() => setIsModifying(false)} style={{ padding: '10px 20px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Cancelar Edição</button>
+                    <button type="submit" disabled={pending} style={{ padding: '10px 20px', borderRadius: 8, background: '#10b981', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Confirmar Nova Execução</button>
+                  </div>
+                )}
+              </form>
+            )}
+
+            {/* Apenas líderes ou admin podem deletar do banco livremente, ou o dono se ainda estiver pendente */}
+            {!isModifying && showExecModal.status === 'PENDENTE' && (
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
+                <button type="button" onClick={() => handleDeletePlan(showExecModal.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
+                  Remover Planejamento
+                </button>
+              </div>
+            )}
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PlanCard({ plan, onClick }: { plan: any, onClick: () => void }) {
+  const c = PR_COLORS[plan.prioridade]
+  return (
+    <div onClick={onClick} style={{ background: '#fff', border: `1px solid ${c.border}`, borderRadius: 8, padding: 10, cursor: 'pointer', position: 'relative', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', transition: 'transform 0.1s' }} onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}>
+      <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: c.border }}></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, paddingLeft: 6 }}>
+        <span style={{ fontSize: 10, fontWeight: 800, color: c.text }}>{plan.categoria}</span>
+        {plan.status === 'CONCLUIDO' && <CheckCircle2 size={12} color="#10b981" />}
+      </div>
+      <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.4, paddingLeft: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        {plan.descricaoOriginal}
+      </div>
+      {plan.alteradaOriginal && (
+        <div style={{ marginTop: 6, paddingLeft: 6, fontSize: 10, color: '#ef4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <AlertTriangle size={10} /> ROTA ALTERADA
         </div>
       )}
     </div>
