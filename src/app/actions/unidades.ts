@@ -10,6 +10,9 @@ export async function getUnidades() {
       include: {
         _count: {
           select: { tecnicos: true }
+        },
+        tecnicos: {
+          select: { id: true, nome: true }
         }
       }
     })

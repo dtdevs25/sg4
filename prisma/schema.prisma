@@ -97,6 +97,9 @@ model Tecnico {
   unidades    Unidade[]
   planejamentos Planejamento[]
 
+  baseFixaId  String?
+  baseFixa    Unidade?     @relation("BaseFixa", fields: [baseFixaId], references: [id], onDelete: SetNull)
+
   @@map("tecnicos")
 }
 
@@ -113,6 +116,7 @@ model Unidade {
   updatedAt   DateTime  @updatedAt
 
   tecnicos    Tecnico[]
+  tecnicosBaseFixa Tecnico[] @relation("BaseFixa")
 
   @@map("unidades")
 }

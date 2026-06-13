@@ -134,10 +134,7 @@ export async function limparDssArkiumInvalidos() {
     // Remove registros com numero_dialogo vazio ou nulo
     const result = await prisma.dssArkium.deleteMany({
       where: {
-        OR: [
-          { numeroDialogo: '' },
-          { numeroDialogo: null as any },
-        ]
+        numeroDialogo: ''
       }
     })
 

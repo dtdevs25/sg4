@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import {
-  Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2, Camera, Power, X, AlertCircle, Building
+  Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2, Camera, Power, X, AlertCircle, Building, MapPin, Map, Navigation, Star
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getTecnicos, saveTecnico, toggleTecnicoStatus, uploadFotoTecnico, deleteTecnico } from '@/app/actions/tecnicos'
 import { getUnidades } from '@/app/actions/unidades'
+import { calcularDistanciasBase } from '@/app/actions/distancias'
 
 export default function TecnicosPage() {
   const { data: session } = useSession()
@@ -17,18 +18,23 @@ export default function TecnicosPage() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showUnidadesModal, setShowUnidadesModal] = useState(false)
+  const [selectedTecnicoUnidades, setSelectedTecnicoUnidades] = useState<any>(null)
+  const [distancias, setDistancias] = useState<any[]>([])
+  const [calculandoDistancias, setCalculandoDistancias] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   
   // Form state
   const [form, setForm] = useState<{
-    nome: string; email: string; telefone: string; admissao: string; fotoUrl: string; unidadeIds: string[]
+    nome: string; email: string; telefone: string; admissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null
   }>({
     nome: '', email: '', telefone: '',
     admissao: new Date().toLocaleDateString('pt-BR'),
     fotoUrl: '',
-    unidadeIds: []
+    unidadeIds: [],
+    baseFixaId: null
   })
   
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -63,7 +69,8 @@ export default function TecnicosPage() {
       nome: '', email: '', telefone: '',
       admissao: new Date().toLocaleDateString('pt-BR'),
       fotoUrl: '',
-      unidadeIds: []
+      unidadeIds: [],
+      baseFixaId: null
     })
     setFotoFile(null)
     setPreviewUrl('')
@@ -77,7 +84,8 @@ export default function TecnicosPage() {
       nome: tecnico.nome, email: tecnico.email || '', telefone: tecnico.telefone || '',
       admissao,
       fotoUrl: tecnico.fotoUrl || '',
-      unidadeIds: tecnico.unidades?.map((u: any) => u.id) || []
+      unidadeIds: tecnico.unidades?.map((u: any) => u.id) || [],
+      baseFixaId: tecnico.baseFixaId || null
     })
     setFotoFile(null)
     setPreviewUrl(tecnico.fotoUrl || '')
@@ -121,7 +129,8 @@ export default function TecnicosPage() {
         telefone: form.telefone,
         admissao: form.admissao,
         fotoUrl: finalFotoUrl,
-        unidadeIds: form.unidadeIds
+        unidadeIds: form.unidadeIds,
+        baseFixaId: form.baseFixaId
       })
 
       setShowModal(false)
@@ -153,6 +162,33 @@ export default function TecnicosPage() {
         load()
       }
     })
+  }
+
+  async function handleOpenUnidades(tecnico: any) {
+    setSelectedTecnicoUnidades(tecnico)
+    setDistancias([])
+    setShowUnidadesModal(true)
+  }
+
+  async function callGeminiDistances() {
+    if (!selectedTecnicoUnidades?.baseFixa) {
+      alert("Este técnico não possui uma Base Fixa definida.")
+      return
+    }
+    setCalculandoDistancias(true)
+    const outrasBases = selectedTecnicoUnidades.unidades.filter((u: any) => u.id !== selectedTecnicoUnidades.baseFixa.id)
+    if (outrasBases.length === 0) {
+      alert("Não há outras bases para calcular a distância.")
+      setCalculandoDistancias(false)
+      return
+    }
+    const res = await calcularDistanciasBase(selectedTecnicoUnidades.baseFixa, outrasBases)
+    if (res.success && res.data) {
+       setDistancias(res.data)
+    } else {
+       alert(res.error || 'Erro ao calcular distâncias.')
+    }
+    setCalculandoDistancias(false)
   }
 
   return (
@@ -260,13 +296,14 @@ export default function TecnicosPage() {
                     <div style={{ fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}><Phone size={12} /> {tecnico.telefone}</div>
                   </td>
                   <td style={{ padding: '14px 20px' }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {tecnico.unidades?.length > 0 ? tecnico.unidades.map((u: any) => (
-                        <span key={u.id} style={{ background: '#f1f5f9', color: '#475569', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Building size={10} /> {u.nome}
-                        </span>
-                      )) : (
-                        <span style={{ color: '#94a3b8', fontSize: 12 }}>Nenhuma unidade</span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      {tecnico.unidades?.length > 0 ? (
+                        <button onClick={() => handleOpenUnidades(tecnico)} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', color: '#660099', padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                          <MapPin size={14} />
+                          {tecnico.unidades.length} Unidade{tecnico.unidades.length > 1 ? 's' : ''}
+                        </button>
+                      ) : (
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>Nenhuma</span>
                       )}
                     </div>
                   </td>
@@ -371,26 +408,44 @@ export default function TecnicosPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Unidades de Atuação</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', maxHeight: 120, overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', maxHeight: 180, overflowY: 'auto' }}>
                   {unidadesList.length === 0 && <span style={{ fontSize: 13, color: '#94a3b8' }}>Nenhuma unidade cadastrada.</span>}
                   {unidadesList.map(u => {
                     const isSelected = form.unidadeIds.includes(u.id)
+                    const isBaseFixa = form.baseFixaId === u.id
+                    // Esconder a unidade se já estiver vinculada a OUTRO técnico (onde tecnicos.length > 0 e não está selecionado por este tecnico)
+                    const belongsToOther = u._count?.tecnicos > 0 && !isSelected && !isEditing
+                    const belongsToOtherEdit = isEditing && u.tecnicos?.length > 0 && !u.tecnicos.some((t: any) => t.id === isEditing)
+                    
+                    if (belongsToOther || belongsToOtherEdit) return null // Hide it entirely
+                    
                     return (
-                      <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc', padding: '4px 10px', borderRadius: 20, border: `1px solid ${isSelected ? '#660099' : '#e2e8f0'}`, transition: 'all 0.2s' }}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setForm(p => ({ ...p, unidadeIds: [...p.unidadeIds, u.id] }))
-                            } else {
-                              setForm(p => ({ ...p, unidadeIds: p.unidadeIds.filter(id => id !== u.id) }))
-                            }
-                          }}
-                          style={{ margin: 0, accentColor: '#660099' }}
-                        />
-                        <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? '#660099' : '#475569' }}>{u.nome}</span>
-                      </label>
+                      <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: isSelected ? 'rgba(102,0,153,0.06)' : '#f8fafc', padding: '6px 12px', borderRadius: 8, border: `1px solid ${isSelected ? '#660099' : '#e2e8f0'}`, transition: 'all 0.2s', width: '100%', justifyContent: 'space-between' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flex: 1 }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setForm(p => ({ ...p, unidadeIds: [...p.unidadeIds, u.id], baseFixaId: p.unidadeIds.length === 0 ? u.id : p.baseFixaId })) // Primeira a ser selecionada vira base fixa
+                              } else {
+                                setForm(p => ({ ...p, unidadeIds: p.unidadeIds.filter(id => id !== u.id), baseFixaId: p.baseFixaId === u.id ? null : p.baseFixaId }))
+                              }
+                            }}
+                            style={{ margin: 0, accentColor: '#660099' }}
+                          />
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: isSelected ? 700 : 500, color: isSelected ? '#660099' : '#475569' }}>{u.nome}</div>
+                            {u.cidade && <div style={{ fontSize: 11, color: '#94a3b8' }}>{u.cidade} - {u.estado}</div>}
+                          </div>
+                        </label>
+                        {isSelected && (
+                          <button type="button" onClick={() => setForm(p => ({ ...p, baseFixaId: u.id }))} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: isBaseFixa ? '#f59e0b' : '#cbd5e1', fontSize: 11, fontWeight: 700 }}>
+                            <Star size={16} fill={isBaseFixa ? '#f59e0b' : 'none'} />
+                            {isBaseFixa ? 'Base Fixa' : 'Tornar Fixa'}
+                          </button>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -439,6 +494,81 @@ export default function TecnicosPage() {
           </div>
         </div>
       )}
+      {/* Unidades Modal */}
+      {showUnidadesModal && selectedTecnicoUnidades && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <MapPin color="#660099" size={20} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0 }}>Unidades de Atuação</h2>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>{selectedTecnicoUnidades.nome}</div>
+                </div>
+              </div>
+              <button onClick={() => setShowUnidadesModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: 24, overflowY: 'auto' }}>
+              {selectedTecnicoUnidades.unidades.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0' }}>Nenhuma unidade vinculada a este técnico.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {selectedTecnicoUnidades.unidades.map((u: any) => {
+                    const isBaseFixa = selectedTecnicoUnidades.baseFixa?.id === u.id
+                    const distanciaData = distancias.find(d => d.baseId === u.id)
+                    return (
+                      <div key={u.id} style={{ background: '#f8fafc', border: `1px solid ${isBaseFixa ? '#f59e0b' : '#e2e8f0'}`, borderRadius: 10, padding: 16, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                          <div style={{ marginTop: 2 }}>
+                            {isBaseFixa ? <Star fill="#f59e0b" color="#f59e0b" size={20} /> : <Building color="#94a3b8" size={20} />}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {u.nome}
+                              {isBaseFixa && <span style={{ background: '#fef3c7', color: '#d97706', fontSize: 10, padding: '2px 8px', borderRadius: 10, textTransform: 'uppercase' }}>Base Fixa</span>}
+                            </div>
+                            <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{u.endereco || 'Sem endereço'}</div>
+                            <div style={{ fontSize: 13, color: '#64748b' }}>{u.cidade ? `${u.cidade} - ${u.estado}` : 'Cidade não informada'}</div>
+                          </div>
+                        </div>
+                        {distanciaData && (
+                          <div style={{ textAlign: 'right', background: '#fff', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                            <div style={{ fontSize: 14, fontWeight: 800, color: '#660099' }}>~ {distanciaData.distanciaKm} km</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>{distanciaData.tempoMinutos} min</div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <div style={{ fontSize: 12, color: '#64748b' }}>
+                 Usa inteligência artificial para estimar as distâncias da base fixa.
+               </div>
+               <button 
+                 onClick={callGeminiDistances} 
+                 disabled={calculandoDistancias || !selectedTecnicoUnidades.baseFixa || selectedTecnicoUnidades.unidades.length <= 1}
+                 style={{ background: '#1e293b', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: (calculandoDistancias || !selectedTecnicoUnidades.baseFixa || selectedTecnicoUnidades.unidades.length <= 1) ? 0.6 : 1 }}
+               >
+                 {calculandoDistancias ? (
+                   <>Calculando...</>
+                 ) : (
+                   <><Navigation size={14} /> Estimar Distâncias</>
+                 )}
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
