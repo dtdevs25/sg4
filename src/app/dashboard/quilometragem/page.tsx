@@ -28,6 +28,10 @@ export default function QuilometragemPage() {
   const [selectedMonths, setSelectedMonths] = useState<number[]>([new Date().getMonth() + 1])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
+  const [currentPageKm, setCurrentPageKm] = useState(1)
+  const [itemsPerPageKm, setItemsPerPageKm] = useState(10)
+  const [currentPageAbs, setCurrentPageAbs] = useState(1)
+  const [itemsPerPageAbs, setItemsPerPageAbs] = useState(10)
 
   const MONTHS_LIST = [
     { key: 1, label: 'Jan' }, { key: 2, label: 'Fev' },
@@ -294,6 +298,17 @@ export default function QuilometragemPage() {
     return selectedMonths.includes(m) && matchSearch
   })
 
+  useEffect(() => {
+    setCurrentPageKm(1)
+    setCurrentPageAbs(1)
+  }, [search, selectedMonths])
+
+  const totalPagesKm = Math.ceil(filteredKms.length / itemsPerPageKm)
+  const paginatedKms = filteredKms.slice((currentPageKm - 1) * itemsPerPageKm, currentPageKm * itemsPerPageKm)
+
+  const totalPagesAbs = Math.ceil(filteredAbs.length / itemsPerPageAbs)
+  const paginatedAbs = filteredAbs.slice((currentPageAbs - 1) * itemsPerPageAbs, currentPageAbs * itemsPerPageAbs)
+
   const totalGasto = filteredAbs.reduce((acc, curr) => acc + curr.valor, 0)
   const totalKmRodado = filteredKms.reduce((acc, curr) => acc + (curr.diferenca || 0), 0)
 
@@ -418,7 +433,7 @@ export default function QuilometragemPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredKms.map(k => (
+                {paginatedKms.map(k => (
                   <tr key={k.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -490,10 +505,53 @@ export default function QuilometragemPage() {
                     </td>
                   </tr>
                 ))}
-                {filteredKms.length === 0 && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Nenhum registro encontrado.</td></tr>}
+                {paginatedKms.length === 0 && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Nenhum registro encontrado.</td></tr>}
               </tbody>
             </table>
           </div>
+
+          {/* PAGINATION CONTROLS KM */}
+          {filteredKms.length > 0 && (
+            <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                  Mostrando de {(currentPageKm - 1) * itemsPerPageKm + 1} a {Math.min(currentPageKm * itemsPerPageKm, filteredKms.length)} de {filteredKms.length} registros
+                </span>
+                <select
+                  value={itemsPerPageKm}
+                  onChange={(e) => {
+                    setItemsPerPageKm(Number(e.target.value))
+                    setCurrentPageKm(1)
+                  }}
+                  style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', cursor: 'pointer' }}
+                >
+                  <option value={10}>10 por página</option>
+                  <option value={20}>20 por página</option>
+                  <option value={50}>50 por página</option>
+                  <option value={100}>100 por página</option>
+                </select>
+              </div>
+              
+              {totalPagesKm > 1 && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => setCurrentPageKm(p => Math.max(1, p - 1))}
+                    disabled={currentPageKm === 1}
+                    style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageKm === 1 ? '#f1f5f9' : '#fff', color: currentPageKm === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageKm === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    onClick={() => setCurrentPageKm(p => Math.min(totalPagesKm, p + 1))}
+                    disabled={currentPageKm === totalPagesKm}
+                    style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageKm === totalPagesKm ? '#f1f5f9' : '#fff', color: currentPageKm === totalPagesKm ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageKm === totalPagesKm ? 'not-allowed' : 'pointer' }}
+                  >
+                    Próxima
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         // --- TABELA ABASTECIMENTO ---
@@ -510,7 +568,7 @@ export default function QuilometragemPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAbs.map(a => (
+                {paginatedAbs.map(a => (
                   <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>{new Date(a.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
                     <td style={{ padding: '14px 20px' }}>
@@ -559,10 +617,53 @@ export default function QuilometragemPage() {
                     )}
                   </tr>
                 ))}
-                {filteredAbs.length === 0 && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Nenhum abastecimento encontrado.</td></tr>}
+                {paginatedAbs.length === 0 && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Nenhum abastecimento encontrado.</td></tr>}
               </tbody>
             </table>
           </div>
+
+          {/* PAGINATION CONTROLS ABS */}
+          {filteredAbs.length > 0 && (
+            <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                  Mostrando de {(currentPageAbs - 1) * itemsPerPageAbs + 1} a {Math.min(currentPageAbs * itemsPerPageAbs, filteredAbs.length)} de {filteredAbs.length} abastecimentos
+                </span>
+                <select
+                  value={itemsPerPageAbs}
+                  onChange={(e) => {
+                    setItemsPerPageAbs(Number(e.target.value))
+                    setCurrentPageAbs(1)
+                  }}
+                  style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', cursor: 'pointer' }}
+                >
+                  <option value={10}>10 por página</option>
+                  <option value={20}>20 por página</option>
+                  <option value={50}>50 por página</option>
+                  <option value={100}>100 por página</option>
+                </select>
+              </div>
+              
+              {totalPagesAbs > 1 && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => setCurrentPageAbs(p => Math.max(1, p - 1))}
+                    disabled={currentPageAbs === 1}
+                    style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageAbs === 1 ? '#f1f5f9' : '#fff', color: currentPageAbs === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageAbs === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    onClick={() => setCurrentPageAbs(p => Math.min(totalPagesAbs, p + 1))}
+                    disabled={currentPageAbs === totalPagesAbs}
+                    style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageAbs === totalPagesAbs ? '#f1f5f9' : '#fff', color: currentPageAbs === totalPagesAbs ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageAbs === totalPagesAbs ? 'not-allowed' : 'pointer' }}
+                  >
+                    Próxima
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
