@@ -92,43 +92,67 @@ function isDssAssinado(assinadoStr?: string | null) {
   return true
 }
 
-/* ── Tick personalizado do gráfico horizontal com foto ── */
-function CustomYAxisTick({ x, y, payload }: any) {
+/* ── Tick personalizado do gráfico com foto ── */
+function CustomXAxisTick({ x, y, payload, width }: any) {
   const tickData = (window as any).__barDataMap?.[payload.value]
   const fotoUrl = tickData?.fotoUrl
-  const size = 32
-  const clipId = `clip-y-${payload.value.replace(/\s/g, '-').replace(/\./g, '')}`
+  const size = 36
+  const clipId = `clip-${payload.value.replace(/\s/g, '-').replace(/\./g, '')}`
   const mostrarFotos = (window as any).__mostrarFotosGrafico !== false
 
   return (
-    <g transform={`translate(${x},${y})`}>
+    <g transform={`translate(${x},${y + 4})`}>
       {mostrarFotos ? (
         <>
           <defs>
             <clipPath id={clipId}>
-              <circle cx={-size / 2 - 40} cy={0} r={size / 2} />
+              <circle cx={0} cy={size / 2 + 2} r={size / 2} />
             </clipPath>
           </defs>
-          <circle cx={-size / 2 - 40} cy={0} r={size / 2 + 2} fill="#ede9f6" />
+          {/* borda/anel ao redor da foto */}
+          <circle cx={0} cy={size / 2 + 2} r={size / 2 + 2} fill="#ede9f6" />
           {fotoUrl ? (
-            <image href={fotoUrl} x={-size - 40} y={-size / 2} width={size} height={size} clipPath={`url(#${clipId})`} preserveAspectRatio="xMidYMid slice" />
+            <image
+              href={fotoUrl}
+              x={-size / 2}
+              y={2}
+              width={size}
+              height={size}
+              clipPath={`url(#${clipId})`}
+              preserveAspectRatio="xMidYMid slice"
+            />
           ) : (
             <>
-              <circle cx={-size / 2 - 40} cy={0} r={size / 2} fill="#8e44ad" />
-              <text x={-size / 2 - 40} y={4} textAnchor="middle" fill="#fff" fontSize={11} fontWeight={700}>
+              <circle cx={0} cy={size / 2 + 2} r={size / 2} fill="#8e44ad" />
+              <text x={0} y={size / 2 + 7} textAnchor="middle" fill="#fff" fontSize={11} fontWeight={700}>
                 {payload.value.slice(0, 2).toUpperCase()}
               </text>
             </>
           )}
-          <text x={-10} y={4} textAnchor="end" fill="#475569" fontSize={11} fontWeight={700}>
+          <text
+            x={0}
+            y={size + 16}
+            textAnchor="middle"
+            fill="#475569"
+            fontSize={10}
+            fontWeight={700}
+          >
             {payload.value}
           </text>
         </>
       ) : (
-        <text x={-10} y={4} textAnchor="end" fill="#475569" fontSize={11} fontWeight={700}>
+        <text
+          x={0}
+          y={14}
+          textAnchor="middle"
+          fill="#475569"
+          fontSize={11}
+          fontWeight={700}
+        >
           {payload.value}
         </text>
       )}
+
     </g>
   )
 }
@@ -745,42 +769,20 @@ export default function DashboardPage() {
             }
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart layout="vertical" data={barData} margin={{ left: 20, right: 30, bottom: 20, top: 20 }} barCategoryGap="25%" onClick={(data: any) => {
+              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50, top: 60 }} barCategoryGap="15%" onClick={(data: any) => {
                 if (data && data.activePayload && data.activePayload.length > 0) {
                   setModalData(data.activePayload[0].payload)
                 }
               }}>
-                <defs>
-                  <linearGradient id="colorDss" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#4a0072" />
-                    <stop offset="50%" stopColor="#9333ea" />
-                    <stop offset="100%" stopColor="#4a0072" />
-                  </linearGradient>
-                  <linearGradient id="colorInsp" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#6b21a8" />
-                    <stop offset="50%" stopColor="#a855f7" />
-                    <stop offset="100%" stopColor="#6b21a8" />
-                  </linearGradient>
-                  <linearGradient id="colorRel" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#86198f" />
-                    <stop offset="50%" stopColor="#d946ef" />
-                    <stop offset="100%" stopColor="#86198f" />
-                  </linearGradient>
-                  <filter id="shadow3d" x="-10%" y="-10%" width="120%" height="120%">
-                    <feDropShadow dx="3" dy="3" stdDeviation="4" floodOpacity="0.3" floodColor="#000" />
-                  </filter>
-                </defs>
-                <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis 
-                  type="category" 
-                  dataKey="nomeAbrev" 
-                  tick={<CustomYAxisTick />} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  width={120} 
+                
+                <XAxis
+                  dataKey="nomeAbrev"
+                  tick={<CustomXAxisTick />}
+                  tickLine={false} axisLine={false} height={80}
                   interval={0}
                   style={{ cursor: 'pointer' }}
                 />
+                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(102,0,153,0.04)', cursor: 'pointer' }} />
                 <Legend
                   verticalAlign="top"
@@ -803,9 +805,9 @@ export default function DashboardPage() {
                   )}
                 />
 
-                <Bar dataKey="dss" name="DSS" fill="url(#colorDss)" radius={[0, 10, 10, 0]} maxBarSize={20} style={{ cursor: 'pointer', filter: 'url(#shadow3d)' }} hide={!legendaAtiva.includes('dss')} />
-                <Bar dataKey="insp" name="Inspeções" fill="url(#colorInsp)" radius={[0, 10, 10, 0]} maxBarSize={20} style={{ cursor: 'pointer', filter: 'url(#shadow3d)' }} hide={!legendaAtiva.includes('insp')} />
-                <Bar dataKey="rel" name="Relatórios" fill="url(#colorRel)" radius={[0, 10, 10, 0]} maxBarSize={20} style={{ cursor: 'pointer', filter: 'url(#shadow3d)' }} hide={!legendaAtiva.includes('rel')} />
+                <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('dss')} />
+                <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('insp')} />
+                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('rel')} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
