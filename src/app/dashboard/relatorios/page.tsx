@@ -98,6 +98,20 @@ export default function RelatoriosAtividadesPage() {
     }
   }
 
+  async function loadRelatoriosSalvos() {
+    setLoading(true)
+    try {
+      const res = await getRelatoriosPdf()
+      if (res.success && res.data) {
+        setRelatoriosSalvos(res.data)
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Filtragem local baseada nos meses selecionados
   const atividades = todasAtividades.filter(a => {
     const dataAtiv = new Date(a.data)
