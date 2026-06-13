@@ -167,3 +167,28 @@ export async function deletePlanejamento(id: string) {
     return { success: false, error: error.message }
   }
 }
+
+export async function moverPlanejamento(id: string, novaData: Date) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const plan = await prisma.planejamento.findUnique({ where: { id } })
+    if (!plan) return { success: false, error: 'Planejamento não encontrado' }
+
+    if (plan.status === 'CONCLUIDO') {
+      return { success: false, error: 'Não é possível mover um planejamento concluído' }
+    }
+
+    await prisma.planejamento.update({
+      where: { id },
+      data: { dataAtividade: novaData }
+    })
+
+    revalidatePath('/dashboard/planejamento')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error in moverPlanejamento:', error)
+    return { success: false, error: error.message }
+  }
+}

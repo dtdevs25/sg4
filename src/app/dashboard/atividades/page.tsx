@@ -9,7 +9,7 @@ import {
 import { useSession } from 'next-auth/react'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import {
-  getPlanejamentos, savePlanejamento, modificarExecucao, concluirPlanejamento, deletePlanejamento
+  getPlanejamentos, savePlanejamento, modificarExecucao, concluirPlanejamento, deletePlanejamento, moverPlanejamento
 } from '@/app/actions/planejamento'
 import { getUnidades } from '@/app/actions/unidades'
 
@@ -129,6 +129,38 @@ export default function PlanejamentoPage() {
     setShowAddModal(true)
   }
 
+  function handleDragStart(e: React.DragEvent, id: string) {
+    e.dataTransfer.setData('plan_id', id)
+  }
+
+  function handleDrop(e: React.DragEvent, dateStr: string) {
+    e.preventDefault()
+    e.currentTarget.style.background = '' // Limpa highlight
+    const planId = e.dataTransfer.getData('plan_id')
+    if (!planId) return
+    
+    startTransition(async () => {
+      // Otimisticamente:
+      setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, dataAtividade: new Date(`${dateStr}T12:00:00Z`) } : p))
+      
+      const res = await moverPlanejamento(planId, new Date(`${dateStr}T12:00:00Z`))
+      if (!res.success) {
+        alert(res.error)
+        load() // reverte
+      }
+    })
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    e.currentTarget.style.background = 'rgba(102,0,153,0.05)'
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    e.currentTarget.style.background = ''
+  }
+
   function handleSaveForm(e: React.FormEvent) {
     e.preventDefault()
     startTransition(async () => {
@@ -165,7 +197,8 @@ export default function PlanejamentoPage() {
   function handleExecutar(e: React.FormEvent) {
     e.preventDefault()
     startTransition(async () => {
-      if (isModifying) {
+      // Se houver texto executado, consideramos "modificarExecucao", caso contrário só conclui
+      if (execForm.descricaoExecutada.trim()) {
         await modificarExecucao(showExecModal.id, execForm.descricaoExecutada, execForm.observacoes)
       } else {
         await concluirPlanejamento(showExecModal.id)
@@ -202,7 +235,13 @@ export default function PlanejamentoPage() {
           const isToday = formatStrDate(d) === formatStrDate(new Date())
 
           return (
-            <div key={i} style={{ minWidth: 140, background: '#f8fafc', borderRadius: 8, border: isToday ? '2px solid #660099' : '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+            <div 
+              key={i} 
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, dateStr)}
+              style={{ minWidth: 140, background: '#f8fafc', borderRadius: 8, border: isToday ? '2px solid #660099' : '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', transition: 'background 0.2s' }}
+            >
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #e2e8f0', background: isToday ? '#faf5ff' : 'transparent', borderRadius: '6px 6px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
@@ -217,7 +256,7 @@ export default function PlanejamentoPage() {
                 </button>
               </div>
               <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 150 }}>
-                {dayPlans.map(p => <PlanCard key={p.id} plan={p} onClick={() => handleActionExecute(p)} />)}
+                {dayPlans.map(p => <PlanCard key={p.id} plan={p} onClick={() => handleActionExecute(p)} onDragStart={handleDragStart} />)}
               </div>
             </div>
           )
@@ -250,7 +289,13 @@ export default function PlanejamentoPage() {
           const dayPlans = planejamentos.filter(p => formatStrDate(new Date(p.dataAtividade)) === dateStr)
 
           return (
-            <div key={i} style={{ minHeight: 80, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', padding: 6, display: 'flex', flexDirection: 'column' }}>
+            <div 
+              key={i} 
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, dateStr)}
+              style={{ minHeight: 80, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', padding: 6, display: 'flex', flexDirection: 'column', transition: 'background 0.2s' }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: '#1e293b' }}>{dayNum}</span>
               </div>
@@ -258,16 +303,22 @@ export default function PlanejamentoPage() {
                 {dayPlans.map(p => {
                   const isConcluido = p.status === 'CONCLUIDO'
                   return (
-                    <div key={p.id} onClick={() => handleActionExecute(p)} style={{ fontSize: 9, padding: '3px 4px', borderRadius: 4, background: PR_COLORS[p.prioridade].bg, borderLeft: `3px solid ${PR_COLORS[p.prioridade].border}`, color: PR_COLORS[p.prioridade].text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, opacity: isConcluido ? 0.6 : 1 }}>
+                    <div 
+                      key={p.id} 
+                      onClick={() => handleActionExecute(p)} 
+                      draggable={!isConcluido}
+                      onDragStart={(e) => handleDragStart(e, p.id)}
+                      style={{ fontSize: 9, padding: '3px 4px', borderRadius: 4, background: PR_COLORS[p.prioridade].bg, borderLeft: `3px solid ${PR_COLORS[p.prioridade].border}`, color: PR_COLORS[p.prioridade].text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: isConcluido ? 'pointer' : 'grab', display: 'flex', alignItems: 'center', gap: 4, opacity: isConcluido ? 0.6 : 1, position: 'relative' }}
+                    >
                       {p.tecnico?.fotoUrl ? (
                         <img src={p.tecnico.fotoUrl} alt={p.tecnico.nome} style={{ width: 14, height: 14, borderRadius: '50%', objectFit: 'cover' }} title={p.tecnico.nome} />
                       ) : (
                         <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#660099', color: '#fff', fontSize: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }} title={p.tecnico?.nome}>{p.tecnico?.nome?.substring(0,1).toUpperCase() || 'T'}</div>
                       )}
-                      <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {isConcluido && <CheckCircle2 size={9} style={{ display: 'inline', marginRight: 2 }} />}
+                      <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: isConcluido ? 12 : 0 }}>
                         {p.categoria}
                       </div>
+                      {isConcluido && <CheckCircle2 size={10} style={{ position: 'absolute', top: 3, right: 3, color: '#10b981' }} />}
                     </div>
                   )
                 })}
@@ -430,7 +481,10 @@ export default function PlanejamentoPage() {
                   {showTecnicoDropdown && (
                     <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 240, overflowY: 'auto' }}>
                       {tecnicos.filter(t => t.ativo).map(t => (
-                        <div key={t.id} onClick={() => { setForm(p => ({...p, tecnicoId: t.id})); setShowTecnicoDropdown(false) }}
+                        <div key={t.id} onClick={() => { 
+                          setForm(p => ({...p, tecnicoId: t.id, local: '', outroLocal: '', cidade: '', estado: 'SP'})); 
+                          setShowTecnicoDropdown(false) 
+                        }}
                           style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: form.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
                           onMouseLeave={e => (e.currentTarget.style.background = form.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
@@ -481,11 +535,42 @@ export default function PlanejamentoPage() {
 
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>LOCAL ESPECÍFICO (UNIDADE)</label>
-                <select value={unidades.find(u => u.nome === form.local) ? form.local : form.local === 'OUTROS' ? 'OUTROS' : ''} onChange={e => setForm({...form, local: e.target.value, outroLocal: ''})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
-                  <option value="">Selecione ou digite em Outros...</option>
-                  {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
-                  <option value="OUTROS">Outros...</option>
-                </select>
+                {(() => {
+                  const filteredUnidades = form.tecnicoId 
+                    ? unidades.filter(u => u.tecnicos?.some((t: any) => t.id === form.tecnicoId) || u.baseFixaTecnicos?.some((t: any) => t.id === form.tecnicoId) || u.id === tecnicos.find(t=>t.id===form.tecnicoId)?.baseFixaId)
+                    : unidades;
+
+                  // Se a filteredUnidades não cobrir perfeitamente as relations de tecnico vs unidade, usamos uma busca mais resiliente:
+                  // Assumindo que tecnico tem unidades e baseFixa (isso não está no state tecnicos completo as vezes).
+                  // Como tecnicos tem "unidades"? No state tecnicos, vem o que? 
+                  // No getTecnicos() do backend ele manda include: { unidades: true, baseFixa: true }.
+                  const t = tecnicos.find(x => x.id === form.tecnicoId)
+                  let unidsDoTecnico = unidades
+                  if (t) {
+                    const idsUnidadesDoTecnico = [...(t.unidades?.map((u:any)=>u.id) || []), t.baseFixaId].filter(Boolean)
+                    if (idsUnidadesDoTecnico.length > 0) {
+                      unidsDoTecnico = unidades.filter(u => idsUnidadesDoTecnico.includes(u.id))
+                    } else {
+                      unidsDoTecnico = [] // Técnico não tem unidades atreladas
+                    }
+                  }
+
+                  return (
+                    <select 
+                      value={unidsDoTecnico.find(u => u.nome === form.local) ? form.local : form.local === 'OUTROS' ? 'OUTROS' : ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        const un = unidsDoTecnico.find(u => u.nome === val);
+                        setForm({...form, local: val, outroLocal: '', cidade: un?.cidade || '', estado: un?.estado || 'SP'});
+                      }} 
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
+                    >
+                      <option value="">Selecione ou digite em Outros...</option>
+                      {unidsDoTecnico.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
+                      <option value="OUTROS">Outros...</option>
+                    </select>
+                  )
+                })()}
                 {(!unidades.find(u => u.nome === form.local) && form.local === 'OUTROS') && (
                   <input type="text" placeholder="Especifique o local..." required value={form.outroLocal} onChange={e => setForm({...form, outroLocal: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', marginTop: 8 }} />
                 )}
@@ -541,68 +626,50 @@ export default function PlanejamentoPage() {
                 )}
                 {showExecModal.descricaoExecutada && (
                   <div style={{ marginTop: 12, background: '#fff', padding: 12, borderRadius: 8, textAlign: 'left', border: '1px solid #6ee7b7' }}>
-                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#047857' }}>O QUE FOI EXECUTADO:</p>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#047857' }}>OBSERVAÇÃO DA EXECUÇÃO:</p>
                     <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#064e3b' }}>{showExecModal.descricaoExecutada}</p>
                   </div>
                 )}
               </div>
             ) : (
               <form onSubmit={handleExecutar}>
-                {isModifying ? (
-                  <div style={{ marginBottom: 20, animation: 'fadeIn 0.3s' }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#b91c1c', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                      <AlertCircle size={14} /> DESCREVA O QUE FOI FEITO NA REALIDADE
-                    </label>
-                    <textarea required rows={4} value={execForm.descricaoExecutada} onChange={e => setExecForm({...execForm, descricaoExecutada: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fef2f2', boxSizing: 'border-box', resize: 'none', outlineColor: '#ef4444' }}></textarea>
-                    <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>O status "Alterada da Original" será ativado automaticamente.</p>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                    <p style={{ fontSize: 15, color: '#475569', fontWeight: 500, margin: '0 0 24px 0' }}>O que você deseja fazer com esta atividade?</p>
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-                      <button type="submit" disabled={pending} style={{ flex: '1 1 200px', padding: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <Check size={18} /> Concluir como Planejado
-                      </button>
-                      <button type="button" onClick={() => setIsModifying(true)} style={{ flex: '1 1 200px', padding: '12px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <AlertCircle size={16} /> Fazer Check-in com Alteração
-                      </button>
-                    </div>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>
+                    OBSERVAÇÃO DA CONCLUSÃO (OPCIONAL)
+                  </label>
+                  <textarea rows={3} value={execForm.descricaoExecutada} onChange={e => setExecForm({...execForm, descricaoExecutada: e.target.value})} placeholder="Adicione detalhes se algo ocorreu diferente do planejado..." style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', resize: 'none' }}></textarea>
+                </div>
+                
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {!isTst && showExecModal.status === 'PENDENTE' && (
+                    <button type="button" onClick={() => {
+                      setShowExecModal(null)
+                      const catBase = CATEGORIES.includes(showExecModal.categoria)
+                      const locBase = unidades.find(u => u.nome === showExecModal.local)
+                      setForm({
+                        id: showExecModal.id,
+                        tecnicoId: showExecModal.tecnicoId,
+                        dataAtividade: formatStrDate(new Date(showExecModal.dataAtividade)),
+                        categoria: catBase ? showExecModal.categoria : 'OUTROS',
+                        outraCategoria: catBase ? '' : showExecModal.categoria,
+                        descricaoOriginal: showExecModal.descricaoOriginal,
+                        equipe: showExecModal.equipe || 'Não se aplica',
+                        local: locBase ? showExecModal.local : (showExecModal.local ? 'OUTROS' : ''),
+                        outroLocal: locBase ? '' : (showExecModal.local || ''),
+                        cidade: showExecModal.cidade || '',
+                        estado: showExecModal.estado || 'SP',
+                        prioridade: showExecModal.prioridade
+                      })
+                      setShowAddModal(true)
+                    }} style={{ flex: '1 1 180px', padding: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <Edit2 size={16} /> Editar Planejamento
+                    </button>
+                  )}
 
-                    {!isTst && showExecModal.status === 'PENDENTE' && (
-                      <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px dashed #e2e8f0' }}>
-                        <button type="button" onClick={() => {
-                          setShowExecModal(null)
-                          const catBase = ['DSS', 'INSPEÇÃO DE SEGURANÇA', 'INTEGRAÇÃO', 'TREINAMENTO', 'REUNIÃO', 'AUDITORIA', 'VISITA TÉCNICA'].includes(showExecModal.categoria)
-                          const locBase = unidades.find(u => u.nome === showExecModal.local)
-                          setForm({
-                            id: showExecModal.id,
-                            tecnicoId: showExecModal.tecnicoId,
-                            dataAtividade: formatStrDate(new Date(showExecModal.dataAtividade)),
-                            categoria: catBase ? showExecModal.categoria : 'OUTROS',
-                            outraCategoria: catBase ? '' : showExecModal.categoria,
-                            descricaoOriginal: showExecModal.descricaoOriginal,
-                            equipe: showExecModal.equipe || 'Não se aplica',
-                            local: locBase ? showExecModal.local : (showExecModal.local ? 'OUTROS' : ''),
-                            outroLocal: locBase ? '' : (showExecModal.local || ''),
-                            cidade: showExecModal.cidade || '',
-                            estado: showExecModal.estado || 'SP',
-                            prioridade: showExecModal.prioridade
-                          })
-                          setShowAddModal(true)
-                        }} style={{ padding: '10px 16px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                          <Edit2 size={14} /> Editar Planejamento Original
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {isModifying && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-                    <button type="button" onClick={() => setIsModifying(false)} style={{ padding: '10px 20px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Cancelar Edição</button>
-                    <button type="submit" disabled={pending} style={{ padding: '10px 20px', borderRadius: 8, background: '#10b981', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Confirmar Nova Execução</button>
-                  </div>
-                )}
+                  <button type="submit" disabled={pending} style={{ flex: '1 1 180px', padding: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: pending ? 0.7 : 1 }}>
+                    <Check size={18} /> Concluir Atividade
+                  </button>
+                </div>
               </form>
             )}
 
@@ -621,13 +688,21 @@ export default function PlanejamentoPage() {
   )
 }
 
-function PlanCard({ plan, onClick }: { plan: any, onClick: () => void }) {
+function PlanCard({ plan, onClick, onDragStart }: { plan: any, onClick: () => void, onDragStart: (e: React.DragEvent, id: string) => void }) {
   const c = PR_COLORS[plan.prioridade]
   const isConcluido = plan.status === 'CONCLUIDO'
   return (
-    <div onClick={onClick} style={{ background: '#fff', border: `1px solid ${c.border}`, borderRadius: 8, padding: 8, cursor: 'pointer', position: 'relative', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'transform 0.1s', opacity: isConcluido ? 0.6 : 1 }} onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}>
+    <div 
+      onClick={onClick} 
+      draggable={!isConcluido}
+      onDragStart={(e) => onDragStart(e, plan.id)}
+      style={{ background: '#fff', border: `1px solid ${c.border}`, borderRadius: 8, padding: 8, cursor: isConcluido ? 'pointer' : 'grab', position: 'relative', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'transform 0.1s', opacity: isConcluido ? 0.6 : 1 }} 
+      onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} 
+      onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}
+    >
       <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: c.border }}></div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, paddingLeft: 6 }}>
+      {isConcluido && <CheckCircle2 size={16} color="#10b981" style={{ position: 'absolute', top: 6, right: 6 }} />}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, paddingLeft: 6, paddingRight: isConcluido ? 16 : 0 }}>
         <span style={{ fontSize: 10, fontWeight: 800, color: c.text, display: 'flex', alignItems: 'center', gap: 4 }}>
           {plan.tecnico?.fotoUrl ? (
             <img src={plan.tecnico.fotoUrl} alt={plan.tecnico.nome} style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover' }} title={plan.tecnico.nome} />
@@ -636,7 +711,6 @@ function PlanCard({ plan, onClick }: { plan: any, onClick: () => void }) {
           )}
           {plan.categoria}
         </span>
-        {isConcluido && <CheckCircle2 size={12} color="#10b981" />}
       </div>
       <div style={{ fontSize: 11, color: '#334155', lineHeight: 1.4, paddingLeft: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
         {plan.descricaoOriginal}
