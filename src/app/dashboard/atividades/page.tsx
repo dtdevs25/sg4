@@ -721,24 +721,28 @@ export default function PlanejamentoPage() {
               </div>
 
               {showExecModal.status === 'CONCLUIDO' ? (
-                <div style={{ background: '#ecfdf5', padding: 16, borderRadius: 10, border: '1px solid #10b981', textAlign: 'center' }}>
-                  <CheckCircle2 color="#10b981" size={32} style={{ marginBottom: 8 }} />
-                  <h3 style={{ margin: 0, color: '#047857', fontSize: 16, fontWeight: 800 }}>Atividade Concluída</h3>
-                  {showExecModal.alteradaOriginal && (
-                    <p style={{ fontSize: 13, color: '#047857', marginTop: 8 }}>⚠️ Rota/Tarefa foi alterada do planejamento original.</p>
-                  )}
-                  {showExecModal.descricaoExecutada && (
-                    <div style={{ marginTop: 12, background: '#fff', padding: 12, borderRadius: 8, textAlign: 'left', border: '1px solid #6ee7b7' }}>
-                      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#047857' }}>OBSERVAÇÃO DA EXECUÇÃO:</p>
-                      <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#064e3b' }}>{showExecModal.descricaoExecutada}</p>
+                <div style={{ background: '#ecfdf5', padding: 12, borderRadius: 8, border: '1px solid #10b981' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showExecModal.descricaoExecutada || showExecModal.alteradaOriginal ? 10 : 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckCircle2 color="#10b981" size={20} />
+                      <h3 style={{ margin: 0, color: '#047857', fontSize: 14, fontWeight: 800 }}>Atividade Concluída</h3>
                     </div>
-                  )}
-                  
-                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #6ee7b7', display: 'flex', justifyContent: 'center' }}>
-                    <button type="button" onClick={() => handleReverter(showExecModal.id)} disabled={pending} style={{ padding: '10px 16px', background: '#ecfdf5', color: '#047857', border: '1px solid #10b981', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, width: '100%', opacity: pending ? 0.7 : 1, transition: 'all 0.2s' }}>
-                      <RotateCcw size={16} /> Reverter para Pendente
+                    <button type="button" onClick={() => handleReverter(showExecModal.id)} disabled={pending} style={{ padding: '6px 10px', background: '#fff', color: '#047857', border: '1px solid #10b981', borderRadius: 6, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, opacity: pending ? 0.7 : 1, transition: 'all 0.2s' }}>
+                      <RotateCcw size={12} /> Reverter
                     </button>
                   </div>
+                  
+                  {showExecModal.alteradaOriginal && (
+                    <div style={{ fontSize: 12, color: '#b45309', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+                      <AlertTriangle size={14} /> Rota/Tarefa alterada do original.
+                    </div>
+                  )}
+                  {showExecModal.descricaoExecutada && (
+                    <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 6, border: '1px solid #6ee7b7', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: '#047857' }}>OBSERVAÇÃO DA EXECUÇÃO:</span>
+                      <span style={{ fontSize: 13, color: '#064e3b' }}>{showExecModal.descricaoExecutada}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <form onSubmit={handleExecutar}>
