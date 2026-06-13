@@ -42,11 +42,16 @@ COPY --from=builder /app/prisma ./prisma
 # Standalone output do Next.js (inclui tudo que precisa para rodar)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/start.sh ./start.sh
+
+# Dar permissão de execução ao script
+RUN chmod +x ./start.sh
 
 # Prisma Client gerado no builder (já compilado para Alpine)
-# O standalone já inclui as dependências necessárias — não precisamos de npm install aqui.
+# Copiamos também a CLI do prisma para conseguir rodar db push no runtime
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 USER nextjs
 
@@ -54,4 +59,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["./start.sh"]
