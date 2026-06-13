@@ -668,97 +668,129 @@ export default function PlanejamentoPage() {
 
       {/* MODAL EXECUÇÃO (CHECK-IN) */}
       {showExecModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 500, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <div>
-                <span style={{ fontSize: 11, fontWeight: 800, color: PR_COLORS[showExecModal.prioridade].text, background: PR_COLORS[showExecModal.prioridade].bg, padding: '4px 8px', borderRadius: 12, marginBottom: 8, display: 'inline-block' }}>
-                  PRIORIDADE {showExecModal.prioridade}
-                </span>
-                <h2 style={{ fontSize: 18, fontWeight: 800, margin: '4px 0 0 0', color: '#1e293b' }}>{showExecModal.categoria}</h2>
-              </div>
-              <button onClick={() => setShowExecModal(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20} color="#64748b" /></button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                Detalhes da Atividade
+              </h2>
+              <button onClick={() => setShowExecModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}>
+                <X size={20} />
+              </button>
             </div>
 
-            <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, marginBottom: 20 }}>
-              <p style={{ fontSize: 12, fontWeight: 700, color: '#64748b', margin: '0 0 4px 0' }}>PLANEJADO ORIGINALMENTE:</p>
-              <p style={{ fontSize: 14, color: '#334155', margin: 0, lineHeight: 1.5 }}>{showExecModal.descricaoOriginal}</p>
-              <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 12, color: '#64748b' }}>
-                {showExecModal.cidade && <span><MapPin size={12} style={{display:'inline', marginBottom:-2}} /> {showExecModal.cidade}/{showExecModal.estado}</span>}
-                {showExecModal.tecnico && <span><User size={12} style={{display:'inline', marginBottom:-2}} /> {showExecModal.tecnico.nome}</span>}
-              </div>
-            </div>
-
-            {showExecModal.status === 'CONCLUIDO' ? (
-              <div style={{ background: '#ecfdf5', padding: 16, borderRadius: 8, border: '1px solid #10b981', textAlign: 'center' }}>
-                <CheckCircle2 color="#10b981" size={32} style={{ marginBottom: 8 }} />
-                <h3 style={{ margin: 0, color: '#047857', fontSize: 16, fontWeight: 800 }}>Atividade Concluída</h3>
-                {showExecModal.alteradaOriginal && (
-                  <p style={{ fontSize: 13, color: '#047857', marginTop: 8 }}>⚠️ Rota/Tarefa foi alterada do planejamento original.</p>
-                )}
-                {showExecModal.descricaoExecutada && (
-                  <div style={{ marginTop: 12, background: '#fff', padding: 12, borderRadius: 8, textAlign: 'left', border: '1px solid #6ee7b7' }}>
-                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#047857' }}>OBSERVAÇÃO DA EXECUÇÃO:</p>
-                    <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#064e3b' }}>{showExecModal.descricaoExecutada}</p>
+            <div style={{ padding: 24, maxHeight: '85vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 8px 0', color: '#1e293b' }}>{showExecModal.categoria}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: PR_COLORS[showExecModal.prioridade].text, background: PR_COLORS[showExecModal.prioridade].bg, padding: '4px 8px', borderRadius: 6 }}>
+                      PRIORIDADE {showExecModal.prioridade}
+                    </span>
+                    {showExecModal.local && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <MapPin size={12} /> Unidade: {showExecModal.local}
+                      </span>
+                    )}
                   </div>
-                )}
-                
-                <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #6ee7b7', display: 'flex', justifyContent: 'center' }}>
-                  <button type="button" onClick={() => handleReverter(showExecModal.id)} disabled={pending} style={{ padding: '10px 16px', background: '#ecfdf5', color: '#047857', border: '1px solid #10b981', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, width: '100%', opacity: pending ? 0.7 : 1, transition: 'all 0.2s' }}>
-                    <RotateCcw size={16} /> Reverter para Pendente
-                  </button>
                 </div>
               </div>
-            ) : (
-              <form onSubmit={handleExecutar}>
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>
-                    OBSERVAÇÃO DA CONCLUSÃO (OPCIONAL)
-                  </label>
-                  <textarea rows={3} value={execForm.descricaoExecutada} onChange={e => setExecForm({...execForm, descricaoExecutada: e.target.value})} placeholder="Adicione detalhes se algo ocorreu diferente do planejado..." style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', resize: 'none' }}></textarea>
-                </div>
+
+              <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 20 }}>
+                <p style={{ fontSize: 11, fontWeight: 800, color: '#64748b', margin: '0 0 6px 0', textTransform: 'uppercase' }}>O que estava planejado?</p>
+                <p style={{ fontSize: 14, color: '#334155', margin: 0, lineHeight: 1.5 }}>{showExecModal.descricaoOriginal}</p>
                 
-                <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  {!isTst && showExecModal.status === 'PENDENTE' && (
-                    <button type="button" onClick={() => {
-                      setShowExecModal(null)
-                      const catBase = CATEGORIES.includes(showExecModal.categoria)
-                      const locBase = unidades.find(u => u.nome === showExecModal.local)
-                      setForm({
-                        id: showExecModal.id,
-                        tecnicoId: showExecModal.tecnicoId,
-                        dataAtividade: formatStrDate(new Date(showExecModal.dataAtividade)),
-                        categoria: catBase ? showExecModal.categoria : 'OUTROS',
-                        outraCategoria: catBase ? '' : showExecModal.categoria,
-                        descricaoOriginal: showExecModal.descricaoOriginal,
-                        equipe: showExecModal.equipe || 'Não se aplica',
-                        local: locBase ? showExecModal.local : (showExecModal.local ? 'OUTROS' : ''),
-                        outroLocal: locBase ? '' : (showExecModal.local || ''),
-                        cidade: showExecModal.cidade || '',
-                        estado: showExecModal.estado || 'SP',
-                        prioridade: showExecModal.prioridade
-                      })
-                      setShowAddModal(true)
-                    }} style={{ flex: '1 1 180px', padding: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      <Edit2 size={16} /> Editar Planejamento
-                    </button>
+                <div style={{ display: 'flex', gap: 16, marginTop: 14, paddingTop: 14, borderTop: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+                  {showExecModal.tecnico && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {showExecModal.tecnico.fotoUrl ? (
+                        <img src={showExecModal.tecnico.fotoUrl} alt={showExecModal.tecnico.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff' }}>{showExecModal.tecnico.nome.substring(0, 2).toUpperCase()}</div>
+                      )}
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{showExecModal.tecnico.nome}</span>
+                    </div>
                   )}
+                  {showExecModal.cidade && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                      <MapPin size={14} /> {showExecModal.cidade}/{showExecModal.estado}
+                    </div>
+                  )}
+                </div>
+              </div>
 
-                  <button type="submit" disabled={pending} style={{ flex: '1 1 180px', padding: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: pending ? 0.7 : 1 }}>
-                    <Check size={18} /> Concluir Atividade
+              {showExecModal.status === 'CONCLUIDO' ? (
+                <div style={{ background: '#ecfdf5', padding: 16, borderRadius: 10, border: '1px solid #10b981', textAlign: 'center' }}>
+                  <CheckCircle2 color="#10b981" size={32} style={{ marginBottom: 8 }} />
+                  <h3 style={{ margin: 0, color: '#047857', fontSize: 16, fontWeight: 800 }}>Atividade Concluída</h3>
+                  {showExecModal.alteradaOriginal && (
+                    <p style={{ fontSize: 13, color: '#047857', marginTop: 8 }}>⚠️ Rota/Tarefa foi alterada do planejamento original.</p>
+                  )}
+                  {showExecModal.descricaoExecutada && (
+                    <div style={{ marginTop: 12, background: '#fff', padding: 12, borderRadius: 8, textAlign: 'left', border: '1px solid #6ee7b7' }}>
+                      <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: '#047857' }}>OBSERVAÇÃO DA EXECUÇÃO:</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#064e3b' }}>{showExecModal.descricaoExecutada}</p>
+                    </div>
+                  )}
+                  
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #6ee7b7', display: 'flex', justifyContent: 'center' }}>
+                    <button type="button" onClick={() => handleReverter(showExecModal.id)} disabled={pending} style={{ padding: '10px 16px', background: '#ecfdf5', color: '#047857', border: '1px solid #10b981', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, width: '100%', opacity: pending ? 0.7 : 1, transition: 'all 0.2s' }}>
+                      <RotateCcw size={16} /> Reverter para Pendente
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleExecutar}>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>
+                      OBSERVAÇÃO DA CONCLUSÃO (OPCIONAL)
+                    </label>
+                    <textarea rows={3} value={execForm.descricaoExecutada} onChange={e => setExecForm({...execForm, descricaoExecutada: e.target.value})} placeholder="Adicione detalhes se algo ocorreu diferente do planejado..." style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', resize: 'none' }}></textarea>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {!isTst && showExecModal.status === 'PENDENTE' && (
+                      <button type="button" onClick={() => {
+                        setShowExecModal(null)
+                        const catBase = CATEGORIES.includes(showExecModal.categoria)
+                        const locBase = unidades.find(u => u.nome === showExecModal.local)
+                        setForm({
+                          id: showExecModal.id,
+                          tecnicoId: showExecModal.tecnicoId,
+                          dataAtividade: formatStrDate(new Date(showExecModal.dataAtividade)),
+                          categoria: catBase ? showExecModal.categoria : 'OUTROS',
+                          outraCategoria: catBase ? '' : showExecModal.categoria,
+                          descricaoOriginal: showExecModal.descricaoOriginal,
+                          equipe: showExecModal.equipe || 'Não se aplica',
+                          local: locBase ? showExecModal.local : (showExecModal.local ? 'OUTROS' : ''),
+                          outroLocal: locBase ? '' : (showExecModal.local || ''),
+                          cidade: showExecModal.cidade || '',
+                          estado: showExecModal.estado || 'SP',
+                          prioridade: showExecModal.prioridade
+                        })
+                        setShowAddModal(true)
+                      }} style={{ flex: '1 1 180px', padding: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <Edit2 size={16} /> Editar Planejamento
+                      </button>
+                    )}
+
+                    <button type="submit" disabled={pending} style={{ flex: '1 1 180px', padding: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: pending ? 0.7 : 1 }}>
+                      <Check size={18} /> Concluir Atividade
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Apenas líderes ou admin podem deletar do banco livremente, ou o dono se ainda estiver pendente */}
+              {!isModifying && (!isTst || showExecModal.status === 'PENDENTE') && (
+                <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'center' }}>
+                  <button type="button" onClick={() => handleDeletePlan(showExecModal.id)} style={{ padding: '10px 16px', background: '#fef2f2', border: '1px solid #fca5a5', color: '#ef4444', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', transition: 'all 0.2s' }}>
+                    <Trash2 size={16} /> Excluir Planejamento
                   </button>
                 </div>
-              </form>
-            )}
-
-            {/* Apenas líderes ou admin podem deletar do banco livremente, ou o dono se ainda estiver pendente */}
-            {!isModifying && (!isTst || showExecModal.status === 'PENDENTE') && (
-              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'center' }}>
-                <button type="button" onClick={() => handleDeletePlan(showExecModal.id)} style={{ padding: '10px 16px', background: '#fef2f2', border: '1px solid #fca5a5', color: '#ef4444', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', transition: 'all 0.2s' }}>
-                  <Trash2 size={16} /> Excluir Planejamento
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
