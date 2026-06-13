@@ -779,12 +779,32 @@ export default function DashboardPage() {
             }
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50, top: 30 }} onClick={(data: any) => {
+              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50, top: 60 }} barCategoryGap="20%" onClick={(data: any) => {
                 if (data && data.activePayload && data.activePayload.length > 0) {
                   setModalData(data.activePayload[0].payload)
                 }
               }}>
-                <CartesianGrid vertical={true} horizontal={true} stroke="#e2e8f0" />
+                <defs>
+                  <linearGradient id="colorDss" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#4a0072" />
+                    <stop offset="50%" stopColor="#9333ea" />
+                    <stop offset="100%" stopColor="#4a0072" />
+                  </linearGradient>
+                  <linearGradient id="colorInsp" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#6b21a8" />
+                    <stop offset="50%" stopColor="#a855f7" />
+                    <stop offset="100%" stopColor="#6b21a8" />
+                  </linearGradient>
+                  <linearGradient id="colorRel" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#86198f" />
+                    <stop offset="50%" stopColor="#d946ef" />
+                    <stop offset="100%" stopColor="#86198f" />
+                  </linearGradient>
+                  <filter id="shadow3d" x="-10%" y="-10%" width="120%" height="120%">
+                    <feDropShadow dx="3" dy="3" stdDeviation="4" floodOpacity="0.3" floodColor="#000" />
+                  </filter>
+                </defs>
+                <CartesianGrid vertical={false} horizontal={false} />
                 <XAxis
                   dataKey="nomeAbrev"
                   tick={<CustomXAxisTick />}
@@ -815,9 +835,9 @@ export default function DashboardPage() {
                   )}
                 />
 
-                <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('dss')} />
-                <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('insp')} />
-                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('rel')} />
+                <Bar dataKey="dss" name="DSS" fill="url(#colorDss)" radius={[6, 6, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer', filter: 'url(#shadow3d)' }} hide={!legendaAtiva.includes('dss')} />
+                <Bar dataKey="insp" name="Inspeções" fill="url(#colorInsp)" radius={[6, 6, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer', filter: 'url(#shadow3d)' }} hide={!legendaAtiva.includes('insp')} />
+                <Bar dataKey="rel" name="Relatórios" fill="url(#colorRel)" radius={[6, 6, 0, 0]} maxBarSize={28} style={{ cursor: 'pointer', filter: 'url(#shadow3d)' }} hide={!legendaAtiva.includes('rel')} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
