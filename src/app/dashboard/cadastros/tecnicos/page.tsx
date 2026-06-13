@@ -556,21 +556,11 @@ export default function TecnicosPage() {
               )}
             </div>
 
-            <div style={{ padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <div style={{ fontSize: 12, color: '#64748b' }}>
-                 Usa inteligência artificial para estimar as distâncias da base fixa.
+            <div style={{ padding: '16px 24px', borderTop: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+               <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                 <Navigation size={14} />
+                 {calculandoDistancias ? "Calculando rotas com Inteligência Artificial..." : "Distâncias estimadas com Inteligência Artificial."}
                </div>
-               <button 
-                 onClick={callGeminiDistances} 
-                 disabled={calculandoDistancias || !selectedTecnicoUnidades.baseFixa || selectedTecnicoUnidades.unidades.length <= 1}
-                 style={{ background: '#1e293b', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: (calculandoDistancias || !selectedTecnicoUnidades.baseFixa || selectedTecnicoUnidades.unidades.length <= 1) ? 0.6 : 1 }}
-               >
-                 {calculandoDistancias ? (
-                   <>Calculando...</>
-                 ) : (
-                   <><Navigation size={14} /> Estimar Distâncias</>
-                 )}
-               </button>
             </div>
           </div>
         </div>

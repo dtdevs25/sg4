@@ -13,7 +13,7 @@ export async function calcularDistanciasBase(baseFixa: any, outrasBases: any[]) 
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
     const destinoStrings = outrasBases.map((b, i) => 
       `[${i}] ${b.nome} - Endereço: ${b.endereco || 'N/A'} - Cidade: ${b.cidade || 'N/A'}/${b.estado || 'N/A'}`
