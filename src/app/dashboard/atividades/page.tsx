@@ -42,6 +42,8 @@ export default function PlanejamentoPage() {
   const [isModifying, setIsModifying] = useState(false)
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false)
   const [showSidebarDropdown, setShowSidebarDropdown] = useState(false)
+  const [showUnidadeDropdown, setShowUnidadeDropdown] = useState(false)
+  const [unidadeSearchTerm, setUnidadeSearchTerm] = useState('')
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [confirmRevertId, setConfirmRevertId] = useState<string | null>(null)
@@ -578,19 +580,67 @@ export default function PlanejamentoPage() {
                   }
 
                   return (
-                    <select 
-                      value={unidsDoTecnico.find(u => u.nome === form.local) ? form.local : form.local === 'OUTROS' ? 'OUTROS' : ''} 
-                      onChange={e => {
-                        const val = e.target.value;
-                        const un = unidsDoTecnico.find(u => u.nome === val);
-                        setForm({...form, local: val, outroLocal: '', cidade: un?.cidade || '', estado: un?.estado || 'SP'});
-                      }} 
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}
-                    >
-                      <option value="">Selecione ou digite em Outros...</option>
-                      {unidsDoTecnico.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
-                      <option value="OUTROS">Outros...</option>
-                    </select>
+                    <div style={{ position: 'relative' }}>
+                      <div
+                        onClick={() => setShowUnidadeDropdown(v => !v)}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showUnidadeDropdown ? '#660099' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.2s' }}
+                      >
+                        <span style={{ fontSize: 13, color: form.local ? '#1e293b' : '#94a3b8', fontWeight: form.local ? 700 : 400 }}>
+                          {form.local ? (unidsDoTecnico.find(u => u.nome === form.local) ? form.local : form.local === 'OUTROS' ? 'Outros...' : form.local) : 'Selecione ou busque a unidade...'}
+                        </span>
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>{showUnidadeDropdown ? '▲' : '▼'}</span>
+                      </div>
+
+                      {showUnidadeDropdown && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                          <div style={{ padding: 8, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10 }} />
+                              <input 
+                                autoFocus 
+                                type="text" 
+                                placeholder="Buscar unidade..." 
+                                value={unidadeSearchTerm}
+                                onChange={e => setUnidadeSearchTerm(e.target.value)}
+                                onKeyDown={e => { if(e.key === 'Enter') e.preventDefault() }}
+                                style={{ width: '100%', padding: '8px 8px 8px 30px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                              />
+                            </div>
+                          </div>
+                          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                            {unidsDoTecnico.filter(u => u.nome.toLowerCase().includes(unidadeSearchTerm.toLowerCase())).map(u => (
+                              <div key={u.id} onClick={() => { 
+                                setForm({...form, local: u.nome, outroLocal: '', cidade: u.cidade || '', estado: u.estado || 'SP'});
+                                setShowUnidadeDropdown(false);
+                                setUnidadeSearchTerm('');
+                              }}
+                                style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: form.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = form.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff')}
+                              >
+                                <span>{u.nome}</span>
+                                {form.local === u.nome && <Check size={14} color="#660099" />}
+                              </div>
+                            ))}
+                            {unidsDoTecnico.filter(u => u.nome.toLowerCase().includes(unidadeSearchTerm.toLowerCase())).length === 0 && (
+                              <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhuma unidade encontrada.</div>
+                            )}
+                            <div onClick={() => { 
+                                setForm({...form, local: 'OUTROS', outroLocal: '', cidade: '', estado: 'SP'});
+                                setShowUnidadeDropdown(false);
+                                setUnidadeSearchTerm('');
+                              }}
+                              style={{ padding: '10px 14px', cursor: 'pointer', background: form.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = form.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff')}
+                            >
+                              <span>Outros...</span>
+                              {form.local === 'OUTROS' && <Check size={14} color="#660099" />}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )
                 })()}
                 {(!unidades.find(u => u.nome === form.local) && form.local === 'OUTROS') && (
