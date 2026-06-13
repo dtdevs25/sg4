@@ -192,3 +192,26 @@ export async function moverPlanejamento(id: string, novaData: Date) {
     return { success: false, error: error.message }
   }
 }
+
+export async function reverterPlanejamento(id: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    await prisma.planejamento.update({
+      where: { id },
+      data: { 
+        status: 'PENDENTE',
+        descricaoExecutada: null,
+        observacoes: null,
+        alteradaOriginal: false
+      }
+    })
+
+    revalidatePath('/dashboard/planejamento')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error in reverterPlanejamento:', error)
+    return { success: false, error: error.message }
+  }
+}

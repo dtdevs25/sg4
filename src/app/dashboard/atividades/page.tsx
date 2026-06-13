@@ -9,7 +9,7 @@ import {
 import { useSession } from 'next-auth/react'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import {
-  getPlanejamentos, savePlanejamento, modificarExecucao, concluirPlanejamento, deletePlanejamento, moverPlanejamento
+  getPlanejamentos, savePlanejamento, modificarExecucao, concluirPlanejamento, deletePlanejamento, moverPlanejamento, reverterPlanejamento
 } from '@/app/actions/planejamento'
 import { getUnidades } from '@/app/actions/unidades'
 
@@ -203,6 +203,15 @@ export default function PlanejamentoPage() {
       } else {
         await concluirPlanejamento(showExecModal.id)
       }
+      setShowExecModal(null)
+      load()
+    })
+  }
+
+  function handleReverter(id: string) {
+    if(!confirm('Deseja realmente reverter esta atividade para pendente?')) return
+    startTransition(async () => {
+      await reverterPlanejamento(id)
       setShowExecModal(null)
       load()
     })
@@ -426,7 +435,7 @@ export default function PlanejamentoPage() {
           <div style={{ 
             background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600,
             display: 'flex', flexDirection: 'column',
-            maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+            maxHeight: '85vh', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
           }}>
             <div style={{
               background: '#660099', padding: '20px 24px',
@@ -479,18 +488,18 @@ export default function PlanejamentoPage() {
                     <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>{showTecnicoDropdown ? '▲' : '▼'}</span>
                   </div>
                   {showTecnicoDropdown && (
-                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 240, overflowY: 'auto' }}>
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
                       {tecnicos.filter(t => t.ativo).map(t => (
                         <div key={t.id} onClick={() => { 
                           setForm(p => ({...p, tecnicoId: t.id, local: '', outroLocal: '', cidade: '', estado: 'SP'})); 
                           setShowTecnicoDropdown(false) 
                         }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: form.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: form.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
                           onMouseLeave={e => (e.currentTarget.style.background = form.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
                         >
-                          {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
-                          <div><div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div><div style={{ fontSize: 11, color: '#94a3b8' }}>{t.cargo || 'Técnico de Segurança'}</div></div>
+                          {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                          <div><div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div></div>
                           {form.tecnicoId === t.id && <span style={{ marginLeft:'auto', color:'#660099', fontWeight:800 }}>✓</span>}
                         </div>
                       ))}
@@ -630,6 +639,12 @@ export default function PlanejamentoPage() {
                     <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#064e3b' }}>{showExecModal.descricaoExecutada}</p>
                   </div>
                 )}
+                
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #6ee7b7' }}>
+                  <button type="button" onClick={() => handleReverter(showExecModal.id)} disabled={pending} style={{ padding: '8px 16px', background: 'transparent', color: '#047857', border: '1px solid #047857', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, opacity: pending ? 0.7 : 1 }}>
+                    Reverter para Pendente
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleExecutar}>
@@ -674,7 +689,7 @@ export default function PlanejamentoPage() {
             )}
 
             {/* Apenas líderes ou admin podem deletar do banco livremente, ou o dono se ainda estiver pendente */}
-            {!isModifying && showExecModal.status === 'PENDENTE' && (
+            {!isModifying && (!isTst || showExecModal.status === 'PENDENTE') && (
               <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
                 <button type="button" onClick={() => handleDeletePlan(showExecModal.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
                   Remover Planejamento
