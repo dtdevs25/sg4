@@ -133,7 +133,7 @@ export default function PlanejamentoPage() {
     e.dataTransfer.setData('plan_id', id)
   }
 
-  function handleDrop(e: React.DragEvent, dateStr: string) {
+  function handleDrop(e: React.DragEvent<HTMLDivElement>, dateStr: string) {
     e.preventDefault()
     e.currentTarget.style.background = '' // Limpa highlight
     const planId = e.dataTransfer.getData('plan_id')
@@ -151,12 +151,12 @@ export default function PlanejamentoPage() {
     })
   }
 
-  function handleDragOver(e: React.DragEvent) {
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault()
     e.currentTarget.style.background = 'rgba(102,0,153,0.05)'
   }
 
-  function handleDragLeave(e: React.DragEvent) {
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault()
     e.currentTarget.style.background = ''
   }
@@ -688,7 +688,7 @@ export default function PlanejamentoPage() {
   )
 }
 
-function PlanCard({ plan, onClick, onDragStart }: { plan: any, onClick: () => void, onDragStart: (e: React.DragEvent, id: string) => void }) {
+function PlanCard({ plan, onClick, onDragStart }: { plan: any, onClick: () => void, onDragStart: (e: React.DragEvent<HTMLDivElement>, id: string) => void }) {
   const c = PR_COLORS[plan.prioridade]
   const isConcluido = plan.status === 'CONCLUIDO'
   return (
