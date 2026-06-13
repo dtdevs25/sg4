@@ -1,19 +1,15 @@
 'use server'
 
-import { GoogleGenerativeAI } from '@google/generative-ai'
-
 export async function calcularDistanciasBase(baseFixa: any, outrasBases: any[]) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) {
       return { success: false, error: 'Chave do Gemini não configurada' }
     }
     
     if (!baseFixa || outrasBases.length === 0) {
       return { success: true, distancias: [] }
     }
-
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
     const destinoStrings = outrasBases.map((b, i) => 
       `[${i}] ${b.nome} - Endereço: ${b.endereco || 'N/A'} - Cidade: ${b.cidade || 'N/A'}/${b.estado || 'N/A'}`
@@ -36,14 +32,69 @@ Retorne os dados SOMENTE em formato JSON válido, onde a chave raiz é "distanci
 
 Não inclua formatação de markdown como \`\`\`json no retorno, retorne APENAS o JSON puro.
 `
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    let text = response.text()
+
+    // Descobre dinamicamente os modelos disponíveis para esta chave de API
+    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+    const listRes = await fetch(listUrl)
+    const listData = await listRes.json()
+
+    if (!listRes.ok) {
+      return { success: false, error: listData?.error?.message || 'Falha ao validar a chave da API.' }
+    }
+
+    // Filtra modelos que suportam geração de texto e contêm 'gemini'
+    const availableModels = listData.models || []
+    const compatibleModels = availableModels.filter((m: any) => 
+      m.supportedGenerationMethods?.includes('generateContent') && 
+      m.name.includes('gemini')
+    )
+
+    if (compatibleModels.length === 0) {
+      return { success: false, error: 'Sua chave de API não possui acesso a modelos Gemini de texto.' }
+    }
+
+    // Prefere o 1.5 flash, senão pega o primeiro disponível
+    let selectedModelName = compatibleModels[0].name
+    const flashModel = compatibleModels.find((m: any) => m.name.includes('1.5-flash'))
+    if (flashModel) selectedModelName = flashModel.name
+
+    // selectedModelName já vem no formato "models/gemini-..."
+    const url = `https://generativelanguage.googleapis.com/v1beta/${selectedModelName}:generateContent?key=${apiKey}`
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          topK: 40,
+          topP: 0.95,
+        }
+      })
+    })
+
+    const responseData = await response.json()
+
+    if (!response.ok) {
+      const errMsg = responseData?.error?.message || `Erro da API: ${response.status}`
+      return { success: false, error: errMsg }
+    }
+
+    let text = responseData.candidates?.[0]?.content?.parts?.[0]?.text || ''
     
     // Limpar o markdown caso o modelo tenha retornado
     text = text.replace(/```json/g, '').replace(/```/g, '').trim()
 
-    const data = JSON.parse(text)
+    let data;
+    try {
+      data = JSON.parse(text)
+    } catch (e) {
+      console.error("Falha ao parsear JSON:", text)
+      return { success: false, error: 'Falha ao processar o formato de resposta da Inteligência Artificial.' }
+    }
     
     // Combinar com o id da base original
     const resultadoMapeado = outrasBases.map((base, i) => {
@@ -57,7 +108,7 @@ Não inclua formatação de markdown como \`\`\`json no retorno, retorne APENAS 
     })
 
     return { success: true, data: resultadoMapeado }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao calcular distâncias:', error)
     return { success: false, error: 'Falha ao conectar com inteligência artificial para cálculo.' }
   }
