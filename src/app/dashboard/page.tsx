@@ -153,16 +153,6 @@ function CustomXAxisTick({ x, y, payload, width }: any) {
         </text>
       )}
 
-      {/* Linha vertical separadora das colunas — centered at right edge of tick group */}
-      <line
-        x1={width / 2}
-        y1={-450}
-        x2={width / 2}
-        y2={-4}
-        stroke="#94a3b8"
-        strokeWidth={1}
-        strokeDasharray="4 3"
-      />
     </g>
   )
 }
@@ -804,7 +794,7 @@ export default function DashboardPage() {
                     <feDropShadow dx="3" dy="3" stdDeviation="4" floodOpacity="0.3" floodColor="#000" />
                   </filter>
                 </defs>
-                <CartesianGrid vertical={false} horizontal={false} />
+                
                 <XAxis
                   dataKey="nomeAbrev"
                   tick={<CustomXAxisTick />}
