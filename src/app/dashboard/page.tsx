@@ -784,7 +784,7 @@ export default function DashboardPage() {
                   setModalData(data.activePayload[0].payload)
                 }
               }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <CartesianGrid vertical={false} horizontal={true} stroke="#e2e8f0" />
                 <XAxis
                   dataKey="nomeAbrev"
                   tick={<CustomXAxisTick />}
