@@ -95,7 +95,7 @@ export async function savePlanejamento(data: {
               <div style="background: #f8fafc; padding: 16px; border-left: 4px solid #660099; border-radius: 4px; margin: 20px 0;">
                 <p style="margin: 0 0 8px 0;"><strong>Data:</strong> ${dataFormatada}</p>
                 <p style="margin: 0 0 8px 0;"><strong>Categoria:</strong> ${newPlan.categoria}</p>
-                <p style="margin: 0 0 8px 0;"><strong>Local:</strong> ${newPlan.local || 'Não informado'} ${newPlan.cidade ? \`(${newPlan.cidade}-${newPlan.estado})\` : ''}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Local:</strong> ${newPlan.local || 'Não informado'} ${newPlan.cidade ? '(' + newPlan.cidade + '-' + newPlan.estado + ')' : ''}</p>
                 <p style="margin: 0;"><strong>Atividade:</strong> ${newPlan.descricaoOriginal}</p>
               </div>
               <p>Por favor, acesse o sistema SG4 para visualizar os detalhes completos e realizar a execução da atividade.</p>

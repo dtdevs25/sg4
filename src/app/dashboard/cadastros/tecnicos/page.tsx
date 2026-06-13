@@ -298,6 +298,7 @@ export default function TecnicosPage() {
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>{tecnico.nome}</div>
                         <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>{tecnico.cargo}</div>
+                      </div>
                     </div>
                     {tecnico.contaMeta === false && (
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, marginTop: 4 }}>
