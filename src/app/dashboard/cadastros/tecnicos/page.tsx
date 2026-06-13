@@ -168,25 +168,32 @@ export default function TecnicosPage() {
     setSelectedTecnicoUnidades(tecnico)
     setDistancias([])
     setShowUnidadesModal(true)
+    
+    if (tecnico.baseFixa && tecnico.unidades.length > 1) {
+      callGeminiDistances(tecnico)
+    }
   }
 
-  async function callGeminiDistances() {
-    if (!selectedTecnicoUnidades?.baseFixa) {
-      alert("Este técnico não possui uma Base Fixa definida.")
+  async function callGeminiDistances(tecnicoToCalc?: any) {
+    const targetTecnico = tecnicoToCalc && !tecnicoToCalc.nativeEvent ? tecnicoToCalc : selectedTecnicoUnidades
+    
+    if (!targetTecnico?.baseFixa) {
+      if (!tecnicoToCalc || tecnicoToCalc.nativeEvent) alert("Este técnico não possui uma Base Fixa definida.")
       return
     }
     setCalculandoDistancias(true)
-    const outrasBases = selectedTecnicoUnidades.unidades.filter((u: any) => u.id !== selectedTecnicoUnidades.baseFixa.id)
+    const outrasBases = targetTecnico.unidades.filter((u: any) => u.id !== targetTecnico.baseFixa.id)
     if (outrasBases.length === 0) {
-      alert("Não há outras bases para calcular a distância.")
+      if (!tecnicoToCalc || tecnicoToCalc.nativeEvent) alert("Não há outras bases para calcular a distância.")
       setCalculandoDistancias(false)
       return
     }
-    const res = await calcularDistanciasBase(selectedTecnicoUnidades.baseFixa, outrasBases)
+    const res = await calcularDistanciasBase(targetTecnico.baseFixa, outrasBases)
     if (res.success && res.data) {
        setDistancias(res.data)
     } else {
-       alert(res.error || 'Erro ao calcular distâncias.')
+       if (!tecnicoToCalc || tecnicoToCalc.nativeEvent) alert(res.error || 'Erro ao calcular distâncias.')
+       else console.error(res.error)
     }
     setCalculandoDistancias(false)
   }
