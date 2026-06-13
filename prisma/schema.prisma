@@ -81,6 +81,7 @@ model Tecnico {
   fotoUrl   String?
   admissao  DateTime
   ativo     Boolean   @default(true)
+  contaMeta Boolean   @default(true)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 

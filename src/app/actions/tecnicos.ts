@@ -66,7 +66,7 @@ export async function uploadFotoTecnico(fileData: string, fileName: string, cont
   }
 }
 
-export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null }) {
+export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null, contaMeta?: boolean }) {
   try {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
@@ -82,7 +82,8 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
       cargo: 'Técnico de Segurança do Trabalho',
       admissao: admissaoDate,
       fotoUrl: data.fotoUrl,
-      baseFixaId: data.baseFixaId || null
+      baseFixaId: data.baseFixaId || null,
+      contaMeta: data.contaMeta !== undefined ? data.contaMeta : true
     }
 
     if (data.unidadeIds !== undefined) {

@@ -466,7 +466,7 @@ export default function DashboardPage() {
   })
 
   // Lógica de Metas
-  const nTecnicos = tecnicosDb.filter(t => t.ativo).length || 1
+  const nTecnicos = tecnicosDb.filter(t => t.ativo && t.contaMeta !== false).length || 1
   const numYears = ano ? 1 : (ANOS.length || 1)
   const numMeses = meses.length > 0 ? meses.length : 12
   const metaDssTotal = nTecnicos * META_DSS_POR_TEC * numMeses * numYears

@@ -28,13 +28,14 @@ export default function TecnicosPage() {
   
   // Form state
   const [form, setForm] = useState<{
-    nome: string; email: string; telefone: string; admissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null
+    nome: string; email: string; telefone: string; admissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null; contaMeta: boolean
   }>({
     nome: '', email: '', telefone: '',
     admissao: new Date().toLocaleDateString('pt-BR'),
     fotoUrl: '',
     unidadeIds: [],
-    baseFixaId: null
+    baseFixaId: null,
+    contaMeta: true
   })
   
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -70,7 +71,8 @@ export default function TecnicosPage() {
       admissao: new Date().toLocaleDateString('pt-BR'),
       fotoUrl: '',
       unidadeIds: [],
-      baseFixaId: null
+      baseFixaId: null,
+      contaMeta: true
     })
     setFotoFile(null)
     setPreviewUrl('')
@@ -85,7 +87,8 @@ export default function TecnicosPage() {
       admissao,
       fotoUrl: tecnico.fotoUrl || '',
       unidadeIds: tecnico.unidades?.map((u: any) => u.id) || [],
-      baseFixaId: tecnico.baseFixaId || null
+      baseFixaId: tecnico.baseFixaId || null,
+      contaMeta: tecnico.contaMeta !== false
     })
     setFotoFile(null)
     setPreviewUrl(tecnico.fotoUrl || '')
@@ -295,8 +298,12 @@ export default function TecnicosPage() {
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>{tecnico.nome}</div>
                         <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>{tecnico.cargo}</div>
-                      </div>
                     </div>
+                    {tecnico.contaMeta === false && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, marginTop: 4 }}>
+                        <Star size={10} fill="currentColor" /> Não conta p/ Meta
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '14px 20px' }}>
                     <div style={{ fontSize: 13, color: '#475569', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}><Mail size={12} /> {tecnico.email}</div>
@@ -461,6 +468,19 @@ export default function TecnicosPage() {
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Cargo</label>
                 <input type="text" readOnly value="Técnico de Segurança do Trabalho" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc', color: '#64748b', fontWeight: 600 }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#334155', cursor: 'pointer', background: form.contaMeta ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', padding: '12px 16px', borderRadius: 8, border: `1px solid ${form.contaMeta ? '#10b981' : '#ef4444'}`, transition: 'all 0.2s' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.contaMeta}
+                    onChange={(e) => setForm(p => ({ ...p, contaMeta: e.target.checked }))}
+                    style={{ margin: 0, width: 16, height: 16, accentColor: form.contaMeta ? '#10b981' : '#ef4444' }}
+                  />
+                  <span>Contabiliza para Metas da Empresa</span>
+                </label>
+                <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0 28px' }}>Se desmarcado, as atividades deste técnico não somarão aos números globais do Dashboard.</p>
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>

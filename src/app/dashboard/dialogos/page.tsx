@@ -73,7 +73,7 @@ export default function DialogosPage() {
   const totalRealizado = filtered.reduce((acc, curr) => {
     return acc + selectedMonths.reduce((sum, m) => sum + curr[m], 0)
   }, 0)
-  const totalMeta = filtered.length * targetMeta * (selectedMonths.length || 1)
+  const totalMeta = filtered.filter(t => t.contaMeta !== false).length * targetMeta * (selectedMonths.length || 1)
   const pctRealizado = totalMeta > 0 ? Math.round((totalRealizado / totalMeta) * 100) : 0
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export default function DialogosPage() {
           return false
         })
 
-        const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl, admissao: t.admissao ? new Date(t.admissao).toLocaleDateString('pt-BR') : '--', ativo: t.ativo }
+        const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl, admissao: t.admissao ? new Date(t.admissao).toLocaleDateString('pt-BR') : '--', ativo: t.ativo, contaMeta: t.contaMeta }
         
         Object.keys(MES_MAP).forEach(k => {
           const mesName = MES_MAP[k as MesKey]
@@ -163,6 +163,7 @@ export default function DialogosPage() {
           result[k] = totalMesArkium
         })
         result.ativo = t.ativo
+        result.contaMeta = t.contaMeta
         return result
       })
       
@@ -777,8 +778,8 @@ export default function DialogosPage() {
                   <tbody>
                     {filtered.map(t => {
                       const realizado = selectedMonths.reduce((sum, m) => sum + t[m], 0)
-                      const meta = targetMeta * (selectedMonths.length || 1)
-                      const isCompleted = realizado >= meta
+                      const meta = t.contaMeta === false ? 0 : targetMeta * (selectedMonths.length || 1)
+                      const isCompleted = meta === 0 ? true : realizado >= meta
                       const hasStarted = realizado > 0
 
                       return (
