@@ -1,6 +1,6 @@
 'use server'
 
-import { db } from '@/lib/db'
+import { prisma as db } from '@/lib/db'
 import s3Client from '@/lib/s3'
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { auth } from '@/lib/auth'
