@@ -96,7 +96,7 @@ export async function gerarPdfRelatorio(
     head: [['DATA', 'LOCAL', 'CIDADE/UF', 'REGISTRO (FOTO)', 'ATIVIDADE']],
     body: tableData,
     theme: 'grid',
-    margin: { top: 185, bottom: 90, left: 40, right: 40 },
+    margin: { top: 185, bottom: 130, left: 40, right: 40 },
     styles: { fontSize: 8, cellPadding: 4, valign: 'middle', lineColor: [0, 0, 0], lineWidth: 0.5 },
     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', lineColor: [0, 0, 0], lineWidth: 0.5 },
     columnStyles: {
@@ -125,51 +125,7 @@ export async function gerarPdfRelatorio(
     }
   })
 
-  // === FOOTER / VALIDAÇÃO NO RODAPÉ ===
-  // O rodapé ficará sempre no final da última página, posição Y=720
-  if ((doc as any).lastAutoTable.finalY > 700) {
-    doc.addPage()
-  }
-  const footerY = 740
-
-  // Caixa de Validação - Título
-  doc.setDrawColor(0)
-  doc.setLineWidth(0.5)
-  doc.setFillColor(240, 240, 240)
-  doc.rect(40, footerY, 340, 16, 'FD')
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(120, 120, 120)
-  doc.text('VALIDAÇÃO', 210, footerY + 11, { align: 'center' })
-
-  // Caixa de Validação - Texto
-  doc.setFillColor(255, 255, 255)
-  doc.rect(40, footerY + 16, 340, 24, 'FD')
-  doc.setFontSize(10)
-  doc.setTextColor(120, 120, 120)
-  doc.text('A validação deste Relatório é feita através da confirmação via e-mail.', 210, footerY + 32, { align: 'center' })
-
-  // Legenda à direita
-  doc.setFontSize(8)
-  doc.setTextColor(80, 80, 80)
-  
-  // "Legenda" com sublinhado
-  doc.setFont('helvetica', 'bold')
-  doc.text('Legenda', 390, footerY + 10)
-  doc.line(390, footerY + 11, 425, footerY + 11)
-
-  // Item S/M
-  doc.text('S/M:', 390, footerY + 22)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Semana/Mês do projeto;', 410, footerY + 22)
-
-  // Item HD/HR (Com quebra de linha usando maxWidth)
-  doc.setFont('helvetica', 'bold')
-  doc.text('HD/HR:', 390, footerY + 34)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Quantidade de HD ou horas utilizadas para atividade.', 426, footerY + 34, { maxWidth: 130 })
-
-  // === CABEÇALHO EM TODAS AS PÁGINAS ===
+  // === CABEÇALHO E RODAPÉ EM TODAS AS PÁGINAS ===
   const pageCount = (doc as any).internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
@@ -235,9 +191,54 @@ export async function gerarPdfRelatorio(
     drawInfoRow(155, [
       { offsetX: 40, wTitle: 70, title: 'ELABORADOR:', wValue: 445, value: filtros.elaborador.toUpperCase() }
     ])
+
+    // --- Rodapé (Validação e Legenda) em cada página ---
+    const footerY = 740
+
+    // Caixa de Validação - Título
+    doc.setDrawColor(0)
+    doc.setLineWidth(0.5)
+    doc.setFillColor(240, 240, 240)
+    doc.rect(40, footerY, 340, 16, 'FD')
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(120, 120, 120)
+    doc.text('VALIDAÇÃO', 210, footerY + 11, { align: 'center' })
+
+    // Caixa de Validação - Texto
+    doc.setFillColor(255, 255, 255)
+    doc.rect(40, footerY + 16, 340, 24, 'FD')
+    doc.setFontSize(10)
+    doc.setTextColor(120, 120, 120)
+    doc.text('A validação deste Relatório é feita através da confirmação via e-mail.', 210, footerY + 32, { align: 'center' })
+
+    // Legenda à direita
+    doc.setFontSize(8)
+    doc.setTextColor(80, 80, 80)
+    
+    // "Legenda" com sublinhado
+    doc.setFont('helvetica', 'bold')
+    doc.text('Legenda', 390, footerY + 10)
+    doc.line(390, footerY + 11, 425, footerY + 11)
+
+    // Item S/M
+    doc.text('S/M:', 390, footerY + 22)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Semana/Mês do projeto;', 410, footerY + 22)
+
+    // Item HD/HR (Com quebra de linha usando maxWidth)
+    doc.setFont('helvetica', 'bold')
+    doc.text('HD/HR:', 390, footerY + 34)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Quantidade de HD ou horas utilizadas para atividade.', 426, footerY + 34, { maxWidth: 130 })
   }
 
   const mmYYYY = new Date(filtros.ano, filtros.mes - 1).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }).replace('/', '.')
   const safeName = filtros.elaborador.toUpperCase().replace(/[^A-Z0-9 \-]/g, '')
-  doc.save(`${safeName} - RELATÓRIO DE ATIVIDADES - ${mmYYYY}.pdf`)
+  const fileName = `${safeName} - RELATÓRIO DE ATIVIDADES - ${mmYYYY}.pdf`
+  
+  return {
+    fileName,
+    base64: doc.output('datauristring')
+  }
 }

@@ -97,6 +97,7 @@ model Tecnico {
 
   unidades    Unidade[]
   planejamentos Planejamento[]
+  relatoriosPdf RelatorioPdf[]
 
   baseFixaId  String?
   baseFixa    Unidade?     @relation("BaseFixa", fields: [baseFixaId], references: [id], onDelete: SetNull)
@@ -432,4 +433,21 @@ model RelatorioAtividade {
 
   @@index([tecnicoId])
   @@index([data])
+}
+
+
+model RelatorioPdf {
+  id           String   @id @default(cuid())
+  nomeArquivo  String
+  url          String
+  tamanhoBytes Int
+  tecnicoId    String?
+  mesAno       String   // ex: '06.2026'
+  elaborador   String
+  createdAt    DateTime @default(now())
+
+  tecnico      Tecnico?  @relation(fields: [tecnicoId], references: [id])
+
+  @@index([tecnicoId])
+  @@map("relatorios_pdf")
 }

@@ -12,6 +12,7 @@ import {
 import { optimizeTextWithAI } from '@/app/actions/ai'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { gerarPdfRelatorio } from '@/app/utils/generateRelatorioPdf'
+import { uploadRelatorioPdf, getRelatoriosPdf, deleteRelatorioPdf } from '@/app/actions/relatoriosPdf'
 
 const MES_MAP: Record<string, string> = {
   jan: 'JANEIRO', fev: 'FEVEREIRO', mar: 'MARCO', abr: 'ABRIL', mai: 'MAIO', jun: 'JUNHO',
@@ -58,9 +59,18 @@ export default function RelatoriosAtividadesPage() {
   const [formEdit, setFormEdit] = useState({ data: '', empresa: '', projeto: '', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formPdf, setFormPdf] = useState({ empresa: '', tecnicoId: '', mes: new Date().getMonth() + 1, ano: new Date().getFullYear() })
 
+  // Novos Estados
+  const [activeTab, setActiveTab] = useState<'gerador' | 'salvos'>('gerador')
+  const [relatoriosSalvos, setRelatoriosSalvos] = useState<any[]>([])
+  const [showDeletePdfModal, setShowDeletePdfModal] = useState<string | null>(null)
+
   useEffect(() => {
-    loadData()
-  }, [selectedYear])
+    if (activeTab === 'gerador') {
+      loadData()
+    } else {
+      loadRelatoriosSalvos()
+    }
+  }, [selectedYear, activeTab])
 
   useEffect(() => {
     if (role) {
@@ -297,12 +307,28 @@ export default function RelatoriosAtividadesPage() {
         if (tecnicoData) elaborador = tecnicoData.nome
       }
 
-      await gerarPdfRelatorio(data, {
+      const pdfObj = await gerarPdfRelatorio(data, {
         mes: formPdf.mes,
         ano: formPdf.ano,
         empresa: 'VIVO',
         elaborador
       })
+
+      if (pdfObj && pdfObj.base64) {
+        const link = document.createElement('a')
+        link.href = pdfObj.base64
+        link.download = pdfObj.fileName
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+
+        // Upload em background para a nuvem
+        const mesAnoFormat = `${formPdf.mes.toString().padStart(2, '0')}/${formPdf.ano}`
+        uploadRelatorioPdf(pdfObj.base64, pdfObj.fileName, mesAnoFormat)
+          .then(res => {
+            if (!res.success) console.error(res.error)
+          })
+      }
 
       setShowGerarPdfModal(false)
     } catch (err) {
@@ -338,15 +364,25 @@ export default function RelatoriosAtividadesPage() {
         </div>
         
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button onClick={() => setShowGerarPdfModal(true)} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(34,197,94,0.3)', fontSize: 13 }}>
-            <Printer size={16} /> Gerar PDF
-          </button>
-          <button onClick={() => setShowNovaAtividade(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(59,130,246,0.3)', fontSize: 13 }}>
-            <Plus size={16} /> Lançar Atividade
-          </button>
+          <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8 }}>
+            <button onClick={() => setActiveTab('gerador')} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: activeTab === 'gerador' ? '#fff' : 'transparent', color: activeTab === 'gerador' ? '#660099' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', boxShadow: activeTab === 'gerador' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>Atividades</button>
+            <button onClick={() => setActiveTab('salvos')} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: activeTab === 'salvos' ? '#fff' : 'transparent', color: activeTab === 'salvos' ? '#660099' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', boxShadow: activeTab === 'salvos' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>Relatórios Salvos</button>
+          </div>
+          {activeTab === 'gerador' && (
+            <>
+              <button onClick={() => setShowGerarPdfModal(true)} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(34,197,94,0.3)', fontSize: 13 }}>
+                <Printer size={16} /> Gerar PDF
+              </button>
+              <button onClick={() => setShowNovaAtividade(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(59,130,246,0.3)', fontSize: 13 }}>
+                <Plus size={16} /> Lançar Atividade
+              </button>
+            </>
+          )}
         </div>
       </div>
 
+      {activeTab === 'gerador' ? (
+        <>
       {/* DASHBOARD CONSOLIDADO & FILTROS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
         
@@ -567,6 +603,94 @@ export default function RelatoriosAtividadesPage() {
         )}
       </div>
       </div>
+        </>
+      ) : (
+        /* ABA RELATÓRIOS SALVOS */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                  <tr>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>NOME DO ARQUIVO</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>ELABORADOR</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>DATA GERAÇÃO</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>AÇÕES</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={4} style={{ padding: 60, textAlign: 'center' }}><Loader2 className="animate-spin inline" color="#660099" size={32} /></td></tr>
+                  ) : relatoriosSalvos.length === 0 ? (
+                    <tr><td colSpan={4} style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>Nenhum relatório salvo encontrado.</td></tr>
+                  ) : relatoriosSalvos.map(r => (
+                    <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                        <a href={r.url} target="_blank" rel="noreferrer" style={{ color: '#660099', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <FileText size={16} /> {r.nomeArquivo}
+                        </a>
+                      </td>
+                      <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                        {r.elaborador}
+                      </td>
+                      <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                        {new Date(r.createdAt).toLocaleString('pt-BR')}
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                          <a href={r.url} target="_blank" rel="noreferrer" style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 4 }} title="Visualizar">
+                            <Eye size={16} />
+                          </a>
+                          <button onClick={() => setShowDeletePdfModal(r.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EXCLUIR PDF */}
+      {showDeletePdfModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: 400, padding: 24, textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <AlertTriangle size={32} />
+            </div>
+            <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>Excluir Relatório?</h3>
+            <p style={{ fontSize: 14, color: '#64748b', marginBottom: 24, lineHeight: 1.5 }}>
+              Essa ação não pode ser desfeita. O relatório será apagado do banco de dados e do servidor na nuvem (MinIO) permanentemente.
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => setShowDeletePdfModal(null)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: '#f1f5f9', color: '#475569', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button 
+                onClick={async () => {
+                  setLoading(true)
+                  const res = await deleteRelatorioPdf(showDeletePdfModal)
+                  if (res.success) {
+                    setShowDeletePdfModal(null)
+                    loadRelatoriosSalvos()
+                  } else {
+                    alert(res.error)
+                    setLoading(false)
+                  }
+                }} 
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: '#ef4444', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : 'Sim, Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* MODAL NOVA ATIVIDADE */}
       {showNovaAtividade && (
