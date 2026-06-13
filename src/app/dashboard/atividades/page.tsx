@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import {
   CalendarDays, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
   Plus, Edit2, CheckCircle2, AlertTriangle, User, MapPin, Search, 
-  X, Check, AlertCircle
+  X, Check, AlertCircle, Trash2, RotateCcw
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getTecnicos } from '@/app/actions/tecnicos'
@@ -42,6 +42,9 @@ export default function PlanejamentoPage() {
   const [isModifying, setIsModifying] = useState(false)
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false)
   const [showSidebarDropdown, setShowSidebarDropdown] = useState(false)
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [confirmRevertId, setConfirmRevertId] = useState<string | null>(null)
 
   // Form State
   const [form, setForm] = useState({
@@ -209,18 +212,28 @@ export default function PlanejamentoPage() {
   }
 
   function handleReverter(id: string) {
-    if(!confirm('Deseja realmente reverter esta atividade para pendente?')) return
+    setConfirmRevertId(id)
+  }
+
+  function executeRevert() {
+    if(!confirmRevertId) return
     startTransition(async () => {
-      await reverterPlanejamento(id)
+      await reverterPlanejamento(confirmRevertId)
+      setConfirmRevertId(null)
       setShowExecModal(null)
       load()
     })
   }
 
   function handleDeletePlan(id: string) {
-    if(!confirm('Deseja realmente remover esta atividade planejada?')) return
+    setConfirmDeleteId(id)
+  }
+
+  function executeDelete() {
+    if(!confirmDeleteId) return
     startTransition(async () => {
-      await deletePlanejamento(id)
+      await deletePlanejamento(confirmDeleteId)
+      setConfirmDeleteId(null)
       setShowExecModal(null)
       load()
     })
@@ -640,9 +653,9 @@ export default function PlanejamentoPage() {
                   </div>
                 )}
                 
-                <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #6ee7b7' }}>
-                  <button type="button" onClick={() => handleReverter(showExecModal.id)} disabled={pending} style={{ padding: '8px 16px', background: 'transparent', color: '#047857', border: '1px solid #047857', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, opacity: pending ? 0.7 : 1 }}>
-                    Reverter para Pendente
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed #6ee7b7', display: 'flex', justifyContent: 'center' }}>
+                  <button type="button" onClick={() => handleReverter(showExecModal.id)} disabled={pending} style={{ padding: '10px 16px', background: '#ecfdf5', color: '#047857', border: '1px solid #10b981', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, width: '100%', opacity: pending ? 0.7 : 1, transition: 'all 0.2s' }}>
+                    <RotateCcw size={16} /> Reverter para Pendente
                   </button>
                 </div>
               </div>
@@ -690,12 +703,50 @@ export default function PlanejamentoPage() {
 
             {/* Apenas líderes ou admin podem deletar do banco livremente, ou o dono se ainda estiver pendente */}
             {!isModifying && (!isTst || showExecModal.status === 'PENDENTE') && (
-              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #f1f5f9', textAlign: 'center' }}>
-                <button type="button" onClick={() => handleDeletePlan(showExecModal.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: 12, fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>
-                  Remover Planejamento
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'center' }}>
+                <button type="button" onClick={() => handleDeletePlan(showExecModal.id)} style={{ padding: '10px 16px', background: '#fef2f2', border: '1px solid #fca5a5', color: '#ef4444', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', transition: 'all 0.2s' }}>
+                  <Trash2 size={16} /> Excluir Planejamento
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIRMAR DELETE */}
+      {confirmDeleteId && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Trash2 size={32} />
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0' }}>Excluir Atividade</h2>
+            <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+              Tem certeza que deseja excluir este planejamento? <strong style={{ color: '#ef4444' }}>Esta ação não poderá ser revertida.</strong>
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="button" onClick={() => setConfirmDeleteId(null)} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+              <button type="button" onClick={executeDelete} disabled={pending} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#ef4444', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Sim, Excluir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIRMAR REVERTER */}
+      {confirmRevertId && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <RotateCcw size={32} />
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0' }}>Reverter Status</h2>
+            <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+              A atividade voltará para "Pendente" e qualquer observação de execução será removida. Deseja continuar?
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="button" onClick={() => setConfirmRevertId(null)} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+              <button type="button" onClick={executeRevert} disabled={pending} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f59e0b', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Sim, Reverter</button>
+            </div>
           </div>
         </div>
       )}
