@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { PrioridadePlanejamento, StatusPlanejamento } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { sendMail } from '@/lib/mail'
 
 export async function getPlanejamentos(tecnicoId?: string, startDate?: Date, endDate?: Date) {
   try {
@@ -69,13 +70,48 @@ export async function savePlanejamento(data: {
         data: payload
       })
     } else {
-      await prisma.planejamento.create({
+      const newPlan = await prisma.planejamento.create({
         data: {
           ...payload,
           status: 'PENDENTE',
           alteradaOriginal: false
-        }
+        },
+        include: { tecnico: true }
       })
+
+      // Envia notificação por e-mail se foi criado por outra pessoa e o técnico tem e-mail cadastrado
+      const creatorTecnicoId = (session.user as any).tecnicoId
+      
+      if (newPlan.tecnico?.email && creatorTecnicoId !== newPlan.tecnicoId) {
+        const dataFormatada = newPlan.dataAtividade.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+        const html = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+            <div style="background: #660099; padding: 20px; text-align: center;">
+              <h2 style="color: #fff; margin: 0;">Nova Atividade na Agenda</h2>
+            </div>
+            <div style="padding: 24px; color: #334155;">
+              <p>Olá <strong>${newPlan.tecnico.nome}</strong>,</p>
+              <p>Uma nova atividade foi incluída no seu planejamento de segurança pelo administrador.</p>
+              <div style="background: #f8fafc; padding: 16px; border-left: 4px solid #660099; border-radius: 4px; margin: 20px 0;">
+                <p style="margin: 0 0 8px 0;"><strong>Data:</strong> ${dataFormatada}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Categoria:</strong> ${newPlan.categoria}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Local:</strong> ${newPlan.local || 'Não informado'} ${newPlan.cidade ? \`(${newPlan.cidade}-${newPlan.estado})\` : ''}</p>
+                <p style="margin: 0;"><strong>Atividade:</strong> ${newPlan.descricaoOriginal}</p>
+              </div>
+              <p>Por favor, acesse o sistema SG4 para visualizar os detalhes completos e realizar a execução da atividade.</p>
+              <br/>
+              <p style="margin: 0;">Atenciosamente,</p>
+              <p style="margin: 0; font-weight: bold;">Equipe SG4</p>
+            </div>
+          </div>
+        `
+        
+        sendMail({
+          to: newPlan.tecnico.email,
+          subject: 'SG4 - Nova Atividade Planejada',
+          html
+        }).catch(err => console.error('Erro ao notificar TST:', err))
+      }
     }
 
     revalidatePath('/dashboard/planejamento')
