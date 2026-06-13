@@ -51,6 +51,7 @@ export default function RelatoriosAtividadesPage() {
   const [showPhotoModal, setShowPhotoModal] = useState<string | null>(null)
   const [showGerarPdfModal, setShowGerarPdfModal] = useState(false)
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false)
+  const [showTecnicoPdfDropdown, setShowTecnicoPdfDropdown] = useState(false)
   const [showGraficoModal, setShowGraficoModal] = useState(false)
   const [selectedMesGrafico, setSelectedMesGrafico] = useState<number | null>(null)
 
@@ -378,10 +379,6 @@ export default function RelatoriosAtividadesPage() {
         </div>
         
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8 }}>
-            <button onClick={() => setActiveTab('gerador')} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: activeTab === 'gerador' ? '#fff' : 'transparent', color: activeTab === 'gerador' ? '#660099' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', boxShadow: activeTab === 'gerador' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>Atividades</button>
-            <button onClick={() => setActiveTab('salvos')} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: activeTab === 'salvos' ? '#fff' : 'transparent', color: activeTab === 'salvos' ? '#660099' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', boxShadow: activeTab === 'salvos' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>Relatórios Salvos</button>
-          </div>
           {activeTab === 'gerador' && (
             <>
               <button onClick={() => setShowGerarPdfModal(true)} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(34,197,94,0.3)', fontSize: 13 }}>
@@ -393,6 +390,11 @@ export default function RelatoriosAtividadesPage() {
             </>
           )}
         </div>
+      </div>
+
+      <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4, width: 'fit-content' }}>
+        <button onClick={() => setActiveTab('gerador')} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: activeTab === 'gerador' ? '#fff' : 'transparent', color: activeTab === 'gerador' ? '#660099' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', boxShadow: activeTab === 'gerador' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>Atividades</button>
+        <button onClick={() => setActiveTab('salvos')} style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: activeTab === 'salvos' ? '#fff' : 'transparent', color: activeTab === 'salvos' ? '#660099' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', boxShadow: activeTab === 'salvos' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none' }}>Relatórios Salvos</button>
       </div>
 
       {activeTab === 'gerador' ? (
@@ -991,12 +993,35 @@ export default function RelatoriosAtividadesPage() {
             <div style={{ padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
               
               {(role === 'MASTER' || role === 'ADMIN') && (
-                <div>
+                <div style={{ position: 'relative' }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual técnico?</label>
-                  <select value={formPdf.tecnicoId} onChange={(e) => setFormPdf(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
-                    <option value="">Selecione um técnico...</option>
-                    {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                  </select>
+                  <div
+                    onClick={() => setShowTecnicoPdfDropdown(v => !v)}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showTecnicoPdfDropdown ? '#660099' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', gap: 10, boxShadow: showTecnicoPdfDropdown ? '0 0 0 3px rgba(102,0,153,0.1)' : 'none', transition: 'all 0.2s' }}
+                  >
+                    {formPdf.tecnicoId ? (() => {
+                      const t = tecnicos.find(x => x.id === formPdf.tecnicoId)
+                      return t ? (<>{t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}<span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span></>) : null
+                    })() : (<span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico...</span>)}
+                    <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>{showTecnicoPdfDropdown ? '▲' : '▼'}</span>
+                  </div>
+                  {showTecnicoPdfDropdown && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 240, overflowY: 'auto' }}>
+                      {tecnicos.filter(t => t.ativo).map(t => (
+                        <div key={t.id} onClick={() => { setFormPdf(p => ({...p, tecnicoId: t.id})); setShowTecnicoPdfDropdown(false) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formPdf.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = formPdf.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
+                        >
+                          {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                          <div><div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div><div style={{ fontSize: 11, color: '#94a3b8' }}>{t.cargo || 'Técnico de Segurança'}</div></div>
+                          {formPdf.tecnicoId === t.id && <span style={{ marginLeft:'auto', color:'#660099', fontWeight:800 }}>✓</span>}
+                        </div>
+                      ))}
+                      {tecnicos.filter(t => t.ativo).length === 0 && (<div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhum técnico ativo encontrado.</div>)}
+                    </div>
+                  )}
+                  <input type="hidden" required value={formPdf.tecnicoId} onChange={() => {}} />
                 </div>
               )}
 
