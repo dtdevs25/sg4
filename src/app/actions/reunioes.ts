@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
 export async function getReunioes(ano?: number) {
   try {
@@ -26,9 +27,7 @@ export async function getReunioes(ano?: number) {
 
     const data = await prisma.reuniao.findMany({
       where,
-      include: {
-        tecnico: { select: { id: true, nome: true, fotoUrl: true } }
-      },
+      include: { tecnico: { select: { id: true, nome: true, fotoUrl: true } } },
       orderBy: { data: 'desc' }
     })
     return { success: true, data }
@@ -47,10 +46,10 @@ export async function createReuniaoLote(dataIso: string, assunto: string) {
     if (role !== 'MASTER' && role !== 'ADMIN') {
       return { success: false, error: 'Sem permissão para criar reuniões' }
     }
+    const userId = (session.user as any).id
 
     const dateObj = new Date(dataIso + "T12:00:00Z")
     
-    // Busca tecnicos ativos
     const tecnicos = await prisma.tecnico.findMany({
       where: { ativo: true },
       select: { id: true }
@@ -71,9 +70,8 @@ export async function createReuniaoLote(dataIso: string, assunto: string) {
       observacao: ''
     }))
     
-    await prisma.reuniao.createMany({
-      data: reunioesData
-    })
+    await prisma.reuniao.createMany({ data: reunioesData })
+    await audit({ userId, action: 'CRIAR_REUNIAO_LOTE', entity: 'Reunião', details: { data: dataIso, assunto, totalTecnicos: tecnicos.length } })
     
     return { success: true }
   } catch (error) {
@@ -91,11 +89,11 @@ export async function updateReuniaoItem(id: string, data: any) {
     if (role !== 'MASTER' && role !== 'ADMIN') {
       return { success: false, error: 'Sem permissão para editar reuniões' }
     }
+    const userId = (session.user as any).id
 
-    const updated = await prisma.reuniao.update({
-      where: { id },
-      data
-    })
+    const updated = await prisma.reuniao.update({ where: { id }, data })
+    await audit({ userId, action: 'EDITAR_REUNIAO', entity: 'Reunião', entityId: id })
+
     return { success: true, data: updated }
   } catch (error) {
     console.error('Erro ao atualizar reunião:', error)
@@ -112,10 +110,11 @@ export async function deleteReuniaoItem(id: string) {
     if (role !== 'MASTER' && role !== 'ADMIN') {
       return { success: false, error: 'Sem permissão para excluir reuniões' }
     }
+    const userId = (session.user as any).id
 
-    await prisma.reuniao.delete({
-      where: { id }
-    })
+    await prisma.reuniao.delete({ where: { id } })
+    await audit({ userId, action: 'EXCLUIR_REUNIAO', entity: 'Reunião', entityId: id })
+
     return { success: true }
   } catch (error) {
     console.error('Erro ao excluir reunião:', error)

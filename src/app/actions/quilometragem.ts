@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
 
@@ -45,29 +46,19 @@ export async function getQuilometragens(ano?: number, mes?: number) {
     const tecnicoId = (session.user as any).tecnicoId
 
     const where: any = {}
-    if (role === 'TST') {
-      where.tecnicoId = tecnicoId
-    }
+    if (role === 'TST') where.tecnicoId = tecnicoId
     
     if (ano && !isNaN(ano)) {
       if (mes) {
-        where.dataInicial = {
-          gte: new Date(ano, mes - 1, 1),
-          lte: new Date(ano, mes, 0, 23, 59, 59)
-        }
+        where.dataInicial = { gte: new Date(ano, mes - 1, 1), lte: new Date(ano, mes, 0, 23, 59, 59) }
       } else {
-        where.dataInicial = {
-          gte: new Date(ano, 0, 1),
-          lte: new Date(ano, 11, 31, 23, 59, 59)
-        }
+        where.dataInicial = { gte: new Date(ano, 0, 1), lte: new Date(ano, 11, 31, 23, 59, 59) }
       }
     }
 
     const data = await prisma.quilometragem.findMany({
       where,
-      include: {
-        tecnico: { select: { id: true, nome: true, fotoUrl: true, admissao: true } }
-      },
+      include: { tecnico: { select: { id: true, nome: true, fotoUrl: true, admissao: true } } },
       orderBy: { dataInicial: 'desc' }
     })
     
@@ -88,6 +79,7 @@ export async function createQuilometragem(data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const item = await prisma.quilometragem.create({
       data: {
@@ -98,6 +90,8 @@ export async function createQuilometragem(data: {
         fotoInicial: data.fotoInicial
       }
     })
+    await audit({ userId, action: 'ABRIR_QUILOMETRAGEM', entity: 'Quilometragem', entityId: item.id, details: { kmInicial: data.kmInicial, tecnicoId: data.tecnicoId } })
+
     return { success: true, data: item }
   } catch (error) {
     console.error('Erro ao criar quilometragem:', error)
@@ -109,6 +103,7 @@ export async function fecharQuilometragem(id: string, kmFinal: number, fotoFinal
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const km = await prisma.quilometragem.findUnique({ where: { id } })
     if (!km) return { success: false, error: 'Registro não encontrado' }
@@ -117,13 +112,10 @@ export async function fecharQuilometragem(id: string, kmFinal: number, fotoFinal
 
     const item = await prisma.quilometragem.update({
       where: { id },
-      data: {
-        dataFinal: dataFinal || new Date(),
-        kmFinal,
-        fotoFinal,
-        diferenca
-      }
+      data: { dataFinal: dataFinal || new Date(), kmFinal, fotoFinal, diferenca }
     })
+    await audit({ userId, action: 'FECHAR_QUILOMETRAGEM', entity: 'Quilometragem', entityId: id, details: { kmFinal, diferenca } })
+
     return { success: true, data: item }
   } catch (error) {
     console.error('Erro ao fechar quilometragem:', error)
@@ -141,6 +133,7 @@ export async function updateQuilometragem(id: string, data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const km = await prisma.quilometragem.findUnique({ where: { id } })
     if (!km) return { success: false, error: 'Registro não encontrado' }
@@ -149,9 +142,7 @@ export async function updateQuilometragem(id: string, data: {
     const newKmFinal = data.kmFinal !== undefined ? data.kmFinal : km.kmFinal
 
     let diferenca = null
-    if (newKmFinal !== null) {
-      diferenca = newKmFinal - newKmInicial
-    }
+    if (newKmFinal !== null) diferenca = newKmFinal! - newKmInicial
 
     const item = await prisma.quilometragem.update({
       where: { id },
@@ -164,6 +155,8 @@ export async function updateQuilometragem(id: string, data: {
         diferenca
       }
     })
+    await audit({ userId, action: 'EDITAR_QUILOMETRAGEM', entity: 'Quilometragem', entityId: id })
+
     return { success: true, data: item }
   } catch (error) {
     console.error('Erro ao atualizar quilometragem:', error)
@@ -175,8 +168,12 @@ export async function deleteQuilometragem(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
-    
+    const userId = (session.user as any).id
+
+    const km = await prisma.quilometragem.findUnique({ where: { id } })
     await prisma.quilometragem.delete({ where: { id } })
+    await audit({ userId, action: 'EXCLUIR_QUILOMETRAGEM', entity: 'Quilometragem', entityId: id, details: { kmInicial: km?.kmInicial } })
+
     return { success: true }
   } catch (error) {
     console.error('Erro ao deletar quilometragem:', error)
@@ -194,27 +191,17 @@ export async function getAbastecimentos(ano: number, mes?: number) {
     const tecnicoId = (session.user as any).tecnicoId
 
     const where: any = {}
-    if (role === 'TST') {
-      where.tecnicoId = tecnicoId
-    }
+    if (role === 'TST') where.tecnicoId = tecnicoId
     
     if (mes) {
-      where.data = {
-        gte: new Date(ano, mes - 1, 1),
-        lte: new Date(ano, mes, 0, 23, 59, 59)
-      }
+      where.data = { gte: new Date(ano, mes - 1, 1), lte: new Date(ano, mes, 0, 23, 59, 59) }
     } else {
-      where.data = {
-        gte: new Date(ano, 0, 1),
-        lte: new Date(ano, 11, 31, 23, 59, 59)
-      }
+      where.data = { gte: new Date(ano, 0, 1), lte: new Date(ano, 11, 31, 23, 59, 59) }
     }
 
     const data = await prisma.abastecimento.findMany({
       where,
-      include: {
-        tecnico: { select: { id: true, nome: true, fotoUrl: true, admissao: true } }
-      },
+      include: { tecnico: { select: { id: true, nome: true, fotoUrl: true, admissao: true } } },
       orderBy: { data: 'desc' }
     })
     
@@ -234,6 +221,7 @@ export async function createAbastecimento(data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const item = await prisma.abastecimento.create({
       data: {
@@ -243,6 +231,8 @@ export async function createAbastecimento(data: {
         fotoCupom: data.fotoCupom
       }
     })
+    await audit({ userId, action: 'CRIAR_ABASTECIMENTO', entity: 'Abastecimento', entityId: item.id, details: { valor: data.valor, tecnicoId: data.tecnicoId } })
+
     return { success: true, data: item }
   } catch (error) {
     console.error('Erro ao criar abastecimento:', error)
@@ -258,6 +248,7 @@ export async function updateAbastecimento(id: string, data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const item = await prisma.abastecimento.update({
       where: { id },
@@ -267,6 +258,8 @@ export async function updateAbastecimento(id: string, data: {
         ...(data.fotoCupom !== undefined && { fotoCupom: data.fotoCupom })
       }
     })
+    await audit({ userId, action: 'EDITAR_ABASTECIMENTO', entity: 'Abastecimento', entityId: id, details: { valor: data.valor } })
+
     return { success: true, data: item }
   } catch (error) {
     console.error('Erro ao atualizar abastecimento:', error)
@@ -278,8 +271,11 @@ export async function deleteAbastecimento(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
-    
+    const userId = (session.user as any).id
+
     await prisma.abastecimento.delete({ where: { id } })
+    await audit({ userId, action: 'EXCLUIR_ABASTECIMENTO', entity: 'Abastecimento', entityId: id })
+
     return { success: true }
   } catch (error) {
     console.error('Erro ao deletar abastecimento:', error)

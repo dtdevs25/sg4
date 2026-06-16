@@ -5,6 +5,7 @@ import { PrioridadePlanejamento, StatusPlanejamento } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { sendMail } from '@/lib/mail'
+import { audit } from '@/lib/audit'
 
 export async function getPlanejamentos(tecnicoId?: string, startDate?: Date, endDate?: Date) {
   try {
@@ -16,7 +17,6 @@ export async function getPlanejamentos(tecnicoId?: string, startDate?: Date, end
 
     let finalTecnicoId = tecnicoId
     
-    // Se for TST, só pode ver seu próprio planejamento
     if (role === 'TST') {
       if (!userTecnicoId) return { success: false, error: 'Técnico não vinculado.' }
       finalTecnicoId = userTecnicoId
@@ -25,18 +25,13 @@ export async function getPlanejamentos(tecnicoId?: string, startDate?: Date, end
     const where: any = {}
     if (finalTecnicoId) where.tecnicoId = finalTecnicoId
     if (startDate && endDate) {
-      where.dataAtividade = {
-        gte: startDate,
-        lte: endDate
-      }
+      where.dataAtividade = { gte: startDate, lte: endDate }
     }
 
     const planejamentos = await prisma.planejamento.findMany({
       where,
       orderBy: { dataAtividade: 'asc' },
-      include: {
-        tecnico: { select: { nome: true, fotoUrl: true } }
-      }
+      include: { tecnico: { select: { nome: true, fotoUrl: true } } }
     })
 
     return { success: true, data: planejamentos }
@@ -61,27 +56,22 @@ export async function savePlanejamento(data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const { id, ...payload } = data
 
     if (id) {
-      await prisma.planejamento.update({
-        where: { id },
-        data: payload
-      })
+      await prisma.planejamento.update({ where: { id }, data: payload })
+      await audit({ userId, action: 'EDITAR_PLANEJAMENTO', entity: 'Planejamento', entityId: id, details: { categoria: data.categoria } })
     } else {
       const newPlan = await prisma.planejamento.create({
-        data: {
-          ...payload,
-          status: 'PENDENTE',
-          alteradaOriginal: false
-        },
+        data: { ...payload, status: 'PENDENTE', alteradaOriginal: false },
         include: { tecnico: true }
       })
 
-      // Envia notificação por e-mail se foi criado por outra pessoa e o técnico tem e-mail cadastrado
+      await audit({ userId, action: 'CRIAR_PLANEJAMENTO', entity: 'Planejamento', entityId: newPlan.id, details: { categoria: data.categoria, tecnicoId: data.tecnicoId } })
+
       const creatorTecnicoId = (session.user as any).tecnicoId
-      
       if (newPlan.tecnico?.email && creatorTecnicoId !== newPlan.tecnicoId) {
         const dataFormatada = newPlan.dataAtividade.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
         const html = `
@@ -105,12 +95,8 @@ export async function savePlanejamento(data: {
             </div>
           </div>
         `
-        
-        sendMail({
-          to: newPlan.tecnico.email,
-          subject: 'SG4 - Nova Atividade Planejada',
-          html
-        }).catch(err => console.error('Erro ao notificar TST:', err))
+        sendMail({ to: newPlan.tecnico.email, subject: 'SG4 - Nova Atividade Planejada', html })
+          .catch(err => console.error('Erro ao notificar TST:', err))
       }
     }
 
@@ -126,22 +112,19 @@ export async function modificarExecucao(id: string, descricaoExecutada: string, 
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const plan = await prisma.planejamento.findUnique({ where: { id } })
     if (!plan) return { success: false, error: 'Planejamento não encontrado' }
 
-    // Só marca como alterada se for diferente (simplificado)
     const alteradaOriginal = descricaoExecutada.trim() !== plan.descricaoOriginal.trim()
 
     await prisma.planejamento.update({
       where: { id },
-      data: {
-        descricaoExecutada,
-        observacoes,
-        alteradaOriginal,
-        status: 'CONCLUIDO'
-      }
+      data: { descricaoExecutada, observacoes, alteradaOriginal, status: 'CONCLUIDO' }
     })
+
+    await audit({ userId, action: 'CONCLUIR_PLANEJAMENTO', entity: 'Planejamento', entityId: id, details: { alterada: alteradaOriginal } })
 
     revalidatePath('/dashboard/planejamento')
     return { success: true }
@@ -155,11 +138,10 @@ export async function concluirPlanejamento(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
-    await prisma.planejamento.update({
-      where: { id },
-      data: { status: 'CONCLUIDO' }
-    })
+    await prisma.planejamento.update({ where: { id }, data: { status: 'CONCLUIDO' } })
+    await audit({ userId, action: 'CONCLUIR_PLANEJAMENTO', entity: 'Planejamento', entityId: id })
 
     revalidatePath('/dashboard/planejamento')
     return { success: true }
@@ -173,11 +155,10 @@ export async function cancelarPlanejamento(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
-    await prisma.planejamento.update({
-      where: { id },
-      data: { status: 'CANCELADO' }
-    })
+    await prisma.planejamento.update({ where: { id }, data: { status: 'CANCELADO' } })
+    await audit({ userId, action: 'CANCELAR_PLANEJAMENTO', entity: 'Planejamento', entityId: id })
 
     revalidatePath('/dashboard/planejamento')
     return { success: true }
@@ -191,9 +172,16 @@ export async function deletePlanejamento(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
-    await prisma.planejamento.delete({
-      where: { id }
+    const plan = await prisma.planejamento.findUnique({ where: { id } })
+    await prisma.planejamento.delete({ where: { id } })
+    await audit({
+      userId,
+      action: 'EXCLUIR_PLANEJAMENTO',
+      entity: 'Planejamento',
+      entityId: id,
+      details: { categoria: plan?.categoria, descricao: plan?.descricaoOriginal }
     })
 
     revalidatePath('/dashboard/planejamento')
@@ -208,18 +196,14 @@ export async function moverPlanejamento(id: string, novaData: Date) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const plan = await prisma.planejamento.findUnique({ where: { id } })
     if (!plan) return { success: false, error: 'Planejamento não encontrado' }
+    if (plan.status === 'CONCLUIDO') return { success: false, error: 'Não é possível mover um planejamento concluído' }
 
-    if (plan.status === 'CONCLUIDO') {
-      return { success: false, error: 'Não é possível mover um planejamento concluído' }
-    }
-
-    await prisma.planejamento.update({
-      where: { id },
-      data: { dataAtividade: novaData }
-    })
+    await prisma.planejamento.update({ where: { id }, data: { dataAtividade: novaData } })
+    await audit({ userId, action: 'MOVER_PLANEJAMENTO', entity: 'Planejamento', entityId: id, details: { novaData: novaData.toISOString() } })
 
     revalidatePath('/dashboard/planejamento')
     return { success: true }
@@ -233,16 +217,13 @@ export async function reverterPlanejamento(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     await prisma.planejamento.update({
       where: { id },
-      data: { 
-        status: 'PENDENTE',
-        descricaoExecutada: null,
-        observacoes: null,
-        alteradaOriginal: false
-      }
+      data: { status: 'PENDENTE', descricaoExecutada: null, observacoes: null, alteradaOriginal: false }
     })
+    await audit({ userId, action: 'REVERTER_PLANEJAMENTO', entity: 'Planejamento', entityId: id })
 
     revalidatePath('/dashboard/planejamento')
     return { success: true }

@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/db'
 import { TipoAtividade } from '@prisma/client'
 import { auth } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
 export async function getAtividades(tipo?: TipoAtividade) {
   try {
@@ -22,14 +23,8 @@ export async function getAtividades(tipo?: TipoAtividade) {
 
     const atividades = await prisma.atividade.findMany({
       where,
-      include: {
-        tecnico: { select: { nome: true } }
-      },
-      orderBy: [
-        { ano: 'desc' },
-        { mes: 'desc' },
-        { semana: 'desc' }
-      ]
+      include: { tecnico: { select: { nome: true } } },
+      orderBy: [{ ano: 'desc' }, { mes: 'desc' }, { semana: 'desc' }]
     })
     return { success: true, data: atividades }
   } catch (error) {
@@ -42,34 +37,20 @@ export async function upsertAtividadeMes(tecnicoId: string, tipo: TipoAtividade,
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
-    const role = (session.user as any).role
-    // TSTs talvez não possam editar livremente, mas vamos permitir por enquanto, ou limitar ao ADMIN.
-    
-    // Como a UI edita o mês inteiro, vamos salvar o valor na 'S1' (semana 1) como representante do total mensal
     const atividade = await prisma.atividade.upsert({
       where: {
-        tecnicoId_tipo_ano_mes_semana: {
-          tecnicoId,
-          tipo,
-          ano,
-          mes,
-          semana: 'S1'
-        }
+        tecnicoId_tipo_ano_mes_semana: { tecnicoId, tipo, ano, mes, semana: 'S1' }
       },
-      update: {
-        realizado
-      },
+      update: { realizado },
       create: {
-        tecnicoId,
-        tipo,
-        ano,
-        mes,
-        semana: 'S1',
-        realizado,
-        meta: tipo === 'DSS' ? 8 : 20
+        tecnicoId, tipo, ano, mes, semana: 'S1',
+        realizado, meta: tipo === 'DSS' ? 8 : 20
       }
     })
+    await audit({ userId, action: 'ATUALIZAR_ATIVIDADE', entity: 'Atividade', entityId: atividade.id, details: { tipo, ano, mes, realizado } })
+
     return { success: true, data: atividade }
   } catch (error) {
     console.error('Erro ao salvar atividade mensal:', error)

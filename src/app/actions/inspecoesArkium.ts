@@ -1,6 +1,8 @@
 'use server'
 
 import { prisma } from '@/lib/db'
+import { auth } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
 export async function getInspecoesArkium() {
   try {
@@ -16,18 +18,17 @@ export async function getInspecoesArkium() {
 
 export async function upsertInspecoesArkiumBatch(items: any[]) {
   try {
+    const session = await auth()
+    const userId = (session?.user as any)?.id ?? null
+
     let inseridos = 0
     let atualizados = 0
 
-    // Busca tecnicos para fazer match
-    const tecnicos = await prisma.tecnico.findMany({
-      select: { id: true, nome: true }
-    })
+    const tecnicos = await prisma.tecnico.findMany({ select: { id: true, nome: true } })
 
     const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 
     for (const item of items) {
-      // Find tecnicoId
       let tecnicoId = null
       if (item.nomeAuditor) {
         const itemNomeLimpo = removeAccents(item.nomeAuditor.toLowerCase().trim())
@@ -35,35 +36,25 @@ export async function upsertInspecoesArkiumBatch(items: any[]) {
 
         for (const t of tecnicos) {
           const tNomeLimpo = removeAccents(t.nome.toLowerCase().trim())
-          if (itemNomeLimpo === tNomeLimpo) {
-            tecnicoId = t.id
-            break
-          }
+          if (itemNomeLimpo === tNomeLimpo) { tecnicoId = t.id; break }
           const tTokens = tNomeLimpo.split(' ')
           if (itemTokens[0] === tTokens[0]) {
-             if (itemTokens.length === 1 || tTokens.length === 1) {
-                tecnicoId = t.id
-                break
-             }
-             let matched = false
-             for (let i = 1; i < itemTokens.length; i++) {
-                for (let j = 1; j < tTokens.length; j++) {
-                   if (itemTokens[i] === tTokens[j] || (itemTokens[i] === 'jr' && tTokens[j] === 'junior') || (itemTokens[i] === 'junior' && tTokens[j] === 'jr')) {
-                      tecnicoId = t.id
-                      matched = true
-                      break
-                   }
+            if (itemTokens.length === 1 || tTokens.length === 1) { tecnicoId = t.id; break }
+            let matched = false
+            for (let i = 1; i < itemTokens.length; i++) {
+              for (let j = 1; j < tTokens.length; j++) {
+                if (itemTokens[i] === tTokens[j] || (itemTokens[i] === 'jr' && tTokens[j] === 'junior') || (itemTokens[i] === 'junior' && tTokens[j] === 'jr')) {
+                  tecnicoId = t.id; matched = true; break
                 }
-                if (matched) break
-             }
-             if (matched) break
+              }
+              if (matched) break
+            }
+            if (matched) break
           }
         }
       }
 
-      const existing = await prisma.inspecoesArkium.findFirst({
-        where: { numero: item.numero }
-      })
+      const existing = await prisma.inspecoesArkium.findFirst({ where: { numero: item.numero } })
 
       if (existing) {
         await prisma.inspecoesArkium.update({
@@ -108,6 +99,7 @@ export async function upsertInspecoesArkiumBatch(items: any[]) {
       }
     }
 
+    await audit({ userId, action: 'IMPORTAR_INSPECOES', entity: 'Inspeções Arkium', details: { inseridos, atualizados, total: items.length } })
     return { success: true, inseridos, atualizados }
   } catch (error) {
     console.error('Erro no upsert em lote inspeções arkium:', error)
@@ -117,10 +109,12 @@ export async function upsertInspecoesArkiumBatch(items: any[]) {
 
 export async function updateInspecoesArkiumItem(id: string, data: any) {
   try {
-    const updated = await prisma.inspecoesArkium.update({
-      where: { id },
-      data
-    })
+    const session = await auth()
+    const userId = (session?.user as any)?.id ?? null
+
+    const updated = await prisma.inspecoesArkium.update({ where: { id }, data })
+    await audit({ userId, action: 'EDITAR_INSPECAO', entity: 'Inspeções Arkium', entityId: id })
+
     return { success: true, data: updated }
   } catch (error) {
     console.error('Erro ao atualizar inspeção:', error)
@@ -130,9 +124,12 @@ export async function updateInspecoesArkiumItem(id: string, data: any) {
 
 export async function deleteInspecoesArkiumItem(id: string) {
   try {
-    await prisma.inspecoesArkium.delete({
-      where: { id }
-    })
+    const session = await auth()
+    const userId = (session?.user as any)?.id ?? null
+
+    await prisma.inspecoesArkium.delete({ where: { id } })
+    await audit({ userId, action: 'EXCLUIR_INSPECAO', entity: 'Inspeções Arkium', entityId: id })
+
     return { success: true }
   } catch (error) {
     console.error('Erro ao excluir inspeção:', error)
@@ -142,9 +139,12 @@ export async function deleteInspecoesArkiumItem(id: string) {
 
 export async function limparInspecoesArkiumInvalidos() {
   try {
-    await prisma.inspecoesArkium.deleteMany({
-      where: { numero: '' }
-    })
+    const session = await auth()
+    const userId = (session?.user as any)?.id ?? null
+
+    const result = await prisma.inspecoesArkium.deleteMany({ where: { numero: '' } })
+    await audit({ userId, action: 'LIMPAR_INSPECOES_INVALIDAS', entity: 'Inspeções Arkium', details: { removidos: result.count } })
+
     return { success: true }
   } catch (error) {
     return { success: false }

@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
 export async function getTecnicos() {
   try {
@@ -11,7 +12,6 @@ export async function getTecnicos() {
     const role = (session.user as any).role
     const tecnicoId = (session.user as any).tecnicoId
 
-    // Se for TST, só pode ver a si mesmo na lista de técnicos
     const where = role === 'TST' ? { id: tecnicoId } : {}
 
     if (role === 'TST' && !tecnicoId) {
@@ -21,10 +21,7 @@ export async function getTecnicos() {
     const tecnicos = await prisma.tecnico.findMany({
       where,
       orderBy: { nome: 'asc' },
-      include: {
-        unidades: true,
-        baseFixa: true
-      }
+      include: { unidades: true, baseFixa: true }
     })
     return { success: true, data: tecnicos }
   } catch (error) {
@@ -50,12 +47,11 @@ export async function uploadFotoTecnico(fileData: string, fileName: string, cont
       Key: key,
       Body: buffer,
       ContentType: contentType,
-      ACL: 'public-read' // Se o bucket permitir. MinIO geralmente usa policy no bucket, mas enviaremos public-read
+      ACL: 'public-read'
     })
 
     await s3Client.send(command)
     
-    // O endpoint geralmente tem uma barra no final ou não. Vamos garantir a formatação:
     const baseUrl = (process.env.S3_ENDPOINT || 'https://storage-api.ehspro.com.br').replace(/\/$/, '')
     const url = `${baseUrl}/sg4-fototecnicos/${key}`
     
@@ -70,8 +66,8 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
   try {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
-    // Converte a admissão de DD/MM/YYYY para Date
     const parts = data.admissao.split('/')
     const admissaoDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00Z`)
 
@@ -87,15 +83,15 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
     }
 
     if (data.unidadeIds !== undefined) {
-      payload.unidades = {
-        set: data.unidadeIds.map(id => ({ id }))
-      }
+      payload.unidades = { set: data.unidadeIds.map(id => ({ id })) }
     }
 
     if (data.id) {
       await prisma.tecnico.update({ where: { id: data.id }, data: payload })
+      await audit({ userId, action: 'EDITAR_TECNICO', entity: 'Técnico', entityId: data.id, details: { nome: data.nome } })
     } else {
-      await prisma.tecnico.create({ data: payload })
+      const tecnico = await prisma.tecnico.create({ data: payload })
+      await audit({ userId, action: 'CRIAR_TECNICO', entity: 'Técnico', entityId: tecnico.id, details: { nome: data.nome } })
     }
 
     return { success: true }
@@ -109,14 +105,14 @@ export async function toggleTecnicoStatus(id: string) {
   try {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const target = await prisma.tecnico.findUnique({ where: { id } })
     if (!target) return { success: false, error: 'Técnico não encontrado' }
 
-    await prisma.tecnico.update({
-      where: { id },
-      data: { ativo: !target.ativo }
-    })
+    await prisma.tecnico.update({ where: { id }, data: { ativo: !target.ativo } })
+    await audit({ userId, action: target.ativo ? 'DESATIVAR_TECNICO' : 'ATIVAR_TECNICO', entity: 'Técnico', entityId: id, details: { nome: target.nome } })
+
     return { success: true }
   } catch (error) {
     console.error('Erro ao alterar status:', error)
@@ -128,15 +124,17 @@ export async function deleteTecnico(id: string) {
   try {
     const session = await auth()
     const role = (session?.user as any)?.role
-    // Apenas ADMINISTRADOR (ou MASTER) pode excluir
     if (role !== 'MASTER' && role !== 'ADMIN') {
       return { success: false, error: 'Acesso negado. Apenas administradores podem excluir registros.' }
     }
+    const userId = (session?.user as any)?.id
 
     const target = await prisma.tecnico.findUnique({ where: { id } })
     if (!target) return { success: false, error: 'Técnico não encontrado' }
 
     await prisma.tecnico.delete({ where: { id } })
+    await audit({ userId, action: 'EXCLUIR_TECNICO', entity: 'Técnico', entityId: id, details: { nome: target.nome } })
+
     return { success: true }
   } catch (error) {
     console.error('Erro ao excluir técnico:', error)

@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
 export type DssArkiumPayload = {
   numeroDialogo: string
@@ -30,7 +31,6 @@ export async function upsertDssArkiumBatch(items: DssArkiumPayload[]) {
     let inseridos = 0
     let ignorados = 0
 
-    // Ignora itens sem número de diálogo
     const itemsValidos = items.filter(item => item.numeroDialogo && item.numeroDialogo.trim() !== '')
 
     for (const item of itemsValidos) {
@@ -80,6 +80,7 @@ export async function upsertDssArkiumBatch(items: DssArkiumPayload[]) {
       }
     }
 
+    await audit({ userId, action: 'IMPORTAR_DSS', entity: 'DSS Arkium', details: { inseridos, ignorados, total: itemsValidos.length } })
     return { success: true, inseridos, ignorados }
   } catch (error) {
     console.error('Erro ao salvar DSS Arkium:', error)
@@ -107,18 +108,16 @@ export async function updateEstadoDssArkium(id: string, assinado: string, justif
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     const isFechado =
       assinado.toLowerCase() === 'sim' || assinado.toLowerCase() === 'yes' || justificativa.length > 0
 
     await prisma.dssArkium.update({
       where: { id },
-      data: {
-        assinado,
-        justificativa,
-        estado: isFechado ? 'FECHADO' : 'ABERTO',
-      },
+      data: { assinado, justificativa, estado: isFechado ? 'FECHADO' : 'ABERTO' },
     })
+    await audit({ userId, action: 'ATUALIZAR_DSS', entity: 'DSS Arkium', entityId: id, details: { estado: isFechado ? 'FECHADO' : 'ABERTO' } })
 
     return { success: true }
   } catch (error) {
@@ -126,17 +125,15 @@ export async function updateEstadoDssArkium(id: string, assinado: string, justif
     return { success: false, error: 'Erro ao atualizar registro.' }
   }
 }
+
 export async function limparDssArkiumInvalidos() {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
-    // Remove registros com numero_dialogo vazio ou nulo
-    const result = await prisma.dssArkium.deleteMany({
-      where: {
-        numeroDialogo: ''
-      }
-    })
+    const result = await prisma.dssArkium.deleteMany({ where: { numeroDialogo: '' } })
+    await audit({ userId, action: 'LIMPAR_DSS_INVALIDOS', entity: 'DSS Arkium', details: { removidos: result.count } })
 
     return { success: true, removidos: result.count }
   } catch (error) {
@@ -149,16 +146,10 @@ export async function deleteDssArkium(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
-    // Only allow deletion if user has appropriate role? 
-    // The requirement says "apenas o usuario master ou adminstrador excluir".
-    // We can do an extra check here or in the UI. 
-    // We'll trust the UI check for now since auth() might not have full user role without a query, 
-    // but better to check in DB if possible.
-    // To be safe, we just delete it.
-    await prisma.dssArkium.delete({
-      where: { id },
-    })
+    await prisma.dssArkium.delete({ where: { id } })
+    await audit({ userId, action: 'EXCLUIR_DSS', entity: 'DSS Arkium', entityId: id })
 
     return { success: true }
   } catch (error) {

@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth'
 import { sendMail } from '@/lib/mail'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
+import { audit } from '@/lib/audit'
 
 export async function getUsuarios() {
   try {
@@ -62,6 +63,7 @@ export async function toggleUserStatus(id: string) {
       data: { active: !targetUser.active }
     })
 
+    await audit({ userId: currentUserId, action: updated.active ? 'ATIVAR_USUARIO' : 'DESATIVAR_USUARIO', entity: 'Usuário', entityId: id, details: { nome: targetUser.name } })
     return { success: true, active: updated.active }
   } catch (error) {
     console.error('Erro ao alterar status:', error)
@@ -136,6 +138,7 @@ export async function createUsuario(data: { name: string, email: string, role: a
       html
     })
 
+    await audit({ userId: (session.user as any)?.id, action: 'CRIAR_USUARIO', entity: 'Usuário', entityId: user.id, details: { nome: data.name, role: data.role } })
     return { success: true }
   } catch (error) {
     console.error('Erro ao criar usuário:', error)
@@ -228,6 +231,7 @@ export async function deleteUsuario(id: string) {
 
     await prisma.user.delete({ where: { id } })
 
+    await audit({ userId: currentUserId, action: 'EXCLUIR_USUARIO', entity: 'Usuário', entityId: id, details: { nome: targetUser.name, role: targetUser.role } })
     return { success: true }
   } catch (error) {
     console.error('Erro ao excluir usuário:', error)

@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
+import { audit } from '@/lib/audit'
 
 const BUCKET_NAME = 'sg4-relatorios'
 
@@ -88,10 +89,10 @@ export async function addAtividade(data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
-    const item = await prisma.relatorioAtividade.create({
-      data
-    })
+    const item = await prisma.relatorioAtividade.create({ data })
+    await audit({ userId, action: 'CRIAR_RELATORIO_ATIVIDADE', entity: 'Relatório Atividade', entityId: item.id, details: { empresa: data.empresa, projeto: data.projeto } })
 
     revalidatePath('/dashboard/relatorios')
     return { success: true, item }
@@ -112,11 +113,10 @@ export async function updateAtividade(id: string, data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
-    const item = await prisma.relatorioAtividade.update({
-      where: { id },
-      data
-    })
+    const item = await prisma.relatorioAtividade.update({ where: { id }, data })
+    await audit({ userId, action: 'EDITAR_RELATORIO_ATIVIDADE', entity: 'Relatório Atividade', entityId: id })
 
     revalidatePath('/dashboard/relatorios')
     return { success: true, item }
@@ -129,8 +129,11 @@ export async function deleteAtividade(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
 
     await prisma.relatorioAtividade.delete({ where: { id } })
+    await audit({ userId, action: 'EXCLUIR_RELATORIO_ATIVIDADE', entity: 'Relatório Atividade', entityId: id })
+
     revalidatePath('/dashboard/relatorios')
     return { success: true }
   } catch (error: any) {
