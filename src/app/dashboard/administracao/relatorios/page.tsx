@@ -86,37 +86,37 @@ export default function AdminRelatoriosPage() {
           let result: any
           if (tipoSel === 'agenda') {
             const d = await getRelatorioAgenda(filtros)
-            result = await gerarPdfCentral({ titulo: 'Agenda / Planejamento', ...opts, headers: ['Técnico','Data','Categoria','Descrição','Status','Criado por','Criado em','Fechado por','Fechado em','Desc. Executada'], rows: d.data.map((r:any) => [r.tecnico, r.dataAtividade?.slice(0,10), r.categoria, r.descricaoOriginal?.slice(0,60), r.status, r.criadoPor, r.criadoEm?.slice(0,16)?.replace('T',' '), r.fechadoPor, r.fechadoEm?.slice(0,16)?.replace('T',' '), (r.descricaoExecutada||'—').slice(0,60)]) })
+            result = await gerarPdfCentral({ titulo: 'Agenda / Planejamento', ...opts, totalTexto: `Total: ${d.data.length} atividades planejadas`, headers: ['Técnico','Data','Categoria','Descrição','Status','Criado por','Criado em','Fechado por','Fechado em','Desc. Executada'], rows: d.data.map((r:any) => [r.tecnico, r.dataAtividade?.slice(0,10), r.categoria, r.descricaoOriginal?.slice(0,60), r.status, r.criadoPor, r.criadoEm?.slice(0,16)?.replace('T',' '), r.fechadoPor, r.fechadoEm?.slice(0,16)?.replace('T',' '), (r.descricaoExecutada||'—').slice(0,60)]) })
           } else if (tipoSel === 'dss') {
             const d = await getRelatorioDss(filtros)
-            result = await gerarPdfCentral({ titulo: 'DSS', ...opts, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.lider, valor: `${r.total}`, pct: r.pct })), headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Estado','Data Fechamento'], rows: (d.data||[]).map((r:any) => [r.numeroDialogo, r.assunto??'—', r.lider??'—', r.base??'—', r.matricula, r.nome??'—', r.estado, r.dataFechamento??'—']) })
+            result = await gerarPdfCentral({ titulo: 'DSS', ...opts, totalTexto: `Total: ${d.data.length} diálogos registrados`, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.lider, valor: `${r.total}`, pct: r.pct })), headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Estado','Data Fechamento'], rows: (d.data||[]).map((r:any) => [r.numeroDialogo, r.assunto??'—', r.lider??'—', r.base??'—', r.matricula, r.nome??'—', r.estado, r.dataFechamento??'—']) })
           } else if (tipoSel === 'inspecoes') {
             const d = await getRelatorioInspecoes(filtros)
-            result = await gerarPdfCentral({ titulo: 'Inspeções', ...opts, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.tecnico, valor: `${r.total}`, pct: r.pct })), headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário'], rows: (d.data||[]).map((r:any) => [r.numero, r.tecnico?.nome??r.nomeAuditor??'—', r.resultado??'—', r.dataAbertura??'—', r.dataFechamento??'—', r.localidadeObjeto??'—', r.nomeQuestionario??'—']) })
+            result = await gerarPdfCentral({ titulo: 'Inspeções', ...opts, totalTexto: `Total: ${d.data.length} inspeções realizadas`, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.tecnico, valor: `${r.total}`, pct: r.pct })), headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário'], rows: (d.data||[]).map((r:any) => [r.numero, r.tecnico?.nome??r.nomeAuditor??'—', r.resultado??'—', r.dataAbertura??'—', r.dataFechamento??'—', r.localidadeObjeto??'—', r.nomeQuestionario??'—']) })
           } else if (tipoSel === 'nao-confor') {
             const d = await getRelatorioNaoConformes(filtros)
-            result = await gerarPdfCentral({ titulo: 'Itens Não Conformes', ...opts, headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário','Observação'], rows: d.data.map((r:any) => [r.numero, r.tecnico, r.resultado, r.dataAbertura, r.dataFechamento, r.local, r.questionario, r.observacao]) })
+            result = await gerarPdfCentral({ titulo: 'Itens Não Conformes', ...opts, totalTexto: `Total: ${d.data.length} apontamentos não conformes`, headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário','Observação'], rows: d.data.map((r:any) => [r.numero, r.tecnico, r.resultado, r.dataAbertura, r.dataFechamento, r.local, r.questionario, r.observacao]) })
           } else if (tipoSel === 'dss-pend') {
             const d = await getRelatorioDssPendentes(filtros)
-            result = await gerarPdfCentral({ titulo: 'DSS Pendentes', ...opts, headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Data Fechamento'], rows: d.data.map((r:any) => [r.numeroDialogo, r.assunto, r.lider, r.base, r.matricula, r.nome, r.dataFechamento]) })
+            result = await gerarPdfCentral({ titulo: 'DSS Pendentes', ...opts, totalTexto: `Total: ${d.data.length} diálogos abertos`, headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Data Fechamento'], rows: d.data.map((r:any) => [r.numeroDialogo, r.assunto, r.lider, r.base, r.matricula, r.nome, r.dataFechamento]) })
           } else if (tipoSel === 'atrasados') {
             const d = await getRelatorioPlanejamentosAtrasados(filtros)
-            result = await gerarPdfCentral({ titulo: 'Planejamentos Não Executados', ...opts, headers: ['Técnico','Data Prevista','Dias Atraso','Categoria','Prioridade','Local','Descrição'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), `${r.diasAtraso} dias`, r.categoria, r.prioridade, r.local, r.descricao?.slice(0,80)]) })
+            result = await gerarPdfCentral({ titulo: 'Planejamentos Não Executados', ...opts, totalTexto: `Total: ${d.data.length} atividades atrasadas`, headers: ['Técnico','Data Prevista','Dias Atraso','Categoria','Prioridade','Local','Descrição'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), `${r.diasAtraso} dias`, r.categoria, r.prioridade, r.local, r.descricao?.slice(0,80)]) })
           } else if (tipoSel === 'ausencias') {
             const d = await getRelatorioAusencias(filtros)
-            result = await gerarPdfCentral({ titulo: 'Ausências em Reuniões', ...opts, headers: ['Técnico','Data','Assunto','Justificada','Motivo','Observação'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), r.assunto, r.justificada, r.motivo, r.observacao]) })
+            result = await gerarPdfCentral({ titulo: 'Ausências em Reuniões', ...opts, totalTexto: `Total: ${d.data.length} ausências registradas`, headers: ['Técnico','Data','Assunto','Justificada','Motivo','Observação'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), r.assunto, r.justificada, r.motivo, r.observacao]) })
           } else if (tipoSel === 'reunioes') {
             const d = await getRelatorioReunioes(filtros)
-            result = await gerarPdfCentral({ titulo: 'Reuniões', ...opts, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.pctPresenca}%`,pct:r.pctPresenca})), headers: ['Técnico','Data','Assunto','Presença','Pontualidade','Justificada','Motivo'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??r.tecnico, r.data?.toISOString?.()?.slice(0,10)??r.data, r.assunto??'—', r.presenca, r.pontualidade, r.justificada, r.motivo??'—']) })
+            result = await gerarPdfCentral({ titulo: 'Reuniões', ...opts, totalTexto: `Total: ${d.data.length} presenças/ausências computadas`, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.pctPresenca}%`,pct:r.pctPresenca})), headers: ['Técnico','Data','Assunto','Presença','Pontualidade','Justificada','Motivo'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??r.tecnico, r.data?.toISOString?.()?.slice(0,10)??r.data, r.assunto??'—', r.presenca, r.pontualidade, r.justificada, r.motivo??'—']) })
           } else if (tipoSel === 'km') {
             const d = await getRelatorioKm(filtros)
-            result = await gerarPdfCentral({ titulo: 'Quilometragem', ...opts, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${Number(r.totalKm).toFixed(0)} km`})), headers: ['Técnico','Dia','Data Inicial','KM Inicial','Data Final','KM Final','Diferença'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??'—', r.diaSemana, r.dataInicial?.toISOString?.()?.slice(0,10)??r.dataInicial, r.kmInicial, r.dataFinal?r.dataFinal?.toISOString?.()?.slice(0,10)??r.dataFinal:'—', r.kmFinal??'—', r.diferenca??'—']) })
+            result = await gerarPdfCentral({ titulo: 'Quilometragem', ...opts, totalTexto: `Total: ${d.data.length} viagens registradas`, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${Number(r.totalKm).toFixed(0)} km`})), headers: ['Técnico','Dia','Data Inicial','KM Inicial','Data Final','KM Final','Diferença'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??'—', r.diaSemana, r.dataInicial?.toISOString?.()?.slice(0,10)??r.dataInicial, r.kmInicial, r.dataFinal?r.dataFinal?.toISOString?.()?.slice(0,10)??r.dataFinal:'—', r.kmFinal??'—', r.diferenca??'—']) })
           } else if (tipoSel === 'atividades') {
             const d = await getRelatorioAtividadesCampo(filtros)
-            result = await gerarPdfCentral({ titulo: 'Atividades de Campo', ...opts, headers: ['Técnico','Data','Empresa','Projeto','Local','Cidade/UF','Descrição'], rows: d.data.map((r:any)=>[r.tecnico, r.data?.slice(0,10), r.empresa, r.projeto, r.local, r.cidadeUf, r.descricao?.slice(0,100)]) })
+            result = await gerarPdfCentral({ titulo: 'Atividades de Campo', ...opts, totalTexto: `Total: ${d.data.length} atividades de campo executadas`, headers: ['Técnico','Data','Empresa','Projeto','Local','Cidade/UF','Descrição'], rows: d.data.map((r:any)=>[r.tecnico, r.data?.slice(0,10), r.empresa, r.projeto, r.local, r.cidadeUf, r.descricao?.slice(0,100)]) })
           } else if (tipoSel === 'ranking') {
             const d = await getRelatorioRanking(filtros)
-            result = await gerarPdfCentral({ titulo: 'Ranking de Desempenho', ...opts, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.score}%`,pct:r.score})), headers: ['Pos.','Técnico','DSS','% DSS','Inspeções','% Insp.','Reuniões','% Pres.','Score'], rows: d.data.map((r:any,i:number)=>[`${i+1}º`,r.tecnico,r.dss,`${r.pctDss}%`,r.inspecoes,`${r.pctInsp}%`,r.reunioes,`${r.pctReunioes}%`,`${r.score}%`]) })
+            result = await gerarPdfCentral({ titulo: 'Ranking de Desempenho', ...opts, totalTexto: `Total: ${d.data.length} técnicos avaliados`, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.score}%`,pct:r.score})), headers: ['Pos.','Técnico','DSS','% DSS','Inspeções','% Insp.','Reuniões','% Pres.','Score'], rows: d.data.map((r:any,i:number)=>[`${i+1}º`,r.tecnico,r.dss,`${r.pctDss}%`,r.inspecoes,`${r.pctInsp}%`,r.reunioes,`${r.pctReunioes}%`,`${r.score}%`]) })
           }
 
           if (result?.base64) {
@@ -221,68 +221,80 @@ export default function AdminRelatoriosPage() {
         </div>
       ))}
 
-      {/* Painel de Filtros */}
+      {/* Modal de Filtros */}
       {tipoSel && tipo && (
-        <div style={{ background: '#fff', borderRadius: 12, border: `1.5px solid ${tipo.cor}30`, boxShadow: `0 4px 20px ${tipo.cor}15`, padding: '20px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: tipo.cor }} />
-              <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{tipo.label}</span>
-            </div>
-            <button onClick={() => setTipoSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}>
-              <X size={16} />
-            </button>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-            {/* Técnico */}
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Técnico</label>
-              {tecLoading ? (
-                <div style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 13 }}>
-                  <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> Carregando...
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', overflow: 'hidden' }}>
+            
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: `${tipo.cor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <tipo.icon size={18} color={tipo.cor} />
                 </div>
-              ) : (
-                <select value={tecnicoId} onChange={e => setTecnicoId(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
-                  <option value=''>Todos os técnicos</option>
-                  {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                </select>
+                <div>
+                  <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: 0 }}>{tipo.label}</h2>
+                  <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Configurar filtros e exportar</p>
+                </div>
+              </div>
+              <button onClick={() => setTipoSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <div style={{ display: 'grid', gap: 16 }}>
+                {/* Técnico */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Técnico</label>
+                  {tecLoading ? (
+                    <div style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 13 }}>
+                      <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> Carregando...
+                    </div>
+                  ) : (
+                    <select value={tecnicoId} onChange={e => setTecnicoId(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
+                      <option value=''>Todos os técnicos</option>
+                      {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                    </select>
+                  )}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  {/* Data Início */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Início</label>
+                    <input type='date' value={dataInicio} onChange={e => setDataInicio(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+
+                  {/* Data Fim */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Fim</label>
+                    <input type='date' value={dataFim} onChange={e => setDataFim(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+              </div>
+
+              {erro && (
+                <div style={{ marginTop: 18, padding: '12px 16px', borderRadius: 8, background: '#fee2e2', border: '1px solid #fca5a5', color: '#dc2626', fontSize: 13, fontWeight: 500 }}>
+                  {erro}
+                </div>
               )}
-            </div>
 
-            {/* Data Início */}
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Início</label>
-              <input type='date' value={dataInicio} onChange={e => setDataInicio(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 24 }}>
+                <button onClick={() => gerar('pdf')} disabled={loading}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 10, background: tipo.cor, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'opacity 0.15s' }}>
+                  {loading ? <Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Download size={18} />}
+                  Gerar PDF
+                </button>
+                <button onClick={() => gerar('excel')} disabled={loading}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 10, background: '#16a34a', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+                  {loading ? <Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> : <FileSpreadsheet size={18} />}
+                  Gerar Excel
+                </button>
+              </div>
             </div>
-
-            {/* Data Fim */}
-            <div>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Fim</label>
-              <input type='date' value={dataFim} onChange={e => setDataFim(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          {erro && (
-            <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: '#fee2e2', border: '1px solid #fca5a5', color: '#dc2626', fontSize: 13, fontWeight: 500 }}>
-              {erro}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-            <button onClick={() => gerar('pdf')} disabled={loading}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 9, background: tipo.cor, color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'opacity 0.15s' }}>
-              {loading ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Download size={15} />}
-              Exportar PDF
-            </button>
-            <button onClick={() => gerar('excel')} disabled={loading}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 9, background: '#16a34a', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-              {loading ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <FileSpreadsheet size={15} />}
-              Exportar Excel
-            </button>
           </div>
         </div>
       )}
