@@ -138,7 +138,7 @@ export async function createUsuario(data: { name: string, email: string, role: a
       html
     })
 
-    await audit({ userId: (session.user as any)?.id, action: 'CRIAR_USUARIO', entity: 'Usuário', entityId: user.id, details: { nome: data.name, role: data.role } })
+    await audit({ userId: (session?.user as any)?.id, action: 'CRIAR_USUARIO', entity: 'Usuário', entityId: user.id, details: { nome: data.name, role: data.role } })
     return { success: true }
   } catch (error) {
     console.error('Erro ao criar usuário:', error)

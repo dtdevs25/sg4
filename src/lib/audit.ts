@@ -20,7 +20,7 @@ export async function audit(opts: {
         action:   opts.action,
         entity:   opts.entity   ?? null,
         entityId: opts.entityId ?? null,
-        details:  opts.details  ?? null,
+        details:  opts.details ? opts.details : undefined,
       }
     })
   } catch {
