@@ -55,9 +55,14 @@ export default function RelatoriosAtividadesPage() {
   const [showGraficoModal, setShowGraficoModal] = useState(false)
   const [selectedMesGrafico, setSelectedMesGrafico] = useState<number | null>(null)
 
+  const [showUnidadeDropdownAdd, setShowUnidadeDropdownAdd] = useState(false)
+  const [unidadeSearchTermAdd, setUnidadeSearchTermAdd] = useState('')
+  const [showUnidadeDropdownEdit, setShowUnidadeDropdownEdit] = useState(false)
+  const [unidadeSearchTermEdit, setUnidadeSearchTermEdit] = useState('')
+
   // Forms
-  const [formAtiv, setFormAtiv] = useState({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
-  const [formEdit, setFormEdit] = useState({ data: '', empresa: '', projeto: '', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [formAtiv, setFormAtiv] = useState({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [formEdit, setFormEdit] = useState({ data: '', empresa: '', projeto: '', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formPdf, setFormPdf] = useState({ empresa: '', tecnicoId: '', mes: new Date().getMonth() + 1, ano: new Date().getFullYear() })
 
   // Novos Estados
@@ -210,12 +215,14 @@ export default function RelatoriosAtividadesPage() {
       const tId = role === 'TST' ? (session?.user as any).tecnicoId : formAtiv.tecnicoId
       if (!tId) return alert('Selecione o técnico')
 
+      const finalLocal = formAtiv.local === 'OUTROS' && formAtiv.outroLocal ? formAtiv.outroLocal : formAtiv.local
+
       const res = await addAtividade({
         tecnicoId: tId,
         data: new Date(formAtiv.data + 'T12:00:00Z'),
         empresa: formAtiv.empresa,
         projeto: formAtiv.projeto,
-        local: formAtiv.local,
+        local: finalLocal,
         cidadeUf: formAtiv.cidadeUf,
         descricao: formAtiv.descricao,
         fotoUrl
@@ -223,7 +230,7 @@ export default function RelatoriosAtividadesPage() {
 
       if (res.success) {
         setShowNovaAtividade(false)
-        setFormAtiv({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
+        setFormAtiv({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
         loadData()
       } else {
         alert(res.error)
@@ -243,11 +250,13 @@ export default function RelatoriosAtividadesPage() {
         else return alert('Erro no upload da nova foto')
       }
 
+      const finalLocal = formEdit.local === 'OUTROS' && formEdit.outroLocal ? formEdit.outroLocal : formEdit.local
+
       const res = await updateAtividade(showEditModal.id, {
         data: new Date(formEdit.data + 'T12:00:00Z'),
         empresa: formEdit.empresa,
         projeto: formEdit.projeto,
-        local: formEdit.local,
+        local: finalLocal,
         cidadeUf: formEdit.cidadeUf,
         descricao: formEdit.descricao,
         fotoUrl: fotoUrl
@@ -796,33 +805,85 @@ export default function RelatoriosAtividadesPage() {
                   const tId = role === 'TST' ? (session?.user as any)?.tecnicoId : formAtiv.tecnicoId;
                   const tecnicoSel = tId ? tecnicos.find(t => t.id === tId) : null;
                   const bases = tecnicoSel?.unidades || [];
-                  if (bases.length > 0) {
-                    return (
-                      <div style={{ marginBottom: 12 }}>
-                        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4, color: '#660099' }}>📍 Preenchimento Rápido: Selecionar Base</label>
-                        <select
-                          onChange={e => {
-                            const base = bases.find((u: any) => u.id === e.target.value)
-                            if (base) {
-                              setFormAtiv(p => ({
-                                ...p,
-                                local: base.nome,
-                                cidadeUf: `${base.cidade || ''} / ${base.estado || ''}`.replace(/^ \/ | \/ $/g, '')
-                              }))
-                            }
-                          }}
-                          style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #660099', outline: 'none', background: 'rgba(102,0,153,0.02)', color: '#334155', fontWeight: 600 }}
-                        >
-                          <option value="">-- Selecione uma base para preencher automaticamente --</option>
-                          {bases.map((u: any) => (
-                            <option key={u.id} value={u.id}>{u.nome} ({u.cidade}/{u.estado})</option>
-                          ))}
-                        </select>
+                  const unidsDoTecnico = bases;
+
+                  return (
+                    <div style={{ marginBottom: 12, position: 'relative' }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4, color: '#1e293b' }}>📍 Unidade / Local</label>
+                      <div
+                        onClick={() => setShowUnidadeDropdownAdd(v => !v)}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showUnidadeDropdownAdd ? '#660099' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.2s' }}
+                      >
+                        <span style={{ fontSize: 13, color: formAtiv.local ? '#1e293b' : '#94a3b8', fontWeight: formAtiv.local ? 700 : 400 }}>
+                          {formAtiv.local ? (unidsDoTecnico.find((u:any) => u.nome === formAtiv.local) ? formAtiv.local : formAtiv.local === 'OUTROS' ? 'Outros...' : formAtiv.local) : 'Selecione ou busque a unidade...'}
+                        </span>
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>{showUnidadeDropdownAdd ? '▲' : '▼'}</span>
                       </div>
-                    )
-                  }
-                  return null;
+
+                      {showUnidadeDropdownAdd && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                          <div style={{ padding: 8, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10 }} />
+                              <input 
+                                autoFocus 
+                                type="text" 
+                                placeholder="Buscar unidade..." 
+                                value={unidadeSearchTermAdd}
+                                onChange={e => setUnidadeSearchTermAdd(e.target.value)}
+                                onKeyDown={e => { if(e.key === 'Enter') e.preventDefault() }}
+                                style={{ width: '100%', padding: '8px 8px 8px 30px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                              />
+                            </div>
+                          </div>
+                          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                            {Array.from(new Map(unidsDoTecnico.map((u:any) => [u.id, u])).values())
+                              .filter((u:any) => u.nome.toLowerCase().includes(unidadeSearchTermAdd.toLowerCase()) || (u.cidade || '').toLowerCase().includes(unidadeSearchTermAdd.toLowerCase()))
+                              .map((u:any) => (
+                              <div key={u.id} onClick={() => { 
+                                setFormAtiv(p => ({...p, local: u.nome, outroLocal: '', cidadeUf: `${u.cidade || ''} / ${u.estado || ''}`.replace(/^ \/ | \/ $/g, '')}));
+                                setShowUnidadeDropdownAdd(false);
+                                setUnidadeSearchTermAdd('');
+                              }}
+                                style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formAtiv.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = formAtiv.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff')}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{u.nome}</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: '#64748b' }}>
+                                  {u.endereco ? u.endereco + ' - ' : ''}{u.cidade}/{u.estado}
+                                </div>
+                              </div>
+                            ))}
+                            {unidsDoTecnico.filter((u:any) => u.nome.toLowerCase().includes(unidadeSearchTermAdd.toLowerCase())).length === 0 && (
+                              <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhuma unidade encontrada.</div>
+                            )}
+                            <div onClick={() => { 
+                                setFormAtiv(p => ({...p, local: 'OUTROS', outroLocal: '', cidadeUf: ''}));
+                                setShowUnidadeDropdownAdd(false);
+                                setUnidadeSearchTermAdd('');
+                              }}
+                              style={{ padding: '10px 14px', cursor: 'pointer', background: formAtiv.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = formAtiv.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff')}
+                            >
+                              <span>Outros...</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
                 })()}
+
+                {formAtiv.local === 'OUTROS' && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Qual o nome do Local?</label>
+                    <input type="text" placeholder="Especifique o local..." required value={formAtiv.outroLocal} onChange={e => setFormAtiv(p => ({...p, outroLocal: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                  </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
@@ -833,11 +894,6 @@ export default function RelatoriosAtividadesPage() {
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Cidade / UF</label>
                     <input required placeholder="Ex: João Pessoa/PB" value={formAtiv.cidadeUf} onChange={e => setFormAtiv(p => ({...p, cidadeUf: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                   </div>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Local (Nome do Prédio/Site)</label>
-                  <input required placeholder="Ex: Base Vivo, Cristo Redentor" value={formAtiv.local} onChange={e => setFormAtiv(p => ({...p, local: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                 </div>
                 
                 <div>
@@ -933,33 +989,85 @@ export default function RelatoriosAtividadesPage() {
                 const tId = showEditModal?.tecnicoId || showEditModal?.tecnico?.id;
                 const tecnicoSel = tId ? tecnicos.find(t => t.id === tId) : null;
                 const bases = tecnicoSel?.unidades || [];
-                if (bases.length > 0) {
-                  return (
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4, color: '#3b82f6' }}>📍 Preenchimento Rápido: Selecionar Base</label>
-                      <select
-                        onChange={e => {
-                          const base = bases.find((u: any) => u.id === e.target.value)
-                          if (base) {
-                            setFormEdit(p => ({
-                              ...p,
-                              local: base.nome,
-                              cidadeUf: `${base.cidade || ''} / ${base.estado || ''}`.replace(/^ \/ | \/ $/g, '')
-                            }))
-                          }
-                        }}
-                        style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #3b82f6', outline: 'none', background: 'rgba(59,130,246,0.02)', color: '#334155', fontWeight: 600 }}
-                      >
-                        <option value="">-- Selecione uma base para alterar o local --</option>
-                        {bases.map((u: any) => (
-                          <option key={u.id} value={u.id}>{u.nome} ({u.cidade}/{u.estado})</option>
-                        ))}
-                      </select>
+                const unidsDoTecnico = bases;
+
+                return (
+                  <div style={{ marginBottom: 12, position: 'relative' }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4, color: '#3b82f6' }}>📍 Unidade / Local</label>
+                    <div
+                      onClick={() => setShowUnidadeDropdownEdit(v => !v)}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showUnidadeDropdownEdit ? '#3b82f6' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.2s' }}
+                    >
+                      <span style={{ fontSize: 13, color: formEdit.local ? '#1e293b' : '#94a3b8', fontWeight: formEdit.local ? 700 : 400 }}>
+                        {formEdit.local ? (unidsDoTecnico.find((u:any) => u.nome === formEdit.local) ? formEdit.local : formEdit.local === 'OUTROS' ? 'Outros...' : formEdit.local) : 'Selecione ou busque a unidade...'}
+                      </span>
+                      <span style={{ color: '#94a3b8', fontSize: 12 }}>{showUnidadeDropdownEdit ? '▲' : '▼'}</span>
                     </div>
-                  )
-                }
-                return null;
+
+                    {showUnidadeDropdownEdit && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div style={{ padding: 8, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10 }} />
+                            <input 
+                              autoFocus 
+                              type="text" 
+                              placeholder="Buscar unidade..." 
+                              value={unidadeSearchTermEdit}
+                              onChange={e => setUnidadeSearchTermEdit(e.target.value)}
+                              onKeyDown={e => { if(e.key === 'Enter') e.preventDefault() }}
+                              style={{ width: '100%', padding: '8px 8px 8px 30px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                            />
+                          </div>
+                        </div>
+                        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                          {Array.from(new Map(unidsDoTecnico.map((u:any) => [u.id, u])).values())
+                            .filter((u:any) => u.nome.toLowerCase().includes(unidadeSearchTermEdit.toLowerCase()) || (u.cidade || '').toLowerCase().includes(unidadeSearchTermEdit.toLowerCase()))
+                            .map((u:any) => (
+                            <div key={u.id} onClick={() => { 
+                              setFormEdit(p => ({...p, local: u.nome, outroLocal: '', cidadeUf: `${u.cidade || ''} / ${u.estado || ''}`.replace(/^ \/ | \/ $/g, '')}));
+                              setShowUnidadeDropdownEdit(false);
+                              setUnidadeSearchTermEdit('');
+                            }}
+                              style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formEdit.local === u.nome ? 'rgba(59,130,246,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.08)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = formEdit.local === u.nome ? 'rgba(59,130,246,0.06)' : '#fff')}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{u.nome}</span>
+                              </div>
+                              <div style={{ fontSize: 11, color: '#64748b' }}>
+                                {u.endereco ? u.endereco + ' - ' : ''}{u.cidade}/{u.estado}
+                              </div>
+                            </div>
+                          ))}
+                          {unidsDoTecnico.filter((u:any) => u.nome.toLowerCase().includes(unidadeSearchTermEdit.toLowerCase())).length === 0 && (
+                            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhuma unidade encontrada.</div>
+                          )}
+                          <div onClick={() => { 
+                              setFormEdit(p => ({...p, local: 'OUTROS', outroLocal: '', cidadeUf: ''}));
+                              setShowUnidadeDropdownEdit(false);
+                              setUnidadeSearchTermEdit('');
+                            }}
+                            style={{ padding: '10px 14px', cursor: 'pointer', background: formEdit.local === 'OUTROS' ? 'rgba(59,130,246,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.08)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = formEdit.local === 'OUTROS' ? 'rgba(59,130,246,0.06)' : '#fff')}
+                          >
+                            <span>Outros...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
               })()}
+
+              {formEdit.local === 'OUTROS' && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Qual o nome do Local?</label>
+                  <input type="text" placeholder="Especifique o local..." required value={formEdit.outroLocal} onChange={e => setFormEdit(p => ({...p, outroLocal: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
@@ -970,11 +1078,6 @@ export default function RelatoriosAtividadesPage() {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Cidade / UF</label>
                   <input required value={formEdit.cidadeUf} onChange={e => setFormEdit(p => ({...p, cidadeUf: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                 </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Local</label>
-                <input required value={formEdit.local} onChange={e => setFormEdit(p => ({...p, local: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
               </div>
               
               <div>
