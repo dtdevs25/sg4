@@ -13,11 +13,12 @@ const transporter = nodemailer.createTransport({
   }
 })
 
-export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }) {
+export async function sendMail({ to, cc, subject, html }: { to: string; cc?: string; subject: string; html: string }) {
   try {
     const info = await transporter.sendMail({
       from: `"SG4 - Gestão de Segurança do Trabalho" <${process.env.SMTP_USER || 'sg4@ehspro.com.br'}>`,
       to,
+      cc,
       subject,
       html,
     })

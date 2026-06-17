@@ -95,7 +95,8 @@ export async function savePlanejamento(data: {
             </div>
           </div>
         `
-        sendMail({ to: newPlan.tecnico.email, subject: 'SG4 - Nova Atividade Planejada', html })
+        const cc = session.user.email || undefined;
+        sendMail({ to: newPlan.tecnico.email, cc, subject: 'SG4 - Nova Atividade Planejada', html })
           .catch(err => console.error('Erro ao notificar TST:', err))
       }
     }
