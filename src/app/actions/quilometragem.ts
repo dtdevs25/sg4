@@ -46,7 +46,9 @@ export async function getQuilometragens(ano?: number, mes?: number) {
     const tecnicoId = (session.user as any).tecnicoId
 
     const where: any = {}
-    if (role === 'TST') where.tecnicoId = tecnicoId
+    if (role === 'TST') {
+      where.tecnicoId = tecnicoId || 'unassigned'
+    }
     
     if (ano && !isNaN(ano)) {
       if (mes) {
@@ -191,7 +193,9 @@ export async function getAbastecimentos(ano: number, mes?: number) {
     const tecnicoId = (session.user as any).tecnicoId
 
     const where: any = {}
-    if (role === 'TST') where.tecnicoId = tecnicoId
+    if (role === 'TST') {
+      where.tecnicoId = tecnicoId || 'unassigned'
+    }
     
     if (mes) {
       where.data = { gte: new Date(ano, mes - 1, 1), lte: new Date(ano, mes, 0, 23, 59, 59) }

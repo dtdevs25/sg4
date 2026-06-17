@@ -25,7 +25,7 @@ export default function QuilometragemPage() {
   const [kms, setKms] = useState<any[]>([])
   const [abastecimentos, setAbastecimentos] = useState<any[]>([])
 
-  const [selectedMonths, setSelectedMonths] = useState<number[]>([new Date().getMonth() + 1])
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [search, setSearch] = useState('')
   const [currentPageKm, setCurrentPageKm] = useState(1)
