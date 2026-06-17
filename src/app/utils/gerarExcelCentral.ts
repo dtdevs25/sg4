@@ -53,39 +53,38 @@ export async function gerarExcelCentral(opts: {
 
   // Fundo totalmente roxo já aplicado (não precisamos do bloco branco)
   
-  // Adiciona a linha branca separadora no canto direito da coluna B
+  // Adiciona a linha branca separadora no canto direito da coluna A
   ws.mergeCells(1, 1, 4, 1) // A
   ws.mergeCells(1, 2, 4, 2) // B
-  ws.mergeCells(1, 3, 4, 3) // C
   
-  const borderCell = ws.getCell(1, 2)
+  const borderCell = ws.getCell(1, 1)
   borderCell.border = { right: { style: 'medium', color: { argb: 'FFFFFFFF' } } }
 
-  // Textos do Cabeçalho
-  ws.mergeCells(1, 4, 2, totalCols)
-  const titleCell = ws.getCell(1, 4)
+  // Textos do Cabeçalho (a partir da coluna C)
+  ws.mergeCells(1, 3, 2, totalCols)
+  const titleCell = ws.getCell(1, 3)
   titleCell.value = '   ' + opts.titulo.toUpperCase()
   titleCell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 14, name: 'Arial' }
   titleCell.alignment = { vertical: 'middle', horizontal: 'left' }
 
-  ws.mergeCells(3, 4, 4, totalCols)
-  const subCell = ws.getCell(3, 4)
+  ws.mergeCells(3, 3, 4, totalCols)
+  const subCell = ws.getCell(3, 3)
   subCell.value = '   ' + opts.subtitulo
   subCell.font = { color: { argb: 'FFFFFFFF' }, size: 10, name: 'Arial' }
   subCell.alignment = { vertical: 'middle', horizontal: 'left' }
 
-  // Imagens
+  // Imagens (Centralizadas nas colunas A e B que terão largura min de 18)
   if (sg4B64) {
     const imgId1 = wb.addImage({ base64: sg4B64, extension: 'png' })
     ws.addImage(imgId1, {
-      tl: { col: 0.2, row: 0.5 },
+      tl: { col: 0.25, row: 0.5 },
       ext: { width: 55, height: 55 }
     })
   }
   if (vivoB64) {
     const imgId2 = wb.addImage({ base64: vivoB64, extension: 'png' })
     ws.addImage(imgId2, {
-      tl: { col: 2.1, row: 1.0 },
+      tl: { col: 1.25, row: 1.0 },
       ext: { width: 55, height: 28 }
     })
   }
@@ -144,7 +143,8 @@ export async function gerarExcelCentral(opts: {
     if (opts.rows.length > 0) {
       maxLen = Math.max(h.length, ...opts.rows.map(r => String(r[i] ?? '').length))
     }
-    col.width = Math.min(Math.max(maxLen + 2, 12), 60)
+    const minW = (i === 0 || i === 1) ? 18 : 12
+    col.width = Math.min(Math.max(maxLen + 2, minW), 60)
   })
 
   // Resumo (se houver)
