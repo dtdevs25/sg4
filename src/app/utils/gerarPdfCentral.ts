@@ -15,7 +15,7 @@ export function fmtDateTime(iso: string) {
   try { return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) } catch { return iso }
 }
 
-async function loadLogo(src: string, makeWhite: boolean = false): Promise<string> {
+async function loadLogo(src: string): Promise<string> {
   return new Promise(resolve => {
     const img = new Image()
     img.crossOrigin = 'Anonymous'
@@ -26,11 +26,6 @@ async function loadLogo(src: string, makeWhite: boolean = false): Promise<string
       const ctx = c.getContext('2d')
       if (ctx) {
         ctx.drawImage(img, 0, 0)
-        if (makeWhite) {
-          ctx.globalCompositeOperation = 'source-in'
-          ctx.fillStyle = '#ffffff'
-          ctx.fillRect(0, 0, c.width, c.height)
-        }
       }
       resolve(c.toDataURL('image/png'))
     }
@@ -43,17 +38,21 @@ function drawHeader(doc: jsPDF, sg4: string, vivo: string, titulo: string) {
   doc.setFillColor(...PURPLE)
   doc.rect(0, 0, W, 60, 'F')
   
-  let logoX = 20
+  // Fundo branco pros logos
+  doc.setFillColor(...WHITE)
+  doc.roundedRect(12, 8, 120, 44, 4, 4, 'F')
+
+  let logoX = 16
   if (sg4) {
-    try { doc.addImage(sg4, 'PNG', logoX, 10, 40, 40); logoX += 50 } catch {}
+    try { doc.addImage(sg4, 'PNG', logoX, 10, 40, 40); logoX += 48 } catch {}
   }
   
-  doc.setDrawColor(255, 255, 255); doc.setLineWidth(1)
+  doc.setDrawColor(200, 200, 200); doc.setLineWidth(1)
   doc.line(logoX, 14, logoX, 46)
-  logoX += 12
+  logoX += 10
   
   if (vivo) {
-    try { doc.addImage(vivo, 'PNG', logoX, 18, 56, 26); logoX += 66 } catch {}
+    try { doc.addImage(vivo, 'PNG', logoX, 18, 50, 24); logoX += 56 } catch {}
   }
   
   doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...WHITE)
@@ -74,8 +73,9 @@ export async function gerarPdfCentral(opts: {
   rows: (string | number)[][]
   resumo?: { label: string; valor: string; pct?: number }[]
   totalTexto?: string
+  fileName?: string
 }) {
-  const [sg4, vivo] = await Promise.all([loadLogo('/logo.png', true), loadLogo('/logovivo.png', true)])
+  const [sg4, vivo] = await Promise.all([loadLogo('/logo.png'), loadLogo('/logovivo.png')])
   const doc = new jsPDF('l', 'pt', 'a4') // Landscape
   const W = 842
 
@@ -126,12 +126,7 @@ export async function gerarPdfCentral(opts: {
     styles: { fontSize: 7.5, cellPadding: 3.5, valign: 'middle', lineColor: [220, 220, 220], lineWidth: 0.3, textColor: DARK },
     headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', halign: 'center' },
     alternateRowStyles: { fillColor: GRAY_BG },
-    margin: { top: 76, left: 14, right: 14, bottom: 30 },
-    didDrawPage: () => {
-      const info = (doc as any).internal
-      drawHeader(doc, sg4, vivo, opts.titulo)
-      drawFooter(doc, info.getCurrentPageInfo().pageNumber, info.getNumberOfPages())
-    },
+    margin: { top: 76, left: 14, right: 14, bottom: 30 }
   })
 
   // repintar cabeçalho + rodapé em todas as páginas para ter as numerações certas de total
@@ -143,6 +138,6 @@ export async function gerarPdfCentral(opts: {
   }
 
   const safe = opts.titulo.replace(/[^a-zA-Z0-9 \-]/g, '').slice(0, 50)
-  const fn = `${safe} - ${new Date().toLocaleDateString('pt-BR').replace(/\//g, '.')}.pdf`
+  const fn = opts.fileName || `${safe} - ${new Date().toLocaleDateString('pt-BR').replace(/\//g, '.')}.pdf`
   return { fileName: fn, base64: doc.output('datauristring') }
 }

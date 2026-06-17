@@ -91,6 +91,14 @@ export async function getRelatorioDss(f: FiltrosRelatorio) {
 
   // DSS Arkium – filtro por data de fechamento
   const where: any = {}
+  
+  if (f.tecnicoId) {
+    const t = await prisma.tecnico.findUnique({ where: { id: f.tecnicoId }, select: { nome: true } })
+    if (t?.nome) {
+      where.lider = { contains: t.nome, mode: 'insensitive' }
+    }
+  }
+
   if (f.dataInicio && f.dataFim) {
     // campo dataFechamento é string "dd/mm/yyyy" no banco
     // busca por importadoEm como proxy

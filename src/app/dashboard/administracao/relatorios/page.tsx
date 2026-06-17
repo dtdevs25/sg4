@@ -58,6 +58,7 @@ export default function AdminRelatoriosPage() {
   const [erro, setErro]           = useState('')
   const [loading, startT]         = useTransition()
   const [tecLoading, setTecLoading] = useState(false)
+  const [exportando, setExportando] = useState<'pdf' | 'excel' | null>(null)
 
   async function abrirFiltros(id: string) {
     setTipoSel(id); setErro('')
@@ -74,102 +75,75 @@ export default function AdminRelatoriosPage() {
       tecnicoId: tecnicoId || undefined,
       dataInicio, dataFim,
     }
-    const sub = `Período: ${new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}${tecnicoId ? ` · Técnico: ${tecnicos.find(t => t.id === tecnicoId)?.nome ?? ''}` : ' · Todos os Técnicos'}`
-    const opts = { subtitulo: sub, geradoPor: nomeUsuario }
+    const tName = tecnicoId ? tecnicos.find(t => t.id === tecnicoId)?.nome : ''
+    const sub = `Período: ${new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}${tName ? ` · Técnico: ${tName}` : ' · Todos os Técnicos'}`
+    const baseOpts = { subtitulo: sub, geradoPor: nomeUsuario }
 
+    setExportando(formato)
     startT(async () => {
       try {
         setErro('')
-        if (formato === 'pdf') {
-          const { gerarPdfCentral } = await import('@/app/utils/gerarPdfCentral')
+        
+        const { gerarPdfCentral } = await import('@/app/utils/gerarPdfCentral')
+        const { gerarExcelCentral } = await import('@/app/utils/gerarExcelCentral')
 
-          let result: any
-          if (tipoSel === 'agenda') {
-            const d = await getRelatorioAgenda(filtros)
-            result = await gerarPdfCentral({ titulo: 'Agenda / Planejamento', ...opts, totalTexto: `Total: ${d.data.length} atividades planejadas`, headers: ['Técnico','Data','Categoria','Descrição','Status','Criado por','Criado em','Fechado por','Fechado em','Desc. Executada'], rows: d.data.map((r:any) => [r.tecnico, r.dataAtividade?.slice(0,10), r.categoria, r.descricaoOriginal?.slice(0,60), r.status, r.criadoPor, r.criadoEm?.slice(0,16)?.replace('T',' '), r.fechadoPor, r.fechadoEm?.slice(0,16)?.replace('T',' '), (r.descricaoExecutada||'—').slice(0,60)]) })
-          } else if (tipoSel === 'dss') {
-            const d = await getRelatorioDss(filtros)
-            result = await gerarPdfCentral({ titulo: 'DSS', ...opts, totalTexto: `Total: ${d.data.length} diálogos registrados`, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.lider, valor: `${r.total}`, pct: r.pct })), headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Estado','Data Fechamento'], rows: (d.data||[]).map((r:any) => [r.numeroDialogo, r.assunto??'—', r.lider??'—', r.base??'—', r.matricula, r.nome??'—', r.estado, r.dataFechamento??'—']) })
-          } else if (tipoSel === 'inspecoes') {
-            const d = await getRelatorioInspecoes(filtros)
-            result = await gerarPdfCentral({ titulo: 'Inspeções', ...opts, totalTexto: `Total: ${d.data.length} inspeções realizadas`, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.tecnico, valor: `${r.total}`, pct: r.pct })), headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário'], rows: (d.data||[]).map((r:any) => [r.numero, r.tecnico?.nome??r.nomeAuditor??'—', r.resultado??'—', r.dataAbertura??'—', r.dataFechamento??'—', r.localidadeObjeto??'—', r.nomeQuestionario??'—']) })
-          } else if (tipoSel === 'nao-confor') {
-            const d = await getRelatorioNaoConformes(filtros)
-            result = await gerarPdfCentral({ titulo: 'Itens Não Conformes', ...opts, totalTexto: `Total: ${d.data.length} apontamentos não conformes`, headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário','Observação'], rows: d.data.map((r:any) => [r.numero, r.tecnico, r.resultado, r.dataAbertura, r.dataFechamento, r.local, r.questionario, r.observacao]) })
-          } else if (tipoSel === 'dss-pend') {
-            const d = await getRelatorioDssPendentes(filtros)
-            result = await gerarPdfCentral({ titulo: 'DSS Pendentes', ...opts, totalTexto: `Total: ${d.data.length} diálogos abertos`, headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Data Fechamento'], rows: d.data.map((r:any) => [r.numeroDialogo, r.assunto, r.lider, r.base, r.matricula, r.nome, r.dataFechamento]) })
-          } else if (tipoSel === 'atrasados') {
-            const d = await getRelatorioPlanejamentosAtrasados(filtros)
-            result = await gerarPdfCentral({ titulo: 'Planejamentos Não Executados', ...opts, totalTexto: `Total: ${d.data.length} atividades atrasadas`, headers: ['Técnico','Data Prevista','Dias Atraso','Categoria','Prioridade','Local','Descrição'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), `${r.diasAtraso} dias`, r.categoria, r.prioridade, r.local, r.descricao?.slice(0,80)]) })
-          } else if (tipoSel === 'ausencias') {
-            const d = await getRelatorioAusencias(filtros)
-            result = await gerarPdfCentral({ titulo: 'Ausências em Reuniões', ...opts, totalTexto: `Total: ${d.data.length} ausências registradas`, headers: ['Técnico','Data','Assunto','Justificada','Motivo','Observação'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), r.assunto, r.justificada, r.motivo, r.observacao]) })
-          } else if (tipoSel === 'reunioes') {
-            const d = await getRelatorioReunioes(filtros)
-            result = await gerarPdfCentral({ titulo: 'Reuniões', ...opts, totalTexto: `Total: ${d.data.length} presenças/ausências computadas`, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.pctPresenca}%`,pct:r.pctPresenca})), headers: ['Técnico','Data','Assunto','Presença','Pontualidade','Justificada','Motivo'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??r.tecnico, r.data?.toISOString?.()?.slice(0,10)??r.data, r.assunto??'—', r.presenca, r.pontualidade, r.justificada, r.motivo??'—']) })
-          } else if (tipoSel === 'km') {
-            const d = await getRelatorioKm(filtros)
-            result = await gerarPdfCentral({ titulo: 'Quilometragem', ...opts, totalTexto: `Total: ${d.data.length} viagens registradas`, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${Number(r.totalKm).toFixed(0)} km`})), headers: ['Técnico','Dia','Data Inicial','KM Inicial','Data Final','KM Final','Diferença'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??'—', r.diaSemana, r.dataInicial?.toISOString?.()?.slice(0,10)??r.dataInicial, r.kmInicial, r.dataFinal?r.dataFinal?.toISOString?.()?.slice(0,10)??r.dataFinal:'—', r.kmFinal??'—', r.diferenca??'—']) })
-          } else if (tipoSel === 'atividades') {
-            const d = await getRelatorioAtividadesCampo(filtros)
-            result = await gerarPdfCentral({ titulo: 'Atividades de Campo', ...opts, totalTexto: `Total: ${d.data.length} atividades de campo executadas`, headers: ['Técnico','Data','Empresa','Projeto','Local','Cidade/UF','Descrição'], rows: d.data.map((r:any)=>[r.tecnico, r.data?.slice(0,10), r.empresa, r.projeto, r.local, r.cidadeUf, r.descricao?.slice(0,100)]) })
-          } else if (tipoSel === 'ranking') {
-            const d = await getRelatorioRanking(filtros)
-            result = await gerarPdfCentral({ titulo: 'Ranking de Desempenho', ...opts, totalTexto: `Total: ${d.data.length} técnicos avaliados`, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.score}%`,pct:r.score})), headers: ['Pos.','Técnico','DSS','% DSS','Inspeções','% Insp.','Reuniões','% Pres.','Score'], rows: d.data.map((r:any,i:number)=>[`${i+1}º`,r.tecnico,r.dss,`${r.pctDss}%`,r.inspecoes,`${r.pctInsp}%`,r.reunioes,`${r.pctReunioes}%`,`${r.score}%`]) })
-          }
+        let genOpts: any = null
+        const safeTitle = tipo?.label.replace(/[^a-zA-Z0-9 \-]/g, '').slice(0, 30) || 'Relatorio'
+        const dataStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '.')
+        const baseFileName = `${safeTitle}${tName ? ` - ${tName}` : ''} - ${dataStr}`
+        const fn = formato === 'pdf' ? `${baseFileName}.pdf` : `${baseFileName}.xlsx`
 
-          if (result?.base64) {
-            const a = document.createElement('a')
-            a.href = result.base64; a.download = result.fileName
-            document.body.appendChild(a); a.click(); document.body.removeChild(a)
-          }
-        } else {
-          // Excel
-          if (tipoSel === 'agenda') {
-            const d = await getRelatorioAgenda(filtros)
-            const { exportXlsxAgenda } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxAgenda(d.data)
-          } else if (tipoSel === 'dss') {
-            const d = await getRelatorioDss(filtros)
-            const { exportXlsxDss } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxDss(d.data || [], d.resumo ?? [])
-          } else if (tipoSel === 'inspecoes') {
-            const d = await getRelatorioInspecoes(filtros)
-            const { exportXlsxInspecoes } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxInspecoes(d.data || [], d.resumo ?? [])
-          } else if (tipoSel === 'nao-confor') {
-            const d = await getRelatorioNaoConformes(filtros)
-            const { exportXlsxNaoConformes } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxNaoConformes(d.data)
-          } else if (tipoSel === 'dss-pend') {
-            const d = await getRelatorioDssPendentes(filtros)
-            const { exportXlsxDssPendentes } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxDssPendentes(d.data)
-          } else if (tipoSel === 'atrasados') {
-            const d = await getRelatorioPlanejamentosAtrasados(filtros)
-            const { exportXlsxAtrasados } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxAtrasados(d.data)
-          } else if (tipoSel === 'ausencias') {
-            const d = await getRelatorioAusencias(filtros)
-            const { exportXlsxAusencias } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxAusencias(d.data)
-          } else if (tipoSel === 'reunioes') {
-            const d = await getRelatorioReunioes(filtros)
-            const { exportXlsxReunioes } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxReunioes(d.data || [], d.resumo ?? [])
-          } else if (tipoSel === 'km') {
-            const d = await getRelatorioKm(filtros)
-            const { exportXlsxKm } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxKm(d.data || [], d.resumo ?? [])
-          } else if (tipoSel === 'ranking') {
-            const d = await getRelatorioRanking(filtros)
-            const { exportXlsxRanking } = await import('@/app/utils/gerarExcelCentral')
-            exportXlsxRanking(d.data)
+        if (tipoSel === 'agenda') {
+          const d = await getRelatorioAgenda(filtros)
+          genOpts = { titulo: 'Agenda / Planejamento', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} atividades planejadas`, headers: ['Técnico','Data','Categoria','Descrição','Status','Criado por','Criado em','Fechado por','Fechado em','Desc. Executada'], rows: d.data.map((r:any) => [r.tecnico, r.dataAtividade?.slice(0,10), r.categoria, r.descricaoOriginal?.slice(0,60), r.status, r.criadoPor, r.criadoEm?.slice(0,16)?.replace('T',' '), r.fechadoPor, r.fechadoEm?.slice(0,16)?.replace('T',' '), (r.descricaoExecutada||'—').slice(0,60)]) }
+        } else if (tipoSel === 'dss') {
+          const d = await getRelatorioDss(filtros)
+          genOpts = { titulo: 'DSS', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} diálogos registrados`, headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Estado','Data Fechamento'], rows: (d.data||[]).map((r:any) => [r.numeroDialogo, r.assunto??'—', r.lider??'—', r.base??'—', r.matricula, r.nome??'—', r.estado, r.dataFechamento??'—']) }
+        } else if (tipoSel === 'inspecoes') {
+          const d = await getRelatorioInspecoes(filtros)
+          genOpts = { titulo: 'Inspeções', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} inspeções realizadas`, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.tecnico, valor: `${r.total}`, pct: r.pct })), headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário'], rows: (d.data||[]).map((r:any) => [r.numero, r.tecnico?.nome??r.nomeAuditor??'—', r.resultado??'—', r.dataAbertura??'—', r.dataFechamento??'—', r.localidadeObjeto??'—', r.nomeQuestionario??'—']) }
+        } else if (tipoSel === 'nao-confor') {
+          const d = await getRelatorioNaoConformes(filtros)
+          genOpts = { titulo: 'Itens Não Conformes', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} apontamentos não conformes`, headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário','Observação'], rows: d.data.map((r:any) => [r.numero, r.tecnico, r.resultado, r.dataAbertura, r.dataFechamento, r.local, r.questionario, r.observacao]) }
+        } else if (tipoSel === 'dss-pend') {
+          const d = await getRelatorioDssPendentes(filtros)
+          genOpts = { titulo: 'DSS Pendentes', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} diálogos abertos`, headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Data Fechamento'], rows: d.data.map((r:any) => [r.numeroDialogo, r.assunto, r.lider, r.base, r.matricula, r.nome, r.dataFechamento]) }
+        } else if (tipoSel === 'atrasados') {
+          const d = await getRelatorioPlanejamentosAtrasados(filtros)
+          genOpts = { titulo: 'Planejamentos Não Executados', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} atividades atrasadas`, headers: ['Técnico','Data Prevista','Dias Atraso','Categoria','Prioridade','Local','Descrição'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), `${r.diasAtraso} dias`, r.categoria, r.prioridade, r.local, r.descricao?.slice(0,80)]) }
+        } else if (tipoSel === 'ausencias') {
+          const d = await getRelatorioAusencias(filtros)
+          genOpts = { titulo: 'Ausências em Reuniões', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} ausências registradas`, headers: ['Técnico','Data','Assunto','Justificada','Motivo','Observação'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), r.assunto, r.justificada, r.motivo, r.observacao]) }
+        } else if (tipoSel === 'reunioes') {
+          const d = await getRelatorioReunioes(filtros)
+          genOpts = { titulo: 'Reuniões', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} presenças/ausências computadas`, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.pctPresenca}%`,pct:r.pctPresenca})), headers: ['Técnico','Data','Assunto','Presença','Pontualidade','Justificada','Motivo'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??r.tecnico, r.data?.toISOString?.()?.slice(0,10)??r.data, r.assunto??'—', r.presenca, r.pontualidade, r.justificada, r.motivo??'—']) }
+        } else if (tipoSel === 'km') {
+          const d = await getRelatorioKm(filtros)
+          genOpts = { titulo: 'Quilometragem', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} viagens registradas`, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${Number(r.totalKm).toFixed(0)} km`})), headers: ['Técnico','Dia','Data Inicial','KM Inicial','Data Final','KM Final','Diferença'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??'—', r.diaSemana, r.dataInicial?.toISOString?.()?.slice(0,10)??r.dataInicial, r.kmInicial, r.dataFinal?r.dataFinal?.toISOString?.()?.slice(0,10)??r.dataFinal:'—', r.kmFinal??'—', r.diferenca??'—']) }
+        } else if (tipoSel === 'atividades') {
+          const d = await getRelatorioAtividadesCampo(filtros)
+          genOpts = { titulo: 'Atividades de Campo', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} atividades de campo executadas`, headers: ['Técnico','Data','Empresa','Projeto','Local','Cidade/UF','Descrição'], rows: d.data.map((r:any)=>[r.tecnico, r.data?.slice(0,10), r.empresa, r.projeto, r.local, r.cidadeUf, r.descricao?.slice(0,100)]) }
+        } else if (tipoSel === 'ranking') {
+          const d = await getRelatorioRanking(filtros)
+          genOpts = { titulo: 'Ranking de Desempenho', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos avaliados`, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.score}%`,pct:r.score})), headers: ['Pos.','Técnico','DSS','% DSS','Inspeções','% Insp.','Reuniões','% Pres.','Score'], rows: d.data.map((r:any,i:number)=>[`${i+1}º`,r.tecnico,r.dss,`${r.pctDss}%`,r.inspecoes,`${r.pctInsp}%`,r.reunioes,`${r.pctReunioes}%`,`${r.score}%`]) }
+        }
+
+        if (genOpts) {
+          if (formato === 'pdf') {
+            const result = await gerarPdfCentral(genOpts)
+            if (result?.base64) {
+              const a = document.createElement('a')
+              a.href = result.base64; a.download = result.fileName
+              document.body.appendChild(a); a.click(); document.body.removeChild(a)
+            }
+          } else {
+            gerarExcelCentral(genOpts)
           }
         }
       } catch (e: any) {
         setErro(e?.message ?? 'Erro ao gerar relatório')
+      } finally {
+        setExportando(null)
       }
     })
   }
@@ -285,12 +259,12 @@ export default function AdminRelatoriosPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 24 }}>
                 <button onClick={() => gerar('pdf')} disabled={loading}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 10, background: tipo.cor, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'opacity 0.15s' }}>
-                  {loading ? <Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Download size={18} />}
+                  {loading && exportando === 'pdf' ? <Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Download size={18} />}
                   Gerar PDF
                 </button>
                 <button onClick={() => gerar('excel')} disabled={loading}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 10, background: '#16a34a', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-                  {loading ? <Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> : <FileSpreadsheet size={18} />}
+                  {loading && exportando === 'excel' ? <Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> : <FileSpreadsheet size={18} />}
                   Gerar Excel
                 </button>
               </div>
