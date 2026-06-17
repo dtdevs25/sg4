@@ -242,13 +242,20 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
   const role     = (session?.user as any)?.role || 'Técnico'
   const initials = getInitials(session?.user?.name)
 
+  const filteredNav = NAV.filter(item => {
+    if (role === 'TST' && (item.label === 'Cadastros' || item.label === 'Administração')) {
+      return false
+    }
+    return true
+  })
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ height: 16 }} />
 
       {/* Nav items */}
       <nav className="scrollbar-hide" style={{ flex: 1, padding: collapsed ? '0 8px' : '0 10px', overflowY: collapsed ? 'hidden' : 'auto', overflowX: 'hidden' }}>
-        {NAV.map(item => (
+        {filteredNav.map(item => (
           <NavItem
             key={item.label}
             item={item}

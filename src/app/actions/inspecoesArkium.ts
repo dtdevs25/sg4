@@ -6,9 +6,46 @@ import { audit } from '@/lib/audit'
 
 export async function getInspecoesArkium() {
   try {
-    const data = await prisma.inspecoesArkium.findMany({
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const role = (session.user as any).role
+    const tecnicoId = (session.user as any).tecnicoId
+
+    let data = await prisma.inspecoesArkium.findMany({
       orderBy: { dataFechamento: 'desc' }
     })
+
+    if (role === 'TST' && tecnicoId) {
+      const tecnico = await prisma.tecnico.findUnique({ where: { id: tecnicoId } })
+      if (tecnico) {
+        const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        const nomeDb = removeAccents(tecnico.nome.toLowerCase().trim())
+        const dbTokens = nomeDb.split(' ')
+
+        data = data.filter((r: any) => {
+          if (!r.nomeAuditor) return false
+          const nomePlanilha = removeAccents(r.nomeAuditor.toLowerCase().trim())
+          if (nomePlanilha === nomeDb) return true
+          
+          const planTokens = nomePlanilha.split(' ')
+          if (planTokens[0] === dbTokens[0]) {
+            if (planTokens.length === 1 || dbTokens.length === 1) return true
+            for (let i = 1; i < planTokens.length; i++) {
+              for (let j = 1; j < dbTokens.length; j++) {
+                if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+                  return true
+                }
+              }
+            }
+          }
+          return false
+        })
+      } else {
+        data = []
+      }
+    }
+
     return { success: true, data }
   } catch (error) {
     console.error('Erro ao buscar inspeções arkium:', error)
