@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import {
   BarChart3, FileText, ShieldAlert, AlertTriangle, Clock,
   Users, Car, Trophy, Search, ChevronDown, FileSpreadsheet,
-  Download, Calendar, X, Loader2
+  Download, Calendar, X, Loader2, CheckCircle
 } from 'lucide-react'
 import {
   getRelatorioAgenda, getRelatorioDss, getRelatorioInspecoes,
@@ -59,6 +59,7 @@ export default function AdminRelatoriosPage() {
   const [loading, startT]         = useTransition()
   const [tecLoading, setTecLoading] = useState(false)
   const [exportando, setExportando] = useState<'pdf' | 'excel' | null>(null)
+  const [sucesso, setSucesso]     = useState(false)
 
   async function abrirFiltros(id: string) {
     setTipoSel(id); setErro('')
@@ -139,6 +140,15 @@ export default function AdminRelatoriosPage() {
           } else {
             gerarExcelCentral(genOpts)
           }
+
+          // Fechar modal automaticamente e mostrar sucesso
+          setTipoSel(null)
+          setTecnicoId('')
+          setDataInicio(primeiroDiaMes())
+          setDataFim(hoje())
+          
+          setSucesso(true)
+          setTimeout(() => setSucesso(false), 3000)
         }
       } catch (e: any) {
         setErro(e?.message ?? 'Erro ao gerar relatório')
@@ -271,7 +281,23 @@ export default function AdminRelatoriosPage() {
         </div>
       )}
 
-      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+      {/* Modal de Sucesso */}
+      {sucesso && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 360, padding: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', animation: 'popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <div style={{ width: 64, height: 64, borderRadius: 32, background: '#16a34a15', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <CheckCircle size={32} color="#16a34a" />
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0' }}>Sucesso!</h2>
+            <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>O relatório foi gerado e baixado automaticamente.</p>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+      `}</style>
     </div>
   )
 }
