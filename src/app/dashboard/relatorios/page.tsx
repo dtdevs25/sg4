@@ -792,6 +792,38 @@ export default function RelatoriosAtividadesPage() {
                   </div>
                 </div>
 
+                {(() => {
+                  const tId = role === 'TST' ? (session?.user as any)?.tecnicoId : formAtiv.tecnicoId;
+                  const tecnicoSel = tId ? tecnicos.find(t => t.id === tId) : null;
+                  const bases = tecnicoSel?.unidades || [];
+                  if (bases.length > 0) {
+                    return (
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4, color: '#660099' }}>📍 Preenchimento Rápido: Selecionar Base</label>
+                        <select
+                          onChange={e => {
+                            const base = bases.find((u: any) => u.id === e.target.value)
+                            if (base) {
+                              setFormAtiv(p => ({
+                                ...p,
+                                local: base.nome,
+                                cidadeUf: `${base.cidade || ''} / ${base.estado || ''}`.replace(/^ \/ | \/ $/g, '')
+                              }))
+                            }
+                          }}
+                          style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #660099', outline: 'none', background: 'rgba(102,0,153,0.02)', color: '#334155', fontWeight: 600 }}
+                        >
+                          <option value="">-- Selecione uma base para preencher automaticamente --</option>
+                          {bases.map((u: any) => (
+                            <option key={u.id} value={u.id}>{u.nome} ({u.cidade}/{u.estado})</option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  }
+                  return null;
+                })()}
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Data da Atividade</label>
@@ -896,6 +928,38 @@ export default function RelatoriosAtividadesPage() {
                   <input required value={formEdit.projeto} onChange={e => setFormEdit(p => ({...p, projeto: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                 </div>
               </div>
+
+              {(() => {
+                const tId = showEditModal?.tecnicoId || showEditModal?.tecnico?.id;
+                const tecnicoSel = tId ? tecnicos.find(t => t.id === tId) : null;
+                const bases = tecnicoSel?.unidades || [];
+                if (bases.length > 0) {
+                  return (
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4, color: '#3b82f6' }}>📍 Preenchimento Rápido: Selecionar Base</label>
+                      <select
+                        onChange={e => {
+                          const base = bases.find((u: any) => u.id === e.target.value)
+                          if (base) {
+                            setFormEdit(p => ({
+                              ...p,
+                              local: base.nome,
+                              cidadeUf: `${base.cidade || ''} / ${base.estado || ''}`.replace(/^ \/ | \/ $/g, '')
+                            }))
+                          }
+                        }}
+                        style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #3b82f6', outline: 'none', background: 'rgba(59,130,246,0.02)', color: '#334155', fontWeight: 600 }}
+                      >
+                        <option value="">-- Selecione uma base para alterar o local --</option>
+                        {bases.map((u: any) => (
+                          <option key={u.id} value={u.id}>{u.nome} ({u.cidade}/{u.estado})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                }
+                return null;
+              })()}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
