@@ -608,18 +608,25 @@ export default function PlanejamentoPage() {
                             </div>
                           </div>
                           <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                            {unidsDoTecnico.filter(u => u.nome.toLowerCase().includes(unidadeSearchTerm.toLowerCase())).map(u => (
+                            {Array.from(new Map(unidsDoTecnico.map(u => [u.id, u])).values()) // Remove any possible duplicates
+                              .filter(u => u.nome.toLowerCase().includes(unidadeSearchTerm.toLowerCase()) || (u.cidade || '').toLowerCase().includes(unidadeSearchTerm.toLowerCase()))
+                              .map(u => (
                               <div key={u.id} onClick={() => { 
                                 setForm({...form, local: u.nome, outroLocal: '', cidade: u.cidade || '', estado: u.estado || 'SP'});
                                 setShowUnidadeDropdown(false);
                                 setUnidadeSearchTerm('');
                               }}
-                                style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: form.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: form.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
                                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
                                 onMouseLeave={e => (e.currentTarget.style.background = form.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff')}
                               >
-                                <span>{u.nome}</span>
-                                {form.local === u.nome && <Check size={14} color="#660099" />}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{u.nome}</span>
+                                  {form.local === u.nome && <Check size={14} color="#660099" />}
+                                </div>
+                                <div style={{ fontSize: 11, color: '#64748b' }}>
+                                  {u.endereco ? u.endereco + ' - ' : ''}{u.cidade}/{u.estado}
+                                </div>
                               </div>
                             ))}
                             {unidsDoTecnico.filter(u => u.nome.toLowerCase().includes(unidadeSearchTerm.toLowerCase())).length === 0 && (
@@ -754,7 +761,7 @@ export default function PlanejamentoPage() {
                   </div>
                   
                   <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                    {!isTst && showExecModal.status === 'PENDENTE' && (
+                    {(!isTst || showExecModal.status === 'PENDENTE') && showExecModal.status === 'PENDENTE' && (
                       <button type="button" onClick={() => {
                         setShowExecModal(null)
                         const catBase = CATEGORIES.includes(showExecModal.categoria)
