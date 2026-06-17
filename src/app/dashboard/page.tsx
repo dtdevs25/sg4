@@ -70,13 +70,21 @@ function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
   const nP = removeAccents(nomePlanilha.toLowerCase().trim())
   const nB = removeAccents(nomeBd.toLowerCase().trim())
   if (nP === nB) return true
-  const planTokens = nP.split(' ')
-  const dbTokens = nB.split(' ')
+  const planTokens = nP.split(' ').filter(Boolean)
+  const dbTokens = nB.split(' ').filter(Boolean)
+  
+  if (planTokens.length === 0 || dbTokens.length === 0) return false
+  
   if (planTokens[0] === dbTokens[0]) {
      if (planTokens.length === 1 || dbTokens.length === 1) return true
-     for (let i = 1; i < planTokens.length; i++) {
-        for (let j = 1; j < dbTokens.length; j++) {
-           if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+     
+     const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
+     const planSurnames = planTokens.slice(1).filter(t => !ignoreList.includes(t))
+     const dbSurnames = dbTokens.slice(1).filter(t => !ignoreList.includes(t))
+     
+     for (let i = 0; i < planSurnames.length; i++) {
+        for (let j = 0; j < dbSurnames.length; j++) {
+           if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
               return true
            }
         }

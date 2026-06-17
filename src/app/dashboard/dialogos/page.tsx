@@ -117,9 +117,14 @@ export default function DialogosPage() {
           
           if (planTokens[0] === dbTokens[0]) {
              if (planTokens.length === 1 || dbTokens.length === 1) return true
-             for (let i = 1; i < planTokens.length; i++) {
-                for (let j = 1; j < dbTokens.length; j++) {
-                   if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+             
+             const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
+             const planSurnames = planTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
+             const dbSurnames = dbTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
+             
+             for (let i = 0; i < planSurnames.length; i++) {
+                for (let j = 0; j < dbSurnames.length; j++) {
+                   if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
                       return true
                    }
                 }
@@ -283,9 +288,14 @@ export default function DialogosPage() {
             const dbTokens = nomeDb.split(' ')
             if (planTokens[0] === dbTokens[0]) {
                if (planTokens.length === 1 || dbTokens.length === 1) return true
-               for (let i = 1; i < planTokens.length; i++) {
-                  for (let j = 1; j < dbTokens.length; j++) {
-                     if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
+               
+               const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
+               const planSurnames = planTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
+               const dbSurnames = dbTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
+               
+               for (let i = 0; i < planSurnames.length; i++) {
+                  for (let j = 0; j < dbSurnames.length; j++) {
+                     if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
                         return true
                      }
                   }
@@ -993,29 +1003,31 @@ export default function DialogosPage() {
                 </div>
 
                 {/* Upload Area */}
-                <div style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10, padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                  <div style={{ width: 48, height: 48, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <FileSpreadsheet color="#660099" size={24} />
+                {isMasterOrAdmin && (
+                  <div style={{ background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10, padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                    <div style={{ width: 48, height: 48, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <FileSpreadsheet color="#660099" size={24} />
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>Importar DSS Arkium</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>Excel (.xlsx) ou CSV</div>
+                    </div>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      accept=".xlsx, .xls, .csv" 
+                      onChange={handleFileUpload} 
+                      style={{ display: 'none' }} 
+                    />
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{ background: '#660099', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}
+                    >
+                      <UploadCloud size={16} />
+                      Selecionar Arquivo
+                    </button>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>Importar DSS Arkium</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>Excel (.xlsx) ou CSV</div>
-                  </div>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    accept=".xlsx, .xls, .csv" 
-                    onChange={handleFileUpload} 
-                    style={{ display: 'none' }} 
-                  />
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{ background: '#660099', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}
-                  >
-                    <UploadCloud size={16} />
-                    Selecionar Arquivo
-                  </button>
-                </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 16 }}>
