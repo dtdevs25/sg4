@@ -287,6 +287,7 @@ export default function RelatoriosAtividadesPage() {
       empresa: a.empresa,
       projeto: a.projeto,
       local: a.local,
+      outroLocal: '',
       cidadeUf: a.cidadeUf,
       descricao: a.descricao,
       fotoBase64: '', fileName: '', contentType: ''
