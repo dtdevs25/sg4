@@ -197,20 +197,18 @@ export default function AdminRelatoriosPage() {
 
       {/* Modal de Filtros */}
       {tipoSel && tipo && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.4)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', overflow: 'hidden' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden' }}>
             
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa' }}>
+            <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#660099', color: '#fff' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 10, background: `${tipo.cor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <tipo.icon size={18} color={tipo.cor} />
-                </div>
+                <tipo.icon size={22} color="#fff" />
                 <div>
-                  <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: 0 }}>{tipo.label}</h2>
-                  <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Configurar filtros e exportar</p>
+                  <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#fff' }}>{tipo.label}</h2>
+                  <p style={{ fontSize: 12, opacity: 0.8, margin: 0, color: '#fff' }}>Configurar filtros e exportar</p>
                 </div>
               </div>
-              <button onClick={() => setTipoSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button onClick={() => setTipoSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <X size={20} />
               </button>
             </div>
