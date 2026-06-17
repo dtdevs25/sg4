@@ -1,83 +1,293 @@
 'use client'
 
-import { BarChart3 } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { useSession } from 'next-auth/react'
+import {
+  BarChart3, FileText, ShieldAlert, AlertTriangle, Clock,
+  Users, Car, Trophy, Search, ChevronDown, FileSpreadsheet,
+  Download, Calendar, X, Loader2
+} from 'lucide-react'
+import {
+  getRelatorioAgenda, getRelatorioDss, getRelatorioInspecoes,
+  getRelatorioNaoConformes, getRelatorioDssPendentes, getRelatorioPlanejamentosAtrasados,
+  getRelatorioAusencias, getRelatorioReunioes, getRelatorioKm,
+  getRelatorioAtividadesCampo, getRelatorioRanking, getTecnicosParaFiltro,
+  type FiltrosRelatorio
+} from '@/app/actions/relatoriosGerais'
+
+const RED = '#660099'
+const RED_BG = 'rgba(102,0,153,0.08)'
+
+// ── Catálogo de relatórios ────────────────────────────────────────────────────
+
+const TIPOS = [
+  { id: 'agenda',      label: 'Agenda / Planejamento',        icon: Calendar,       cor: '#660099', grupo: 'Operacionais',    desc: 'Atividades planejadas com criador, fechador, status e descrições' },
+  { id: 'dss',         label: 'DSS',                          icon: FileText,       cor: '#0891b2', grupo: 'Operacionais',    desc: 'Diálogos de segurança realizados com meta e percentual' },
+  { id: 'inspecoes',   label: 'Inspeções',                    icon: Search,         cor: '#16a34a', grupo: 'Operacionais',    desc: 'Inspeções realizadas com resultado e conformidade' },
+  { id: 'nao-confor',  label: 'Itens Não Conformes',          icon: AlertTriangle,  cor: '#dc2626', grupo: 'Não Conformidades', desc: 'Inspeções com resultado negativo / não conforme' },
+  { id: 'dss-pend',    label: 'DSS Pendentes',                icon: Clock,          cor: '#d97706', grupo: 'Não Conformidades', desc: 'Diálogos ainda abertos / não assinados' },
+  { id: 'atrasados',   label: 'Planejamentos Não Executados', icon: AlertTriangle,  cor: '#dc2626', grupo: 'Não Conformidades', desc: 'Itens pendentes com data já vencida' },
+  { id: 'ausencias',   label: 'Ausências em Reuniões',        icon: Users,          cor: '#d97706', grupo: 'Não Conformidades', desc: 'Técnicos ausentes com ou sem justificativa' },
+  { id: 'reunioes',    label: 'Reuniões',                     icon: Users,          cor: '#7c3aed', grupo: 'Gerenciais',       desc: 'Presença e pontualidade por técnico e período' },
+  { id: 'km',          label: 'Quilometragem',                icon: Car,            cor: '#0ea5e9', grupo: 'Gerenciais',       desc: 'KM rodados e abastecimentos por técnico' },
+  { id: 'atividades',  label: 'Atividades de Campo',          icon: BarChart3,      cor: '#16a34a', grupo: 'Gerenciais',       desc: 'Atividades executadas com empresa, local e descrição' },
+  { id: 'ranking',     label: 'Ranking de Desempenho',        icon: Trophy,         cor: '#d97706', grupo: 'Gerenciais',       desc: 'Score consolidado: DSS + Inspeções + Reuniões' },
+]
+
+const GRUPOS = ['Operacionais', 'Não Conformidades', 'Gerenciais']
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function hoje() { return new Date().toISOString().split('T')[0] }
+function primeiroDiaMes() {
+  const d = new Date(); d.setDate(1)
+  return d.toISOString().split('T')[0]
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AdminRelatoriosPage() {
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '60vh',
-      gap: 24,
-      padding: 32,
-    }}>
-      {/* Icon badge */}
-      <div style={{
-        width: 96,
-        height: 96,
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, rgba(102,0,153,0.12), rgba(102,0,153,0.04))',
-        border: '2px solid rgba(102,0,153,0.2)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <BarChart3 size={44} style={{ color: '#660099' }} />
-      </div>
+  const { data: session } = useSession()
+  const nomeUsuario = session?.user?.name ?? 'Usuário'
 
-      {/* Title */}
-      <div style={{ textAlign: 'center' }}>
-        <h1 style={{
-          fontSize: 28,
-          fontWeight: 800,
-          color: '#1e293b',
-          marginBottom: 8,
-          letterSpacing: '-0.5px',
-        }}>
-          Relatórios — Administração
-        </h1>
-        <p style={{
-          fontSize: 15,
-          color: '#94a3b8',
-          maxWidth: 440,
-          lineHeight: 1.6,
-        }}>
-          Este módulo está em desenvolvimento. Em breve você poderá gerar e visualizar
-          relatórios administrativos consolidados do sistema.
-        </p>
-      </div>
+  const [tipoSel, setTipoSel]     = useState<string | null>(null)
+  const [tecnicos, setTecnicos]   = useState<any[]>([])
+  const [tecnicoId, setTecnicoId] = useState('')
+  const [dataInicio, setDataInicio] = useState(primeiroDiaMes())
+  const [dataFim,    setDataFim]    = useState(hoje())
+  const [erro, setErro]           = useState('')
+  const [loading, startT]         = useTransition()
+  const [tecLoading, setTecLoading] = useState(false)
 
-      {/* Status badge */}
-      <div style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 20px',
-        borderRadius: 999,
-        background: 'rgba(102,0,153,0.08)',
-        border: '1px solid rgba(102,0,153,0.18)',
-      }}>
-        <span style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: '#660099',
-          display: 'inline-block',
-          animation: 'pulse 2s infinite',
-        }} />
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#660099' }}>
-          Em desenvolvimento
-        </span>
-      </div>
+  async function abrirFiltros(id: string) {
+    setTipoSel(id); setErro('')
+    if (tecnicos.length === 0) {
+      setTecLoading(true)
+      const t = await getTecnicosParaFiltro()
+      setTecnicos(t)
+      setTecLoading(false)
+    }
+  }
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(0.85); }
+  async function gerar(formato: 'pdf' | 'excel') {
+    const filtros: FiltrosRelatorio = {
+      tecnicoId: tecnicoId || undefined,
+      dataInicio, dataFim,
+    }
+    const sub = `Período: ${new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}${tecnicoId ? ` · Técnico: ${tecnicos.find(t => t.id === tecnicoId)?.nome ?? ''}` : ' · Todos os Técnicos'}`
+    const opts = { subtitulo: sub, geradoPor: nomeUsuario }
+
+    startT(async () => {
+      try {
+        setErro('')
+        if (formato === 'pdf') {
+          const { gerarPdfCentral } = await import('@/app/utils/gerarPdfCentral')
+
+          let result: any
+          if (tipoSel === 'agenda') {
+            const d = await getRelatorioAgenda(filtros)
+            result = await gerarPdfCentral({ titulo: 'Agenda / Planejamento', ...opts, headers: ['Técnico','Data','Categoria','Descrição','Status','Criado por','Criado em','Fechado por','Fechado em','Desc. Executada'], rows: d.data.map((r:any) => [r.tecnico, r.dataAtividade?.slice(0,10), r.categoria, r.descricaoOriginal?.slice(0,60), r.status, r.criadoPor, r.criadoEm?.slice(0,16)?.replace('T',' '), r.fechadoPor, r.fechadoEm?.slice(0,16)?.replace('T',' '), (r.descricaoExecutada||'—').slice(0,60)]) })
+          } else if (tipoSel === 'dss') {
+            const d = await getRelatorioDss(filtros)
+            result = await gerarPdfCentral({ titulo: 'DSS', ...opts, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.lider, valor: `${r.total}`, pct: r.pct })), headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Estado','Data Fechamento'], rows: (d.data||[]).map((r:any) => [r.numeroDialogo, r.assunto??'—', r.lider??'—', r.base??'—', r.matricula, r.nome??'—', r.estado, r.dataFechamento??'—']) })
+          } else if (tipoSel === 'inspecoes') {
+            const d = await getRelatorioInspecoes(filtros)
+            result = await gerarPdfCentral({ titulo: 'Inspeções', ...opts, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.tecnico, valor: `${r.total}`, pct: r.pct })), headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário'], rows: (d.data||[]).map((r:any) => [r.numero, r.tecnico?.nome??r.nomeAuditor??'—', r.resultado??'—', r.dataAbertura??'—', r.dataFechamento??'—', r.localidadeObjeto??'—', r.nomeQuestionario??'—']) })
+          } else if (tipoSel === 'nao-confor') {
+            const d = await getRelatorioNaoConformes(filtros)
+            result = await gerarPdfCentral({ titulo: 'Itens Não Conformes', ...opts, headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário','Observação'], rows: d.data.map((r:any) => [r.numero, r.tecnico, r.resultado, r.dataAbertura, r.dataFechamento, r.local, r.questionario, r.observacao]) })
+          } else if (tipoSel === 'dss-pend') {
+            const d = await getRelatorioDssPendentes(filtros)
+            result = await gerarPdfCentral({ titulo: 'DSS Pendentes', ...opts, headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Data Fechamento'], rows: d.data.map((r:any) => [r.numeroDialogo, r.assunto, r.lider, r.base, r.matricula, r.nome, r.dataFechamento]) })
+          } else if (tipoSel === 'atrasados') {
+            const d = await getRelatorioPlanejamentosAtrasados(filtros)
+            result = await gerarPdfCentral({ titulo: 'Planejamentos Não Executados', ...opts, headers: ['Técnico','Data Prevista','Dias Atraso','Categoria','Prioridade','Local','Descrição'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), `${r.diasAtraso} dias`, r.categoria, r.prioridade, r.local, r.descricao?.slice(0,80)]) })
+          } else if (tipoSel === 'ausencias') {
+            const d = await getRelatorioAusencias(filtros)
+            result = await gerarPdfCentral({ titulo: 'Ausências em Reuniões', ...opts, headers: ['Técnico','Data','Assunto','Justificada','Motivo','Observação'], rows: d.data.map((r:any) => [r.tecnico, r.data?.slice(0,10), r.assunto, r.justificada, r.motivo, r.observacao]) })
+          } else if (tipoSel === 'reunioes') {
+            const d = await getRelatorioReunioes(filtros)
+            result = await gerarPdfCentral({ titulo: 'Reuniões', ...opts, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.pctPresenca}%`,pct:r.pctPresenca})), headers: ['Técnico','Data','Assunto','Presença','Pontualidade','Justificada','Motivo'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??r.tecnico, r.data?.toISOString?.()?.slice(0,10)??r.data, r.assunto??'—', r.presenca, r.pontualidade, r.justificada, r.motivo??'—']) })
+          } else if (tipoSel === 'km') {
+            const d = await getRelatorioKm(filtros)
+            result = await gerarPdfCentral({ titulo: 'Quilometragem', ...opts, resumo: (d.resumo??[]).slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${Number(r.totalKm).toFixed(0)} km`})), headers: ['Técnico','Dia','Data Inicial','KM Inicial','Data Final','KM Final','Diferença'], rows: (d.data||[]).map((r:any)=>[r.tecnico?.nome??'—', r.diaSemana, r.dataInicial?.toISOString?.()?.slice(0,10)??r.dataInicial, r.kmInicial, r.dataFinal?r.dataFinal?.toISOString?.()?.slice(0,10)??r.dataFinal:'—', r.kmFinal??'—', r.diferenca??'—']) })
+          } else if (tipoSel === 'atividades') {
+            const d = await getRelatorioAtividadesCampo(filtros)
+            result = await gerarPdfCentral({ titulo: 'Atividades de Campo', ...opts, headers: ['Técnico','Data','Empresa','Projeto','Local','Cidade/UF','Descrição'], rows: d.data.map((r:any)=>[r.tecnico, r.data?.slice(0,10), r.empresa, r.projeto, r.local, r.cidadeUf, r.descricao?.slice(0,100)]) })
+          } else if (tipoSel === 'ranking') {
+            const d = await getRelatorioRanking(filtros)
+            result = await gerarPdfCentral({ titulo: 'Ranking de Desempenho', ...opts, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.score}%`,pct:r.score})), headers: ['Pos.','Técnico','DSS','% DSS','Inspeções','% Insp.','Reuniões','% Pres.','Score'], rows: d.data.map((r:any,i:number)=>[`${i+1}º`,r.tecnico,r.dss,`${r.pctDss}%`,r.inspecoes,`${r.pctInsp}%`,r.reunioes,`${r.pctReunioes}%`,`${r.score}%`]) })
+          }
+
+          if (result?.base64) {
+            const a = document.createElement('a')
+            a.href = result.base64; a.download = result.fileName
+            document.body.appendChild(a); a.click(); document.body.removeChild(a)
+          }
+        } else {
+          // Excel
+          if (tipoSel === 'agenda') {
+            const d = await getRelatorioAgenda(filtros)
+            const { exportXlsxAgenda } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxAgenda(d.data)
+          } else if (tipoSel === 'dss') {
+            const d = await getRelatorioDss(filtros)
+            const { exportXlsxDss } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxDss(d.data || [], d.resumo ?? [])
+          } else if (tipoSel === 'inspecoes') {
+            const d = await getRelatorioInspecoes(filtros)
+            const { exportXlsxInspecoes } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxInspecoes(d.data || [], d.resumo ?? [])
+          } else if (tipoSel === 'nao-confor') {
+            const d = await getRelatorioNaoConformes(filtros)
+            const { exportXlsxNaoConformes } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxNaoConformes(d.data)
+          } else if (tipoSel === 'dss-pend') {
+            const d = await getRelatorioDssPendentes(filtros)
+            const { exportXlsxDssPendentes } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxDssPendentes(d.data)
+          } else if (tipoSel === 'atrasados') {
+            const d = await getRelatorioPlanejamentosAtrasados(filtros)
+            const { exportXlsxAtrasados } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxAtrasados(d.data)
+          } else if (tipoSel === 'ausencias') {
+            const d = await getRelatorioAusencias(filtros)
+            const { exportXlsxAusencias } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxAusencias(d.data)
+          } else if (tipoSel === 'reunioes') {
+            const d = await getRelatorioReunioes(filtros)
+            const { exportXlsxReunioes } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxReunioes(d.data || [], d.resumo ?? [])
+          } else if (tipoSel === 'km') {
+            const d = await getRelatorioKm(filtros)
+            const { exportXlsxKm } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxKm(d.data || [], d.resumo ?? [])
+          } else if (tipoSel === 'ranking') {
+            const d = await getRelatorioRanking(filtros)
+            const { exportXlsxRanking } = await import('@/app/utils/gerarExcelCentral')
+            exportXlsxRanking(d.data)
+          }
         }
-      `}</style>
+      } catch (e: any) {
+        setErro(e?.message ?? 'Erro ao gerar relatório')
+      }
+    })
+  }
+
+  const tipo = TIPOS.find(t => t.id === tipoSel)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
+
+      {/* Header */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f1f5f9', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg,rgba(102,0,153,0.14),rgba(102,0,153,0.05))', border: '1px solid rgba(102,0,153,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <BarChart3 size={21} color={RED} />
+        </div>
+        <div>
+          <h1 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>Central de Relatórios</h1>
+          <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Selecione o tipo de relatório e configure os filtros</p>
+        </div>
+      </div>
+
+      {/* Catálogo */}
+      {GRUPOS.map(grupo => (
+        <div key={grupo}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.8px' }}>{grupo}</span>
+            <div style={{ flex: 1, height: 1, background: '#f1f5f9' }} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+            {TIPOS.filter(t => t.grupo === grupo).map(t => {
+              const Icon = t.icon
+              const ativo = tipoSel === t.id
+              return (
+                <div key={t.id} onClick={() => abrirFiltros(t.id)}
+                  style={{ background: ativo ? `${t.cor}10` : '#fff', border: `1.5px solid ${ativo ? t.cor : '#f1f5f9'}`, borderRadius: 12, padding: '16px 18px', cursor: 'pointer', transition: 'all 0.18s', display: 'flex', alignItems: 'flex-start', gap: 12, boxShadow: ativo ? `0 4px 16px ${t.cor}20` : '0 1px 4px rgba(0,0,0,0.05)' }}
+                  onMouseEnter={e => { if (!ativo) e.currentTarget.style.borderColor = t.cor + '80' }}
+                  onMouseLeave={e => { if (!ativo) e.currentTarget.style.borderColor = '#f1f5f9' }}
+                >
+                  <div style={{ width: 38, height: 38, borderRadius: 9, background: `${t.cor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={18} color={t.cor} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: ativo ? t.cor : '#1e293b', margin: '0 0 4px' }}>{t.label}</p>
+                    <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>{t.desc}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+
+      {/* Painel de Filtros */}
+      {tipoSel && tipo && (
+        <div style={{ background: '#fff', borderRadius: 12, border: `1.5px solid ${tipo.cor}30`, boxShadow: `0 4px 20px ${tipo.cor}15`, padding: '20px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: tipo.cor }} />
+              <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{tipo.label}</span>
+            </div>
+            <button onClick={() => setTipoSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4 }}>
+              <X size={16} />
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+            {/* Técnico */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Técnico</label>
+              {tecLoading ? (
+                <div style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 13 }}>
+                  <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> Carregando...
+                </div>
+              ) : (
+                <select value={tecnicoId} onChange={e => setTecnicoId(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
+                  <option value=''>Todos os técnicos</option>
+                  {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                </select>
+              )}
+            </div>
+
+            {/* Data Início */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Início</label>
+              <input type='date' value={dataInicio} onChange={e => setDataInicio(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+
+            {/* Data Fim */}
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Fim</label>
+              <input type='date' value={dataFim} onChange={e => setDataFim(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+
+          {erro && (
+            <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 8, background: '#fee2e2', border: '1px solid #fca5a5', color: '#dc2626', fontSize: 13, fontWeight: 500 }}>
+              {erro}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+            <button onClick={() => gerar('pdf')} disabled={loading}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 9, background: tipo.cor, color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'opacity 0.15s' }}>
+              {loading ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Download size={15} />}
+              Exportar PDF
+            </button>
+            <button onClick={() => gerar('excel')} disabled={loading}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 9, background: '#16a34a', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+              {loading ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <FileSpreadsheet size={15} />}
+              Exportar Excel
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
     </div>
   )
 }
