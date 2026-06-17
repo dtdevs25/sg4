@@ -1,7 +1,7 @@
 import * as ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
 
-async function loadLogoBase64(src: string): Promise<string> {
+async function loadLogoBase64(src: string, makeWhite: boolean = false): Promise<string> {
   return new Promise(resolve => {
     const img = new Image()
     img.crossOrigin = 'Anonymous'
@@ -10,7 +10,14 @@ async function loadLogoBase64(src: string): Promise<string> {
       const c = document.createElement('canvas')
       c.width = img.width; c.height = img.height
       const ctx = c.getContext('2d')
-      if (ctx) ctx.drawImage(img, 0, 0)
+      if (ctx) {
+        ctx.drawImage(img, 0, 0)
+        if (makeWhite) {
+          ctx.globalCompositeOperation = 'source-in'
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(0, 0, c.width, c.height)
+        }
+      }
       const dataUrl = c.toDataURL('image/png')
       resolve(dataUrl.split(',')[1] || '')
     }
@@ -29,8 +36,8 @@ export async function gerarExcelCentral(opts: {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Detalhado')
 
-  const sg4B64 = await loadLogoBase64('/logo.png')
-  const vivoB64 = await loadLogoBase64('/logovivo.png')
+  const sg4B64 = await loadLogoBase64('/logo.png', true)
+  const vivoB64 = await loadLogoBase64('/logovivo.png', true)
 
   const totalCols = Math.max(8, opts.headers.length)
 
@@ -44,14 +51,15 @@ export async function gerarExcelCentral(opts: {
     }
   }
 
-  // Fundo branco para os logos (A1 a C4)
-  for (let i = 1; i <= 4; i++) {
-    const row = ws.getRow(i)
-    for (let j = 1; j <= 3; j++) {
-      const cell = row.getCell(j)
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-    }
-  }
+  // Fundo totalmente roxo já aplicado (não precisamos do bloco branco)
+  
+  // Adiciona a linha branca separadora no canto direito da coluna B
+  ws.mergeCells(1, 1, 4, 1) // A
+  ws.mergeCells(1, 2, 4, 2) // B
+  ws.mergeCells(1, 3, 4, 3) // C
+  
+  const borderCell = ws.getCell(1, 2)
+  borderCell.border = { right: { style: 'medium', color: { argb: 'FFFFFFFF' } } }
 
   // Textos do Cabeçalho
   ws.mergeCells(1, 4, 2, totalCols)
@@ -71,14 +79,14 @@ export async function gerarExcelCentral(opts: {
     const imgId1 = wb.addImage({ base64: sg4B64, extension: 'png' })
     ws.addImage(imgId1, {
       tl: { col: 0.2, row: 0.5 },
-      ext: { width: 60, height: 60 }
+      ext: { width: 55, height: 55 }
     })
   }
   if (vivoB64) {
     const imgId2 = wb.addImage({ base64: vivoB64, extension: 'png' })
     ws.addImage(imgId2, {
-      tl: { col: 1.5, row: 1.0 },
-      ext: { width: 60, height: 30 }
+      tl: { col: 2.1, row: 1.0 },
+      ext: { width: 55, height: 28 }
     })
   }
 
