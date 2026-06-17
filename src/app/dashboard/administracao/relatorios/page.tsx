@@ -138,7 +138,7 @@ export default function AdminRelatoriosPage() {
               document.body.appendChild(a); a.click(); document.body.removeChild(a)
             }
           } else {
-            gerarExcelCentral(genOpts)
+            await gerarExcelCentral(genOpts)
           }
 
           // Fechar modal automaticamente e mostrar sucesso
