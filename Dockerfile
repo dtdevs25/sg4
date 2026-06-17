@@ -12,7 +12,7 @@ COPY prisma ./prisma/
 
 # npm install com cache persistido entre builds pelo BuildKit.
 # Isso evita baixar os 652 pacotes do zero a cada deploy.
-RUN npm install
+RUN npm install --no-audit --no-fund && npm cache clean --force
 
 # Copiar o restante do código fonte
 COPY . .
