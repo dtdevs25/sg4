@@ -59,9 +59,11 @@ export async function getAtividadesRelatorio(mes?: number, ano?: number) {
   }
 
   if (role === 'TST') {
-    const tecnico = await prisma.tecnico.findUnique({ where: { userId } })
-    if (tecnico) {
-      whereClause.tecnicoId = tecnico.id
+    const tId = (session.user as any).tecnicoId
+    if (tId) {
+      whereClause.tecnicoId = tId
+    } else {
+      return []
     }
   }
 

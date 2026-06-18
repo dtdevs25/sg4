@@ -60,11 +60,9 @@ export default function PlanejamentoPage() {
   })
 
   useEffect(() => {
-    if (!isTst) {
-      getTecnicos().then(res => {
-        if (res.success && res.data) setTecnicos(res.data)
-      })
-    }
+    getTecnicos().then(res => {
+      if (res.success && res.data) setTecnicos(res.data)
+    })
     getUnidades().then(res => {
       if (res.success && res.data) setUnidades(res.data)
     })
