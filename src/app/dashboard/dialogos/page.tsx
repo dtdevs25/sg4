@@ -51,6 +51,8 @@ function formatDataFechamento(dateStr: string) {
 export default function DialogosPage() {
   const { data: session } = useSession()
   const userRole = (session?.user as any)?.role
+  const userTecnicoId = (session?.user as any)?.tecnicoId
+  const isTst = userRole === 'TST'
   const isMasterOrAdmin = userRole === 'MASTER' || userRole === 'ADMIN'
 
   const [activeTab, setActiveTab] = useState<'consolidado' | 'arkium'>('consolidado')
@@ -529,6 +531,12 @@ export default function DialogosPage() {
   }
 
   const filteredArkiumByDateAndActive = arkiumData.filter(a => {
+    // 0. Segurança para TST: só pode ver se os dados estiverem vinculados a ele
+    if (isTst) {
+      if (!userTecnicoId) return false
+      if (!a.dbTecnico || a.dbTecnico.id !== userTecnicoId) return false
+    }
+
     // 1. Filtro de inativos: só excluir se SABEMOS que o técnico é inativo
     if (!showInactive && a.dbTecnico && a.dbTecnico.ativo === false) return false
 
