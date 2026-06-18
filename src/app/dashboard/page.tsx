@@ -329,6 +329,8 @@ export default function DashboardPage() {
   const { data: session } = useSession()
   const firstName = session?.user?.name?.split(' ')[0] || 'Gestor'
   const role = (session?.user as any)?.role
+  const userTecnicoId = (session?.user as any)?.tecnicoId
+  const isTst = role === 'TST'
 
   const currentYear = new Date().getFullYear().toString()
   const [ano, setAno] = useState<string>(currentYear)
