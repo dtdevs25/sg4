@@ -563,10 +563,8 @@ export default function PlanejamentoPage() {
                     : unidades;
 
                   // Se a filteredUnidades não cobrir perfeitamente as relations de tecnico vs unidade, usamos uma busca mais resiliente:
-                  // Assumindo que tecnico tem unidades e baseFixa (isso não está no state tecnicos completo as vezes).
-                  // Como tecnicos tem "unidades"? No state tecnicos, vem o que? 
-                  // No getTecnicos() do backend ele manda include: { unidades: true, baseFixa: true }.
-                  const t = tecnicos.find(x => x.id === form.tecnicoId)
+                  let t = tecnicos.find(x => x.id === form.tecnicoId)
+                  if (!t && isTst) t = tecnicos.find(x => x.id === userTecnicoId)
                   let unidsDoTecnico = unidades
                   if (t) {
                     const idsUnidadesDoTecnico = [...(t.unidades?.map((u:any)=>u.id) || []), t.baseFixaId].filter(Boolean)
@@ -575,6 +573,8 @@ export default function PlanejamentoPage() {
                     } else {
                       unidsDoTecnico = [] // Técnico não tem unidades atreladas
                     }
+                  } else if (isTst) {
+                    unidsDoTecnico = [] // Previne vazamento mostrando tudo caso o tst não seja encontrado
                   }
 
                   return (

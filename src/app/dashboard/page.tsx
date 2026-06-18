@@ -387,28 +387,39 @@ export default function DashboardPage() {
     loadData()
   }, [role])
 
+  const tecnicoConectado = isTst && userTecnicoId ? tecnicosDb.find(t => t.id === userTecnicoId) : null
+
+  const dssFiltradoTst = dssArkiumDb
+    .filter(a => isTst && tecnicoConectado ? matchTecnico(a.nome, tecnicoConectado.nome) : true)
+  const inspFiltradoTst = inspecoesArkiumDb
+    .filter(a => isTst && tecnicoConectado ? (matchTecnico(a.nomeAuditor, tecnicoConectado.nome) || a.tecnicoId === tecnicoConectado.id) : true)
+  const relFiltradoTst = relatoriosDb
+    .filter(r => isTst && tecnicoConectado ? r.tecnicoId === tecnicoConectado.id : true)
+  const kmFiltradoTst = kmDb
+    .filter(k => isTst && tecnicoConectado ? k.tecnicoId === tecnicoConectado.id : true)
+
   const anosSet = new Set<string>()
-  dssArkiumDb.forEach(a => { const { year } = getArkiumMonthYear(a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
-  inspecoesArkiumDb.forEach(a => { const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
-  relatoriosDb.forEach(a => { const year = new Date(a.data).getFullYear(); if (year > 2000) anosSet.add(year.toString()) })
+  dssFiltradoTst.forEach(a => { const { year } = getArkiumMonthYear(a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
+  inspFiltradoTst.forEach(a => { const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
+  relFiltradoTst.forEach(a => { const year = new Date(a.data).getFullYear(); if (year > 2000) anosSet.add(year.toString()) })
   
   const ANOS = Array.from(anosSet).sort().reverse()
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
-  const dssArkiumValidos = dssArkiumDb.filter(a => isDssAssinado(a.assinado))
+  const dssArkiumValidos = dssFiltradoTst.filter(a => isDssAssinado(a.assinado))
 
   const dssAno = ano ? dssArkiumValidos.filter(a => {
     const { year } = getArkiumMonthYear(a.dataFechamento)
     return year.toString() === ano
   }) : dssArkiumValidos
 
-  const inspAno = ano ? inspecoesArkiumDb.filter(a => {
+  const inspAno = ano ? inspFiltradoTst.filter(a => {
     const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
     return year.toString() === ano
-  }) : inspecoesArkiumDb
+  }) : inspFiltradoTst
 
-  const relatoriosAno = ano ? relatoriosDb.filter(r => new Date(r.data).getFullYear().toString() === ano) : relatoriosDb
-  const kmAno = ano ? kmDb.filter(k => new Date(k.dataInicial).getFullYear().toString() === ano) : kmDb
+  const relatoriosAno = ano ? relFiltradoTst.filter(r => new Date(r.data).getFullYear().toString() === ano) : relFiltradoTst
+  const kmAno = ano ? kmFiltradoTst.filter(k => new Date(k.dataInicial).getFullYear().toString() === ano) : kmFiltradoTst
   
   const dadosMensais = MESES.reduce((acc, m) => {
     acc[m] = { dss: 0, insp: 0 }
