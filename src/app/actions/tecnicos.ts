@@ -12,14 +12,11 @@ export async function getTecnicos() {
     const role = (session.user as any).role
     const tecnicoId = (session.user as any).tecnicoId
 
-    const where = role === 'TST' ? { id: tecnicoId } : {}
-
     if (role === 'TST' && !tecnicoId) {
       return { success: false, error: 'Perfil de técnico não vinculado a este usuário.' }
     }
 
     const tecnicos = await prisma.tecnico.findMany({
-      where,
       orderBy: { nome: 'asc' },
       include: { unidades: true, baseFixa: true }
     })

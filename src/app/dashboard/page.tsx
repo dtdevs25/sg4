@@ -391,37 +391,28 @@ export default function DashboardPage() {
 
   const tecnicoConectado = isTst && userTecnicoId ? tecnicosDb.find(t => t.id === userTecnicoId) : null
 
-  const dssFiltradoTst = dssArkiumDb
-    .filter(a => isTst && tecnicoConectado ? matchTecnico(a.nome, tecnicoConectado.nome) : true)
-  const inspFiltradoTst = inspecoesArkiumDb
-    .filter(a => isTst && tecnicoConectado ? (matchTecnico(a.nomeAuditor, tecnicoConectado.nome) || a.tecnicoId === tecnicoConectado.id) : true)
-  const relFiltradoTst = relatoriosDb
-    .filter(r => isTst && tecnicoConectado ? r.tecnicoId === tecnicoConectado.id : true)
-  const kmFiltradoTst = kmDb
-    .filter(k => isTst && tecnicoConectado ? k.tecnicoId === tecnicoConectado.id : true)
-
   const anosSet = new Set<string>()
-  dssFiltradoTst.forEach(a => { const { year } = getArkiumMonthYear(a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
-  inspFiltradoTst.forEach(a => { const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
-  relFiltradoTst.forEach(a => { const year = new Date(a.data).getFullYear(); if (year > 2000) anosSet.add(year.toString()) })
+  dssArkiumDb.forEach(a => { const { year } = getArkiumMonthYear(a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
+  inspecoesArkiumDb.forEach(a => { const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
+  relatoriosDb.forEach(a => { const year = new Date(a.data).getFullYear(); if (year > 2000) anosSet.add(year.toString()) })
   
   const ANOS = Array.from(anosSet).sort().reverse()
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
-  const dssArkiumValidos = dssFiltradoTst.filter(a => isDssAssinado(a.assinado))
+  const dssArkiumValidos = dssArkiumDb.filter(a => isDssAssinado(a.assinado))
 
   const dssAno = ano ? dssArkiumValidos.filter(a => {
     const { year } = getArkiumMonthYear(a.dataFechamento)
     return year.toString() === ano
   }) : dssArkiumValidos
 
-  const inspAno = ano ? inspFiltradoTst.filter(a => {
+  const inspAno = ano ? inspecoesArkiumDb.filter(a => {
     const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
     return year.toString() === ano
-  }) : inspFiltradoTst
+  }) : inspecoesArkiumDb
 
-  const relatoriosAno = ano ? relFiltradoTst.filter(r => new Date(r.data).getFullYear().toString() === ano) : relFiltradoTst
-  const kmAno = ano ? kmFiltradoTst.filter(k => new Date(k.dataInicial).getFullYear().toString() === ano) : kmFiltradoTst
+  const relatoriosAno = ano ? relatoriosDb.filter(r => new Date(r.data).getFullYear().toString() === ano) : relatoriosDb
+  const kmAno = ano ? kmDb.filter(k => new Date(k.dataInicial).getFullYear().toString() === ano) : kmDb
   
   const dadosMensais = MESES.reduce((acc, m) => {
     acc[m] = { dss: 0, insp: 0 }
@@ -477,48 +468,67 @@ export default function DashboardPage() {
   })
 
   // Lógica de Metas
-  const nTecnicos = tecnicosDb.filter(t => t.ativo && t.contaMeta !== false).length || 1
+  const isConectadoTst = isTst;
+  const tstStat = isConectadoTst && tecnicoConectado ? tecnicosStats.find(t => t.nome === tecnicoConectado.nome) : null;
+
+  const nTecnicos = isConectadoTst ? 1 : (tecnicosDb.filter(t => t.ativo && t.contaMeta !== false).length || 1)
   const numYears = ano ? 1 : (ANOS.length || 1)
   const numMeses = meses.length > 0 ? meses.length : 12
   const metaDssTotal = nTecnicos * META_DSS_POR_TEC * numMeses * numYears
   const metaInspTotal = nTecnicos * META_INSP_POR_TEC * numMeses * numYears
 
-  // Valores reais baseados no filtro
-  const totalDss = meses.length > 0
+  // Valores reais baseados no filtro (Se TST, usa apenas do tstStat)
+  const totalDss = isConectadoTst ? (tstStat?.dss || 0) : (meses.length > 0
     ? meses.reduce((acc, m) => acc + (dadosMensais[m]?.dss || 0), 0)
-    : Object.values(dadosMensais).reduce((a, v) => a + v.dss, 0)
-  const totalInsp = meses.length > 0
+    : Object.values(dadosMensais).reduce((a, v) => a + v.dss, 0))
+  
+  const totalInsp = isConectadoTst ? (tstStat?.insp || 0) : (meses.length > 0
     ? meses.reduce((acc, m) => acc + (dadosMensais[m]?.insp || 0), 0)
-    : Object.values(dadosMensais).reduce((a, v) => a + v.insp, 0)
+    : Object.values(dadosMensais).reduce((a, v) => a + v.insp, 0))
+
+  const totalRelatoriosDisplay = isConectadoTst ? (tstStat?.rel || 0) : totalRelatorios
 
   // Percentuais
   const pctDss = metaDssTotal > 0 ? Math.round((totalDss / metaDssTotal) * 100) : 0
   const pctInsp = metaInspTotal > 0 ? Math.round((totalInsp / metaInspTotal) * 100) : 0
 
-
-
   // Dados de Quilometragem (média)
   const kmFiltrados = meses.length > 0
     ? kmAno.filter(k => meses.includes(MESES[new Date(k.dataInicial).getUTCMonth()]))
     : kmAno
-  const kmsValidos = kmFiltrados.filter(k => k.diferenca != null && k.diferenca > 0)
+  
+  const kmFiltradosParaDisplay = isConectadoTst ? kmFiltrados.filter(k => k.tecnicoId === tecnicoConectado?.id) : kmFiltrados
+  const kmsValidos = kmFiltradosParaDisplay.filter(k => k.diferenca != null && k.diferenca > 0)
   const totalKm = kmsValidos.reduce((acc, k) => acc + (k.diferenca || 0), 0)
   const mediaKm = kmsValidos.length > 0 ? Math.round(totalKm / kmsValidos.length) : 0
 
-  // Dados do Gráfico (Ordenado alfabeticamente e nomes abreviados)
-  const barData = [...tecnicosStats]
+  // Rankings e Gráficos Globais (sem filtro de TST para poder calcular o rank original)
+  let barData = [...tecnicosStats]
     .sort((a, b) => a.nome.localeCompare(b.nome))
     .map(t => ({ ...t, nomeAbrev: abbreviateName(t.nome) }))
+
+  let rankDss = [...barData].sort((a, b) => b.dss - a.dss)
+  let rankInsp = [...barData].sort((a, b) => b.insp - a.insp)
+
+  // Se TST logado, reduz a lista de renderização do gráfico/ranking só para ele, mantendo o index original do rank (guardando na prop _realIndex)
+  let rankingListDss: any[] = rankDss
+  let rankingListInsp: any[] = rankInsp
+  if (isConectadoTst) {
+    const nomeTst = tecnicoConectado?.nome || ''
+    barData = barData.filter(t => t.nome === nomeTst)
+    
+    const idxDss = rankDss.findIndex(t => t.nome === nomeTst)
+    rankingListDss = idxDss >= 0 ? [{ ...rankDss[idxDss], _realIndex: idxDss }] : []
+    
+    const idxInsp = rankInsp.findIndex(t => t.nome === nomeTst)
+    rankingListInsp = idxInsp >= 0 ? [{ ...rankInsp[idxInsp], _realIndex: idxInsp }] : []
+  }
 
   // Mapa global para o CustomXAxisTick acessar fotoUrl via nomeAbrev
   if (typeof window !== 'undefined') {
     ;(window as any).__barDataMap = Object.fromEntries(barData.map(t => [t.nomeAbrev, t]))
     ;(window as any).__mostrarFotosGrafico = mostrarFotosGrafico
   }
-
-  // Rankings
-  const rankDss = [...barData].sort((a, b) => b.dss - a.dss)
-  const rankInsp = [...barData].sort((a, b) => b.insp - a.insp)
 
   if (loading) {
     return (
@@ -754,7 +764,7 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#660099" bgDark="#4a0072" />
         <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#8e44ad" bgDark="#732d91" />
-        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatorios} subtitle="Atividades Registradas" bg="#9c27b0" bgDark="#7b1fa2" />
+        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatoriosDisplay} subtitle="Atividades Registradas" bg="#9c27b0" bgDark="#7b1fa2" />
         <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#673ab7" bgDark="#512da8" />
       </div>
 
@@ -840,11 +850,12 @@ export default function DashboardPage() {
           {/* Ranking DSS */}
           <ChartCard icon={Target} title="Ranking - DSS" style={{ height: 240 }}>
             <div style={{ overflowY: 'auto', height: '100%', paddingRight: 4 }} className="scrollbar-hide">
-              {rankDss.map((t, i) => {
-                const medal = getMedal(i)
+              {rankingListDss.map((t: any, i) => {
+                const realPos = t._realIndex !== undefined ? t._realIndex : i
+                const medal = getMedal(realPos)
                 return (
                   <div key={i} onClick={() => setModalData(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background .15s', borderRadius: 8 }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, border: medal.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: i < 3 ? 12 : 11, fontWeight: 900, boxShadow: i < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', boxSizing: 'border-box', lineHeight: 1, paddingBottom: 1 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, border: medal.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: realPos < 3 ? 12 : 11, fontWeight: 900, boxShadow: realPos < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', boxSizing: 'border-box', lineHeight: 1, paddingBottom: 1 }}>
                       {medal.label}
                     </div>
                     <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
@@ -858,11 +869,12 @@ export default function DashboardPage() {
           {/* Ranking Inspeções */}
           <ChartCard icon={TrendingUp} title="Ranking - Inspeções" style={{ height: 240 }}>
             <div style={{ overflowY: 'auto', height: '100%', paddingRight: 4 }} className="scrollbar-hide">
-              {rankInsp.map((t, i) => {
-                const medal = getMedal(i)
+              {rankingListInsp.map((t: any, i) => {
+                const realPos = t._realIndex !== undefined ? t._realIndex : i
+                const medal = getMedal(realPos)
                 return (
                   <div key={i} onClick={() => setModalData(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background .15s', borderRadius: 8 }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, border: medal.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: i < 3 ? 12 : 11, fontWeight: 900, boxShadow: i < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', boxSizing: 'border-box', lineHeight: 1, paddingBottom: 1 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, border: medal.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: realPos < 3 ? 12 : 11, fontWeight: 900, boxShadow: realPos < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', boxSizing: 'border-box', lineHeight: 1, paddingBottom: 1 }}>
                       {medal.label}
                     </div>
                     <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
