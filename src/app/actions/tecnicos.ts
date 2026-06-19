@@ -79,14 +79,16 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
       contaMeta: data.contaMeta !== undefined ? data.contaMeta : true
     }
 
-    if (data.unidadeIds !== undefined) {
-      payload.unidades = { set: data.unidadeIds.map(id => ({ id })) }
-    }
-
     if (data.id) {
+      if (data.unidadeIds !== undefined) {
+        payload.unidades = { set: data.unidadeIds.map(id => ({ id })) }
+      }
       await prisma.tecnico.update({ where: { id: data.id }, data: payload })
       await audit({ userId, action: 'EDITAR_TECNICO', entity: 'Técnico', entityId: data.id, details: { nome: data.nome } })
     } else {
+      if (data.unidadeIds !== undefined) {
+        payload.unidades = { connect: data.unidadeIds.map(id => ({ id })) }
+      }
       const tecnico = await prisma.tecnico.create({ data: payload })
       await audit({ userId, action: 'CRIAR_TECNICO', entity: 'Técnico', entityId: tecnico.id, details: { nome: data.nome } })
     }
