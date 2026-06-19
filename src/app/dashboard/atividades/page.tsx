@@ -3,15 +3,16 @@
 import { useState, useEffect, useTransition } from 'react'
 import {
   CalendarDays, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
-  Plus, Edit2, CheckCircle2, AlertTriangle, User, MapPin, Search, 
-  X, Check, AlertCircle, Trash2, RotateCcw
+  Plus, Edit2, CheckCircle2, AlertTriangle, User, MapPin, Search, FileText, 
+  X, Check, AlertCircle, Trash2, RotateCcw, Camera, UploadCloud, Loader2
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import {
-  getPlanejamentos, savePlanejamento, modificarExecucao, concluirPlanejamento, deletePlanejamento, moverPlanejamento, reverterPlanejamento
+  getPlanejamentos, savePlanejamento, modificarExecucao, concluirPlanejamento, deletePlanejamento, moverPlanejamento, reverterPlanejamento, togglePlanejamentoChecklist, concluirETransferirPendencias
 } from '@/app/actions/planejamento'
 import { getUnidades } from '@/app/actions/unidades'
+import { addAtividade, uploadFotoRelatorio } from '@/app/actions/relatorios'
 
 // --- Cores de Prioridade ---
 const PR_COLORS: any = {
@@ -52,12 +53,23 @@ export default function PlanejamentoPage() {
   const [form, setForm] = useState({
     id: '', tecnicoId: '', dataAtividade: '', categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
     descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
-    prioridade: 'MEDIA'
+    prioridade: 'MEDIA', checklist: [] as any[]
   })
+  const [newItemText, setNewItemText] = useState('')
   
   const [execForm, setExecForm] = useState({
     descricaoExecutada: '', observacoes: ''
   })
+
+  // Novos modais
+  const [showTransferPrompt, setShowTransferPrompt] = useState<any>(null)
+  const [transferDate, setTransferDate] = useState('')
+
+  // Relatório Integration
+  const [showPromptRelatorio, setShowPromptRelatorio] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
+  const [showFormRelatorio, setShowFormRelatorio] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
+  const [formRelatorio, setFormRelatorio] = useState({ empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [aiLoadingRel, setAiLoadingRel] = useState(false)
 
   useEffect(() => {
     getTecnicos().then(res => {
@@ -127,8 +139,9 @@ export default function PlanejamentoPage() {
       id: '', tecnicoId: isTst ? userTecnicoId : (selectedTecnico !== 'TODOS' ? selectedTecnico : ''),
       dataAtividade: dateStr || formatStrDate(new Date()), categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
       descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
-      prioridade: 'MEDIA'
+      prioridade: 'MEDIA', checklist: []
     })
+    setNewItemText('')
     setShowAddModal(true)
   }
 
@@ -172,11 +185,17 @@ export default function PlanejamentoPage() {
         categoria: form.categoria === 'OUTROS' && form.outraCategoria ? form.outraCategoria : form.categoria,
         local: form.local === 'OUTROS' && form.outroLocal ? form.outroLocal : form.local,
         dataAtividade: new Date(`${form.dataAtividade}T12:00:00Z`), // Força meio-dia para evitar fuso
-        prioridade: form.prioridade as any
+        prioridade: form.prioridade as any,
+        descricaoOriginal: form.checklist.length > 0 ? form.checklist.map((c: any) => `- ${c.texto}`).join('\n') : form.descricaoOriginal
       }
       // remover props temporárias antes de enviar
       delete (payload as any).outraCategoria
       delete (payload as any).outroLocal
+
+      if (!payload.descricaoOriginal.trim()) {
+        alert('Adicione pelo menos um item ao planejamento ou descreva a atividade.');
+        return;
+      }
 
       const res = await savePlanejamento(payload)
       if (res.success) {
@@ -199,6 +218,17 @@ export default function PlanejamentoPage() {
 
   function handleExecutar(e: React.FormEvent) {
     e.preventDefault()
+    
+    const checklist = showExecModal.checklist || []
+    const pendingItems = checklist.filter((i: any) => !i.concluido)
+    const completedItems = checklist.filter((i: any) => i.concluido)
+    
+    if (pendingItems.length > 0 && checklist.length > 0) {
+      setShowTransferPrompt({ plan: showExecModal, completedItems, pendingItems })
+      setTransferDate(formatStrDate(new Date(showExecModal.dataAtividade)))
+      return
+    }
+
     startTransition(async () => {
       // Se houver texto executado, consideramos "modificarExecucao", caso contrário só conclui
       if (execForm.descricaoExecutada.trim()) {
@@ -208,6 +238,68 @@ export default function PlanejamentoPage() {
       }
       setShowExecModal(null)
       load()
+    })
+  }
+
+  function handleConfirmTransfer(e: React.FormEvent) {
+    e.preventDefault()
+    if (!transferDate) return alert('Selecione a data para a nova atividade')
+    startTransition(async () => {
+      const { plan, completedItems, pendingItems } = showTransferPrompt
+      const res = await concluirETransferirPendencias(
+        plan.id, 
+        new Date(`${transferDate}T12:00:00Z`), 
+        completedItems, 
+        pendingItems,
+        execForm.descricaoExecutada,
+        pendingItems.map((c: any) => `- ${c.texto}`).join('\n'),
+        execForm.observacoes
+      )
+      if (res.success) {
+        setShowTransferPrompt(null)
+        setShowExecModal(null)
+        load()
+      } else {
+        alert(res.error)
+      }
+    })
+  }
+
+  function toggleItemChecklist(planId: string, itemId: string) {
+    const plan = planejamentos.find(p => p.id === planId)
+    if (!plan || !plan.checklist) return;
+    const item = plan.checklist.find((c: any) => c.id === itemId)
+    if (!item) return;
+
+    if (!item.concluido) {
+      // O usuário está MARCANDO o item como concluído
+      // Vamos interceptar e perguntar se ele quer lançar no relatório
+      setShowPromptRelatorio({ plan, itemId, itemText: item.texto })
+      return; // Interrompe o fluxo normal aqui.
+    }
+
+    // Se estiver desmarcando, fluxo normal:
+    const newChecklist = plan.checklist.map((c: any) => c.id === itemId ? { ...c, concluido: false } : c)
+    const allChecked = newChecklist.length > 0 && newChecklist.every((i:any) => i.concluido)
+    setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : p))
+    
+    startTransition(async () => {
+      await togglePlanejamentoChecklist(planId, newChecklist)
+    })
+  }
+
+  // Função chamada se o usuário disser "NÃO" no prompt ou após salvar o relatório:
+  function confirmToggleItemChecklist(planId: string, itemId: string, markAsDone: boolean) {
+    const plan = planejamentos.find(p => p.id === planId)
+    if (!plan || !plan.checklist) return;
+    
+    const newChecklist = plan.checklist.map((c: any) => c.id === itemId ? { ...c, concluido: markAsDone } : c)
+    const allChecked = newChecklist.length > 0 && newChecklist.every((i:any) => i.concluido)
+    setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : p))
+    
+    startTransition(async () => {
+      await togglePlanejamentoChecklist(planId, newChecklist)
+      load() // Refresh to sync
     })
   }
 
@@ -236,6 +328,60 @@ export default function PlanejamentoPage() {
       setConfirmDeleteId(null)
       setShowExecModal(null)
       load()
+    })
+  }
+
+  function handleFileChange(e: any, setFormState: any) {
+    const file = e.target.files[0]
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('A foto deve ter no máximo 10MB.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        setFormState((p:any) => ({...p, fotoBase64: ev.target?.result as string, fileName: file.name, contentType: file.type}))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  async function handleAddRelatorio(e: React.FormEvent) {
+    e.preventDefault()
+    if (!showFormRelatorio) return
+
+    let finalFotoUrl = ''
+    if (formRelatorio.fotoBase64 && formRelatorio.fileName && formRelatorio.contentType) {
+      const uploadRes = await uploadFotoRelatorio(formRelatorio.fotoBase64, formRelatorio.fileName, formRelatorio.contentType)
+      if (uploadRes.success && uploadRes.url) {
+        finalFotoUrl = uploadRes.url
+      } else {
+        alert('Erro ao fazer upload da foto: ' + uploadRes.error)
+        return
+      }
+    }
+
+    startTransition(async () => {
+      // Usar a data do planejamento
+      const planDate = new Date(showFormRelatorio.plan.dataAtividade)
+      
+      const res = await addAtividade({
+        tecnicoId: showFormRelatorio.plan.tecnicoId,
+        data: planDate,
+        empresa: formRelatorio.empresa,
+        projeto: formRelatorio.projeto,
+        local: formRelatorio.local === 'OUTROS' ? formRelatorio.outroLocal : formRelatorio.local,
+        cidadeUf: formRelatorio.cidadeUf,
+        descricao: formRelatorio.descricao,
+        fotoUrl: finalFotoUrl
+      })
+      
+      if (res.success) {
+        confirmToggleItemChecklist(showFormRelatorio.plan.id, showFormRelatorio.itemId, true)
+        setShowFormRelatorio(null)
+      } else {
+        alert('Erro ao salvar relatório: ' + res.error)
+      }
     })
   }
 
@@ -278,7 +424,7 @@ export default function PlanejamentoPage() {
                 </button>
               </div>
               <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 150 }}>
-                {dayPlans.map(p => <PlanCard key={p.id} plan={p} onClick={() => handleActionExecute(p)} onDragStart={handleDragStart} />)}
+                {dayPlans.map(p => <PlanCard key={p.id} plan={p} onClick={() => handleActionExecute(p)} onDragStart={handleDragStart} onToggleChecklist={toggleItemChecklist} />)}
               </div>
             </div>
           )
@@ -551,8 +697,48 @@ export default function PlanejamentoPage() {
               </div>
 
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>O QUE ESTÁ PLANEJADO? (Descrição)</label>
-                <textarea required rows={3} value={form.descricaoOriginal} onChange={e => setForm({...form, descricaoOriginal: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', resize: 'none' }} placeholder="Descreva o que foi planejado para este dia..."></textarea>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>CHECKLIST DA ATIVIDADE</span>
+                  <span style={{ color: '#660099' }}>{form.checklist?.length || 0} itens</span>
+                </label>
+                
+                <div style={{ display: 'flex', gap: 8, marginTop: 4, marginBottom: 12 }}>
+                  <input type="text" value={newItemText} onChange={e => setNewItemText(e.target.value)} onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (newItemText.trim()) {
+                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), texto: newItemText.trim(), concluido: false }] }));
+                        setNewItemText('');
+                      }
+                    }
+                  }} placeholder="Digite a tarefa e aperte Enter..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                  <button type="button" onClick={() => {
+                    if (newItemText.trim()) {
+                      setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), texto: newItemText.trim(), concluido: false }] }));
+                      setNewItemText('');
+                    }
+                  }} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, cursor: 'pointer' }}>Adicionar</button>
+                </div>
+                
+                {form.checklist && form.checklist.length > 0 ? (
+                  <div style={{ background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {form.checklist.map((item: any, i: number) => (
+                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', width: 20 }}>{i + 1}.</span>
+                        <span style={{ fontSize: 13, color: '#334155', flex: 1 }}>{item.texto}</span>
+                        <button type="button" onClick={() => {
+                          setForm(prev => ({ ...prev, checklist: prev.checklist.filter((c: any) => c.id !== item.id) }))
+                        }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: 12 }}>
+                    Nenhuma tarefa adicionada. <br/> Você deve adicionar pelo menos um item.
+                  </div>
+                )}
               </div>
 
               <div>
@@ -776,7 +962,8 @@ export default function PlanejamentoPage() {
                           outroLocal: locBase ? '' : (showExecModal.local || ''),
                           cidade: showExecModal.cidade || '',
                           estado: showExecModal.estado || 'SP',
-                          prioridade: showExecModal.prioridade
+                          prioridade: showExecModal.prioridade,
+                          checklist: showExecModal.checklist || []
                         })
                         setShowAddModal(true)
                       }} style={{ flex: '1 1 180px', padding: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -841,39 +1028,225 @@ export default function PlanejamentoPage() {
           </div>
         </div>
       )}
+    {/* MODAL MIGRAR PENDÊNCIAS */}
+    {showTransferPrompt && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e0e7ff', color: '#4338ca', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <RotateCcw size={32} />
+          </div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0', textAlign: 'center' }}>Migrar Tarefas Pendentes</h2>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px 0', lineHeight: 1.5, textAlign: 'center' }}>
+            Você ainda possui <strong style={{color: '#ef4444'}}>{showTransferPrompt.pendingItems.length} tarefa(s) pendente(s)</strong> neste planejamento. Deseja transferi-las para uma nova data?
+          </p>
+          
+          <form onSubmit={handleConfirmTransfer}>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>NOVA DATA PARA PENDÊNCIAS</label>
+              <input type="date" required value={transferDate} onChange={e => setTransferDate(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+            </div>
+            
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="button" onClick={() => {
+                setShowTransferPrompt(null)
+              }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+              <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#4338ca', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Transferir e Concluir</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+
+    {/* MODAL PROMPT RELATÓRIO */}
+    {showPromptRelatorio && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e0e7ff', color: '#4338ca', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <FileText size={32} />
+          </div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0', textAlign: 'center' }}>Lançar no Relatório Diário?</h2>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px 0', lineHeight: 1.5, textAlign: 'center' }}>
+            Deseja registrar a conclusão deste item no seu relatório diário de atividades automaticamente?
+          </p>
+          <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 20, fontSize: 13, color: '#334155', border: '1px solid #e2e8f0' }}>
+            <strong>Item:</strong> {showPromptRelatorio.itemText}
+          </div>
+          
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button type="button" onClick={() => {
+              // Cancela relatorio, mas marca como concluído no planejamento
+              confirmToggleItemChecklist(showPromptRelatorio.plan.id, showPromptRelatorio.itemId, true)
+              setShowPromptRelatorio(null)
+            }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Não, apenas concluir</button>
+            <button type="button" onClick={() => {
+              setFormRelatorio({
+                empresa: 'Telefônica Brasil S.A', projeto: 'VIVO',
+                local: showPromptRelatorio.plan.local === 'OUTROS' ? 'OUTROS' : showPromptRelatorio.plan.local || '',
+                outroLocal: showPromptRelatorio.plan.outroLocal || '',
+                cidadeUf: `${showPromptRelatorio.plan.cidade || ''} / ${showPromptRelatorio.plan.estado || ''}`.replace(/^ \/ | \/ $/g, ''),
+                descricao: showPromptRelatorio.itemText,
+                fotoBase64: '', fileName: '', contentType: ''
+              })
+              setShowFormRelatorio(showPromptRelatorio)
+              setShowPromptRelatorio(null)
+            }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#4338ca', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Sim, lançar relatório</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* MODAL FORMULÁRIO RELATÓRIO */}
+    {showFormRelatorio && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
+          <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Lançar Relatório da Atividade</h2>
+            <button onClick={() => {
+              // Se cancelar o modal do relatório, não marca a checkbox
+              setShowFormRelatorio(null)
+            }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 'bold' }}>X</button>
+          </div>
+          
+          <div style={{ padding: 24, overflowY: 'auto' }}>
+            <form onSubmit={handleAddRelatorio} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Empresa Cliente</label>
+                  <input required placeholder="Ex: Vivo S/A" value={formRelatorio.empresa} onChange={e => setFormRelatorio(p => ({...p, empresa: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Projeto / Área</label>
+                  <input required placeholder="Ex: Infraestrutura" value={formRelatorio.projeto} onChange={e => setFormRelatorio(p => ({...p, projeto: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Unidade / Local</label>
+                  <input required placeholder="Ex: Base SP" value={formRelatorio.local} onChange={e => setFormRelatorio(p => ({...p, local: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Cidade / UF</label>
+                  <input required placeholder="Ex: São Paulo/SP" value={formRelatorio.cidadeUf} onChange={e => setFormRelatorio(p => ({...p, cidadeUf: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                </div>
+              </div>
+              
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, marginBottom: 4, display: 'block' }}>Descrição / Relato da Atividade</label>
+                <textarea required rows={3} placeholder="O que foi feito?" value={formRelatorio.descricao} onChange={e => setFormRelatorio(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Registro Fotográfico (Opcional)</label>
+                {formRelatorio.fotoBase64 ? (
+                  <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <img src={formRelatorio.fotoBase64} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
+                    <button type="button" onClick={() => setFormRelatorio(p => ({...p, fotoBase64: ''}))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <button type="button" onClick={() => document.getElementById('fotoGaleriaRel')?.click()}
+                      style={{ border: '2px dashed #cbd5e1', borderRadius: 8, padding: '18px 12px', cursor: 'pointer', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'all 0.2s' }}
+                    >
+                      <UploadCloud color="#64748b" size={24} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Galeria</span>
+                    </button>
+                    <button type="button" onClick={() => document.getElementById('fotoCameraRel')?.click()}
+                      style={{ border: '2px dashed #7c3aed', borderRadius: 8, padding: '18px 12px', cursor: 'pointer', background: 'rgba(124,58,237,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, transition: 'all 0.2s' }}
+                    >
+                      <Camera color="#7c3aed" size={24} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#7c3aed' }}>Câmera</span>
+                    </button>
+                  </div>
+                )}
+                <input id="fotoGaleriaRel" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormRelatorio)} style={{ display: 'none' }} />
+                <input id="fotoCameraRel" type="file" accept="image/*" capture="environment" onChange={e => handleFileChange(e, setFormRelatorio)} style={{ display: 'none' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                <button type="button" onClick={() => setShowFormRelatorio(null)} style={{ flex: 1, padding: '12px', background: '#e2e8f0', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none' }}>Cancelar</button>
+                <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: pending ? 0.7 : 1 }}>
+                  {pending ? 'Salvando...' : 'Salvar e Concluir'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    )}
+
     </div>
   )
 }
 
-function PlanCard({ plan, onClick, onDragStart }: { plan: any, onClick: () => void, onDragStart: (e: React.DragEvent<HTMLDivElement>, id: string) => void }) {
+function PlanCard({ plan, onClick, onDragStart, onToggleChecklist }: { plan: any, onClick: () => void, onDragStart: (e: React.DragEvent<HTMLDivElement>, id: string) => void, onToggleChecklist?: (planId: string, itemId: string) => void }) {
   const c = PR_COLORS[plan.prioridade]
   const isConcluido = plan.status === 'CONCLUIDO'
+  
+  const checklist = plan.checklist || []
+  const hasChecklist = checklist.length > 0
+  const totalItems = checklist.length
+  const completedItems = checklist.filter((i: any) => i.concluido).length
+  const progressPct = totalItems > 0 ? (completedItems / totalItems) * 100 : 0
+
   return (
     <div 
-      onClick={onClick} 
       draggable={!isConcluido}
       onDragStart={(e) => onDragStart(e, plan.id)}
-      style={{ background: '#fff', border: `1px solid ${c.border}`, borderRadius: 8, padding: 8, cursor: isConcluido ? 'pointer' : 'grab', position: 'relative', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'transform 0.1s', opacity: isConcluido ? 0.6 : 1 }} 
+      style={{ background: '#fff', border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 8px 12px 8px', cursor: isConcluido ? 'pointer' : 'grab', position: 'relative', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'transform 0.1s', opacity: isConcluido ? 0.6 : 1 }} 
       onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} 
       onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}
     >
       <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: c.border }}></div>
       {isConcluido && <CheckCircle2 size={16} color="#10b981" style={{ position: 'absolute', top: 6, right: 6 }} />}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, paddingLeft: 6, paddingRight: isConcluido ? 16 : 0 }}>
-        <span style={{ fontSize: 10, fontWeight: 800, color: c.text, display: 'flex', alignItems: 'center', gap: 4 }}>
-          {plan.tecnico?.fotoUrl ? (
-            <img src={plan.tecnico.fotoUrl} alt={plan.tecnico.nome} style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover' }} title={plan.tecnico.nome} />
-          ) : (
-            <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#660099', color: '#fff', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }} title={plan.tecnico?.nome}>{plan.tecnico?.nome?.substring(0,2).toUpperCase() || 'TS'}</div>
-          )}
-          {plan.categoria}
-        </span>
+      
+      <div onClick={onClick} style={{ paddingLeft: 6, paddingRight: isConcluido ? 16 : 0, marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: c.text, display: 'flex', alignItems: 'center', gap: 4 }}>
+            {plan.tecnico?.fotoUrl ? (
+              <img src={plan.tecnico.fotoUrl} alt={plan.tecnico.nome} style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover' }} title={plan.tecnico.nome} />
+            ) : (
+              <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#660099', color: '#fff', fontSize: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }} title={plan.tecnico?.nome}>{plan.tecnico?.nome?.substring(0,2).toUpperCase() || 'TS'}</div>
+            )}
+            {plan.categoria}
+          </span>
+        </div>
+        
+        {!hasChecklist ? (
+          <div style={{ fontSize: 11, color: '#334155', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {plan.descricaoOriginal}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <div style={{ flex: 1, height: 4, background: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: isConcluido ? '#10b981' : c.border, width: `${progressPct}%`, transition: 'width 0.3s' }}></div>
+            </div>
+            <span style={{ fontSize: 9, fontWeight: 800, color: '#64748b' }}>{completedItems}/{totalItems}</span>
+          </div>
+        )}
       </div>
-      <div style={{ fontSize: 11, color: '#334155', lineHeight: 1.4, paddingLeft: 6, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-        {plan.descricaoOriginal}
-      </div>
+
+      {hasChecklist && (
+        <div style={{ paddingLeft: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {checklist.map((item: any) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }} onClick={(e) => e.stopPropagation()}>
+              <input 
+                type="checkbox" 
+                checked={item.concluido} 
+                onChange={() => onToggleChecklist && onToggleChecklist(plan.id, item.id)}
+                style={{ marginTop: 2, cursor: 'pointer', accentColor: '#10b981' }}
+              />
+              <span style={{ fontSize: 11, color: item.concluido ? '#94a3b8' : '#334155', textDecoration: item.concluido ? 'line-through' : 'none', lineHeight: 1.3, cursor: 'pointer' }} onClick={() => onToggleChecklist && onToggleChecklist(plan.id, item.id)}>
+                {item.texto}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {plan.alteradaOriginal && (
-        <div style={{ marginTop: 4, paddingLeft: 6, fontSize: 9, color: '#ef4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div onClick={onClick} style={{ marginTop: 8, paddingLeft: 6, fontSize: 9, color: '#ef4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
           <AlertTriangle size={10} /> ROTA ALTERADA
         </div>
       )}

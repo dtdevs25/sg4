@@ -47,6 +47,7 @@ export async function savePlanejamento(data: {
   dataAtividade: Date;
   categoria: string;
   descricaoOriginal: string;
+  checklist?: any;
   equipe?: string;
   local?: string;
   cidade?: string;
@@ -134,6 +135,76 @@ export async function modificarExecucao(id: string, descricaoExecutada: string, 
     return { success: false, error: error.message }
   }
 }
+
+export async function concluirETransferirPendencias(id: string, novaData: Date, checklistConcluido: any[], checklistPendente: any[], descricaoConcluida: string, descricaoPendente: string, observacoes?: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
+
+    const plan = await prisma.planejamento.findUnique({ where: { id } })
+    if (!plan) return { success: false, error: 'Planejamento não encontrado' }
+
+    // 1. Conclui a tarefa atual com as concluídas
+    await prisma.planejamento.update({
+      where: { id },
+      data: { 
+        status: 'CONCLUIDO', 
+        checklist: checklistConcluido, 
+        descricaoExecutada: descricaoConcluida,
+        observacoes,
+        alteradaOriginal: true
+      }
+    })
+
+    // 2. Cria nova tarefa para as pendências
+    const newPlan = await prisma.planejamento.create({
+      data: {
+        tecnicoId: plan.tecnicoId,
+        categoria: plan.categoria,
+        prioridade: plan.prioridade,
+        local: plan.local,
+        cidade: plan.cidade,
+        estado: plan.estado,
+        equipe: plan.equipe,
+        dataAtividade: novaData,
+        status: 'PENDENTE',
+        checklist: checklistPendente,
+        descricaoOriginal: descricaoPendente
+      }
+    })
+
+    await audit({ userId, action: 'CONCLUIR_E_TRANSFERIR', entity: 'Planejamento', entityId: id, details: { novoPlanejamentoId: newPlan.id } })
+
+    revalidatePath('/dashboard/planejamento')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error in concluirETransferirPendencias:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function togglePlanejamentoChecklist(id: string, checklist: any[]) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const allChecked = checklist.length > 0 && checklist.every(i => i.concluido)
+    const status = allChecked ? 'CONCLUIDO' : 'PENDENTE'
+
+    await prisma.planejamento.update({
+      where: { id },
+      data: { checklist, status }
+    })
+
+    revalidatePath('/dashboard/planejamento')
+    return { success: true, status }
+  } catch (error: any) {
+    console.error('Error in togglePlanejamentoChecklist:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 
 export async function concluirPlanejamento(id: string) {
   try {

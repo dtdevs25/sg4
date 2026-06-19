@@ -168,6 +168,7 @@ model Planejamento {
   estado              String?
   prioridade          PrioridadePlanejamento @default(MEDIA)
   status              StatusPlanejamento     @default(PENDENTE)
+  checklist           Json?
   observacoes         String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
