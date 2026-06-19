@@ -774,7 +774,9 @@ export default function RelatoriosAtividadesPage() {
                 )}
 
                 {role === 'TST' && tecnicos.length > 0 && (() => {
-                  const t = tecnicos[0]
+                  const tId = (session?.user as any)?.tecnicoId
+                  const t = tecnicos.find(x => x.id === tId)
+                  if (!t) return null
                   return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'rgba(102,0,153,0.04)', border: '1px solid rgba(102,0,153,0.15)', borderRadius: 10 }}>
                       {t.fotoUrl ? (
