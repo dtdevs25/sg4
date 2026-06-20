@@ -418,14 +418,14 @@ export default function PlanejamentoPage() {
   function renderWeek() {
     const start = getStartOfWeek(currentDate)
     const days = []
-    for(let i=0; i<6; i++) { // Seg a Sábado
+    for(let i=0; i<5; i++) { // Seg a Sexta
       const d = new Date(start)
       d.setDate(d.getDate() + i)
       days.push(d)
     }
 
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, overflowX: 'auto' }}>
         {days.map((d, i) => {
           const dateStr = formatStrDate(d)
           const dayPlans = planejamentos.filter(p => formatStrDate(new Date(p.dataAtividade)) === dateStr)
@@ -469,14 +469,14 @@ export default function PlanejamentoPage() {
     const daysInMonth = new Date(year, month + 1, 0).getDate()
 
     const offset = firstDay === 0 ? 6 : firstDay - 1 // Faz Seg ser 0
-    const gridDays = Array.from({ length: 42 })
+    const gridDays = Array.from({ length: 42 }).map((_, i) => i)
 
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
-        {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(wd => (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+        {['Seg', 'Ter', 'Qua', 'Qui', 'Sex'].map(wd => (
           <div key={wd} style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, color: '#64748b', paddingBottom: 8 }}>{wd}</div>
         ))}
-        {gridDays.map((_, i) => {
+        {gridDays.filter(i => i % 7 < 5).map((i) => {
           const dayNum = i - offset + 1
           const isValid = dayNum > 0 && dayNum <= daysInMonth
           if (!isValid) return <div key={i} style={{ minHeight: 80, background: '#f8fafc', borderRadius: 8, border: '1px dashed #e2e8f0' }} />
