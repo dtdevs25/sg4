@@ -285,6 +285,8 @@ model AtaReuniao {
   data      DateTime
   assunto   String
   conteudo  String   // HTML rich text content
+  anexoUrl  String?
+  anexoNome String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

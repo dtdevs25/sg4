@@ -2,6 +2,8 @@
 
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import s3Client from '@/lib/s3'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 
 export async function getAtas(ano: number) {
   try {
@@ -45,7 +47,7 @@ export async function getAtaUnica(dataIso: string, assunto: string) {
   }
 }
 
-export async function upsertAta(dataIso: string, assunto: string, conteudo: string) {
+export async function upsertAta(dataIso: string, assunto: string, conteudo: string, anexoUrl?: string, anexoNome?: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -66,12 +68,16 @@ export async function upsertAta(dataIso: string, assunto: string, conteudo: stri
         }
       },
       update: {
-        conteudo
+        conteudo,
+        ...(anexoUrl !== undefined ? { anexoUrl } : {}),
+        ...(anexoNome !== undefined ? { anexoNome } : {})
       },
       create: {
         data: dateObj,
         assunto: assunto,
-        conteudo
+        conteudo,
+        anexoUrl,
+        anexoNome
       }
     })
     
@@ -99,5 +105,41 @@ export async function deleteAta(id: string) {
   } catch (error) {
     console.error('Erro ao excluir ata:', error)
     return { success: false, error: 'Falha ao excluir' }
+  }
+}
+
+export async function uploadAnexoReuniao(base64: string, fileName: string, contentType: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    
+    const role = (session.user as any).role
+    if (role !== 'MASTER' && role !== 'ADMIN') {
+      return { success: false, error: 'Sem permissão' }
+    }
+
+    // Remover header do base64 se houver
+    const base64Data = base64.replace(/^data:.*?;base64,/, '')
+    const buffer = Buffer.from(base64Data, 'base64')
+    
+    // Gerar nome único
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    const bucket = 'sg4-reunioes'
+
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: uniqueName,
+      Body: buffer,
+      ContentType: contentType,
+    })
+
+    await s3Client.send(command)
+
+    const url = `${process.env.S3_ENDPOINT || 'https://storage-api.ehspro.com.br/'}${bucket}/${uniqueName}`
+    
+    return { success: true, url, name: fileName }
+  } catch (error) {
+    console.error('Erro no upload de anexo de ata:', error)
+    return { success: false, error: 'Falha no upload' }
   }
 }

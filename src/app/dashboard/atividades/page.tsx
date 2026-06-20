@@ -13,6 +13,7 @@ import {
 } from '@/app/actions/planejamento'
 import { getUnidades } from '@/app/actions/unidades'
 import { addAtividade, uploadFotoRelatorio } from '@/app/actions/relatorios'
+import { optimizeTextWithAI } from '@/app/actions/ai'
 
 // --- Cores de Prioridade ---
 const PR_COLORS: any = {
@@ -70,6 +71,8 @@ export default function PlanejamentoPage() {
   const [showFormRelatorio, setShowFormRelatorio] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
   const [formRelatorio, setFormRelatorio] = useState({ empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
   const [aiLoadingRel, setAiLoadingRel] = useState(false)
+  const [aiLoadingExec, setAiLoadingExec] = useState(false)
+  const [aiLoadingNewItem, setAiLoadingNewItem] = useState(false)
 
   useEffect(() => {
     getTecnicos().then(res => {
@@ -282,6 +285,7 @@ export default function PlanejamentoPage() {
     const newChecklist = plan.checklist.map((c: any) => c.id === itemId ? { ...c, concluido: false } : c)
     const allChecked = newChecklist.length > 0 && newChecklist.every((i:any) => i.concluido)
     setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : p))
+    setShowExecModal((prev: any) => prev && prev.id === planId ? { ...prev, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : prev)
     
     startTransition(async () => {
       await togglePlanejamentoChecklist(planId, newChecklist)
@@ -296,6 +300,7 @@ export default function PlanejamentoPage() {
     const newChecklist = plan.checklist.map((c: any) => c.id === itemId ? { ...c, concluido: markAsDone } : c)
     const allChecked = newChecklist.length > 0 && newChecklist.every((i:any) => i.concluido)
     setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : p))
+    setShowExecModal((prev: any) => prev && prev.id === planId ? { ...prev, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : prev)
     
     startTransition(async () => {
       await togglePlanejamentoChecklist(planId, newChecklist)
@@ -343,6 +348,30 @@ export default function PlanejamentoPage() {
         setFormState((p:any) => ({...p, fotoBase64: ev.target?.result as string, fileName: file.name, contentType: file.type}))
       }
       reader.readAsDataURL(file)
+    }
+  }
+
+  async function handleOptimizeTextRelatorio() {
+    if (!formRelatorio.descricao || formRelatorio.descricao.trim().length === 0) return
+    setAiLoadingRel(true)
+    const res = await optimizeTextWithAI(formRelatorio.descricao)
+    setAiLoadingRel(false)
+    if (res.success && res.text) {
+      setFormRelatorio(p => ({...p, descricao: res.text}))
+    } else {
+      alert(res.error || 'Erro ao otimizar o texto.')
+    }
+  }
+
+  async function handleOptimizeTextExec() {
+    if (!execForm.descricaoExecutada || execForm.descricaoExecutada.trim().length === 0) return
+    setAiLoadingExec(true)
+    const res = await optimizeTextWithAI(execForm.descricaoExecutada)
+    setAiLoadingExec(false)
+    if (res.success && res.text) {
+      setExecForm(p => ({...p, descricaoExecutada: res.text}))
+    } else {
+      alert(res.error || 'Erro ao otimizar o texto.')
     }
   }
 
@@ -712,6 +741,25 @@ export default function PlanejamentoPage() {
                       }
                     }
                   }} placeholder="Digite a tarefa e aperte Enter..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                  <button 
+                    type="button" 
+                    onClick={async () => {
+                      if (!newItemText.trim()) return
+                      setAiLoadingNewItem(true)
+                      const res = await optimizeTextWithAI(newItemText)
+                      setAiLoadingNewItem(false)
+                      if (res.success && res.text) {
+                        setNewItemText(res.text)
+                      } else {
+                        alert(res.error || 'Erro ao otimizar o texto.')
+                      }
+                    }}
+                    disabled={aiLoadingNewItem}
+                    style={{ background: '#f3e8ff', color: '#7e22ce', border: 'none', borderRadius: 8, padding: '0 12px', fontWeight: 700, cursor: aiLoadingNewItem ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                    title="Corrigir texto com IA"
+                  >
+                    {aiLoadingNewItem ? <Loader2 size={14} className="animate-spin" /> : <span>✨ IA</span>}
+                  </button>
                   <button type="button" onClick={() => {
                     if (newItemText.trim()) {
                       setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), texto: newItemText.trim(), concluido: false }] }));
@@ -725,7 +773,15 @@ export default function PlanejamentoPage() {
                     {form.checklist.map((item: any, i: number) => (
                       <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
                         <span style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', width: 20 }}>{i + 1}.</span>
-                        <span style={{ fontSize: 13, color: '#334155', flex: 1 }}>{item.texto}</span>
+                        <input 
+                          type="text" 
+                          value={item.texto} 
+                          onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, texto: e.target.value} : c)}))}
+                          style={{ fontSize: 13, color: '#334155', flex: 1, border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '4px 8px', borderRadius: 4, transition: 'all 0.2s' }}
+                          onFocus={e => { e.target.style.background = '#f1f5f9'; e.target.style.border = '1px solid #cbd5e1' }}
+                          onBlur={e => { e.target.style.background = 'transparent'; e.target.style.border = '1px solid transparent' }}
+                          title="Clique para editar"
+                        />
                         <button type="button" onClick={() => {
                           setForm(prev => ({ ...prev, checklist: prev.checklist.filter((c: any) => c.id !== item.id) }))
                         }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}>
@@ -890,7 +946,25 @@ export default function PlanejamentoPage() {
 
               <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 20 }}>
                 <p style={{ fontSize: 11, fontWeight: 800, color: '#64748b', margin: '0 0 6px 0', textTransform: 'uppercase' }}>O que estava planejado?</p>
-                <p style={{ fontSize: 14, color: '#334155', margin: 0, lineHeight: 1.5 }}>{showExecModal.descricaoOriginal}</p>
+                {!showExecModal.checklist || showExecModal.checklist.length === 0 ? (
+                  <p style={{ fontSize: 14, color: '#334155', margin: 0, lineHeight: 1.5 }}>{showExecModal.descricaoOriginal}</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+                    {showExecModal.checklist.map((item: any) => (
+                      <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', transition: 'all 0.2s' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={item.concluido} 
+                          onChange={() => toggleItemChecklist(showExecModal.id, item.id)}
+                          style={{ marginTop: 2, cursor: 'pointer', accentColor: '#10b981', width: 16, height: 16, flexShrink: 0 }}
+                        />
+                        <span style={{ fontSize: 13, color: item.concluido ? '#94a3b8' : '#334155', textDecoration: item.concluido ? 'line-through' : 'none', lineHeight: 1.4, cursor: 'pointer', flex: 1 }} onClick={() => toggleItemChecklist(showExecModal.id, item.id)}>
+                          {item.texto}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 
                 <div style={{ display: 'flex', gap: 16, marginTop: 14, paddingTop: 14, borderTop: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
                   {showExecModal.tecnico && (
@@ -938,9 +1012,23 @@ export default function PlanejamentoPage() {
               ) : (
                 <form onSubmit={handleExecutar}>
                   <div style={{ marginBottom: 20 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>
-                      OBSERVAÇÃO DA CONCLUSÃO (OPCIONAL)
-                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block' }}>
+                        OBSERVAÇÃO DA CONCLUSÃO (OPCIONAL)
+                      </label>
+                      <button 
+                        type="button" 
+                        onClick={handleOptimizeTextExec}
+                        disabled={aiLoadingExec}
+                        style={{ 
+                          fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                          borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                          cursor: aiLoadingExec ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                        }}
+                      >
+                        {aiLoadingExec ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                      </button>
+                    </div>
                     <textarea rows={3} value={execForm.descricaoExecutada} onChange={e => setExecForm({...execForm, descricaoExecutada: e.target.value})} placeholder="Adicione detalhes se algo ocorreu diferente do planejado..." style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', resize: 'none' }}></textarea>
                   </div>
                   
@@ -1133,7 +1221,21 @@ export default function PlanejamentoPage() {
               </div>
               
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, marginBottom: 4, display: 'block' }}>Descrição / Relato da Atividade</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, display: 'block' }}>Descrição / Relato da Atividade</label>
+                  <button 
+                    type="button" 
+                    onClick={handleOptimizeTextRelatorio}
+                    disabled={aiLoadingRel}
+                    style={{ 
+                      fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                      borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                      cursor: aiLoadingRel ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                    }}
+                  >
+                    {aiLoadingRel ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                  </button>
+                </div>
                 <textarea required rows={3} placeholder="O que foi feito?" value={formRelatorio.descricao} onChange={e => setFormRelatorio(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
               </div>
               

@@ -37,7 +37,7 @@ export async function getReunioes(ano?: number) {
   }
 }
 
-export async function createReuniaoLote(dataIso: string, assunto: string) {
+export async function createReuniaoLote(dataIso: string, hora: string, assunto: string, recorrencia: string, vezes: number) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -48,8 +48,6 @@ export async function createReuniaoLote(dataIso: string, assunto: string) {
     }
     const userId = (session.user as any).id
 
-    const dateObj = new Date(dataIso + "T12:00:00Z")
-    
     const tecnicos = await prisma.tecnico.findMany({
       where: { ativo: true },
       select: { id: true }
@@ -58,20 +56,39 @@ export async function createReuniaoLote(dataIso: string, assunto: string) {
     if (tecnicos.length === 0) {
       return { success: false, error: 'Nenhum técnico ativo encontrado' }
     }
+
+    const reunioesData = []
     
-    const reunioesData = tecnicos.map(t => ({
-      tecnicoId: t.id,
-      data: dateObj,
-      assunto: assunto || 'Reunião',
-      presenca: 'PRESENTE' as any,
-      pontualidade: 'PONTUAL' as any,
-      justificada: 'NAO_SE_APLICA' as any,
-      motivo: '',
-      observacao: ''
-    }))
+    const times = vezes && vezes > 0 ? vezes : 1
+    
+    for (let i = 0; i < times; i++) {
+      const dt = new Date(`${dataIso}T${hora || '12:00'}:00`)
+      if (isNaN(dt.getTime())) return { success: false, error: 'Data/Hora inválida' }
+
+      if (recorrencia === 'diaria') {
+        dt.setDate(dt.getDate() + i)
+      } else if (recorrencia === 'semanal') {
+        dt.setDate(dt.getDate() + (i * 7))
+      } else if (recorrencia === 'mensal') {
+        dt.setMonth(dt.getMonth() + i)
+      }
+
+      for (const t of tecnicos) {
+        reunioesData.push({
+          tecnicoId: t.id,
+          data: dt,
+          assunto: assunto || 'Reunião',
+          presenca: 'PRESENTE' as any,
+          pontualidade: 'PONTUAL' as any,
+          justificada: 'NAO_SE_APLICA' as any,
+          motivo: '',
+          observacao: ''
+        })
+      }
+    }
     
     await prisma.reuniao.createMany({ data: reunioesData })
-    await audit({ userId, action: 'CRIAR_REUNIAO_LOTE', entity: 'Reunião', details: { data: dataIso, assunto, totalTecnicos: tecnicos.length } })
+    await audit({ userId, action: 'CRIAR_REUNIAO_LOTE', entity: 'Reunião', details: { data: dataIso, hora, assunto, recorrencia, vezes, totalTecnicos: tecnicos.length, totalCriadas: reunioesData.length } })
     
     return { success: true }
   } catch (error) {

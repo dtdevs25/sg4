@@ -6,7 +6,7 @@ import {
   PlusCircle, Search, Sparkles, X, Edit2, Trash2, Loader2, Save, FileText, Printer, FileEdit, FileCode2
 } from 'lucide-react'
 import { getReunioes, createReuniaoLote, updateReuniaoItem, deleteReuniaoItem } from '@/app/actions/reunioes'
-import { getAtas, upsertAta } from '@/app/actions/atas'
+import { getAtas, upsertAta, uploadAnexoReuniao } from '@/app/actions/atas'
 import { useSession } from 'next-auth/react'
 
 type ReuniaoData = {
@@ -30,6 +30,8 @@ type AtaData = {
   data: Date | string
   assunto: string
   conteudo: string
+  anexoUrl?: string | null
+  anexoNome?: string | null
 }
 
 export default function ReunioesPage() {
@@ -50,7 +52,10 @@ export default function ReunioesPage() {
   // Modais de Presença
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [meetingDate, setMeetingDate] = useState('')
+  const [meetingTime, setMeetingTime] = useState('')
   const [meetingAssunto, setMeetingAssunto] = useState('')
+  const [meetingRecorrencia, setMeetingRecorrencia] = useState('none')
+  const [meetingVezes, setMeetingVezes] = useState(1)
   
   const [editingItem, setEditingItem] = useState<ReuniaoData | null>(null)
   const [editPresenca, setEditPresenca] = useState<string>('PRESENTE')
@@ -63,6 +68,10 @@ export default function ReunioesPage() {
   // Editor de Atas
   const [editingAta, setEditingAta] = useState<{data: string, assunto: string} | null>(null)
   const [ataContent, setAtaContent] = useState('')
+  const [ataAnexoNome, setAtaAnexoNome] = useState('')
+  const [ataAnexoUrl, setAtaAnexoUrl] = useState('')
+  const [ataAnexoBase64, setAtaAnexoBase64] = useState('')
+  const [ataAnexoContentType, setAtaAnexoContentType] = useState('')
   const [printData, setPrintData] = useState<{dataObj: any, ata: AtaData | null, presencas: ReuniaoData[]} | null>(null)
 
   const MONTHS_LIST = [
@@ -163,11 +172,14 @@ export default function ReunioesPage() {
   function handleCreateLote(e: React.FormEvent) {
     e.preventDefault()
     startTransition(async () => {
-      const res = await createReuniaoLote(meetingDate, meetingAssunto)
+      const res = await createReuniaoLote(meetingDate, meetingTime, meetingAssunto, meetingRecorrencia, meetingVezes)
       if (res.success) {
         setShowCreateModal(false)
         setMeetingDate('')
+        setMeetingTime('')
         setMeetingAssunto('')
+        setMeetingRecorrencia('none')
+        setMeetingVezes(1)
         loadData()
       } else {
         alert(res.error || "Erro ao criar reuniões")
@@ -211,12 +223,29 @@ export default function ReunioesPage() {
     const existingAta = atas.find(a => new Date(a.data).toISOString() === dt && a.assunto === ast)
     setEditingAta({ data: dt, assunto: ast })
     setAtaContent(existingAta?.conteudo || '')
+    setAtaAnexoNome(existingAta?.anexoNome || '')
+    setAtaAnexoUrl(existingAta?.anexoUrl || '')
+    setAtaAnexoBase64('')
+    setAtaAnexoContentType('')
   }
 
   function handleSaveAta() {
     if (!editingAta) return
     startTransition(async () => {
-      const res = await upsertAta(editingAta.data, editingAta.assunto, ataContent)
+      let finalAnexoUrl = ataAnexoUrl
+      let finalAnexoNome = ataAnexoNome
+
+      if (ataAnexoBase64) {
+        const uploadRes = await uploadAnexoReuniao(ataAnexoBase64, ataAnexoNome, ataAnexoContentType)
+        if (uploadRes.success && uploadRes.url) {
+          finalAnexoUrl = uploadRes.url
+        } else {
+          alert(uploadRes.error || "Erro ao fazer upload do anexo")
+          return
+        }
+      }
+
+      const res = await upsertAta(editingAta.data, editingAta.assunto, ataContent, finalAnexoUrl, finalAnexoNome)
       if (res.success) {
         setEditingAta(null)
         loadData()
@@ -239,6 +268,45 @@ export default function ReunioesPage() {
       window.print()
       setPrintData(null)
     }, 500)
+  }
+
+  function insertPresencaList() {
+    if (!editingAta) return
+    const presencas = filteredLogs.filter(l => new Date(l.data).toISOString() === editingAta.data && (l.assunto || 'Reunião') === editingAta.assunto && l.presenca === 'PRESENTE')
+    if (presencas.length === 0) {
+      alert("Nenhum técnico presente registrado para esta reunião.")
+      return
+    }
+    const htmlList = `
+      <p><strong>Lista de Presença:</strong></p>
+      <ul>
+        ${presencas.map(p => `<li>${p.tecnico.nome}</li>`).join('')}
+      </ul>
+      <p><br/></p>
+    `
+    execCmd('insertHTML', htmlList)
+  }
+
+  function handleAnexoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    // Limite 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Arquivo muito grande. Limite é 10MB.')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        setAtaAnexoBase64(ev.target.result as string)
+        setAtaAnexoNome(file.name)
+        setAtaAnexoContentType(file.type)
+        setAtaAnexoUrl('') // Limpa a URL antiga pois vai upar um novo
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
   // Comandos de Rich Text
@@ -627,13 +695,17 @@ export default function ReunioesPage() {
             <div style={{ padding: 24, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
               
               {/* Barra de Ferramentas Simples */}
-              <div style={{ display: 'flex', gap: 6, background: '#f8fafc', padding: 8, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, background: '#f8fafc', padding: 8, borderRadius: 8, border: '1px solid #e2e8f0' }}>
                 <button type="button" onClick={() => execCmd('bold')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>B</button>
                 <button type="button" onClick={() => execCmd('italic')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontStyle: 'italic', cursor: 'pointer' }}>I</button>
                 <button type="button" onClick={() => execCmd('underline')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', textDecoration: 'underline', cursor: 'pointer' }}>U</button>
                 <div style={{ width: 1, background: '#cbd5e1', margin: '0 6px' }} />
                 <button type="button" onClick={() => execCmd('insertUnorderedList')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>• Lista</button>
                 <button type="button" onClick={() => execCmd('insertOrderedList')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>1. Num</button>
+                <div style={{ width: 1, background: '#cbd5e1', margin: '0 6px' }} />
+                <button type="button" onClick={insertPresencaList} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#f1f5f9', cursor: 'pointer', fontWeight: 600, color: '#334155' }}>
+                  👥 Inserir Lista de Presença
+                </button>
               </div>
 
               {/* Área de Edição Rich Text */}
@@ -647,6 +719,34 @@ export default function ReunioesPage() {
                   outline: 'none', fontSize: 14, color: '#334155', lineHeight: 1.6, overflowY: 'auto'
                 }}
               />
+
+              {/* Anexos */}
+              <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#334155', marginBottom: 8 }}>Material de Apoio / Anexo</label>
+                
+                {ataAnexoUrl || ataAnexoNome ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', padding: '10px 16px', borderRadius: 8, border: '1px solid #cbd5e1' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(102,0,153,0.1)', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <FileText size={16} />
+                    </div>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{ataAnexoNome}</div>
+                      {ataAnexoUrl && <a href={ataAnexoUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#2563eb', textDecoration: 'none' }}>Ver arquivo original</a>}
+                      {ataAnexoBase64 && <div style={{ fontSize: 11, color: '#10b981' }}>Novo arquivo selecionado (será salvo)</div>}
+                    </div>
+                    <button type="button" onClick={() => { setAtaAnexoUrl(''); setAtaAnexoNome(''); setAtaAnexoBase64(''); setAtaAnexoContentType('') }} style={{ padding: '6px 12px', borderRadius: 6, background: '#fee2e2', color: '#ef4444', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: 11 }}>
+                      Remover
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <input type="file" id="ataAnexoInput" onChange={handleAnexoChange} style={{ display: 'none' }} />
+                    <button type="button" onClick={() => document.getElementById('ataAnexoInput')?.click()} style={{ padding: '10px 16px', borderRadius: 8, border: '1px dashed #64748b', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, width: '100%', justifyContent: 'center' }}>
+                      <PlusCircle size={16} /> Adicionar Arquivo (PDF, PPT, DOC, etc)
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12, background: '#f8fafc', borderRadius: '0 0 16px 16px' }}>
@@ -664,28 +764,52 @@ export default function ReunioesPage() {
 
       {/* Modal Criar Nova Reunião Lote */}
       {showCreateModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(102,0,153,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <PlusCircle color="#660099" size={18} />
-                </div>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <PlusCircle color="#fff" size={20} />
                 Nova Reunião Geral
               </h2>
-              <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+              <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
             </div>
             <form onSubmit={handleCreateLote} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
               <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
                 Isso criará a estrutura da reunião para todos os TSTs ativos. Depois, você poderá redigir a ata na aba "Atas de Reunião".
               </p>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data da Reunião</label>
-                <input type="date" required value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data da Reunião</label>
+                  <input type="date" required value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Hora da Reunião</label>
+                  <input type="time" required value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                </div>
               </div>
+              
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Assunto Principal</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Assunto Principal / Título</label>
                 <input type="text" required value={meetingAssunto} onChange={(e) => setMeetingAssunto(e.target.value)} placeholder="Ex: Alinhamento de Fardamentos" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Recorrência</label>
+                  <select value={meetingRecorrencia} onChange={(e) => setMeetingRecorrencia(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none', background: '#fff' }}>
+                    <option value="none">Nenhuma (Única)</option>
+                    <option value="diaria">Diária</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="mensal">Mensal</option>
+                  </select>
+                </div>
+                {meetingRecorrencia !== 'none' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Vezes (Total)</label>
+                    <input type="number" min={2} max={365} value={meetingVezes} onChange={(e) => setMeetingVezes(Number(e.target.value))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button type="button" disabled={pending} onClick={() => setShowCreateModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
