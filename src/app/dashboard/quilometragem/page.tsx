@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   Car, Fuel, Plus, Search, Calendar, CheckCircle2,
   AlertTriangle, UploadCloud, Trash2, Camera, MapPin, DollarSign, Image as ImageIcon,
-  Loader2, PlayCircle, StopCircle, Pencil
+  Loader2, PlayCircle, StopCircle, Pencil, X
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import {
@@ -671,9 +671,14 @@ export default function QuilometragemPage() {
       {/* Modal Iniciar KM */}
       {showStartModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><PlayCircle color="#660099" /> Iniciar KM Semanal</h2>
-            <form onSubmit={handleStartKm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <PlayCircle color="#fff" size={20} /> Iniciar KM Semanal
+              </h2>
+              <button onClick={() => setShowStartModal(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleStartKm} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Técnico</label>
                 <select disabled={role === 'TST'} required value={formStart.tecnicoId} onChange={(e) => setFormStart(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
@@ -717,9 +722,14 @@ export default function QuilometragemPage() {
       {/* Modal Fechar KM */}
       {showEndModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><StopCircle color="#ef4444" /> Fechar KM Semanal</h2>
-            <form onSubmit={handleEndKm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <StopCircle color="#fff" size={20} /> Fechar KM Semanal
+              </h2>
+              <button onClick={() => setShowEndModal(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleEndKm} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Data de Fechamento</label>
@@ -751,9 +761,14 @@ export default function QuilometragemPage() {
       {/* Modal Abastecimento */}
       {showAbsModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}><Fuel color="#10b981" /> Novo Abastecimento</h2>
-            <form onSubmit={handleCreateAbs} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Fuel color="#fff" size={20} /> Novo Abastecimento
+              </h2>
+              <button onClick={() => setShowAbsModal(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleCreateAbs} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Técnico</label>
                 <select disabled={role === 'TST'} required value={formAbs.tecnicoId} onChange={(e) => setFormAbs(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
@@ -791,9 +806,15 @@ export default function QuilometragemPage() {
       {/* Modal Editar KM */}
       {showEditKmModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: '16px 24px', maxHeight: '95vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><PlayCircle color="#3b82f6" /> Editar Registro de KM</h2>
-            <form onSubmit={handleEditKm} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Pencil color="#fff" size={20} /> Editar Registro de KM
+              </h2>
+              <button onClick={() => setShowEditKmModal(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: 24, maxHeight: '80vh', overflowY: 'auto' }}>
+              <form onSubmit={handleEditKm} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Dia da Semana</label>
@@ -846,11 +867,12 @@ export default function QuilometragemPage() {
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button type="button" disabled={pending} onClick={() => setShowEditKmModal(null)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
-                <button type="submit" disabled={pending} style={{ flex: 1, padding: 12, background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, display: 'flex', justifyContent: 'center', gap: 8 }}>
+                <button type="submit" disabled={pending} style={{ flex: 1, padding: 12, background: '#660099', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, display: 'flex', justifyContent: 'center', gap: 8 }}>
                   {pending ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
@@ -858,9 +880,15 @@ export default function QuilometragemPage() {
       {/* Modal Editar Abastecimento */}
       {showEditAbsModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: '16px 24px', maxHeight: '95vh', overflowY: 'auto' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Fuel color="#3b82f6" /> Editar Abastecimento</h2>
-            <form onSubmit={handleEditAbs} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Pencil color="#fff" size={20} /> Editar Abastecimento
+              </h2>
+              <button onClick={() => setShowEditAbsModal(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: 24, maxHeight: '80vh', overflowY: 'auto' }}>
+              <form onSubmit={handleEditAbs} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Data</label>
@@ -891,6 +919,7 @@ export default function QuilometragemPage() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
