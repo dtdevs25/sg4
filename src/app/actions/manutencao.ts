@@ -104,7 +104,7 @@ export async function checkMaintenanceAlert(tecnicoId: string, kmAtual: number) 
       where: { id: tecnicoId },
       include: { user: { select: { email: true } } }
     })
-    
+
     if (!tecnico) return
 
     // Checar se já fez a manutenção para ESTE ciclo
@@ -142,7 +142,7 @@ export async function checkMaintenanceAlert(tecnicoId: string, kmAtual: number) 
 
     const faltam = targetMilestone - kmAtual
     const subject = `⚠️ Alerta de Manutenção - Veículo de ${tecnico.nome}`
-    
+
     const html = `
       <div style="font-family: sans-serif; color: #334155; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
         <div style="background: #f59e0b; padding: 16px; text-align: center;">
