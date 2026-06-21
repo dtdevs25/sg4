@@ -10,8 +10,13 @@ RUN apk add --no-cache libc6-compat
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# npm install com cache persistido entre builds pelo BuildKit.
-# Isso evita baixar os 652 pacotes do zero a cada deploy.
+# Evitar que o Prisma tente gerar o client automaticamente durante o npm install (o que pode travar em alguns ambientes)
+ENV PRISMA_SKIP_POSTINSTALL_GENERATE=1
+
+# Limitar o uso de memória do Node.js durante o build para evitar que a VPS do Caprover comece a fazer swap agressivo (o que causa demoras de 20+ minutos)
+ENV NODE_OPTIONS="--max-old-space-size=1536"
+
+# npm install otimizado
 RUN npm install --no-audit --no-fund && npm cache clean --force
 
 # Copiar o restante do código fonte
