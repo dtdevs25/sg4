@@ -53,16 +53,19 @@ export default function QuilometragemPage() {
   const [showDeleteModal, setShowDeleteModal] = useState<{id: string, type: 'km' | 'abs'} | null>(null)
 
   // Forms
-  const [formStart, setFormStart] = useState({ tecnicoId: '', diaSemana: 'Segunda-feira', kmInicial: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [formStart, setFormStart] = useState({ tecnicoId: '', dataInicial: new Date().toISOString().split('T')[0], kmInicial: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formEnd, setFormEnd] = useState({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: '', valor: '', fotoBase64: '', fileName: '', contentType: '' })
   
   const [formEditKm, setFormEditKm] = useState({ diaSemana: '', kmInicial: '', fotoInicialBase64: '', kmFinal: '', fotoFinalBase64: '' })
   const [formEditAbs, setFormEditAbs] = useState({ data: '', valor: '', fotoCupomBase64: '' })
 
-  const fileInputRefStart = useRef<HTMLInputElement>(null)
-  const fileInputRefEnd = useRef<HTMLInputElement>(null)
-  const fileInputRefAbs = useRef<HTMLInputElement>(null)
+  const fileInputRefStartCam = useRef<HTMLInputElement>(null)
+  const fileInputRefStartGal = useRef<HTMLInputElement>(null)
+  const fileInputRefEndCam = useRef<HTMLInputElement>(null)
+  const fileInputRefEndGal = useRef<HTMLInputElement>(null)
+  const fileInputRefAbsCam = useRef<HTMLInputElement>(null)
+  const fileInputRefAbsGal = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadData()
@@ -125,7 +128,7 @@ export default function QuilometragemPage() {
   // --- ACTIONS ---
   async function handleStartKm(e: React.FormEvent) {
     e.preventDefault()
-    if (!formStart.tecnicoId || !formStart.kmInicial || !formStart.fotoBase64) return alert('Preencha todos os campos e tire a foto do odômetro inicial.')
+    if (!formStart.tecnicoId || !formStart.dataInicial || !formStart.kmInicial || !formStart.fotoBase64) return alert('Preencha todos os campos e anexe a foto do odômetro inicial.')
     
     startTransition(async () => {
       let fotoUrl = undefined
@@ -135,10 +138,13 @@ export default function QuilometragemPage() {
         else return alert('Falha ao subir foto')
       }
 
+      const jsDate = new Date(formStart.dataInicial + 'T12:00:00Z')
+      const ds = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][jsDate.getUTCDay()]
+
       const res = await createQuilometragem({
         tecnicoId: formStart.tecnicoId,
-        diaSemana: formStart.diaSemana,
-        dataInicial: new Date(),
+        diaSemana: ds,
+        dataInicial: jsDate,
         kmInicial: parseFloat(formStart.kmInicial),
         fotoInicial: fotoUrl
       })
@@ -687,14 +693,13 @@ export default function QuilometragemPage() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Dia da Semana</label>
-                  <select required value={formStart.diaSemana} onChange={(e) => setFormStart(p => ({...p, diaSemana: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
-                    <option>Segunda-feira</option>
-                    <option>Terça-feira</option>
-                    <option>Quarta-feira</option>
-                    <option>Quinta-feira</option>
-                    <option>Sexta-feira</option>
-                  </select>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Data Inicial</label>
+                  <input type="date" required value={formStart.dataInicial} onChange={(e) => setFormStart(p => ({...p, dataInicial: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  {formStart.dataInicial && (
+                    <span style={{ display: 'block', fontSize: 11, color: '#660099', marginTop: 4, fontWeight: 700 }}>
+                      {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][new Date(formStart.dataInicial + 'T12:00:00Z').getUTCDay()]}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>KM Inicial</label>
@@ -703,10 +708,30 @@ export default function QuilometragemPage() {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Foto do Odômetro</label>
-                <input type="file" accept="image/*" capture="environment" ref={fileInputRefStart} onChange={(e) => handleFileChange(e, setFormStart)} style={{ display: 'none' }} />
-                <button type="button" onClick={() => fileInputRefStart.current?.click()} style={{ width: '100%', padding: 12, borderRadius: 8, border: '2px dashed #cbd5e1', background: formStart.fotoBase64 ? 'rgba(16,185,129,0.1)' : '#f8fafc', color: formStart.fotoBase64 ? '#10b981' : '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <Camera size={20} /> {formStart.fotoBase64 ? 'Foto Anexada (Clique para trocar)' : 'Tirar Foto do Painel'}
-                </button>
+                <input type="file" accept="image/*" capture="environment" ref={fileInputRefStartCam} onChange={(e) => handleFileChange(e, setFormStart)} style={{ display: 'none' }} />
+                <input type="file" accept="image/*" ref={fileInputRefStartGal} onChange={(e) => handleFileChange(e, setFormStart)} style={{ display: 'none' }} />
+                
+                {formStart.fotoBase64 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 8, border: '1px solid #10b981', background: 'rgba(16,185,129,0.05)' }}>
+                      <ImageIcon color="#10b981" size={20} />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#065f46', display: 'block' }}>Imagem Anexada</span>
+                        <span style={{ fontSize: 11, color: '#10b981', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{formStart.fileName}</span>
+                      </div>
+                      <button type="button" onClick={() => setFormStart(p => ({...p, fotoBase64: '', fileName: '', contentType: ''}))} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" onClick={() => fileInputRefStartCam.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <Camera size={20} /> Tirar Foto
+                    </button>
+                    <button type="button" onClick={() => fileInputRefStartGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <UploadCloud size={20} /> Galeria
+                    </button>
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button type="button" disabled={pending} onClick={() => setShowStartModal(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
@@ -742,10 +767,30 @@ export default function QuilometragemPage() {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Foto do Odômetro</label>
-                <input type="file" accept="image/*" capture="environment" ref={fileInputRefEnd} onChange={(e) => handleFileChange(e, setFormEnd)} style={{ display: 'none' }} />
-                <button type="button" onClick={() => fileInputRefEnd.current?.click()} style={{ width: '100%', padding: 12, borderRadius: 8, border: '2px dashed #cbd5e1', background: formEnd.fotoBase64 ? 'rgba(16,185,129,0.1)' : '#f8fafc', color: formEnd.fotoBase64 ? '#10b981' : '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <Camera size={20} /> {formEnd.fotoBase64 ? 'Foto Anexada (Clique para trocar)' : 'Tirar Foto Final'}
-                </button>
+                <input type="file" accept="image/*" capture="environment" ref={fileInputRefEndCam} onChange={(e) => handleFileChange(e, setFormEnd)} style={{ display: 'none' }} />
+                <input type="file" accept="image/*" ref={fileInputRefEndGal} onChange={(e) => handleFileChange(e, setFormEnd)} style={{ display: 'none' }} />
+                
+                {formEnd.fotoBase64 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 8, border: '1px solid #10b981', background: 'rgba(16,185,129,0.05)' }}>
+                      <ImageIcon color="#10b981" size={20} />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#065f46', display: 'block' }}>Imagem Anexada</span>
+                        <span style={{ fontSize: 11, color: '#10b981', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{formEnd.fileName}</span>
+                      </div>
+                      <button type="button" onClick={() => setFormEnd(p => ({...p, fotoBase64: '', fileName: '', contentType: ''}))} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" onClick={() => fileInputRefEndCam.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <Camera size={20} /> Tirar Foto
+                    </button>
+                    <button type="button" onClick={() => fileInputRefEndGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <UploadCloud size={20} /> Galeria
+                    </button>
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button type="button" disabled={pending} onClick={() => setShowEndModal(null)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
@@ -787,10 +832,30 @@ export default function QuilometragemPage() {
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Comprovante / Cupom Fiscal</label>
-                <input type="file" accept="image/*" capture="environment" ref={fileInputRefAbs} onChange={(e) => handleFileChange(e, setFormAbs)} style={{ display: 'none' }} />
-                <button type="button" onClick={() => fileInputRefAbs.current?.click()} style={{ width: '100%', padding: 12, borderRadius: 8, border: '2px dashed #cbd5e1', background: formAbs.fotoBase64 ? 'rgba(16,185,129,0.1)' : '#f8fafc', color: formAbs.fotoBase64 ? '#10b981' : '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <Camera size={20} /> {formAbs.fotoBase64 ? 'Foto Anexada (Trocar)' : 'Tirar Foto do Cupom'}
-                </button>
+                <input type="file" accept="image/*" capture="environment" ref={fileInputRefAbsCam} onChange={(e) => handleFileChange(e, setFormAbs)} style={{ display: 'none' }} />
+                <input type="file" accept="image/*" ref={fileInputRefAbsGal} onChange={(e) => handleFileChange(e, setFormAbs)} style={{ display: 'none' }} />
+                
+                {formAbs.fotoBase64 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 8, border: '1px solid #10b981', background: 'rgba(16,185,129,0.05)' }}>
+                      <ImageIcon color="#10b981" size={20} />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#065f46', display: 'block' }}>Imagem Anexada</span>
+                        <span style={{ fontSize: 11, color: '#10b981', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{formAbs.fileName}</span>
+                      </div>
+                      <button type="button" onClick={() => setFormAbs(p => ({...p, fotoBase64: '', fileName: '', contentType: ''}))} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button type="button" onClick={() => fileInputRefAbsCam.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <Camera size={20} /> Tirar Foto
+                    </button>
+                    <button type="button" onClick={() => fileInputRefAbsGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <UploadCloud size={20} /> Galeria
+                    </button>
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button type="button" disabled={pending} onClick={() => setShowAbsModal(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700 }}>Cancelar</button>
