@@ -339,7 +339,9 @@ export default function QuilometragemPage() {
     const jsDate = new Date(k.dataInicial)
     const m = jsDate.getUTCMonth() + 1
     const matchSearch = k.tecnico.nome.toLowerCase().includes(search.toLowerCase())
-    const matchAtivo = showInativos ? true : k.tecnico.ativo !== false
+    const t = tecnicos.find((x: any) => x.id === k.tecnico.id)
+    const isAtivo = t ? t.ativo !== false : k.tecnico.ativo !== false
+    const matchAtivo = showInativos ? true : isAtivo
     return selectedMonths.includes(m) && matchSearch && matchAtivo
   })
 
@@ -347,7 +349,9 @@ export default function QuilometragemPage() {
     const jsDate = new Date(a.data)
     const m = jsDate.getUTCMonth() + 1
     const matchSearch = a.tecnico.nome.toLowerCase().includes(search.toLowerCase())
-    const matchAtivo = showInativos ? true : a.tecnico.ativo !== false
+    const t = tecnicos.find((x: any) => x.id === a.tecnico.id)
+    const isAtivo = t ? t.ativo !== false : a.tecnico.ativo !== false
+    const matchAtivo = showInativos ? true : isAtivo
     return selectedMonths.includes(m) && matchSearch && matchAtivo
   })
 
@@ -355,7 +359,9 @@ export default function QuilometragemPage() {
     const jsDate = new Date(m.dataManutencao)
     const month = jsDate.getUTCMonth() + 1
     const matchSearch = m.tecnico.nome.toLowerCase().includes(search.toLowerCase())
-    const matchAtivo = showInativos ? true : m.tecnico.ativo !== false
+    const t = tecnicos.find((x: any) => x.id === m.tecnico.id)
+    const isAtivo = t ? t.ativo !== false : m.tecnico.ativo !== false
+    const matchAtivo = showInativos ? true : isAtivo
     return selectedMonths.includes(month) && matchSearch && matchAtivo
   })
 
@@ -478,8 +484,12 @@ export default function QuilometragemPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 12, fontSize: 13, fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
             <span>Ativos: <span style={{ color: '#10b981' }}>{tecnicos.filter((t: any) => t.ativo !== false).length}</span></span>
-            <span style={{ color: '#cbd5e1' }}>|</span>
-            <span>Inativos: <span style={{ color: '#ef4444' }}>{tecnicos.filter((t: any) => t.ativo === false).length}</span></span>
+            {showInativos && (
+              <>
+                <span style={{ color: '#cbd5e1' }}>|</span>
+                <span>Inativos: <span style={{ color: '#ef4444' }}>{tecnicos.filter((t: any) => t.ativo === false).length}</span></span>
+              </>
+            )}
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
             <input type="checkbox" checked={showInativos} onChange={e => setShowInativos(e.target.checked)} style={{ cursor: 'pointer' }} />
@@ -641,7 +651,7 @@ export default function QuilometragemPage() {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'abastecimento' ? (
         // --- TABELA ABASTECIMENTO ---
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
@@ -753,7 +763,7 @@ export default function QuilometragemPage() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       {activeTab === 'manutencao' && (
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
