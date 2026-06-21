@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { sendMail } from '@/lib/mail'
 
-export async function getManutencoes(tecnicoId?: string) {
+export async function getManutencoes(ano?: number, mes?: number, tecnicoId?: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -20,9 +20,17 @@ export async function getManutencoes(tecnicoId?: string) {
       where.tecnicoId = tecnicoId
     }
 
+    if (ano && !isNaN(ano)) {
+      if (mes) {
+        where.dataManutencao = { gte: new Date(ano, mes - 1, 1), lte: new Date(ano, mes, 0, 23, 59, 59) }
+      } else {
+        where.dataManutencao = { gte: new Date(ano, 0, 1), lte: new Date(ano, 11, 31, 23, 59, 59) }
+      }
+    }
+
     const data = await prisma.manutencaoVeiculo.findMany({
       where,
-      include: { tecnico: { select: { nome: true, fotoUrl: true } } },
+      include: { tecnico: { select: { nome: true, fotoUrl: true, ativo: true } } },
       orderBy: { dataManutencao: 'desc' }
     })
 

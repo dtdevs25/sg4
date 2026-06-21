@@ -85,7 +85,7 @@ export default function QuilometragemPage() {
       getQuilometragens(selectedYear),
       getAbastecimentos(selectedYear),
       getTecnicos(),
-      getManutencoes()
+      getManutencoes(selectedYear)
     ])
     if (resKm.success && resKm.data) setKms(resKm.data)
     if (resAbs.success && resAbs.data) setAbastecimentos(resAbs.data)

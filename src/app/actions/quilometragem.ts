@@ -61,7 +61,7 @@ export async function getQuilometragens(ano?: number, mes?: number) {
 
     const data = await prisma.quilometragem.findMany({
       where,
-      include: { tecnico: { select: { id: true, nome: true, fotoUrl: true, admissao: true } } },
+      include: { tecnico: { select: { id: true, nome: true, fotoUrl: true, admissao: true, ativo: true } } },
       orderBy: { dataInicial: 'desc' }
     })
     
@@ -212,7 +212,7 @@ export async function getAbastecimentos(ano: number, mes?: number) {
 
     const data = await prisma.abastecimento.findMany({
       where,
-      include: { tecnico: { select: { id: true, nome: true, fotoUrl: true, admissao: true } } },
+      include: { tecnico: { select: { id: true, nome: true, fotoUrl: true, admissao: true, ativo: true } } },
       orderBy: { data: 'desc' }
     })
     
