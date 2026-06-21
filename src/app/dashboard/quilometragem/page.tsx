@@ -52,6 +52,8 @@ export default function QuilometragemPage() {
   const [showEditAbsModal, setShowEditAbsModal] = useState<any>(null)
   const [showDeleteModal, setShowDeleteModal] = useState<{id: string, type: 'km' | 'abs'} | null>(null)
 
+  const [showInativos, setShowInativos] = useState(false)
+
   // Forms
   const [formStart, setFormStart] = useState({ tecnicoId: '', dataInicial: new Date().toISOString().split('T')[0], kmInicial: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formEnd, setFormEnd] = useState({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
@@ -81,9 +83,10 @@ export default function QuilometragemPage() {
     if (resKm.success && resKm.data) setKms(resKm.data)
     if (resAbs.success && resAbs.data) setAbastecimentos(resAbs.data)
     if (resTec.success && resTec.data) {
-      setTecnicos(resTec.data.filter((t: any) => t.ativo))
+      setTecnicos(resTec.data)
       if (resTec.data.length > 0 && !formStart.tecnicoId) {
-        const tId = (session?.user as any)?.tecnicoId || resTec.data[0].id
+        const atv = resTec.data.find((t: any) => t.ativo)
+        const tId = (session?.user as any)?.tecnicoId || (atv ? atv.id : resTec.data[0].id)
         setFormStart(p => ({ ...p, tecnicoId: tId }))
         setFormAbs(p => ({ ...p, tecnicoId: tId }))
       }
@@ -294,20 +297,22 @@ export default function QuilometragemPage() {
     const jsDate = new Date(k.dataInicial)
     const m = jsDate.getUTCMonth() + 1
     const matchSearch = k.tecnico.nome.toLowerCase().includes(search.toLowerCase())
-    return selectedMonths.includes(m) && matchSearch
+    const matchAtivo = showInativos ? true : k.tecnico.ativo !== false
+    return selectedMonths.includes(m) && matchSearch && matchAtivo
   })
 
   const filteredAbs = abastecimentos.filter(a => {
     const jsDate = new Date(a.data)
     const m = jsDate.getUTCMonth() + 1
     const matchSearch = a.tecnico.nome.toLowerCase().includes(search.toLowerCase())
-    return selectedMonths.includes(m) && matchSearch
+    const matchAtivo = showInativos ? true : a.tecnico.ativo !== false
+    return selectedMonths.includes(m) && matchSearch && matchAtivo
   })
 
   useEffect(() => {
     setCurrentPageKm(1)
     setCurrentPageAbs(1)
-  }, [search, selectedMonths])
+  }, [search, selectedMonths, showInativos])
 
   const totalPagesKm = Math.ceil(filteredKms.length / itemsPerPageKm)
   const paginatedKms = filteredKms.slice((currentPageKm - 1) * itemsPerPageKm, currentPageKm * itemsPerPageKm)
@@ -395,31 +400,43 @@ export default function QuilometragemPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
               <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Km Rodados</span>
-              <div style={{ fontSize: 32, fontWeight: 800, color: '#1e293b' }}>{totalKmRodado} <span style={{ fontSize: 16, color: '#94a3b8' }}>km</span></div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b' }}>{totalKmRodado.toLocaleString('pt-BR')} <span style={{ fontSize: 14, color: '#94a3b8' }}>km</span></div>
             </div>
             <div>
               <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Gasto Combustível</span>
-              <div style={{ fontSize: 32, fontWeight: 800, color: '#ef4444' }}><span style={{ fontSize: 16, color: '#94a3b8' }}>R$</span> {totalGasto.toFixed(2)}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444' }}><span style={{ fontSize: 14, color: '#94a3b8' }}>R$</span> {totalGasto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
-        <div style={{ position: 'relative', width: 300 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+        <div style={{ position: 'relative', width: 300, maxWidth: '100%' }}>
           <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
           <input type="text" placeholder="Buscar técnico..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
         </div>
         
-        {activeTab === 'km' ? (
-          <button onClick={() => setShowStartModal(true)} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <PlayCircle size={16} /> Iniciar KM
-          </button>
-        ) : (
-          <button onClick={() => setShowAbsModal(true)} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <Fuel size={16} /> Novo Abastecimento
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 12, fontSize: 13, fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+            <span>Ativos: <span style={{ color: '#10b981' }}>{tecnicos.filter((t: any) => t.ativo !== false).length}</span></span>
+            <span style={{ color: '#cbd5e1' }}>|</span>
+            <span>Inativos: <span style={{ color: '#ef4444' }}>{tecnicos.filter((t: any) => t.ativo === false).length}</span></span>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+            <input type="checkbox" checked={showInativos} onChange={e => setShowInativos(e.target.checked)} style={{ cursor: 'pointer' }} />
+            Mostrar inativos
+          </label>
+
+          {activeTab === 'km' ? (
+            <button onClick={() => setShowStartModal(true)} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <PlayCircle size={16} /> Iniciar KM
+            </button>
+          ) : (
+            <button onClick={() => setShowAbsModal(true)} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <Fuel size={16} /> Novo Abastecimento
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -459,7 +476,7 @@ export default function QuilometragemPage() {
                     <td style={{ padding: '14px 20px' }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>{k.diaSemana} - {new Date(k.dataInicial).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
                       <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                        {k.kmInicial} km
+                        {k.kmInicial.toLocaleString('pt-BR')} km
                         {k.fotoInicial && <button onClick={() => setShowPhotoModal(k.fotoInicial)} style={{ background: 'none', border: 'none', color: '#660099', cursor: 'pointer', padding: 0 }} title="Ver Foto Odômetro"><ImageIcon size={14} /></button>}
                       </div>
                     </td>
@@ -470,7 +487,7 @@ export default function QuilometragemPage() {
                             {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][new Date(k.dataFinal).getUTCDay()]} - {new Date(k.dataFinal).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
                           </div>
                           <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                            {k.kmFinal} km
+                            {k.kmFinal.toLocaleString('pt-BR')} km
                             {k.fotoFinal && <button onClick={() => setShowPhotoModal(k.fotoFinal)} style={{ background: 'none', border: 'none', color: '#660099', cursor: 'pointer', padding: 0 }} title="Ver Foto Odômetro"><ImageIcon size={14} /></button>}
                           </div>
                         </>
@@ -479,7 +496,7 @@ export default function QuilometragemPage() {
                       )}
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: k.diferenca ? '#10b981' : '#94a3b8' }}>{k.diferenca ? `${k.diferenca} km` : '—'}</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: k.diferenca ? '#10b981' : '#94a3b8' }}>{k.diferenca ? `${k.diferenca.toLocaleString('pt-BR')} km` : '—'}</div>
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
@@ -593,7 +610,7 @@ export default function QuilometragemPage() {
                       </div>
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: '#ef4444' }}>R$ {a.valor.toFixed(2)}</div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: '#ef4444' }}>R$ {a.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                       {a.fotoCupom ? (
@@ -688,7 +705,7 @@ export default function QuilometragemPage() {
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Técnico</label>
                 <select disabled={role === 'TST'} required value={formStart.tecnicoId} onChange={(e) => setFormStart(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
-                  {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                  {tecnicos.filter((t: any) => t.ativo !== false).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -817,7 +834,7 @@ export default function QuilometragemPage() {
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Técnico</label>
                 <select disabled={role === 'TST'} required value={formAbs.tecnicoId} onChange={(e) => setFormAbs(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
-                  {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                  {tecnicos.filter((t: any) => t.ativo !== false).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
