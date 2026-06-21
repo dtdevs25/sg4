@@ -53,6 +53,8 @@ export default function QuilometragemPage() {
   const [showDeleteModal, setShowDeleteModal] = useState<{id: string, type: 'km' | 'abs'} | null>(null)
 
   const [showInativos, setShowInativos] = useState(false)
+  const [showStartTecnicoDropdown, setShowStartTecnicoDropdown] = useState(false)
+  const [showAbsTecnicoDropdown, setShowAbsTecnicoDropdown] = useState(false)
 
   // Forms
   const [formStart, setFormStart] = useState({ tecnicoId: '', dataInicial: new Date().toISOString().split('T')[0], kmInicial: '', fotoBase64: '', fileName: '', contentType: '' })
@@ -704,9 +706,42 @@ export default function QuilometragemPage() {
             <form onSubmit={handleStartKm} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Técnico</label>
-                <select disabled={role === 'TST'} required value={formStart.tecnicoId} onChange={(e) => setFormStart(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
-                  {tecnicos.filter((t: any) => t.ativo !== false).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                </select>
+                <div style={{ position: 'relative' }}>
+                  <div
+                    onClick={() => { if (role !== 'TST') setShowStartTecnicoDropdown(v => !v) }}
+                    style={{ padding: '10px 14px', borderRadius: 8, border: `1px solid ${showStartTecnicoDropdown ? '#660099' : '#cbd5e1'}`, cursor: role === 'TST' ? 'default' : 'pointer', background: role === 'TST' ? '#f1f5f9' : '#fff', display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}
+                  >
+                    {(() => {
+                      const t = tecnicos.find(x => x.id === formStart.tecnicoId)
+                      return t ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {t.fotoUrl ? (
+                            <img src={t.fotoUrl} alt={t.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff' }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                          )}
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span>
+                        </div>
+                      ) : <span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico</span>
+                    })()}
+                    {role !== 'TST' && <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 10 }}>{showStartTecnicoDropdown ? '▲' : '▼'}</span>}
+                  </div>
+                  
+                  {showStartTecnicoDropdown && role !== 'TST' && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 200, overflowY: 'auto' }}>
+                      {tecnicos.filter(t => t.ativo !== false).map(t => (
+                        <div key={t.id} onClick={() => { setFormStart(p => ({...p, tecnicoId: t.id})); setShowStartTecnicoDropdown(false) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formStart.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = formStart.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
+                        >
+                          {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
@@ -833,9 +868,42 @@ export default function QuilometragemPage() {
             <form onSubmit={handleCreateAbs} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Técnico</label>
-                <select disabled={role === 'TST'} required value={formAbs.tecnicoId} onChange={(e) => setFormAbs(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none', background: role === 'TST' ? '#f1f5f9' : '#fff' }}>
-                  {tecnicos.filter((t: any) => t.ativo !== false).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                </select>
+                <div style={{ position: 'relative' }}>
+                  <div
+                    onClick={() => { if (role !== 'TST') setShowAbsTecnicoDropdown(v => !v) }}
+                    style={{ padding: '10px 14px', borderRadius: 8, border: `1px solid ${showAbsTecnicoDropdown ? '#660099' : '#cbd5e1'}`, cursor: role === 'TST' ? 'default' : 'pointer', background: role === 'TST' ? '#f1f5f9' : '#fff', display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}
+                  >
+                    {(() => {
+                      const t = tecnicos.find(x => x.id === formAbs.tecnicoId)
+                      return t ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {t.fotoUrl ? (
+                            <img src={t.fotoUrl} alt={t.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff' }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                          )}
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span>
+                        </div>
+                      ) : <span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico</span>
+                    })()}
+                    {role !== 'TST' && <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 10 }}>{showAbsTecnicoDropdown ? '▲' : '▼'}</span>}
+                  </div>
+                  
+                  {showAbsTecnicoDropdown && role !== 'TST' && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 200, overflowY: 'auto' }}>
+                      {tecnicos.filter(t => t.ativo !== false).map(t => (
+                        <div key={t.id} onClick={() => { setFormAbs(p => ({...p, tecnicoId: t.id})); setShowAbsTecnicoDropdown(false) }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formAbs.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = formAbs.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
+                        >
+                          {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
