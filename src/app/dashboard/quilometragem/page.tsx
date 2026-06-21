@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   Car, Fuel, Plus, Search, Calendar, CheckCircle2,
   AlertTriangle, UploadCloud, Trash2, Camera, MapPin, DollarSign, Image as ImageIcon,
-  Loader2, PlayCircle, StopCircle, Pencil, X
+  Loader2, PlayCircle, StopCircle, Pencil, X, Save
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import {
@@ -12,18 +12,20 @@ import {
   getAbastecimentos, createAbastecimento, deleteAbastecimento, updateAbastecimento, uploadFotoKm
 } from '@/app/actions/quilometragem'
 import { getTecnicos } from '@/app/actions/tecnicos'
+import { getManutencoes, registrarManutencao, excluirManutencao } from '@/app/actions/manutencao'
 
 export default function QuilometragemPage() {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
-  const [activeTab, setActiveTab] = useState<'km' | 'abastecimento'>('km')
+  const [activeTab, setActiveTab] = useState<'km' | 'abastecimento' | 'manutencao'>('km')
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
 
   const [tecnicos, setTecnicos] = useState<any[]>([])
   const [kms, setKms] = useState<any[]>([])
   const [abastecimentos, setAbastecimentos] = useState<any[]>([])
+  const [manutencoes, setManutencoes] = useState<any[]>([])
 
   const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
@@ -46,11 +48,12 @@ export default function QuilometragemPage() {
   const [showStartModal, setShowStartModal] = useState(false)
   const [showEndModal, setShowEndModal] = useState<string | null>(null)
   const [showAbsModal, setShowAbsModal] = useState(false)
+  const [showMaintModal, setShowMaintModal] = useState(false)
   const [showPhotoModal, setShowPhotoModal] = useState<string | null>(null) // URL da foto
 
   const [showEditKmModal, setShowEditKmModal] = useState<any>(null)
   const [showEditAbsModal, setShowEditAbsModal] = useState<any>(null)
-  const [showDeleteModal, setShowDeleteModal] = useState<{id: string, type: 'km' | 'abs'} | null>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState<{id: string, type: 'km' | 'abs' | 'manutencao'} | null>(null)
 
   const [showInativos, setShowInativos] = useState(false)
   const [showStartTecnicoDropdown, setShowStartTecnicoDropdown] = useState(false)
@@ -60,6 +63,7 @@ export default function QuilometragemPage() {
   const [formStart, setFormStart] = useState({ tecnicoId: '', dataInicial: new Date().toISOString().split('T')[0], kmInicial: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formEnd, setFormEnd] = useState({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: '', valor: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [formMaint, setFormMaint] = useState({ tecnicoId: '', dataManutencao: new Date().toISOString().split('T')[0], kmManutencao: '', fotoBase64: '', fileName: '', contentType: '' })
   
   const [formEditKm, setFormEditKm] = useState({ diaSemana: '', kmInicial: '', fotoInicialBase64: '', kmFinal: '', fotoFinalBase64: '' })
   const [formEditAbs, setFormEditAbs] = useState({ data: '', valor: '', fotoCupomBase64: '' })
@@ -77,13 +81,15 @@ export default function QuilometragemPage() {
 
   async function loadData() {
     setLoading(true)
-    const [resKm, resAbs, resTec] = await Promise.all([
+    const [resKm, resAbs, resTec, resMan] = await Promise.all([
       getQuilometragens(selectedYear),
       getAbastecimentos(selectedYear),
-      getTecnicos()
+      getTecnicos(),
+      getManutencoes()
     ])
     if (resKm.success && resKm.data) setKms(resKm.data)
     if (resAbs.success && resAbs.data) setAbastecimentos(resAbs.data)
+    if (resMan.success && resMan.data) setManutencoes(resMan.data)
     if (resTec.success && resTec.data) {
       setTecnicos(resTec.data)
       if (resTec.data.length > 0 && !formStart.tecnicoId) {
@@ -91,6 +97,7 @@ export default function QuilometragemPage() {
         const tId = (session?.user as any)?.tecnicoId || (atv ? atv.id : resTec.data[0].id)
         setFormStart(p => ({ ...p, tecnicoId: tId }))
         setFormAbs(p => ({ ...p, tecnicoId: tId }))
+        setFormMaint(p => ({ ...p, tecnicoId: tId }))
       }
     }
     setLoading(false)
@@ -278,14 +285,47 @@ export default function QuilometragemPage() {
     })
   }
 
-  async function confirmDelete() {
+  async function handleCreateMaint(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formMaint.tecnicoId || !formMaint.dataManutencao || !formMaint.kmManutencao) return alert('Preencha os dados obrigatórios.')
+    
+    startTransition(async () => {
+      let fotoUrl = undefined
+      if (formMaint.fotoBase64) {
+        const uploadRes = await uploadFotoKm(formMaint.fotoBase64, formMaint.fileName, formMaint.contentType)
+        if (uploadRes.success) fotoUrl = uploadRes.url
+        else return alert('Falha ao subir foto do comprovante')
+      }
+
+      const res = await registrarManutencao({
+        tecnicoId: formMaint.tecnicoId,
+        dataManutencao: new Date(formMaint.dataManutencao + 'T12:00:00Z'),
+        kmManutencao: parseFloat(formMaint.kmManutencao),
+        comprovanteUrl: fotoUrl
+      })
+
+      if (res.success) {
+        setShowMaintModal(false)
+        setFormMaint(p => ({ ...p, kmManutencao: '', fotoBase64: '', fileName: '', contentType: '' }))
+        loadData()
+      } else {
+        alert(res.error)
+      }
+    })
+  }
+
+  function confirmDelete(id: string, type: 'km' | 'abs' | 'manutencao') {
+    setShowDeleteModal({ id, type })
+  }
+
+  async function processDelete() {
     if(!showDeleteModal) return
     startTransition(async () => {
       if (showDeleteModal.type === 'km') {
         const res = await deleteQuilometragem(showDeleteModal.id)
         if (res.success) loadData()
         else alert(res.error)
-      } else {
+      } else if (showDeleteModal.type === 'abs') {
         const res = await deleteAbastecimento(showDeleteModal.id)
         if (res.success) loadData()
         else alert(res.error)
@@ -309,6 +349,14 @@ export default function QuilometragemPage() {
     const matchSearch = a.tecnico.nome.toLowerCase().includes(search.toLowerCase())
     const matchAtivo = showInativos ? true : a.tecnico.ativo !== false
     return selectedMonths.includes(m) && matchSearch && matchAtivo
+  })
+
+  const filteredMaint = manutencoes.filter(m => {
+    const jsDate = new Date(m.dataManutencao)
+    const month = jsDate.getUTCMonth() + 1
+    const matchSearch = m.tecnico.nome.toLowerCase().includes(search.toLowerCase())
+    const matchAtivo = showInativos ? true : m.tecnico.ativo !== false
+    return selectedMonths.includes(month) && matchSearch && matchAtivo
   })
 
   useEffect(() => {
@@ -359,6 +407,15 @@ export default function QuilometragemPage() {
               Abastecimentos
             </button>
           )}
+          <button
+            onClick={() => setActiveTab('manutencao')}
+            style={{
+              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+              background: activeTab === 'manutencao' ? '#fff' : 'transparent', color: activeTab === 'manutencao' ? '#660099' : '#64748b', boxShadow: activeTab === 'manutencao' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            Manutenções
+          </button>
         </div>
       </div>
 
@@ -429,13 +486,19 @@ export default function QuilometragemPage() {
             Mostrar inativos
           </label>
 
-          {activeTab === 'km' ? (
+          {activeTab === 'km' && (
             <button onClick={() => setShowStartModal(true)} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <PlayCircle size={16} /> Iniciar KM
             </button>
-          ) : (
+          )}
+          {activeTab === 'abastecimento' && (
             <button onClick={() => setShowAbsModal(true)} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <Fuel size={16} /> Novo Abastecimento
+            </button>
+          )}
+          {activeTab === 'manutencao' && (
+            <button onClick={() => setShowMaintModal(true)} style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <Plus size={16} /> Registrar Manutenção
             </button>
           )}
         </div>
@@ -689,6 +752,71 @@ export default function QuilometragemPage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'manutencao' && (
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>KM Registrado</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Comprovante</th>
+                  <th style={{ padding: '14px 20px' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredMaint.map(m => (
+                  <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                      {new Date(m.dataManutencao).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {m.tecnico.fotoUrl ? (
+                          <img src={m.tecnico.fotoUrl} alt={m.tecnico.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                            {m.tecnico.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
+                          </div>
+                        )}
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{m.tecnico.nome}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                      {m.kmManutencao.toLocaleString('pt-BR')} km
+                    </td>
+                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      {m.comprovanteUrl ? (
+                        <button onClick={() => setShowPhotoModal(m.comprovanteUrl)} style={{ background: '#f1f5f9', color: '#660099', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <ImageIcon size={14} /> Ver Doc
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: 12, color: '#94a3b8' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                      {(role === 'MASTER' || role === 'ADMIN') && (
+                        <button onClick={() => confirmDelete(m.id, 'manutencao')} style={{ background: 'none', border: 'none', color: '#ef4444', padding: 6, cursor: 'pointer', borderRadius: 6 }}>
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {filteredMaint.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', fontSize: 13, color: '#94a3b8' }}>
+                      Nenhuma manutenção registrada neste período.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1089,7 +1217,7 @@ export default function QuilometragemPage() {
               <button disabled={pending} onClick={() => setShowDeleteModal(null)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', border: 'none', borderRadius: 8, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>
                 Cancelar
               </button>
-              <button disabled={pending} onClick={confirmDelete} style={{ flex: 1, padding: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <button disabled={pending} onClick={processDelete} style={{ flex: 1, padding: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {pending ? <Loader2 className="animate-spin" size={18} /> : 'Sim, Excluir'}
               </button>
             </div>
@@ -1101,6 +1229,77 @@ export default function QuilometragemPage() {
       {showPhotoModal && (
         <div onClick={() => setShowPhotoModal(null)} style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)', padding: 20 }}>
           <img src={showPhotoModal} alt="Foto SG4" style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }} />
+        </div>
+      )}
+      {/* Modal Registrar Manutenção */}
+      {showMaintModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#f59e0b', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Plus color="#fff" size={20} /> Registrar Manutenção
+              </h2>
+              <button onClick={() => setShowMaintModal(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
+            </div>
+            
+            <form onSubmit={handleCreateMaint} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {role !== 'TST' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Selecionar Técnico</label>
+                  <select
+                    value={formMaint.tecnicoId}
+                    onChange={(e) => setFormMaint(p => ({ ...p, tecnicoId: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                  >
+                    {tecnicos.filter(t => t.ativo !== false).map((t: any) => (
+                      <option key={t.id} value={t.id}>{t.nome}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data da Manutenção</label>
+                  <input type="date" required value={formMaint.dataManutencao} onChange={(e) => setFormMaint(p => ({ ...p, dataManutencao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>KM de Realização</label>
+                  <input type="number" required min={0} value={formMaint.kmManutencao} onChange={(e) => setFormMaint(p => ({ ...p, kmManutencao: e.target.value }))} placeholder="Ex: 30100" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                </div>
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Comprovante / Nota Fiscal (Opcional)</label>
+                <input type="file" accept="image/*" id="maintPhotoInput" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      setFormMaint(p => ({ ...p, fotoBase64: ev.target?.result as string, fileName: file.name, contentType: file.type }));
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }} style={{ display: 'none' }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="button" onClick={() => document.getElementById('maintPhotoInput')?.click()} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px dashed #64748b', background: '#f8fafc', color: '#475569', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <UploadCloud size={16} /> Anexar da Galeria
+                  </button>
+                </div>
+                {formMaint.fileName && <div style={{ marginTop: 8, fontSize: 12, color: '#10b981', fontWeight: 600 }}>{formMaint.fileName} selecionado</div>}
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <button type="button" onClick={() => setShowMaintModal(false)} disabled={pending} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#f59e0b', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
+                  Salvar Manutenção
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

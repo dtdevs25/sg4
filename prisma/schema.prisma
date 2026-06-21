@@ -102,6 +102,10 @@ model Tecnico {
   baseFixaId  String?
   baseFixa    Unidade?     @relation("BaseFixa", fields: [baseFixaId], references: [id], onDelete: SetNull)
 
+  ultimoKmAlerta Int?
+
+  manutencoesVeiculo ManutencaoVeiculo[]
+
   @@map("tecnicos")
 }
 
@@ -416,6 +420,20 @@ model Abastecimento {
   tecnico      Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
   @@index([tecnicoId])
   @@map("abastecimentos")
+}
+
+model ManutencaoVeiculo {
+  id               String   @id @default(cuid())
+  tecnicoId        String
+  kmManutencao     Int
+  dataManutencao   DateTime
+  comprovanteUrl   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tecnico          Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+  @@index([tecnicoId])
+  @@map("manutencoes_veiculo")
 }
 
 // ─── RELATÓRIOS ─────────────────────────────────────────────────────────────

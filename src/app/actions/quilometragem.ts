@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
+import { checkMaintenanceAlert } from './manutencao'
 
 // ─── UPLOAD PARA O MINIO (Bucket: sg4-km) ───
 export async function uploadFotoKm(fileData: string, fileName: string, contentType: string) {
@@ -94,6 +95,9 @@ export async function createQuilometragem(data: {
     })
     await audit({ userId, action: 'ABRIR_QUILOMETRAGEM', entity: 'Quilometragem', entityId: item.id, details: { kmInicial: data.kmInicial, tecnicoId: data.tecnicoId } })
 
+    // Disparar checagem de manutenção (sem aguardar para não travar a UI)
+    checkMaintenanceAlert(data.tecnicoId, data.kmInicial).catch(console.error)
+
     return { success: true, data: item }
   } catch (error) {
     console.error('Erro ao criar quilometragem:', error)
@@ -117,6 +121,9 @@ export async function fecharQuilometragem(id: string, kmFinal: number, fotoFinal
       data: { dataFinal: dataFinal || new Date(), kmFinal, fotoFinal, diferenca }
     })
     await audit({ userId, action: 'FECHAR_QUILOMETRAGEM', entity: 'Quilometragem', entityId: id, details: { kmFinal, diferenca } })
+
+    // Disparar checagem de manutenção
+    checkMaintenanceAlert(km.tecnicoId, kmFinal).catch(console.error)
 
     return { success: true, data: item }
   } catch (error) {
