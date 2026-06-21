@@ -53,9 +53,10 @@ export default function ReunioesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [meetingDate, setMeetingDate] = useState('')
   const [meetingTime, setMeetingTime] = useState('')
+  const [meetingTimeFim, setMeetingTimeFim] = useState('')
   const [meetingAssunto, setMeetingAssunto] = useState('')
   const [meetingRecorrencia, setMeetingRecorrencia] = useState('none')
-  const [meetingVezes, setMeetingVezes] = useState(1)
+  const [meetingDataFim, setMeetingDataFim] = useState('')
   
   const [editingItem, setEditingItem] = useState<ReuniaoData | null>(null)
   const [editPresenca, setEditPresenca] = useState<string>('PRESENTE')
@@ -171,15 +172,17 @@ export default function ReunioesPage() {
 
   function handleCreateLote(e: React.FormEvent) {
     e.preventDefault()
+    if (!meetingDate || !meetingTime || !meetingAssunto) return
     startTransition(async () => {
-      const res = await createReuniaoLote(meetingDate, meetingTime, meetingAssunto, meetingRecorrencia, meetingVezes)
+      const res = await createReuniaoLote(meetingDate, meetingTime, meetingTimeFim, meetingAssunto, meetingRecorrencia, meetingDataFim)
       if (res.success) {
         setShowCreateModal(false)
         setMeetingDate('')
         setMeetingTime('')
+        setMeetingTimeFim('')
         setMeetingAssunto('')
         setMeetingRecorrencia('none')
-        setMeetingVezes(1)
+        setMeetingDataFim('')
         loadData()
       } else {
         alert(res.error || "Erro ao criar reuniões")
@@ -778,14 +781,18 @@ export default function ReunioesPage() {
                 Isso criará a estrutura da reunião para todos os TSTs ativos. Depois, você poderá redigir a ata na aba "Atas de Reunião".
               </p>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data da Reunião</label>
                   <input type="date" required value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Hora da Reunião</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Hora Início</label>
                   <input type="time" required value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Hora Fim</label>
+                  <input type="time" value={meetingTimeFim} onChange={(e) => setMeetingTimeFim(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
                 </div>
               </div>
               
@@ -798,7 +805,7 @@ export default function ReunioesPage() {
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Recorrência</label>
                   <select value={meetingRecorrencia} onChange={(e) => setMeetingRecorrencia(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none', background: '#fff' }}>
-                    <option value="none">Nenhuma (Única)</option>
+                    <option value="none">Única (Sem Recorrência)</option>
                     <option value="diaria">Diária</option>
                     <option value="semanal">Semanal</option>
                     <option value="mensal">Mensal</option>
@@ -806,8 +813,8 @@ export default function ReunioesPage() {
                 </div>
                 {meetingRecorrencia !== 'none' && (
                   <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Vezes (Total)</label>
-                    <input type="number" min={2} max={365} value={meetingVezes} onChange={(e) => setMeetingVezes(Number(e.target.value))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data Fim Recorrência</label>
+                    <input type="date" required value={meetingDataFim} onChange={(e) => setMeetingDataFim(e.target.value)} min={meetingDate} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
                   </div>
                 )}
               </div>

@@ -247,6 +247,7 @@ model Reuniao {
   id           String   @id @default(cuid())
   tecnicoId    String
   data         DateTime
+  horaFim      String?
   assunto      String?
   presenca     PresencaReuniao @default(PRESENTE)
   pontualidade PontualidadeReuniao @default(PONTUAL)

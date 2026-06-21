@@ -37,7 +37,7 @@ export async function getReunioes(ano?: number) {
   }
 }
 
-export async function createReuniaoLote(dataIso: string, hora: string, assunto: string, recorrencia: string, vezes: number) {
+export async function createReuniaoLote(dataIso: string, hora: string, horaFim: string, assunto: string, recorrencia: string, dataFimIso: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -59,24 +59,20 @@ export async function createReuniaoLote(dataIso: string, hora: string, assunto: 
 
     const reunioesData = []
     
-    const times = vezes && vezes > 0 ? vezes : 1
-    
-    for (let i = 0; i < times; i++) {
-      const dt = new Date(`${dataIso}T${hora || '12:00'}:00`)
-      if (isNaN(dt.getTime())) return { success: false, error: 'Data/Hora inválida' }
+    const startDt = new Date(`${dataIso}T${hora || '12:00'}:00`)
+    if (isNaN(startDt.getTime())) return { success: false, error: 'Data/Hora inicial inválida' }
 
-      if (recorrencia === 'diaria') {
-        dt.setDate(dt.getDate() + i)
-      } else if (recorrencia === 'semanal') {
-        dt.setDate(dt.getDate() + (i * 7))
-      } else if (recorrencia === 'mensal') {
-        dt.setMonth(dt.getMonth() + i)
-      }
+    const endDt = (recorrencia !== 'none' && dataFimIso) ? new Date(`${dataFimIso}T23:59:59`) : new Date(startDt)
+    if (isNaN(endDt.getTime())) return { success: false, error: 'Data final inválida' }
 
+    let currentDt = new Date(startDt)
+
+    while (currentDt <= endDt) {
       for (const t of tecnicos) {
         reunioesData.push({
           tecnicoId: t.id,
-          data: dt,
+          data: new Date(currentDt),
+          horaFim: horaFim || null,
           assunto: assunto || 'Reunião',
           presenca: 'PRESENTE' as any,
           pontualidade: 'PONTUAL' as any,
@@ -85,10 +81,20 @@ export async function createReuniaoLote(dataIso: string, hora: string, assunto: 
           observacao: ''
         })
       }
+
+      if (recorrencia === 'diaria') {
+        currentDt.setDate(currentDt.getDate() + 1)
+      } else if (recorrencia === 'semanal') {
+        currentDt.setDate(currentDt.getDate() + 7)
+      } else if (recorrencia === 'mensal') {
+        currentDt.setMonth(currentDt.getMonth() + 1)
+      } else {
+        break
+      }
     }
     
     await prisma.reuniao.createMany({ data: reunioesData })
-    await audit({ userId, action: 'CRIAR_REUNIAO_LOTE', entity: 'Reunião', details: { data: dataIso, hora, assunto, recorrencia, vezes, totalTecnicos: tecnicos.length, totalCriadas: reunioesData.length } })
+    await audit({ userId, action: 'CRIAR_REUNIAO_LOTE', entity: 'Reunião', details: { dataInicial: dataIso, dataFinal: dataFimIso, hora, horaFim, assunto, recorrencia, totalTecnicos: tecnicos.length, totalCriadas: reunioesData.length } })
     
     return { success: true }
   } catch (error) {
