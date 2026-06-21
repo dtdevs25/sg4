@@ -5,6 +5,11 @@ WORKDIR /app
 # Cache do apk entre builds (BuildKit)
 RUN apk add --no-cache libc6-compat
 
+# --- CACHE BUSTER ---
+# Mudando esse valor forçamos o Docker a ignorar o cache corrompido da layer "unknown parent image ID"
+ENV DOCKER_CACHE_BUSTER=1
+# --------------------
+
 # Copiar manifests ANTES do código fonte para aproveitar cache de layers.
 # Se package.json não mudou, o npm install abaixo é reutilizado do cache.
 COPY package*.json ./
