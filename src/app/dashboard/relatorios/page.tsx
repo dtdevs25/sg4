@@ -33,7 +33,7 @@ export default function RelatoriosAtividadesPage() {
   const role = (session?.user as any)?.role
 
   const [selectedMonths, setSelectedMonths] = useState<string[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
 
   const [todasAtividades, setTodasAtividades] = useState<any[]>([])
   const [tecnicos, setTecnicos] = useState<any[]>([])
@@ -92,7 +92,7 @@ export default function RelatoriosAtividadesPage() {
     setLoading(true)
     try {
       // Busca todas do ano para filtrar localmente pelos meses selecionados
-      const promises = Array.from({ length: 12 }).map((_, i) => getAtividadesRelatorio(i + 1, selectedYear))
+      const promises = Array.from({ length: 12 }).map((_, i) => getAtividadesRelatorio(i + 1, selectedYear === 'ALL' ? undefined : selectedYear))
       const results = await Promise.all(promises)
       const all = results.flat()
       setTodasAtividades(all)
@@ -416,7 +416,8 @@ export default function RelatoriosAtividadesPage() {
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
-            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer' }}>
+            <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer' }}>
+              <option value="ALL">Todos os Anos</option>
               {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>

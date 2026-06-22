@@ -626,7 +626,7 @@ export default function DashboardPage() {
                 fontWeight: 600, color: '#475569', cursor: 'pointer', outline: 'none'
               }}
             >
-              <option value="">Geral (Todos os Anos)</option>
+              <option value="">Todos os Anos</option>
               {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
             <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 11, pointerEvents: 'none', color: '#94a3b8' }} />
