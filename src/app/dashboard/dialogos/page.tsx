@@ -8,6 +8,7 @@ import {
   UploadCloud, FileSpreadsheet, ListTodo, CheckSquare, X, AlertTriangle, CheckCircle2, Loader2, Eye
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { getAnosComDados } from '@/app/actions/anos'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
 import { getDssArkium, upsertDssArkiumBatch, updateEstadoDssArkium, limparDssArkiumInvalidos, deleteDssArkium } from '@/app/actions/dssArkium'
@@ -63,6 +64,7 @@ export default function DialogosPage() {
   const [showInactive, setShowInactive] = useState(false)
   const [totalsTecnicos, setTotalsTecnicos] = useState({ ativos: 0, inativos: 0 })
   const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
+  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([new Date().getFullYear()])
   const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
   const [search, setSearch] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -92,6 +94,8 @@ export default function DialogosPage() {
   }, [])
 
   async function loadData() {
+    const anos = await getAnosComDados()
+    setAnosDisponiveis(anos)
     const tecRes = await getTecnicos()
     const atvRes = await getAtividades('DSS')
     const arkRes = await getDssArkium()
@@ -700,9 +704,7 @@ export default function DialogosPage() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
                 <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
                   <option value="ALL">Todos os Anos</option>
-                  <option value={2024}>2024</option>
-                  <option value={2025}>2025</option>
-                  <option value={2026}>2026</option>
+                  {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -966,9 +968,7 @@ export default function DialogosPage() {
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
                   <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
                     <option value="ALL">Todos os Anos</option>
-                    <option value={2024}>2024</option>
-                    <option value={2025}>2025</option>
-                    <option value={2026}>2026</option>
+                    {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

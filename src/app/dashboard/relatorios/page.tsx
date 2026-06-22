@@ -10,6 +10,7 @@ import {
   getAtividadesRelatorio, addAtividade, deleteAtividade, updateAtividade, uploadFotoRelatorio, getAtividadesForPrint
 } from '@/app/actions/relatorios'
 import { optimizeTextWithAI } from '@/app/actions/ai'
+import { getAnosComDados } from '@/app/actions/anos'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { gerarPdfRelatorio } from '@/app/utils/generateRelatorioPdf'
 import { uploadRelatorioPdf, getRelatoriosPdf, deleteRelatorioPdf } from '@/app/actions/relatoriosPdf'
@@ -33,6 +34,7 @@ export default function RelatoriosAtividadesPage() {
   const role = (session?.user as any)?.role
 
   const [selectedMonths, setSelectedMonths] = useState<string[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
+  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([new Date().getFullYear()])
   const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
 
   const [todasAtividades, setTodasAtividades] = useState<any[]>([])
@@ -89,6 +91,8 @@ export default function RelatoriosAtividadesPage() {
   }, [role])
 
   async function loadData() {
+    const anos = await getAnosComDados()
+    setAnosDisponiveis(anos)
     setLoading(true)
     try {
       // Busca todas do ano para filtrar localmente pelos meses selecionados

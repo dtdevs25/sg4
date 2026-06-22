@@ -1,5 +1,6 @@
 'use client'
 
+import { getAnosComDados } from '@/app/actions/anos'
 import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   CalendarDays, CheckCircle2, Clock, XCircle,
@@ -47,6 +48,7 @@ export default function ReunioesPage() {
   
   const [search, setSearch] = useState('')
   const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([new Date().getFullYear()])
   const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
   
   // Modais de Presença
@@ -89,6 +91,8 @@ export default function ReunioesPage() {
   }, [selectedYear])
 
   async function loadData() {
+    const anos = await getAnosComDados()
+    setAnosDisponiveis(anos)
     setLoading(true)
     const [resReunioes, resAtas] = await Promise.all([
       getReunioes(selectedYear === 'ALL' ? undefined : selectedYear),
@@ -437,9 +441,7 @@ export default function ReunioesPage() {
               <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
               <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
                 <option value="ALL">Todos os Anos</option>
-                <option value={2024}>2024</option>
-                <option value={2025}>2025</option>
-                <option value={2026}>2026</option>
+                {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

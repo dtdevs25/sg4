@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useSession } from 'next-auth/react'
+import { getAnosComDados } from '@/app/actions/anos'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
 import {
@@ -66,6 +67,7 @@ export default function InspecoesPage() {
   // --- ESTADO: Visão Consolidada ---
   const [data, setData] = useState<any[]>([])
   const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
+  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([new Date().getFullYear()])
   const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
   const [search, setSearch] = useState('')
   const [showInactive, setShowInactive] = useState(false)
@@ -98,6 +100,8 @@ export default function InspecoesPage() {
   }, [])
 
   async function loadData() {
+    const anos = await getAnosComDados()
+    setAnosDisponiveis(anos)
     const tecRes = await getTecnicos()
     const arkRes = await getInspecoesArkium()
 
@@ -666,9 +670,7 @@ export default function InspecoesPage() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
                 <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
                   <option value="ALL">Todos os Anos</option>
-                  <option value={2024}>2024</option>
-                  <option value={2025}>2025</option>
-                  <option value={2026}>2026</option>
+                  {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               
@@ -944,9 +946,7 @@ export default function InspecoesPage() {
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
                     <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
                       <option value="ALL">Todos os Anos</option>
-                      <option value={2024}>2024</option>
-                      <option value={2025}>2025</option>
-                      <option value={2026}>2026</option>
+                      {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
