@@ -66,7 +66,7 @@ export default function InspecoesPage() {
   // --- ESTADO: Visão Consolidada ---
   const [data, setData] = useState<any[]>([])
   const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
   const [search, setSearch] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -165,7 +165,7 @@ export default function InspecoesPage() {
             }
             if (month === 0 || year === 0) return false
             const MONTH_NAMES = ["", "JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
-            return MONTH_NAMES[month] === mesName && year === selectedYear
+            return MONTH_NAMES[month] === mesName && (selectedYear === 'ALL' || year === selectedYear)
           }).length
 
           result[k] = totalMesArkium
@@ -200,7 +200,12 @@ export default function InspecoesPage() {
       const dbMes = MES_MAP[monthKey]
       
       startTransition(async () => {
-         const res = await upsertAtividadeMes(id, 'INSPECAO', selectedYear, dbMes, editValue)
+         if (selectedYear === 'ALL') {
+            alert('Selecione um ano específico para poder editar os valores manuais da matriz.')
+            setEditingId(null)
+            return
+         }
+         const res = await upsertAtividadeMes(id, 'INSPECAO', selectedYear as number, dbMes, editValue)
          if (res.success) {
            setData(prev => prev.map(t => t.id === id ? { ...t, [monthKey]: editValue } : t))
          } else {
@@ -529,7 +534,7 @@ export default function InspecoesPage() {
     }
     // Se não conseguiu parsear ano/mês → incluir o registro
     if (year === 0 || month === 0) return true
-    if (year !== selectedYear) return false
+    if (selectedYear !== 'ALL' && year !== selectedYear) return false
     const MONTH_KEYS: string[] = ['', 'jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
     if (month >= 1 && month <= 12) {
       if (!selectedMonths.includes(MONTH_KEYS[month] as MesKey)) return false
@@ -659,7 +664,8 @@ export default function InspecoesPage() {
             <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
-                <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+                <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+                  <option value="ALL">Todos os Anos</option>
                   <option value={2024}>2024</option>
                   <option value={2025}>2025</option>
                   <option value={2026}>2026</option>
@@ -936,7 +942,8 @@ export default function InspecoesPage() {
                 <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 8, gridColumn: 'span 2' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
-                    <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+                    <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+                      <option value="ALL">Todos os Anos</option>
                       <option value={2024}>2024</option>
                       <option value={2025}>2025</option>
                       <option value={2026}>2026</option>
