@@ -191,7 +191,7 @@ export async function deleteQuilometragem(id: string) {
 }
 
 // ─── ABASTECIMENTO ───
-export async function getAbastecimentos(ano: number, mes?: number) {
+export async function getAbastecimentos(ano?: number, mes?: number) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -204,10 +204,12 @@ export async function getAbastecimentos(ano: number, mes?: number) {
       where.tecnicoId = tecnicoId || 'unassigned'
     }
     
-    if (mes) {
-      where.data = { gte: new Date(ano, mes - 1, 1), lte: new Date(ano, mes, 0, 23, 59, 59) }
-    } else {
-      where.data = { gte: new Date(ano, 0, 1), lte: new Date(ano, 11, 31, 23, 59, 59) }
+    if (ano && !isNaN(ano)) {
+      if (mes) {
+        where.data = { gte: new Date(ano, mes - 1, 1), lte: new Date(ano, mes, 0, 23, 59, 59) }
+      } else {
+        where.data = { gte: new Date(ano, 0, 1), lte: new Date(ano, 11, 31, 23, 59, 59) }
+      }
     }
 
     const data = await prisma.abastecimento.findMany({

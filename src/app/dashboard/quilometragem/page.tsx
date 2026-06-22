@@ -15,6 +15,26 @@ import { getTecnicos } from '@/app/actions/tecnicos'
 import { getManutencoes, registrarManutencao, excluirManutencao } from '@/app/actions/manutencao'
 
 export default function QuilometragemPage() {
+
+  const formatKmStr = (val) => {
+    if (!val) return '';
+    const digits = val.replace(/\D/g, '')
+    if (!digits) return ''
+    return parseInt(digits, 10).toLocaleString('pt-BR')
+  }
+
+  const formatCurrencyStr = (val) => {
+    if (!val) return '';
+    const digits = val.replace(/\D/g, '')
+    if (!digits) return ''
+    return (parseInt(digits, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+  }
+
+  const parseFormattedNumber = (val) => {
+    if (!val) return 0
+    return parseFloat(val.toString().replace(/\./g, '').replace(',', '.'))
+  }
+
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
@@ -82,10 +102,10 @@ export default function QuilometragemPage() {
   async function loadData() {
     setLoading(true)
     const [resKm, resAbs, resTec, resMan] = await Promise.all([
-      getQuilometragens(selectedYear),
-      getAbastecimentos(selectedYear),
+      getQuilometragens(selectedYear === 'ALL' ? undefined : selectedYear),
+      getAbastecimentos(selectedYear === 'ALL' ? undefined : selectedYear),
       getTecnicos(),
-      getManutencoes(selectedYear)
+      getManutencoes(selectedYear === 'ALL' ? undefined : selectedYear)
     ])
     if (resKm.success && resKm.data) setKms(resKm.data)
     if (resAbs.success && resAbs.data) setAbastecimentos(resAbs.data)
@@ -157,7 +177,7 @@ export default function QuilometragemPage() {
         tecnicoId: formStart.tecnicoId,
         diaSemana: ds,
         dataInicial: jsDate,
-        kmInicial: parseFloat(formStart.kmInicial),
+        kmInicial: parseFormattedNumber(formStart.kmInicial),
         fotoInicial: fotoUrl
       })
 
@@ -184,7 +204,7 @@ export default function QuilometragemPage() {
       }
 
       const dtFinal = formEnd.dataFinal ? new Date(formEnd.dataFinal + 'T12:00:00Z') : undefined
-      const res = await fecharQuilometragem(showEndModal, parseFloat(formEnd.kmFinal), fotoUrl, dtFinal)
+      const res = await fecharQuilometragem(showEndModal, parseFormattedNumber(formEnd.kmFinal), fotoUrl, dtFinal)
       if (res.success) {
         setShowEndModal(null)
         setFormEnd({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
@@ -210,7 +230,7 @@ export default function QuilometragemPage() {
       const res = await createAbastecimento({
         tecnicoId: formAbs.tecnicoId,
         data: new Date(formAbs.data + 'T12:00:00Z'),
-        valor: parseFloat(formAbs.valor),
+        valor: parseFormattedNumber(formAbs.valor),
         fotoCupom: fotoUrl
       })
 
@@ -243,9 +263,9 @@ export default function QuilometragemPage() {
 
       const res = await updateQuilometragem(showEditKmModal.id, {
         diaSemana: formEditKm.diaSemana,
-        kmInicial: formEditKm.kmInicial ? parseFloat(formEditKm.kmInicial) : undefined,
+        kmInicial: formEditKm.kmInicial ? parseFormattedNumber(formEditKm.kmInicial) : undefined,
         fotoInicial: fotoInUrl,
-        kmFinal: formEditKm.kmFinal ? parseFloat(formEditKm.kmFinal) : null,
+        kmFinal: formEditKm.kmFinal ? parseFormattedNumber(formEditKm.kmFinal) : null,
         fotoFinal: fotoFiUrl
       })
 
@@ -272,7 +292,7 @@ export default function QuilometragemPage() {
       const dt = formEditAbs.data ? new Date(formEditAbs.data + 'T12:00:00Z') : undefined
       const res = await updateAbastecimento(showEditAbsModal.id, {
         data: dt,
-        valor: formEditAbs.valor ? parseFloat(formEditAbs.valor) : undefined,
+        valor: formEditAbs.valor ? parseFormattedNumber(formEditAbs.valor) : undefined,
         fotoCupom: fotoUrl
       })
 
@@ -300,7 +320,7 @@ export default function QuilometragemPage() {
       const res = await registrarManutencao({
         tecnicoId: formMaint.tecnicoId,
         dataManutencao: new Date(formMaint.dataManutencao + 'T12:00:00Z'),
-        kmManutencao: parseFloat(formMaint.kmManutencao),
+        kmManutencao: parseFormattedNumber(formMaint.kmManutencao),
         comprovanteUrl: fotoUrl
       })
 
@@ -893,7 +913,7 @@ export default function QuilometragemPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>KM Inicial</label>
-                  <input type="number" step="0.1" required value={formStart.kmInicial} onChange={(e) => setFormStart(p => ({...p, kmInicial: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="text" required value={formStart.kmInicial} onChange={(e) => setFormStart(p => ({...p, kmInicial: formatKmStr(e.target.value)}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
               <div>
@@ -952,7 +972,7 @@ export default function QuilometragemPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>KM Final (Odômetro)</label>
-                  <input type="number" step="0.1" required value={formEnd.kmFinal} onChange={(e) => setFormEnd(p => ({...p, kmFinal: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="text" required value={formEnd.kmFinal} onChange={(e) => setFormEnd(p => ({...p, kmFinal: formatKmStr(e.target.value)}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
               <div>
@@ -1050,7 +1070,7 @@ export default function QuilometragemPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Valor Total (R$)</label>
-                  <input type="number" step="0.01" required value={formAbs.valor} onChange={(e) => setFormAbs(p => ({...p, valor: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="text" required value={formAbs.valor} onChange={(e) => setFormAbs(p => ({...p, valor: formatCurrencyStr(e.target.value)}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
               <div>
@@ -1116,7 +1136,7 @@ export default function QuilometragemPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>KM Inicial</label>
-                  <input type="number" step="0.1" required value={formEditKm.kmInicial} onChange={(e) => setFormEditKm(p => ({...p, kmInicial: e.target.value}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="text" required value={formEditKm.kmInicial} onChange={(e) => setFormEditKm(p => ({...p, kmInicial: formatKmStr(e.target.value)}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
               <div>
@@ -1137,7 +1157,7 @@ export default function QuilometragemPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>KM Final</label>
-                <input type="number" step="0.1" value={formEditKm.kmFinal} onChange={(e) => setFormEditKm(p => ({...p, kmFinal: e.target.value}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                <input type="text" value={formEditKm.kmFinal} onChange={(e) => setFormEditKm(p => ({...p, kmFinal: formatKmStr(e.target.value)}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Nova Foto Final</label>
@@ -1184,7 +1204,7 @@ export default function QuilometragemPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Valor Total (R$)</label>
-                  <input type="number" step="0.01" required value={formEditAbs.valor} onChange={(e) => setFormEditAbs(p => ({...p, valor: e.target.value}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  <input type="text" required value={formEditAbs.valor} onChange={(e) => setFormEditAbs(p => ({...p, valor: formatCurrencyStr(e.target.value)}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
                 </div>
               </div>
               <div>
@@ -1275,7 +1295,7 @@ export default function QuilometragemPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>KM de Realização</label>
-                  <input type="number" required min={0} value={formMaint.kmManutencao} onChange={(e) => setFormMaint(p => ({ ...p, kmManutencao: e.target.value }))} placeholder="Ex: 30100" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                  <input type="text" required value={formMaint.kmManutencao} onChange={(e) => setFormMaint(p => ({ ...p, kmManutencao: formatKmStr(e.target.value) }))} placeholder="Ex: 30.100" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
                 </div>
               </div>
               
