@@ -13,17 +13,20 @@ export async function getAnosComDados() {
     const reunioes = await prisma.reuniao.findMany({ select: { data: true } })
     reunioes.forEach(r => anos.add(r.data.getFullYear()))
     
-    const atas = await prisma.ata.findMany({ select: { data: true } })
+    const atas = await prisma.ataReuniao.findMany({ select: { data: true } })
     atas.forEach(a => anos.add(a.data.getFullYear()))
     
-    const kms = await prisma.quilometragem.findMany({ select: { dataHora: true } })
-    kms.forEach(k => anos.add(k.dataHora.getFullYear()))
+    const kms = await prisma.quilometragem.findMany({ select: { dataInicial: true, dataFinal: true } })
+    kms.forEach(k => {
+      if (k.dataInicial) anos.add(k.dataInicial.getFullYear())
+      if (k.dataFinal) anos.add(k.dataFinal.getFullYear())
+    })
     
-    const abs = await prisma.abastecimento.findMany({ select: { dataHora: true } })
-    abs.forEach(a => anos.add(a.dataHora.getFullYear()))
+    const abs = await prisma.abastecimento.findMany({ select: { data: true } })
+    abs.forEach(a => anos.add(a.data.getFullYear()))
     
-    const man = await prisma.manutencao.findMany({ select: { dataHora: true } })
-    man.forEach(m => anos.add(m.dataHora.getFullYear()))
+    const man = await prisma.manutencaoVeiculo.findMany({ select: { dataManutencao: true } })
+    man.forEach(m => anos.add(m.dataManutencao.getFullYear()))
     
     const dss = await prisma.dssArkium.findMany({ select: { dataFechamento: true } })
     dss.forEach(d => {
@@ -72,8 +75,8 @@ export async function getAnosComDados() {
         }
     })
 
-    const ativMes = await prisma.atividadeMes.findMany({ select: { ano: true } })
-    ativMes.forEach(a => anos.add(a.ano))
+    const atividades = await prisma.atividade.findMany({ select: { ano: true } })
+    atividades.forEach(a => anos.add(a.ano))
   } catch (err) {
     console.error('Erro ao buscar anos com dados:', err)
   }

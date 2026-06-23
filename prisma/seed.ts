@@ -22,7 +22,7 @@ async function main() {
       name: 'Gestor Geral SG4',
       email: 'admin@sg4.com.br',
       password: adminPassword,
-      role: Role.ADMIN,
+      role: "ADMIN",
       active: true,
     }
   })

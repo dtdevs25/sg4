@@ -326,7 +326,8 @@ export default function RelatoriosAtividadesPage() {
     
     try {
       setLoading(true)
-      const data = await getAtividadesForPrint(formPdf.mes, formPdf.ano, 'VIVO', formPdf.tecnicoId)
+      const tIdParaGerar = role === 'TST' ? (session?.user as any)?.tecnicoId : formPdf.tecnicoId;
+      const data = await getAtividadesForPrint(formPdf.mes, formPdf.ano, 'VIVO', tIdParaGerar)
       
       let elaborador = 'Não Identificado'
       if (role === 'TST') {
