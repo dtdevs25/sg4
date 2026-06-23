@@ -144,3 +144,76 @@ export async function deleteReuniaoItem(id: string) {
     return { success: false, error: 'Falha ao excluir' }
   }
 }
+
+export async function updatePresencasReuniao(updates: { id: string, presenca: string, pontualidade: string, justificada: string, motivo: string, observacao: string }[]) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    
+    const role = (session.user as any).role
+    if (role !== 'MASTER' && role !== 'ADMIN') {
+      return { success: false, error: 'Sem permissão para editar reuniões' }
+    }
+    const userId = (session.user as any).id
+
+    for (const update of updates) {
+      await prisma.reuniao.update({
+        where: { id: update.id },
+        data: {
+          presenca: update.presenca as any,
+          pontualidade: update.presenca === 'AUSENTE' ? 'NAO_SE_APLICA' : update.pontualidade as any,
+          justificada: update.presenca === 'PRESENTE' ? 'NAO_SE_APLICA' : update.justificada as any,
+          motivo: update.motivo,
+          observacao: update.observacao
+        }
+      })
+    }
+
+    await audit({ userId, action: 'EDITAR_REUNIAO_LOTE', entity: 'Reunião', details: { qtdAtualizados: updates.length } })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao atualizar presenças em lote:', error)
+    return { success: false, error: 'Falha ao atualizar presenças' }
+  }
+}
+
+export async function deleteReuniaoLote(dataIso: string, assunto: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    
+    const role = (session.user as any).role
+    if (role !== 'MASTER' && role !== 'ADMIN') {
+      return { success: false, error: 'Sem permissão para excluir reuniões' }
+    }
+    const userId = (session.user as any).id
+
+    // Deletar as presenças
+    await prisma.reuniao.deleteMany({
+      where: {
+        data: new Date(dataIso),
+        assunto: assunto
+      }
+    })
+
+    // Tentar deletar a ata caso exista
+    try {
+      await prisma.ataReuniao.deleteMany({
+        where: {
+          data: new Date(dataIso),
+          assunto: assunto
+        }
+      })
+    } catch (e) {
+      console.log('Nenhuma ata encontrada para excluir, prosseguindo.')
+    }
+
+    await audit({ userId, action: 'EXCLUIR_REUNIAO_LOTE', entity: 'Reunião', details: { data: dataIso, assunto } })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao excluir reunião em lote:', error)
+    return { success: false, error: 'Falha ao excluir a reunião inteira' }
+  }
+}

@@ -6,7 +6,7 @@ import {
   CalendarDays, CheckCircle2, Clock, XCircle,
   PlusCircle, Search, Sparkles, X, Edit2, Trash2, Loader2, Save, FileText, Printer, FileEdit, FileCode2
 } from 'lucide-react'
-import { getReunioes, createReuniaoLote, updateReuniaoItem, deleteReuniaoItem } from '@/app/actions/reunioes'
+import { getReunioes, createReuniaoLote, deleteReuniaoLote, updatePresencasReuniao } from '@/app/actions/reunioes'
 import { getAtas, upsertAta, uploadAnexoReuniao } from '@/app/actions/atas'
 import { useSession } from 'next-auth/react'
 
@@ -39,8 +39,6 @@ export default function ReunioesPage() {
   const { data: session } = useSession()
   const isMasterOrAdmin = (session?.user as any)?.role === 'MASTER' || (session?.user as any)?.role === 'ADMIN'
 
-  const [activeTab, setActiveTab] = useState<'presenca' | 'atas'>('presenca')
-
   const [logs, setLogs] = useState<ReuniaoData[]>([])
   const [atas, setAtas] = useState<AtaData[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,13 +58,7 @@ export default function ReunioesPage() {
   const [meetingRecorrencia, setMeetingRecorrencia] = useState('none')
   const [meetingDataFim, setMeetingDataFim] = useState('')
   
-  const [editingItem, setEditingItem] = useState<ReuniaoData | null>(null)
-  const [editPresenca, setEditPresenca] = useState<string>('PRESENTE')
-  const [editPontualidade, setEditPontualidade] = useState<string>('PONTUAL')
-  const [editJustificada, setEditJustificada] = useState<string>('NAO_SE_APLICA')
-  const [editMotivo, setEditMotivo] = useState('')
-  const [editObservacao, setEditObservacao] = useState('')
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{data: string, assunto: string} | null>(null)
 
   // Editor de Atas
   const [editingAta, setEditingAta] = useState<{data: string, assunto: string} | null>(null)
@@ -76,6 +68,9 @@ export default function ReunioesPage() {
   const [ataAnexoBase64, setAtaAnexoBase64] = useState('')
   const [ataAnexoContentType, setAtaAnexoContentType] = useState('')
   const [printData, setPrintData] = useState<{dataObj: any, ata: AtaData | null, presencas: ReuniaoData[]} | null>(null)
+  
+  // Lista de presença temporária (no modal)
+  const [tempPresencas, setTempPresencas] = useState<ReuniaoData[]>([])
 
   const MONTHS_LIST = [
     { key: 1, label: 'Jan' }, { key: 2, label: 'Fev' },
@@ -140,25 +135,21 @@ export default function ReunioesPage() {
     return matchMonth
   })
 
-  const searchedLogs = filteredLogs.filter(l => {
-    return l.tecnico.nome.toLowerCase().includes(search.toLowerCase()) || 
-           (l.motivo || '').toLowerCase().includes(search.toLowerCase()) || 
-           (l.assunto || '').toLowerCase().includes(search.toLowerCase())
-  })
-
   // Agrupamento de Reuniões Únicas (Data + Assunto)
-  const uniqueMeetingsMap = new Map<string, {data: string, assunto: string, rawData: Date, count: number}>()
+  const uniqueMeetingsMap = new Map<string, {data: string, assunto: string, rawData: Date, count: number, presences: number}>()
   filteredLogs.forEach(l => {
     const dt = new Date(l.data).toISOString()
     const ast = l.assunto || 'Reunião'
     const key = dt + '|' + ast
     if (!uniqueMeetingsMap.has(key)) {
-      uniqueMeetingsMap.set(key, { data: dt, assunto: ast, rawData: new Date(l.data), count: 1 })
+      uniqueMeetingsMap.set(key, { data: dt, assunto: ast, rawData: new Date(l.data), count: 1, presences: l.presenca === 'PRESENTE' ? 1 : 0 })
     } else {
       uniqueMeetingsMap.get(key)!.count++
+      if (l.presenca === 'PRESENTE') uniqueMeetingsMap.get(key)!.presences++
     }
   })
   const uniqueMeetings = Array.from(uniqueMeetingsMap.values()).sort((a, b) => b.rawData.getTime() - a.rawData.getTime())
+  
   const searchedMeetings = uniqueMeetings.filter(m => m.assunto.toLowerCase().includes(search.toLowerCase()))
 
   // Estatísticas Presença
@@ -194,34 +185,15 @@ export default function ReunioesPage() {
     })
   }
 
-  function handleSaveEdit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!editingItem) return
+  function handleDeleteLote() {
+    if (!deleteConfirmInfo) return
     startTransition(async () => {
-      const res = await updateReuniaoItem(editingItem.id, {
-        presenca: editPresenca,
-        pontualidade: editPresenca === 'AUSENTE' ? 'NAO_SE_APLICA' : editPontualidade,
-        justificada: editPresenca === 'PRESENTE' ? 'NAO_SE_APLICA' : editJustificada,
-        motivo: editMotivo,
-        observacao: editObservacao
-      })
+      const res = await deleteReuniaoLote(deleteConfirmInfo.data, deleteConfirmInfo.assunto)
       if (res.success) {
-        setEditingItem(null)
+        setDeleteConfirmInfo(null)
         loadData()
       } else {
-        alert("Erro ao atualizar.")
-      }
-    })
-  }
-
-  function handleDelete(id: string) {
-    startTransition(async () => {
-      const res = await deleteReuniaoItem(id)
-      if (res.success) {
-        setDeleteConfirmId(null)
-        loadData()
-      } else {
-        alert("Erro ao excluir.")
+        alert("Erro ao excluir reunião.")
       }
     })
   }
@@ -234,6 +206,9 @@ export default function ReunioesPage() {
     setAtaAnexoUrl(existingAta?.anexoUrl || '')
     setAtaAnexoBase64('')
     setAtaAnexoContentType('')
+    
+    const meetingLogs = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast)
+    setTempPresencas(JSON.parse(JSON.stringify(meetingLogs)))
   }
 
   function handleSaveAta() {
@@ -252,12 +227,26 @@ export default function ReunioesPage() {
         }
       }
 
-      const res = await upsertAta(editingAta.data, editingAta.assunto, ataContent, finalAnexoUrl, finalAnexoNome)
-      if (res.success) {
+      // Salva a ata primeiro
+      const ataRes = await upsertAta(editingAta.data, editingAta.assunto, ataContent, finalAnexoUrl, finalAnexoNome)
+      
+      // Salva os dados de presença da lista temporária
+      const updatesList = tempPresencas.map(tp => ({
+        id: tp.id,
+        presenca: tp.presenca,
+        pontualidade: tp.pontualidade,
+        justificada: tp.justificada,
+        motivo: tp.motivo || '',
+        observacao: tp.observacao || ''
+      }))
+      
+      const presRes = await updatePresencasReuniao(updatesList)
+
+      if (ataRes.success && presRes.success) {
         setEditingAta(null)
         loadData()
       } else {
-        alert("Erro ao salvar a ata.")
+        alert("Ocorreu um erro ao salvar.")
       }
     })
   }
@@ -270,35 +259,16 @@ export default function ReunioesPage() {
       ata: existingAta || null,
       presencas
     })
-    // Aguarda o state renderizar o layout escondido e chama window.print()
     setTimeout(() => {
       window.print()
       setPrintData(null)
     }, 500)
   }
 
-  function insertPresencaList() {
-    if (!editingAta) return
-    const presencas = filteredLogs.filter(l => new Date(l.data).toISOString() === editingAta.data && (l.assunto || 'Reunião') === editingAta.assunto && l.presenca === 'PRESENTE')
-    if (presencas.length === 0) {
-      alert("Nenhum técnico presente registrado para esta reunião.")
-      return
-    }
-    const htmlList = `
-      <p><strong>Lista de Presença:</strong></p>
-      <ul>
-        ${presencas.map(p => `<li>${p.tecnico.nome}</li>`).join('')}
-      </ul>
-      <p><br/></p>
-    `
-    execCmd('insertHTML', htmlList)
-  }
-
   function handleAnexoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     
-    // Limite 10MB
     if (file.size > 10 * 1024 * 1024) {
       alert('Arquivo muito grande. Limite é 10MB.')
       return
@@ -310,13 +280,12 @@ export default function ReunioesPage() {
         setAtaAnexoBase64(ev.target.result as string)
         setAtaAnexoNome(file.name)
         setAtaAnexoContentType(file.type)
-        setAtaAnexoUrl('') // Limpa a URL antiga pois vai upar um novo
+        setAtaAnexoUrl('')
       }
     }
     reader.readAsDataURL(file)
   }
 
-  // Comandos de Rich Text
   function execCmd(command: string, arg?: string) {
     document.execCommand(command, false, arg)
     document.getElementById('editor')?.focus()
@@ -333,7 +302,7 @@ export default function ReunioesPage() {
         }
       `}</style>
 
-      {/* --- ÁREA DE IMPRESSÃO (INVISÍVEL EM TELA) --- */}
+      {/* --- ÁREA DE IMPRESSÃO --- */}
       {printData && (
         <div id="print-section" style={{ display: 'none', fontFamily: 'Arial, sans-serif', color: '#000', background: '#fff' }}>
           <div style={{ borderBottom: '2px solid #660099', paddingBottom: 20, marginBottom: 30, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -401,40 +370,12 @@ export default function ReunioesPage() {
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
               <CalendarDays color="#660099" size={22} />
-              Gestão de Reuniões
+              Reuniões e Presenças
             </h1>
-          </div>
-
-          <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4 }}>
-            <button
-              onClick={() => setActiveTab('presenca')}
-              style={{
-                padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-                background: activeTab === 'presenca' ? '#fff' : 'transparent',
-                color: activeTab === 'presenca' ? '#660099' : '#64748b',
-                boxShadow: activeTab === 'presenca' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-              }}
-            >
-              Presença e Assiduidade
-            </button>
-            <button
-              onClick={() => setActiveTab('atas')}
-              style={{
-                padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-                background: activeTab === 'atas' ? '#fff' : 'transparent',
-                color: activeTab === 'atas' ? '#660099' : '#64748b',
-                boxShadow: activeTab === 'atas' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-              }}
-            >
-              Atas de Reunião
-            </button>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-          
           {/* Filtro de Meses e Ano */}
           <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -519,10 +460,10 @@ export default function ReunioesPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
           <div style={{ position: 'relative', width: 300 }}>
             <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
-            <input type="text" placeholder="Buscar técnico, motivo ou assunto..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
+            <input type="text" placeholder="Buscar reuniões por assunto..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
           </div>
           
-          {activeTab === 'presenca' && isMasterOrAdmin && (
+          {isMasterOrAdmin && (
             <button
               onClick={() => setShowCreateModal(true)}
               style={{
@@ -531,227 +472,275 @@ export default function ReunioesPage() {
               }}
             >
               <PlusCircle size={16} />
-              Nova Reunião (Lote)
+              Agendar Reunião
             </button>
           )}
         </div>
 
-        {/* ── CONTEÚDO: PRESENÇA ── */}
-        {activeTab === 'presenca' && (
-          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            {loading ? (
-              <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}>
-                <Loader2 className="animate-spin" size={32} color="#660099" />
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                  <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', width: '80px' }}>ID / Info</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Presença</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Pontualidade</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ausência (Justificada)</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Motivo / Obs</th>
-                      {isMasterOrAdmin && <th style={{ padding: '14px 20px', width: 100 }}></th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {searchedLogs.map(l => (
-                      <tr key={l.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s', ...((editingItem?.id === l.id || deleteConfirmId === l.id) ? { background: '#f8fafc' } : {}) }}>
-                        <td style={{ padding: '14px 20px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', marginBottom: 4 }}>#{l.id.slice(-5).toUpperCase()}</div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>
-                            {new Date(l.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                          </div>
-                          <div style={{ fontSize: 11, color: '#64748b', maxWidth: 120, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={l.assunto || ''}>{l.assunto || 'Reunião'}</div>
-                        </td>
-                        <td style={{ padding: '14px 20px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            {l.tecnico.fotoUrl ? (
-                              <img src={l.tecnico.fotoUrl} alt={l.tecnico.nome} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
-                            ) : (
-                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
-                                {l.tecnico.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
-                              </div>
-                            )}
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{l.tecnico.nome}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: l.presenca === 'PRESENTE' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: l.presenca === 'PRESENTE' ? '#10b981' : '#ef4444' }}>
-                            {l.presenca === 'PRESENTE' ? <CheckCircle2 size={12} /> : <XCircle size={12} />} {l.presenca}
+        {/* ── CONTEÚDO: TABELA DE REUNIÕES AGENDADAS ── */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          {loading ? (
+            <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}>
+              <Loader2 className="animate-spin" size={32} color="#660099" />
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', width: '120px' }}>Data</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Assunto da Reunião</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Técnicos Presentes</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ata Redigida</th>
+                    <th style={{ padding: '14px 20px', width: 220, textAlign: 'right' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchedMeetings.map(m => {
+                    const temAta = atas.some(a => new Date(a.data).toISOString() === m.data && a.assunto === m.assunto)
+                    
+                    return (
+                    <tr key={m.data + m.assunto} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s', ...((deleteConfirmInfo?.data === m.data && deleteConfirmInfo?.assunto === m.assunto) ? { background: '#f8fafc' } : {}) }}>
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                          {m.rawData.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{m.assunto}</div>
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>{m.presences} / {m.count}</span>
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        {temAta ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
+                            <CheckCircle2 size={12} /> Sim
                           </span>
-                        </td>
-                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: l.pontualidade === 'PONTUAL' ? 'rgba(16,185,129,0.1)' : l.pontualidade === 'ATRASADO' ? 'rgba(245,158,11,0.1)' : '#f1f5f9', color: l.pontualidade === 'PONTUAL' ? '#10b981' : l.pontualidade === 'ATRASADO' ? '#f59e0b' : '#64748b' }}>
-                            {l.pontualidade === 'PONTUAL' ? <CheckCircle2 size={12} /> : l.pontualidade === 'ATRASADO' ? <Clock size={12} /> : <X size={12} />} 
-                            {l.pontualidade.replace('_', ' ')}
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: '#f1f5f9', color: '#64748b' }}>
+                            <XCircle size={12} /> Pendente
                           </span>
-                        </td>
-                        <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 12, fontWeight: 700, color: l.justificada === 'SIM' ? '#10b981' : l.justificada === 'NAO' ? '#ef4444' : '#94a3b8' }}>
-                          {l.justificada.replace('_', ' ')}
-                        </td>
-                        <td style={{ padding: '14px 20px', fontSize: 12, color: '#64748b' }}>
-                          {l.motivo && <div style={{ marginBottom: 4 }}><b style={{ color: '#475569' }}>Motivo:</b> {l.motivo}</div>}
-                          {l.observacao && <div><b style={{ color: '#475569' }}>Obs:</b> {l.observacao}</div>}
-                          {(!l.motivo && !l.observacao) && <span style={{ fontStyle: 'italic', color: '#cbd5e1' }}>—</span>}
-                        </td>
-                        {isMasterOrAdmin && (
-                          <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                          <button
+                            onClick={() => openPrintPdf(m.data, m.assunto)}
+                            disabled={pending}
+                            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: 'all 0.2s', opacity: pending ? 0.5 : 1 }}
+                            title="Gerar PDF"
+                          >
+                            <Printer size={16} />
+                          </button>
+                          {isMasterOrAdmin && (
+                            <>
                               <button
-                                onClick={() => { setEditingItem(l); setEditPresenca(l.presenca); setEditPontualidade(l.pontualidade); setEditJustificada(l.justificada); setEditMotivo(l.motivo || ''); setEditObservacao(l.observacao || ''); }}
+                                onClick={() => openAtaEditor(m.data, m.assunto)}
                                 disabled={pending}
-                                style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: 'all 0.2s', opacity: pending ? 0.5 : 1 }}
-                                title="Editar"
+                                style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: '#660099', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: '#fff', fontSize: 12, fontWeight: 700, transition: 'all 0.2s', opacity: pending ? 0.5 : 1 }}
                               >
-                                <Edit2 size={16} />
+                                {temAta ? <Edit2 size={14} /> : <FileCode2 size={14} />} 
+                                {temAta ? 'Editar' : 'Redigir'}
                               </button>
                               <button
-                                onClick={() => setDeleteConfirmId(l.id)}
+                                onClick={() => setDeleteConfirmInfo({ data: m.data, assunto: m.assunto })}
                                 disabled={pending}
                                 style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #fee2e2', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#ef4444', transition: 'all 0.2s', opacity: pending ? 0.5 : 1 }}
-                                title="Excluir"
+                                title="Excluir Reunião"
                               >
                                 <Trash2 size={16} />
                               </button>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                    {searchedLogs.length === 0 && (
-                      <tr>
-                        <td colSpan={7} style={{ padding: '40px 24px', textAlign: 'center', fontSize: 13, color: '#94a3b8' }}>
-                          Nenhum registro de presença encontrado para o período.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── CONTEÚDO: ATAS ── */}
-        {activeTab === 'atas' && (
-          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <h2 style={{ margin: '0 0 20px 0', fontSize: 16, fontWeight: 800, color: '#1e293b' }}>Eventos Registrados ({searchedMeetings.length})</h2>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-              {searchedMeetings.map(m => {
-                const temAta = atas.some(a => new Date(a.data).toISOString() === m.data && a.assunto === m.assunto)
-                
-                return (
-                  <div key={m.data + m.assunto} style={{ padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', background: temAta ? '#f8fafc' : '#fff', position: 'relative' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{m.assunto}</div>
-                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{m.rawData.toLocaleDateString('pt-BR', { timeZone: 'UTC' })} • {m.count} Participantes</div>
-                      </div>
-                      {temAta && (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button onClick={() => openPrintPdf(m.data, m.assunto)} style={{ background: '#f1f5f9', color: '#660099', border: 'none', padding: '6px', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Gerar PDF">
-                            <Printer size={16} />
-                          </button>
+                            </>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    
-                    <button
-                      onClick={() => openAtaEditor(m.data, m.assunto)}
-                      style={{ width: '100%', background: temAta ? '#e2e8f0' : '#660099', color: temAta ? '#475569' : '#fff', border: 'none', padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s' }}
-                    >
-                      {temAta ? (
-                        <><FileEdit size={16} /> Editar Ata</>
-                      ) : (
-                        <><FileCode2 size={16} /> Redigir Ata</>
-                      )}
-                    </button>
-                  </div>
-                )
-              })}
+                      </td>
+                    </tr>
+                    )
+                  })}
+                  {searchedMeetings.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '40px 24px', textAlign: 'center', fontSize: 13, color: '#94a3b8' }}>
+                        Nenhuma reunião agendada encontrada para o período.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-            {searchedMeetings.length === 0 && (
-              <div style={{ padding: '40px 24px', textAlign: 'center', fontSize: 13, color: '#94a3b8' }}>
-                Nenhuma reunião foi criada neste período. Crie uma nova reunião na aba "Presença".
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
+
       </div>
 
-      {/* --- MODAIS COMUNS --- */}
+      {/* --- MODAL CONFIRMAÇÃO EXCLUSÃO --- */}
+      {deleteConfirmInfo && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 24 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#ef4444', margin: '0 0 16px 0' }}>Excluir Reunião?</h2>
+            <p style={{ margin: 0, fontSize: 14, color: '#334155', lineHeight: 1.5 }}>
+              Você está prestes a excluir a reunião <b>{deleteConfirmInfo.assunto}</b>. Isso removerá as presenças de todos os técnicos e a ata atrelada. Deseja continuar?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
+              <button disabled={pending} onClick={() => setDeleteConfirmInfo(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button disabled={pending} onClick={handleDeleteLote} style={{ padding: '10px 20px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                Sim, Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Editor de Ata */}
+      {/* --- MODAL REDIGIR ATA E PRESENÇA --- */}
       {editingAta && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 800, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 1000, maxHeight: '95vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>Redigir Ata de Reunião</h2>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{editingAta.assunto} - {new Date(editingAta.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>Gestão do Evento (Ata & Presenças)</h2>
+                <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{editingAta.assunto} • {new Date(editingAta.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
               </div>
               <button onClick={() => setEditingAta(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
             </div>
 
-            <div style={{ padding: 24, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
               
-              {/* Barra de Ferramentas Simples */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, background: '#f8fafc', padding: 8, borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                <button type="button" onClick={() => execCmd('bold')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>B</button>
-                <button type="button" onClick={() => execCmd('italic')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontStyle: 'italic', cursor: 'pointer' }}>I</button>
-                <button type="button" onClick={() => execCmd('underline')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', textDecoration: 'underline', cursor: 'pointer' }}>U</button>
-                <div style={{ width: 1, background: '#cbd5e1', margin: '0 6px' }} />
-                <button type="button" onClick={() => execCmd('insertUnorderedList')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>• Lista</button>
-                <button type="button" onClick={() => execCmd('insertOrderedList')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>1. Num</button>
-                <div style={{ width: 1, background: '#cbd5e1', margin: '0 6px' }} />
-                <button type="button" onClick={insertPresencaList} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#f1f5f9', cursor: 'pointer', fontWeight: 600, color: '#334155' }}>
-                  👥 Inserir Lista de Presença
-                </button>
+              {/* LADO ESQUERDO: REDIGIR ATA */}
+              <div style={{ flex: 1, padding: 24, overflowY: 'auto', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: '#334155', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><FileCode2 size={16} /> Redigir Ata</h3>
+                
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, background: '#f8fafc', padding: 8, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <button type="button" onClick={() => execCmd('bold')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>B</button>
+                  <button type="button" onClick={() => execCmd('italic')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontStyle: 'italic', cursor: 'pointer' }}>I</button>
+                  <button type="button" onClick={() => execCmd('underline')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', textDecoration: 'underline', cursor: 'pointer' }}>U</button>
+                  <div style={{ width: 1, background: '#cbd5e1', margin: '0 6px' }} />
+                  <button type="button" onClick={() => execCmd('insertUnorderedList')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>• Lista</button>
+                  <button type="button" onClick={() => execCmd('insertOrderedList')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>1. Num</button>
+                </div>
+
+                <div
+                  id="editor"
+                  contentEditable
+                  onInput={(e) => setAtaContent(e.currentTarget.innerHTML)}
+                  dangerouslySetInnerHTML={{ __html: ataContent }}
+                  style={{
+                    flex: 1, minHeight: 250, padding: 16, borderRadius: 8, border: '1px solid #cbd5e1',
+                    outline: 'none', fontSize: 14, color: '#334155', lineHeight: 1.6, overflowY: 'auto'
+                  }}
+                />
+
+                <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#334155', marginBottom: 8 }}>Anexo</label>
+                  {ataAnexoUrl || ataAnexoNome ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', padding: '10px 16px', borderRadius: 8, border: '1px solid #cbd5e1' }}>
+                      <FileText size={16} color="#660099" />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{ataAnexoNome}</div>
+                        {ataAnexoUrl && <a href={ataAnexoUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#2563eb', textDecoration: 'none' }}>Ver arquivo original</a>}
+                      </div>
+                      <button type="button" onClick={() => { setAtaAnexoUrl(''); setAtaAnexoNome(''); setAtaAnexoBase64(''); setAtaAnexoContentType('') }} style={{ padding: '6px 12px', borderRadius: 6, background: '#fee2e2', color: '#ef4444', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: 11 }}>Remover</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input type="file" id="ataAnexoInput" onChange={handleAnexoChange} style={{ display: 'none' }} />
+                      <button type="button" onClick={() => document.getElementById('ataAnexoInput')?.click()} style={{ padding: '10px 16px', borderRadius: 8, border: '1px dashed #64748b', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', width: '100%' }}>Adicionar Arquivo (10MB max)</button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Área de Edição Rich Text */}
-              <div
-                id="editor"
-                contentEditable
-                onInput={(e) => setAtaContent(e.currentTarget.innerHTML)}
-                dangerouslySetInnerHTML={{ __html: ataContent }}
-                style={{
-                  flex: 1, minHeight: 300, padding: 16, borderRadius: 8, border: '1px solid #cbd5e1',
-                  outline: 'none', fontSize: 14, color: '#334155', lineHeight: 1.6, overflowY: 'auto'
-                }}
-              />
-
-              {/* Anexos */}
-              <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#334155', marginBottom: 8 }}>Material de Apoio / Anexo</label>
+              {/* LADO DIREITO: LISTA DE PRESENÇA */}
+              <div style={{ width: 450, padding: 0, overflowY: 'auto', background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff', position: 'sticky', top: 0, zIndex: 10 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: '#334155', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle2 size={16} /> Lançar Presenças</h3>
+                  <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#64748b' }}>Configure quem participou e as observações. Esses dados serão consolidados no final.</p>
+                </div>
                 
-                {ataAnexoUrl || ataAnexoNome ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', padding: '10px 16px', borderRadius: 8, border: '1px solid #cbd5e1' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(102,0,153,0.1)', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <FileText size={16} />
+                <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {tempPresencas.map((tp, idx) => (
+                    <div key={tp.id} style={{ background: '#fff', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                        {tp.tecnico.fotoUrl ? (
+                          <img src={tp.tecnico.fotoUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                            {tp.tecnico.nome.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{tp.tecnico.nome}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button 
+                            onClick={() => {
+                              const newArr = [...tempPresencas];
+                              newArr[idx].presenca = 'PRESENTE';
+                              setTempPresencas(newArr);
+                            }}
+                            style={{ flex: 1, padding: '6px 0', borderRadius: 6, border: tp.presenca === 'PRESENTE' ? '1px solid #10b981' : '1px solid #e2e8f0', background: tp.presenca === 'PRESENTE' ? 'rgba(16,185,129,0.1)' : '#fff', color: tp.presenca === 'PRESENTE' ? '#10b981' : '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            PRESENTE
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const newArr = [...tempPresencas];
+                              newArr[idx].presenca = 'AUSENTE';
+                              setTempPresencas(newArr);
+                            }}
+                            style={{ flex: 1, padding: '6px 0', borderRadius: 6, border: tp.presenca === 'AUSENTE' ? '1px solid #ef4444' : '1px solid #e2e8f0', background: tp.presenca === 'AUSENTE' ? 'rgba(239,68,68,0.1)' : '#fff', color: tp.presenca === 'AUSENTE' ? '#ef4444' : '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            AUSENTE
+                          </button>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <select 
+                            value={tp.pontualidade}
+                            onChange={(e) => {
+                              const newArr = [...tempPresencas];
+                              newArr[idx].pontualidade = e.target.value as any;
+                              setTempPresencas(newArr);
+                            }}
+                            style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, color: '#334155' }}
+                          >
+                            <option value="PONTUAL">Pontual</option>
+                            <option value="ATRASADO">Atrasado</option>
+                            <option value="NAO_SE_APLICA">N/A</option>
+                          </select>
+
+                          <select 
+                            value={tp.justificada}
+                            onChange={(e) => {
+                              const newArr = [...tempPresencas];
+                              newArr[idx].justificada = e.target.value as any;
+                              setTempPresencas(newArr);
+                            }}
+                            style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, color: '#334155' }}
+                          >
+                            <option value="NAO_SE_APLICA">Justificada? (N/A)</option>
+                            <option value="SIM">Sim</option>
+                            <option value="NAO">Não</option>
+                          </select>
+                        </div>
+                        
+                        <input 
+                          type="text" 
+                          placeholder="Motivo / Observação..." 
+                          value={tp.motivo || tp.observacao || ''}
+                          onChange={(e) => {
+                            const newArr = [...tempPresencas];
+                            newArr[idx].motivo = e.target.value;
+                            setTempPresencas(newArr);
+                          }}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
+                        />
+                      </div>
                     </div>
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{ataAnexoNome}</div>
-                      {ataAnexoUrl && <a href={ataAnexoUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#2563eb', textDecoration: 'none' }}>Ver arquivo original</a>}
-                      {ataAnexoBase64 && <div style={{ fontSize: 11, color: '#10b981' }}>Novo arquivo selecionado (será salvo)</div>}
-                    </div>
-                    <button type="button" onClick={() => { setAtaAnexoUrl(''); setAtaAnexoNome(''); setAtaAnexoBase64(''); setAtaAnexoContentType('') }} style={{ padding: '6px 12px', borderRadius: 6, background: '#fee2e2', color: '#ef4444', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: 11 }}>
-                      Remover
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <input type="file" id="ataAnexoInput" onChange={handleAnexoChange} style={{ display: 'none' }} />
-                    <button type="button" onClick={() => document.getElementById('ataAnexoInput')?.click()} style={{ padding: '10px 16px', borderRadius: 8, border: '1px dashed #64748b', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, width: '100%', justifyContent: 'center' }}>
-                      <PlusCircle size={16} /> Adicionar Arquivo (PDF, PPT, DOC, etc)
-                    </button>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -761,7 +750,7 @@ export default function ReunioesPage() {
               </button>
               <button type="button" disabled={pending} onClick={handleSaveAta} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                 {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
-                Salvar Ata
+                Salvar Evento Completo
               </button>
             </div>
           </div>
@@ -775,13 +764,13 @@ export default function ReunioesPage() {
             <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <PlusCircle color="#fff" size={20} />
-                Nova Reunião Geral
+                Agendar Reunião
               </h2>
               <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
             </div>
             <form onSubmit={handleCreateLote} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
               <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
-                Isso criará a estrutura da reunião para todos os TSTs ativos. Depois, você poderá redigir a ata na aba "Atas de Reunião".
+                Isso criará a estrutura da reunião. Depois, você poderá redigir a ata e lançar a presença dos técnicos individualmente.
               </p>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
@@ -798,83 +787,37 @@ export default function ReunioesPage() {
                   <input type="time" value={meetingTimeFim} onChange={(e) => setMeetingTimeFim(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
                 </div>
               </div>
-              
+
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Assunto Principal / Título</label>
-                <input type="text" required value={meetingAssunto} onChange={(e) => setMeetingAssunto(e.target.value)} placeholder="Ex: Alinhamento de Fardamentos" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Assunto Principal</label>
+                <input type="text" required value={meetingAssunto} onChange={(e) => setMeetingAssunto(e.target.value)} placeholder="Ex: Reunião de Alinhamento Mensal" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                <div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Recorrência</label>
-                  <select value={meetingRecorrencia} onChange={(e) => setMeetingRecorrencia(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none', background: '#fff' }}>
-                    <option value="none">Única (Sem Recorrência)</option>
+                  <select value={meetingRecorrencia} onChange={(e) => setMeetingRecorrencia(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}>
+                    <option value="none">Evento Único</option>
                     <option value="diaria">Diária</option>
                     <option value="semanal">Semanal</option>
                     <option value="mensal">Mensal</option>
                   </select>
                 </div>
                 {meetingRecorrencia !== 'none' && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data Fim Recorrência</label>
-                    <input type="date" required value={meetingDataFim} onChange={(e) => setMeetingDataFim(e.target.value)} min={meetingDate} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data Fim (Recorrência)</label>
+                    <input type="date" required value={meetingDataFim} onChange={(e) => setMeetingDataFim(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <button type="button" disabled={pending} onClick={() => setShowCreateModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
-                  Cancelar
-                </button>
-                <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  {pending ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} 
-                  Criar Reunião
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {/* Modal Editar Presença TST */}
-      {editingItem && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Edit2 color="#64748b" size={18} />
-                </div>
-                Editar Presença
-              </h2>
-              <button onClick={() => setEditingItem(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSaveEdit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, display: 'flex', gap: 16, alignItems: 'center', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>{editingItem.tecnico.nome}</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Presença</label>
-                  <select value={editPresenca} onChange={(e) => setEditPresenca(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none', background: '#fff' }}>
-                    <option value="PRESENTE">Presente</option>
-                    <option value="AUSENTE">Ausente</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Pontualidade</label>
-                  <select disabled={editPresenca === 'AUSENTE'} value={editPontualidade} onChange={(e) => setEditPontualidade(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none', background: editPresenca === 'AUSENTE' ? '#f1f5f9' : '#fff' }}>
-                    <option value="PONTUAL">Pontual</option>
-                    <option value="ATRASADO">Atrasado</option>
-                    <option value="NAO_SE_APLICA">N/A</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <button type="button" disabled={pending} onClick={() => setEditingItem(null)} style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 10 }}>
+                <button type="button" disabled={pending} onClick={() => setShowCreateModal(false)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar
+                <button type="submit" disabled={pending} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {pending && <Loader2 size={16} className="animate-spin" />} 
+                  Agendar Evento
                 </button>
               </div>
             </form>

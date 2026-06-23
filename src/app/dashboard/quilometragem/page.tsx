@@ -17,21 +17,21 @@ import { getManutencoes, registrarManutencao, excluirManutencao } from '@/app/ac
 
 export default function QuilometragemPage() {
 
-  const formatKmStr = (val) => {
+  const formatKmStr = (val: any) => {
     if (!val) return '';
     const digits = val.replace(/\D/g, '')
     if (!digits) return ''
     return parseInt(digits, 10).toLocaleString('pt-BR')
   }
 
-  const formatCurrencyStr = (val) => {
+  const formatCurrencyStr = (val: any) => {
     if (!val) return '';
     const digits = val.replace(/\D/g, '')
     if (!digits) return ''
     return (parseInt(digits, 10) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
   }
 
-  const parseFormattedNumber = (val) => {
+  const parseFormattedNumber = (val: any) => {
     if (!val) return 0
     return parseFloat(val.toString().replace(/\./g, '').replace(',', '.'))
   }

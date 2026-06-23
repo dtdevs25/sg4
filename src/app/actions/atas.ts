@@ -5,18 +5,18 @@ import { auth } from '@/lib/auth'
 import s3Client from '@/lib/s3'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 
-export async function getAtas(ano: number) {
+export async function getAtas(ano?: number) {
   try {
-    const dataInicial = new Date(ano, 0, 1)
-    const dataFinal = new Date(ano, 11, 31, 23, 59, 59)
+    const where: any = {}
+    if (ano) {
+      where.data = {
+        gte: new Date(ano, 0, 1),
+        lte: new Date(ano, 11, 31, 23, 59, 59)
+      }
+    }
     
     const atas = await prisma.ataReuniao.findMany({
-      where: {
-        data: {
-          gte: dataInicial,
-          lte: dataFinal
-        }
-      },
+      where,
       orderBy: { data: 'desc' }
     })
     
