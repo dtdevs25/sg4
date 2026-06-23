@@ -170,6 +170,8 @@ export async function updateInspecoesArkiumItem(id: string, data: any) {
 export async function deleteInspecoesArkiumItem(id: string) {
   try {
     const session = await auth()
+    const role = (session?.user as any)?.role
+    if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Sem permissão' }
     const userId = (session?.user as any)?.id ?? null
 
     await prisma.inspecoesArkium.delete({ where: { id } })
@@ -185,6 +187,8 @@ export async function deleteInspecoesArkiumItem(id: string) {
 export async function limparInspecoesArkiumInvalidos() {
   try {
     const session = await auth()
+    const role = (session?.user as any)?.role
+    if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Sem permissão' }
     const userId = (session?.user as any)?.id ?? null
 
     const result = await prisma.inspecoesArkium.deleteMany({ where: { numero: '' } })

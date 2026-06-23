@@ -171,6 +171,8 @@ export async function limparDssArkiumInvalidos() {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const role = (session.user as any).role
+    if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Sem permissão' }
     const userId = (session.user as any).id
 
     const result = await prisma.dssArkium.deleteMany({ where: { numeroDialogo: '' } })
@@ -187,6 +189,8 @@ export async function deleteDssArkium(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const role = (session.user as any).role
+    if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Sem permissão' }
     const userId = (session.user as any).id
 
     await prisma.dssArkium.delete({ where: { id } })

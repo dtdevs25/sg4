@@ -285,8 +285,7 @@ export default function DialogosPage() {
   // Carrega registros Arkium do banco ao montar (e limpa inválidos de importações anteriores)
   useEffect(() => {
     async function loadArkium() {
-      // Limpa registros sem número de diálogo (import antiga com bug)
-      await limparDssArkiumInvalidos()
+      // Apenas carrega os dados do banco
       const res = await getDssArkium()
       if (res.success && res.data && res.data.length > 0) {
         const fromDb: ArkiumDSSItem[] = res.data.map((r: any) => {
@@ -479,6 +478,8 @@ export default function DialogosPage() {
            })
            return next
         })
+        // Limpa inválidos logo após o upsert e antes de atualizar localmente
+        await limparDssArkiumInvalidos()
         
         setTimeout(() => setIsImporting(false), 2500)
       } catch (err) {

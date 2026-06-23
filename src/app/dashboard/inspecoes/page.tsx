@@ -267,7 +267,6 @@ export default function InspecoesPage() {
 
   useEffect(() => {
     async function loadArkium() {
-      await limparInspecoesArkiumInvalidos()
       const res = await getInspecoesArkium()
       if (res.success && res.data && res.data.length > 0) {
         const fromDb: ArkiumItem[] = res.data.map((r: any) => {
@@ -451,6 +450,8 @@ export default function InspecoesPage() {
            })
            return next
         })
+        // Limpa inválidos logo após o upsert e antes de atualizar localmente
+        await limparInspecoesArkiumInvalidos()
         
         setTimeout(() => setIsImporting(false), 2500)
       } catch (err) {
