@@ -94,11 +94,13 @@ export default function DialogosPage() {
   }, [])
 
   async function loadData() {
-    const anos = await getAnosComDados()
+    const [anos, tecRes, atvRes, arkRes] = await Promise.all([
+      getAnosComDados(),
+      getTecnicos(),
+      getAtividades('DSS'),
+      getDssArkium()
+    ])
     setAnosDisponiveis(anos)
-    const tecRes = await getTecnicos()
-    const atvRes = await getAtividades('DSS')
-    const arkRes = await getDssArkium()
 
     if (tecRes.success && tecRes.data) {
       const tecnicos = tecRes.data
@@ -188,6 +190,55 @@ export default function DialogosPage() {
       })
       
       setData(newData)
+      
+      // Mapeamento do Arkium data reaproveitando a resposta e newData
+      if (arkiumList.length > 0) {
+        const fromDb: ArkiumDSSItem[] = arkiumList.map((r: any) => {
+          const dbTecnico = newData.find((t: any) => {
+            const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            const nomeDb = removeAccents(t.nome.toLowerCase().trim())
+            const nomePlanilha = removeAccents(r.nome.toLowerCase().trim())
+            if (nomePlanilha === nomeDb) return true
+            const planTokens = nomePlanilha.split(' ')
+            const dbTokens = nomeDb.split(' ')
+            if (planTokens[0] === dbTokens[0]) {
+               if (planTokens.length === 1 || dbTokens.length === 1) return true
+               const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
+               const planSurnames = planTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
+               const dbSurnames = dbTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
+               for (let i = 0; i < planSurnames.length; i++) {
+                  for (let j = 0; j < dbSurnames.length; j++) {
+                     if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
+                        return true
+                     }
+                  }
+               }
+            }
+            return false
+          })
+          return {
+            id: r.id,
+            assunto: r.assunto,
+            numeroDialogo: r.numeroDialogo,
+            lider: r.lider || '',
+            base: r.base || '',
+            uf: r.uf || '',
+            localidade: r.localidade || '',
+            dataFechamento: r.dataFechamento || '',
+            matricula: r.matricula,
+            nome: r.nome,
+            tipo: r.tipo || '',
+            statusDSS: r.statusDSS || '',
+            assinado: r.assinado || 'NA',
+            justificativa: r.justificativa || '',
+            estado: r.estado as 'ABERTO' | 'FECHADO',
+            dbTecnico,
+          }
+        })
+        setArkiumData(fromDb)
+      } else {
+        setArkiumData([])
+      }
     }
   }
 
@@ -282,62 +333,7 @@ export default function DialogosPage() {
   const [showArkiumPie, setShowArkiumPie] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Carrega registros Arkium do banco ao montar (e limpa inválidos de importações anteriores)
-  useEffect(() => {
-    async function loadArkium() {
-      // Apenas carrega os dados do banco
-      const res = await getDssArkium()
-      if (res.success && res.data && res.data.length > 0) {
-        const fromDb: ArkiumDSSItem[] = res.data.map((r: any) => {
-          const dbTecnico = data.find((t: any) => {
-            const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            const nomeDb = removeAccents(t.nome.toLowerCase().trim())
-            const nomePlanilha = removeAccents(r.nome.toLowerCase().trim())
-            if (nomePlanilha === nomeDb) return true
-            const planTokens = nomePlanilha.split(' ')
-            const dbTokens = nomeDb.split(' ')
-            if (planTokens[0] === dbTokens[0]) {
-               if (planTokens.length === 1 || dbTokens.length === 1) return true
-               
-               const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
-               const planSurnames = planTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
-               const dbSurnames = dbTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
-               
-               for (let i = 0; i < planSurnames.length; i++) {
-                  for (let j = 0; j < dbSurnames.length; j++) {
-                     if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
-                        return true
-                     }
-                  }
-               }
-            }
-            return false
-          })
-          return {
-            id: r.id,
-            assunto: r.assunto,
-            numeroDialogo: r.numeroDialogo,
-            lider: r.lider || '',
-            base: r.base || '',
-            uf: r.uf || '',
-            localidade: r.localidade || '',
-            dataFechamento: r.dataFechamento || '',
-            matricula: r.matricula,
-            nome: r.nome,
-            tipo: r.tipo || '',
-            statusDSS: r.statusDSS || '',
-            assinado: r.assinado || 'NA',
-            justificativa: r.justificativa || '',
-            estado: r.estado as 'ABERTO' | 'FECHADO',
-            dbTecnico,
-          }
-        })
-        setArkiumData(fromDb)
-      }
-    }
-    loadArkium()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data])
+  // loadArkium unificado dentro do loadData() para evitar requests duplicados
 
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

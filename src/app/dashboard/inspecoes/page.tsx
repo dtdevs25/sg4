@@ -100,10 +100,12 @@ export default function InspecoesPage() {
   }, [])
 
   async function loadData() {
-    const anos = await getAnosComDados()
+    const [anos, tecRes, arkRes] = await Promise.all([
+      getAnosComDados(),
+      getTecnicos(),
+      getInspecoesArkium()
+    ])
     setAnosDisponiveis(anos)
-    const tecRes = await getTecnicos()
-    const arkRes = await getInspecoesArkium()
 
     if (tecRes.success && tecRes.data) {
       const tecnicos = tecRes.data // Busca todos, incluindo inativos
@@ -180,6 +182,53 @@ export default function InspecoesPage() {
       }).filter((r: any) => r.ativo || Object.keys(MES_MAP).some(k => r[k] > 0))
 
       setData(newData)
+      
+      if (arkiumList.length > 0) {
+        const fromDb: ArkiumItem[] = arkiumList.map((r: any) => {
+          const dbTecnico = newData.find((t: any) => {
+            const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            const nomeDb = removeAccents(t.nome.toLowerCase().trim())
+            const nomePlanilha = removeAccents(r.nomeAuditor.toLowerCase().trim())
+            if (nomePlanilha === nomeDb) return true
+            const planTokens = nomePlanilha.split(' ')
+            const dbTokens = nomeDb.split(' ')
+            if (planTokens[0] === dbTokens[0]) {
+               if (planTokens.length === 1 || dbTokens.length === 1) return true
+               const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
+               const planSurnames = planTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
+               const dbSurnames = dbTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
+               for (let i = 0; i < planSurnames.length; i++) {
+                  for (let j = 0; j < dbSurnames.length; j++) {
+                     if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
+                        return true
+                     }
+                  }
+               }
+            }
+            return false
+          })
+          return {
+            id: r.id,
+            numero: r.numero,
+            resultado: r.resultado || '',
+            dataAbertura: r.dataAbertura || '',
+            dataFechamento: r.dataFechamento || '',
+            matriculaAuditor: r.matriculaAuditor || '',
+            nomeAuditor: r.nomeAuditor || '',
+            identificadorObjeto: r.identificadorObjeto || '',
+            nomeQuestionario: r.nomeQuestionario || '',
+            clienteObjeto: r.clienteObjeto || '',
+            localidadeObjeto: r.localidadeObjeto || '',
+            autocheck: r.autocheck || '',
+            observacao: r.observacao || '',
+            status: r.status as 'ABERTO' | 'FECHADO',
+            dbTecnico,
+          }
+        })
+        setArkiumData(fromDb)
+      } else {
+        setArkiumData([])
+      }
     }
   }
 
@@ -265,59 +314,7 @@ export default function InspecoesPage() {
   // --- ESTADO: Visão Arkium ---
   const [arkiumData, setArkiumData] = useState<ArkiumItem[]>([])
 
-  useEffect(() => {
-    async function loadArkium() {
-      const res = await getInspecoesArkium()
-      if (res.success && res.data && res.data.length > 0) {
-        const fromDb: ArkiumItem[] = res.data.map((r: any) => {
-          const dbTecnico = data.find((t: any) => {
-            const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            const nomeDb = removeAccents(t.nome.toLowerCase().trim())
-            const nomePlanilha = removeAccents(r.nomeAuditor.toLowerCase().trim())
-            if (nomePlanilha === nomeDb) return true
-            const planTokens = nomePlanilha.split(' ')
-            const dbTokens = nomeDb.split(' ')
-            if (planTokens[0] === dbTokens[0]) {
-               if (planTokens.length === 1 || dbTokens.length === 1) return true
-               
-               const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
-               const planSurnames = planTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
-               const dbSurnames = dbTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
-               
-               for (let i = 0; i < planSurnames.length; i++) {
-                  for (let j = 0; j < dbSurnames.length; j++) {
-                     if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
-                        return true
-                     }
-                  }
-               }
-            }
-            return false
-          })
-          return {
-            id: r.id,
-            numero: r.numero,
-            resultado: r.resultado || '',
-            dataAbertura: r.dataAbertura || '',
-            dataFechamento: r.dataFechamento || '',
-            matriculaAuditor: r.matriculaAuditor || '',
-            nomeAuditor: r.nomeAuditor || '',
-            identificadorObjeto: r.identificadorObjeto || '',
-            nomeQuestionario: r.nomeQuestionario || '',
-            clienteObjeto: r.clienteObjeto || '',
-            localidadeObjeto: r.localidadeObjeto || '',
-            autocheck: r.autocheck || '',
-            observacao: r.observacao || '',
-            status: r.status as 'ABERTO' | 'FECHADO',
-            dbTecnico,
-          }
-        })
-        setArkiumData(fromDb)
-      }
-    }
-    loadArkium()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data])
+  // loadArkium unificado dentro de loadData() para evitar request duplicado
   const [arkiumSearch, setArkiumSearch] = useState('')
   const [arkiumFilter, setArkiumFilter] = useState<'ALL' | 'CONFORME' | 'NAO_CONFORME'>('ALL')
   const [treatingItem, setTreatingItem] = useState<ArkiumItem | null>(null)
