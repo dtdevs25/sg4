@@ -91,13 +91,12 @@ export default function RelatoriosAtividadesPage() {
   }, [role])
 
   async function loadData() {
-    const anos = await getAnosComDados()
-    setAnosDisponiveis(anos)
     setLoading(true)
     try {
       // Busca todas do ano para filtrar localmente pelos meses selecionados
       const promises = Array.from({ length: 12 }).map((_, i) => getAtividadesRelatorio(i + 1, selectedYear === 'ALL' ? undefined : selectedYear))
-      const results = await Promise.all(promises)
+      const [anos, ...results] = await Promise.all([getAnosComDados(), ...promises])
+      setAnosDisponiveis(anos)
       const all = results.flat()
       setTodasAtividades(all)
     } catch (err) {
@@ -1411,3 +1410,4 @@ export default function RelatoriosAtividadesPage() {
     </div>
   )
 }
+

@@ -104,15 +104,15 @@ export default function QuilometragemPage() {
   }, [selectedYear])
 
   async function loadData() {
-    const anos = await getAnosComDados()
-    setAnosDisponiveis(anos)
     setLoading(true)
-    const [resKm, resAbs, resTec, resMan] = await Promise.all([
+    const [anos, resKm, resAbs, resTec, resMan] = await Promise.all([
+      getAnosComDados(),
       getQuilometragens(selectedYear === 'ALL' ? undefined : selectedYear),
       getAbastecimentos(selectedYear === 'ALL' ? undefined : selectedYear),
       getTecnicos(),
       getManutencoes(selectedYear === 'ALL' ? undefined : selectedYear)
     ])
+    setAnosDisponiveis(anos)
     if (resKm.success && resKm.data) setKms(resKm.data)
     if (resAbs.success && resAbs.data) setAbastecimentos(resAbs.data)
     if (resMan.success && resMan.data) setManutencoes(resMan.data)
@@ -1348,3 +1348,6 @@ export default function QuilometragemPage() {
     </div>
   )
 }
+
+
+

@@ -86,13 +86,13 @@ export default function ReunioesPage() {
   }, [selectedYear])
 
   async function loadData() {
-    const anos = await getAnosComDados()
-    setAnosDisponiveis(anos)
     setLoading(true)
-    const [resReunioes, resAtas] = await Promise.all([
+    const [anos, resReunioes, resAtas] = await Promise.all([
+      getAnosComDados(),
       getReunioes(selectedYear === 'ALL' ? undefined : selectedYear),
       getAtas(selectedYear === 'ALL' ? undefined : selectedYear)
     ])
+    setAnosDisponiveis(anos)
     
     if (resReunioes.success && resReunioes.data) {
       setLogs(resReunioes.data)
