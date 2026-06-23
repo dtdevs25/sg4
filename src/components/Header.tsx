@@ -33,20 +33,26 @@ export function Header() {
         </button>
         <style>{`
           .mobile-menu-btn { display: none; }
+          .header-vivo-logo { height: 40px; }
+          .header-sg4-logo { height: 48px; }
           @media (max-width: 768px) {
             .mobile-menu-btn { display: flex; align-items: center; justify-content: center; }
+            .header-vivo-logo { height: 24px; }
+            .header-sg4-logo { height: 32px; }
           }
         `}</style>
         <img
           src="/logo.png"
           alt="SG4"
-          style={{ height: 48, width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+          className="header-sg4-logo"
+          style={{ width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
         />
         <div style={{ width: 1, height: 32, background: 'rgba(255, 255, 255, 0.4)' }} />
         <img
           src="/logovivo.png"
           alt="Vivo"
-          style={{ height: 40, width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+          className="header-vivo-logo"
+          style={{ width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
         />
       </div>
 

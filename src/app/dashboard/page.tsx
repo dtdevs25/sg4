@@ -102,11 +102,12 @@ function isDssAssinado(assinadoStr?: string | null) {
 
 /* ── Tick personalizado do gráfico com foto ── */
 function CustomXAxisTick({ x, y, payload, width }: any) {
-  const tickData = (window as any).__barDataMap?.[payload.value]
+  const tickData = typeof window !== 'undefined' ? (window as any).__barDataMap?.[payload.value] : null
   const fotoUrl = tickData?.fotoUrl
-  const size = 36
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+  const size = isMobile ? 24 : 36
   const clipId = `clip-${payload.value.replace(/\s/g, '-').replace(/\./g, '')}`
-  const mostrarFotos = (window as any).__mostrarFotosGrafico !== false
+  const mostrarFotos = typeof window !== 'undefined' ? (window as any).__mostrarFotosGrafico !== false : true
 
   return (
     <g transform={`translate(${x},${y + 4})`}>

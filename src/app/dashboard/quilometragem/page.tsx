@@ -418,7 +418,7 @@ export default function QuilometragemPage() {
           </h1>
         </div>
 
-        <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4 }}>
           <button
             onClick={() => setActiveTab('km')}
             style={{
