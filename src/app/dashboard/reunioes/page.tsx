@@ -597,12 +597,12 @@ export default function ReunioesPage() {
       {editingAta && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 1000, maxHeight: '95vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>Gestão do Evento (Ata & Presenças)</h2>
-                <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{editingAta.assunto} • {new Date(editingAta.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Gestão do Evento (Ata & Presenças)</h2>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>{editingAta.assunto} • {new Date(editingAta.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
               </div>
-              <button onClick={() => setEditingAta(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+              <button onClick={() => setEditingAta(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
             </div>
 
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
