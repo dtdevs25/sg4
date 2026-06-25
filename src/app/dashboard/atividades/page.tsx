@@ -808,7 +808,9 @@ export default function PlanejamentoPage() {
                   let t = tecnicos.find(x => x.id === form.tecnicoId)
                   if (!t && isTst) t = tecnicos.find(x => x.id === userTecnicoId)
                   let unidsDoTecnico = unidades
-                  if (t) {
+                  if (role === 'MASTER' || role === 'ADMIN') {
+                    unidsDoTecnico = unidades
+                  } else if (t) {
                     const idsUnidadesDoTecnico = [...(t.unidades?.map((u:any)=>u.id) || []), t.baseFixaId].filter(Boolean)
                     if (idsUnidadesDoTecnico.length > 0) {
                       unidsDoTecnico = unidades.filter(u => idsUnidadesDoTecnico.includes(u.id))

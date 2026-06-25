@@ -12,6 +12,7 @@ import {
 import { optimizeTextWithAI } from '@/app/actions/ai'
 import { getAnosComDados } from '@/app/actions/anos'
 import { getTecnicos } from '@/app/actions/tecnicos'
+import { getUnidades } from '@/app/actions/unidades'
 import { gerarPdfRelatorio } from '@/app/utils/generateRelatorioPdf'
 import { uploadRelatorioPdf, getRelatoriosPdf, deleteRelatorioPdf } from '@/app/actions/relatoriosPdf'
 
@@ -38,6 +39,7 @@ export default function RelatoriosAtividadesPage() {
   const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
 
   const [todasAtividades, setTodasAtividades] = useState<any[]>([])
+  const [unidades, setUnidades] = useState<any[]>([])
   const [tecnicos, setTecnicos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -1410,4 +1412,7 @@ export default function RelatoriosAtividadesPage() {
     </div>
   )
 }
+
+
+
 
