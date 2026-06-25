@@ -815,7 +815,7 @@ export default function RelatoriosAtividadesPage() {
                   const tId = role === 'TST' ? (session?.user as any)?.tecnicoId : formAtiv.tecnicoId;
                   const tecnicoSel = tId ? tecnicos.find(t => t.id === tId) : null;
                   const bases = tecnicoSel?.unidades || [];
-                  const unidsDoTecnico = bases;
+                  const unidsDoTecnico = (role === 'MASTER' || role === 'ADMIN') ? unidades : bases;
 
                   return (
                     <div style={{ marginBottom: 12, position: 'relative' }}>
@@ -999,7 +999,7 @@ export default function RelatoriosAtividadesPage() {
                 const tId = showEditModal?.tecnicoId || showEditModal?.tecnico?.id;
                 const tecnicoSel = tId ? tecnicos.find(t => t.id === tId) : null;
                 const bases = tecnicoSel?.unidades || [];
-                const unidsDoTecnico = bases;
+                const unidsDoTecnico = (role === 'MASTER' || role === 'ADMIN') ? unidades : bases;
 
                 return (
                   <div style={{ marginBottom: 12, position: 'relative' }}>
