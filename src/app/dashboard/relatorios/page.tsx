@@ -89,6 +89,11 @@ export default function RelatoriosAtividadesPage() {
           setTecnicos(res.data)
         }
       })
+      getUnidades().then(res => {
+        if (res.success && res.data) {
+          setUnidades(res.data)
+        }
+      })
     }
   }, [role])
 
