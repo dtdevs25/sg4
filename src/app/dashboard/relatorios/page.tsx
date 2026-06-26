@@ -9,6 +9,7 @@ import { useSession } from 'next-auth/react'
 import {
   getAtividadesRelatorio, addAtividade, deleteAtividade, updateAtividade, uploadFotoRelatorio, getAtividadesForPrint
 } from '@/app/actions/relatorios'
+import { saveDssAliado } from '@/app/actions/dssAliado'
 import { optimizeTextWithAI } from '@/app/actions/ai'
 import { getAnosComDados } from '@/app/actions/anos'
 import { getTecnicos } from '@/app/actions/tecnicos'
@@ -73,6 +74,12 @@ export default function RelatoriosAtividadesPage() {
   const [activeTab, setActiveTab] = useState<'gerador' | 'salvos'>('gerador')
   const [relatoriosSalvos, setRelatoriosSalvos] = useState<any[]>([])
   const [showDeletePdfModal, setShowDeletePdfModal] = useState<string | null>(null)
+
+  // DSS Aliado
+  const [showDssModalRel, setShowDssModalRel] = useState(false)
+  const [showDssFormRel, setShowDssFormRel] = useState(false)
+  const [formDssRel, setFormDssRel] = useState({ tecnicoId: '', data: '', tema: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [dssLoadingRel, setDssLoadingRel] = useState(false)
 
   useEffect(() => {
     if (activeTab === 'gerador') {
@@ -389,6 +396,32 @@ export default function RelatoriosAtividadesPage() {
     }
   }
 
+  // DSS Aliado (tela de relatórios)
+  async function handleSaveDssAliadoRelatorio(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formDssRel.tema.trim()) return alert('Informe o tema do DSS.')
+    setDssLoadingRel(true)
+    const tId = role === 'TST' ? (session?.user as any).tecnicoId : formDssRel.tecnicoId
+    if (!tId) { setDssLoadingRel(false); return alert('Selecione o técnico') }
+    const res = await saveDssAliado({
+      tecnicoId: tId,
+      data: new Date(formDssRel.data + 'T12:00:00Z'),
+      tema: formDssRel.tema,
+      fotoBase64: formDssRel.fotoBase64 || undefined,
+      fileName: formDssRel.fileName || undefined,
+      contentType: formDssRel.contentType || undefined,
+    })
+    setDssLoadingRel(false)
+    if (res.success) {
+      setShowDssFormRel(false)
+      setShowDssModalRel(false)
+      setFormDssRel({ tecnicoId: '', data: '', tema: '', fotoBase64: '', fileName: '', contentType: '' })
+      alert('DSS com Aliado registrado com sucesso!')
+    } else {
+      alert('Erro ao salvar: ' + res.error)
+    }
+  }
+
   // --- Render ---
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
@@ -418,6 +451,9 @@ export default function RelatoriosAtividadesPage() {
             <>
               <button onClick={() => setShowGerarPdfModal(true)} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(34,197,94,0.3)', fontSize: 13 }}>
                 <Printer size={16} /> Gerar PDF
+              </button>
+              <button onClick={() => { setFormDssRel({ tecnicoId: '', data: new Date().toISOString().split('T')[0], tema: '', fotoBase64: '', fileName: '', contentType: '' }); setShowDssModalRel(true) }} style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(245,158,11,0.35)', fontSize: 13 }}>
+                🤝 DSS com Aliado
               </button>
               <button onClick={() => setShowNovaAtividade(true)} style={{ background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 4px 12px rgba(59,130,246,0.3)', fontSize: 13 }}>
                 <Plus size={16} /> Lançar Atividade
@@ -1428,6 +1464,106 @@ export default function RelatoriosAtividadesPage() {
           </div>
         )
       })()}
+
+      {/* MODAL PERGUNTA DSS COM ALIADO */}
+      {showDssModalRel && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 460, padding: 28, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#f59e0b,#d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 28 }}>🤝</div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0', textAlign: 'center' }}>Registrar DSS com Aliado</h2>
+            <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px 0', lineHeight: 1.5, textAlign: 'center' }}>
+              Registre um <strong>DSS com Aliado</strong> — realizado com equipe parceira (fora do Arkium).
+              <br /><span style={{ fontSize: 12, color: '#94a3b8', marginTop: 4, display: 'block' }}>Esses registros são contabilizados separadamente dos DSS do Arkium.</span>
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="button" onClick={() => setShowDssModalRel(false)} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
+              <button type="button" onClick={() => setShowDssFormRel(true)} style={{ flex: 1, padding: '12px', borderRadius: 8, background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: 13 }}>✅ Registrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FORMULÁRIO DSS COM ALIADO */}
+      {showDssFormRel && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.25)' }}>
+            <div style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: 0 }}>🤝 DSS com Aliado</h2>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', margin: '4px 0 0 0' }}>Preencha os dados do DSS realizado com equipe parceira</p>
+              </div>
+              <button onClick={() => { setShowDssFormRel(false); setShowDssModalRel(false) }} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', color: '#fff', borderRadius: 8, padding: '6px 10px', fontWeight: 800, fontSize: 14 }}>✕</button>
+            </div>
+            <div style={{ padding: 24, overflowY: 'auto' }}>
+              <form onSubmit={handleSaveDssAliadoRelatorio} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                {(role === 'MASTER' || role === 'ADMIN') && (
+                  <div style={{ position: 'relative' }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Técnico Responsável</label>
+                    <select required value={formDssRel.tecnicoId} onChange={e => setFormDssRel(p => ({...p, tecnicoId: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }}>
+                      <option value="">Selecione um técnico...</option>
+                      {tecnicos.filter(t => t.ativo).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Data do DSS</label>
+                  <input required type="date" value={formDssRel.data} onChange={e => setFormDssRel(p => ({...p, data: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#64748b', textTransform: 'uppercase' }}>Tema do DSS *</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Ex: EPI, Trabalho em altura, PCMSO..."
+                    value={formDssRel.tema}
+                    onChange={e => setFormDssRel(p => ({...p, tema: e.target.value}))}
+                    style={{ width: '100%', padding: '11px 14px', borderRadius: 8, border: '2px solid #fcd34d', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#64748b', textTransform: 'uppercase' }}>Foto da Lista de Presença (Opcional)</label>
+                  {formDssRel.fotoBase64 ? (
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: '#fef3c7', borderRadius: 8, border: '1px solid #fcd34d' }}>
+                      <img src={formDssRel.fotoBase64} alt="Preview" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>{formDssRel.fileName}</div>
+                        <button type="button" onClick={() => setFormDssRel(p => ({...p, fotoBase64: '', fileName: '', contentType: ''}))} style={{ marginTop: 6, background: '#fee2e2', color: '#ef4444', padding: '4px 10px', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Remover</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <button type="button" onClick={() => document.getElementById('fotoDssGaleriaRel')?.click()}
+                        style={{ border: '2px dashed #fcd34d', borderRadius: 8, padding: '18px 12px', cursor: 'pointer', background: '#fffbeb', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                        <UploadCloud color="#d97706" size={24} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#92400e' }}>Galeria</span>
+                      </button>
+                      <button type="button" onClick={() => document.getElementById('fotoDssCameraRel')?.click()}
+                        style={{ border: '2px dashed #d97706', borderRadius: 8, padding: '18px 12px', cursor: 'pointer', background: 'rgba(217,119,6,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                        <Camera color="#d97706" size={24} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: '#92400e' }}>Câmera</span>
+                      </button>
+                    </div>
+                  )}
+                  <input id="fotoDssGaleriaRel" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormDssRel)} style={{ display: 'none' }} />
+                  <input id="fotoDssCameraRel" type="file" accept="image/*" capture="environment" onChange={e => handleFileChange(e, setFormDssRel)} style={{ display: 'none' }} />
+                </div>
+
+                <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                  <button type="button" onClick={() => { setShowDssFormRel(false); setShowDssModalRel(false) }} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer' }}>Cancelar</button>
+                  <button type="submit" disabled={dssLoadingRel} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', borderRadius: 8, fontWeight: 800, border: 'none', cursor: dssLoadingRel ? 'not-allowed' : 'pointer', opacity: dssLoadingRel ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    {dssLoadingRel ? <><Loader2 size={16} className="animate-spin" /> Salvando...</> : '✅ Salvar DSS'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

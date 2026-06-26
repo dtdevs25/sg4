@@ -139,7 +139,8 @@ export default function TecnicosPage() {
         admissao: form.admissao,
         fotoUrl: finalFotoUrl,
         unidadeIds: form.unidadeIds,
-        baseFixaId: form.baseFixaId
+        baseFixaId: form.baseFixaId,
+        contaMeta: form.contaMeta
       })
 
       setShowModal(false)

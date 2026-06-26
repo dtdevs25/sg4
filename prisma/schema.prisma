@@ -101,6 +101,7 @@ model Tecnico {
   ultimoKmAlerta Int?
 
   manutencoesVeiculo ManutencaoVeiculo[]
+  dssAliados        DssAliado[]
 
   @@map("tecnicos")
 }
@@ -453,6 +454,25 @@ model RelatorioAtividade {
   @@index([data])
 }
 
+
+// ─── DSS COM ALIADO ─────────────────────────────────────────────────────────
+
+model DssAliado {
+  id           String   @id @default(cuid())
+  tecnicoId    String
+  data         DateTime
+  tema         String
+  fotoUrl      String?  // Foto da lista de presença
+  planejamentoItemRef String? // Referência ao item do checklist (opcional)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tecnico      Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+
+  @@index([tecnicoId])
+  @@index([data])
+  @@map("dss_aliado")
+}
 
 model RelatorioPdf {
   id           String   @id @default(cuid())

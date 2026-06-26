@@ -13,6 +13,7 @@ import {
 } from '@/app/actions/planejamento'
 import { getUnidades } from '@/app/actions/unidades'
 import { addAtividade, uploadFotoRelatorio } from '@/app/actions/relatorios'
+import { saveDssAliado } from '@/app/actions/dssAliado'
 import { optimizeTextWithAI } from '@/app/actions/ai'
 
 // --- Cores de Prioridade ---
@@ -73,6 +74,12 @@ export default function PlanejamentoPage() {
   const [aiLoadingRel, setAiLoadingRel] = useState(false)
   const [aiLoadingExec, setAiLoadingExec] = useState(false)
   const [aiLoadingNewItem, setAiLoadingNewItem] = useState(false)
+
+  // DSS Aliado Modal
+  const [showDssModal, setShowDssModal] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
+  const [showDssForm, setShowDssForm] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
+  const [formDssAliado, setFormDssAliado] = useState({ tema: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [dssLoading, setDssLoading] = useState(false)
 
   useEffect(() => {
     getTecnicos().then(res => {
@@ -416,6 +423,35 @@ export default function PlanejamentoPage() {
         alert('Erro ao salvar relatório: ' + res.error)
       }
     })
+  }
+
+  async function handleSaveDssAliado(e: React.FormEvent) {
+    e.preventDefault()
+    if (!showDssForm) return
+    if (!formDssAliado.tema.trim()) {
+      alert('Informe o tema do DSS.')
+      return
+    }
+    setDssLoading(true)
+    const planDate = new Date(showDssForm.plan.dataAtividade)
+    const res = await saveDssAliado({
+      tecnicoId: showDssForm.plan.tecnicoId,
+      data: planDate,
+      tema: formDssAliado.tema,
+      fotoBase64: formDssAliado.fotoBase64 || undefined,
+      fileName: formDssAliado.fileName || undefined,
+      contentType: formDssAliado.contentType || undefined,
+      planejamentoItemRef: showDssForm.itemText
+    })
+    setDssLoading(false)
+    if (res.success) {
+      // Marca o item como concluído no checklist
+      confirmToggleItemChecklist(showDssForm.plan.id, showDssForm.itemId, true)
+      setShowDssForm(null)
+      setFormDssAliado({ tema: '', fotoBase64: '', fileName: '', contentType: '' })
+    } else {
+      alert('Erro ao salvar DSS com Aliado: ' + res.error)
+    }
   }
 
   // --- RenderHelpers ---
@@ -1173,6 +1209,12 @@ export default function PlanejamentoPage() {
               setShowPromptRelatorio(null)
             }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Não, apenas concluir</button>
             <button type="button" onClick={() => {
+              // Se a categoria do plano for GESTÃO DSS, pergunta sobre DSS com Aliado
+              if (showPromptRelatorio.plan.categoria === 'GESTÃO DSS') {
+                setShowDssModal(showPromptRelatorio)
+                setShowPromptRelatorio(null)
+                return
+              }
               setFormRelatorio({
                 empresa: 'Telefônica Brasil S.A', projeto: 'VIVO',
                 local: showPromptRelatorio.plan.local === 'OUTROS' ? 'OUTROS' : showPromptRelatorio.plan.local || '',
@@ -1189,7 +1231,6 @@ export default function PlanejamentoPage() {
       </div>
     )}
 
-    {/* MODAL FORMULÁRIO RELATÓRIO */}
     {showFormRelatorio && (
       <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
         <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
@@ -1276,6 +1317,104 @@ export default function PlanejamentoPage() {
                 <button type="button" onClick={() => setShowFormRelatorio(null)} style={{ flex: 1, padding: '12px', background: '#e2e8f0', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none' }}>Cancelar</button>
                 <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: pending ? 0.7 : 1 }}>
                   {pending ? 'Salvando...' : 'Salvar e Concluir'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* MODAL PERGUNTA DSS COM ALIADO */}
+    {showDssModal && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 460, padding: 28, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#f59e0b,#d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 28 }}>🤝</div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0', textAlign: 'center' }}>DSS com Aliado?</h2>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 8px 0', lineHeight: 1.5, textAlign: 'center' }}>
+            Este DSS foi realizado com um <strong>aliado</strong> (equipe parceira)?
+          </p>
+          <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#92400e', fontWeight: 600, textAlign: 'center' }}>
+            📋 Item: {showDssModal.itemText}
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button type="button" onClick={() => {
+              setFormRelatorio({
+                empresa: 'Telefônica Brasil S.A', projeto: 'VIVO',
+                local: showDssModal.plan.local === 'OUTROS' ? 'OUTROS' : showDssModal.plan.local || '',
+                outroLocal: showDssModal.plan.outroLocal || '',
+                cidadeUf: `${showDssModal.plan.cidade || ''} / ${showDssModal.plan.estado || ''}`.replace(/^ \/ | \/ $/g, ''),
+                descricao: showDssModal.itemText,
+                fotoBase64: '', fileName: '', contentType: ''
+              })
+              setShowFormRelatorio(showDssModal)
+              setShowDssModal(null)
+            }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Não, sem aliado</button>
+            <button type="button" onClick={() => {
+              setFormDssAliado({ tema: '', fotoBase64: '', fileName: '', contentType: '' })
+              setShowDssForm(showDssModal)
+              setShowDssModal(null)
+            }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: 13 }}>✅ Sim, com Aliado!</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* MODAL FORMULÁRIO DSS COM ALIADO */}
+    {showDssForm && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 520, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.25)' }}>
+          <div style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: 0 }}>🤝 DSS com Aliado</h2>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', margin: '4px 0 0 0' }}>Registre os dados do DSS realizado com equipe parceira</p>
+            </div>
+            <button onClick={() => setShowDssForm(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', cursor: 'pointer', color: '#fff', borderRadius: 8, padding: '6px 10px', fontWeight: 800, fontSize: 14 }}>✕</button>
+          </div>
+          <div style={{ padding: 24, overflowY: 'auto' }}>
+            <form onSubmit={handleSaveDssAliado} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#64748b', textTransform: 'uppercase' }}>Tema do DSS *</label>
+                <input
+                  required
+                  type="text"
+                  placeholder="Ex: EPI, Trabalho em altura, PCMSO..."
+                  value={formDssAliado.tema}
+                  onChange={e => setFormDssAliado(p => ({...p, tema: e.target.value}))}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: 8, border: '2px solid #fcd34d', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: '#64748b', textTransform: 'uppercase' }}>Foto da Lista de Presença (Opcional)</label>
+                {formDssAliado.fotoBase64 ? (
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 12, background: '#fef3c7', borderRadius: 8, border: '1px solid #fcd34d' }}>
+                    <img src={formDssAliado.fotoBase64} alt="Preview" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>{formDssAliado.fileName}</div>
+                      <button type="button" onClick={() => setFormDssAliado(p => ({...p, fotoBase64: '', fileName: '', contentType: ''}))} style={{ marginTop: 6, background: '#fee2e2', color: '#ef4444', padding: '4px 10px', borderRadius: 6, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Remover</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <button type="button" onClick={() => document.getElementById('fotoDssGaleriaAtiv')?.click()}
+                      style={{ border: '2px dashed #fcd34d', borderRadius: 8, padding: '18px 12px', cursor: 'pointer', background: '#fffbeb', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                      <UploadCloud color="#d97706" size={24} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#92400e' }}>Galeria</span>
+                    </button>
+                    <button type="button" onClick={() => document.getElementById('fotoDssCameraAtiv')?.click()}
+                      style={{ border: '2px dashed #d97706', borderRadius: 8, padding: '18px 12px', cursor: 'pointer', background: 'rgba(217,119,6,0.04)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                      <Camera color="#d97706" size={24} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#92400e' }}>Câmera</span>
+                    </button>
+                  </div>
+                )}
+                <input id="fotoDssGaleriaAtiv" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormDssAliado)} style={{ display: 'none' }} />
+                <input id="fotoDssCameraAtiv" type="file" accept="image/*" capture="environment" onChange={e => handleFileChange(e, setFormDssAliado)} style={{ display: 'none' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <button type="button" onClick={() => { setShowDssForm(null); setFormDssAliado({ tema: '', fotoBase64: '', fileName: '', contentType: '' }) }} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" disabled={dssLoading} style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', borderRadius: 8, fontWeight: 800, border: 'none', cursor: dssLoading ? 'not-allowed' : 'pointer', opacity: dssLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {dssLoading ? <><Loader2 size={16} className="animate-spin" /> Salvando...</> : '✅ Salvar DSS'}
                 </button>
               </div>
             </form>
