@@ -380,11 +380,10 @@ export default function RelatoriosAtividadesPage() {
           formData.append('fileData', pdfObj.base64);
           formData.append('fileName', pdfObj.fileName);
           formData.append('mesAno', mesAnoFormat);
-          uploadRelatorioPdf(formData)
-        }
-          .then(res => {
+          uploadRelatorioPdf(formData).then(res => {
             if (!res.success) console.error(res.error)
           })
+        }
       }
 
       setShowGerarPdfModal(false)
