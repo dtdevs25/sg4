@@ -218,7 +218,11 @@ export default function ReunioesPage() {
       let finalAnexoNome = ataAnexoNome
 
       if (ataAnexoBase64) {
-        const uploadRes = await uploadAnexoReuniao(ataAnexoBase64, ataAnexoNome, ataAnexoContentType)
+        const formData = new FormData();
+        formData.append('fileData', ataAnexoBase64);
+        formData.append('fileName', ataAnexoNome);
+        formData.append('contentType', ataAnexoContentType);
+        const uploadRes = await uploadAnexoReuniao(formData)
         if (uploadRes.success && uploadRes.url) {
           finalAnexoUrl = uploadRes.url
         } else {

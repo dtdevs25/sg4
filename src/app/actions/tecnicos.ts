@@ -30,10 +30,16 @@ export async function getTecnicos() {
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
 
-export async function uploadFotoTecnico(fileData: string, fileName: string, contentType: string) {
+export async function uploadFotoTecnico(formData: FormData) {
   try {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
+
+    const fileData = formData.get('fileData') as string;
+    const fileName = formData.get('fileName') as string;
+    const contentType = formData.get('contentType') as string;
+
+    if (!fileData || !fileName) return { success: false, error: 'Dados inválidos' }
 
     const buffer = Buffer.from(fileData.split(',')[1], 'base64')
     const ext = fileName.split('.').pop()

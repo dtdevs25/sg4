@@ -9,10 +9,16 @@ import { audit } from '@/lib/audit'
 
 const BUCKET_NAME = 'sg4-relatorios'
 
-export async function uploadFotoRelatorio(base64: string, fileName: string, contentType: string) {
+export async function uploadFotoRelatorio(formData: FormData) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const base64 = formData.get('fileData') as string;
+    const fileName = formData.get('fileName') as string;
+    const contentType = formData.get('contentType') as string;
+
+    if (!base64 || !fileName) return { success: false, error: 'Dados inválidos' }
 
     const buffer = Buffer.from(base64.replace(/^data:image\/\w+;base64,/, ""), 'base64')
     const key = `fotos/${Date.now()}-${fileName.replace(/\s+/g, '_')}`

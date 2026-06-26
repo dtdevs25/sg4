@@ -381,7 +381,11 @@ export default function PlanejamentoPage() {
 
     let finalFotoUrl = ''
     if (formRelatorio.fotoBase64 && formRelatorio.fileName && formRelatorio.contentType) {
-      const uploadRes = await uploadFotoRelatorio(formRelatorio.fotoBase64, formRelatorio.fileName, formRelatorio.contentType)
+      const formData = new FormData();
+      formData.append('fileData', formRelatorio.fotoBase64);
+      formData.append('fileName', formRelatorio.fileName);
+      formData.append('contentType', formRelatorio.contentType);
+      const uploadRes = await uploadFotoRelatorio(formData)
       if (uploadRes.success && uploadRes.url) {
         finalFotoUrl = uploadRes.url
       } else {

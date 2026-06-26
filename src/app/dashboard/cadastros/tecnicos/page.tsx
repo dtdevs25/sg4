@@ -115,12 +115,18 @@ export default function TecnicosPage() {
         reader.readAsDataURL(fotoFile)
         await new Promise((resolve) => {
           reader.onload = async () => {
-            const base64 = reader.result as string
-            const resUrl = await uploadFotoTecnico(base64, fotoFile.name, fotoFile.type)
-            if (resUrl.success) {
-              finalFotoUrl = resUrl.url as string
+            const base64 = reader.result
+            if (base64) {
+              const formData = new FormData();
+              formData.append('fileData', base64 as string);
+              formData.append('fileName', fotoFile.name);
+              formData.append('contentType', fotoFile.type);
+              const resUrl = await uploadFotoTecnico(formData)
+              if (resUrl.success) {
+                finalFotoUrl = resUrl.url as string
+              }
+              resolve(true)
             }
-            resolve(true)
           }
         })
       }

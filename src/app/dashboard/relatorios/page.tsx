@@ -215,10 +215,14 @@ export default function RelatoriosAtividadesPage() {
   async function handleAddAtividade(e: React.FormEvent) {
     e.preventDefault()
     startTransition(async () => {
-      let fotoUrl = undefined
+      let fUrl = undefined
       if (formAtiv.fotoBase64) {
-        const up = await uploadFotoRelatorio(formAtiv.fotoBase64, formAtiv.fileName, formAtiv.contentType)
-        if (up.success) fotoUrl = up.url
+        const formData = new FormData();
+        formData.append('fileData', formAtiv.fotoBase64);
+        formData.append('fileName', formAtiv.fileName);
+        formData.append('contentType', formAtiv.contentType);
+        const up = await uploadFotoRelatorio(formData)
+        if (up.success) fUrl = up.url
         else return alert('Erro no upload da foto')
       }
 
@@ -235,7 +239,7 @@ export default function RelatoriosAtividadesPage() {
         local: finalLocal,
         cidadeUf: formAtiv.cidadeUf,
         descricao: formAtiv.descricao,
-        fotoUrl
+        fotoUrl: fUrl
       })
 
       if (res.success) {
@@ -253,10 +257,14 @@ export default function RelatoriosAtividadesPage() {
     if (!showEditModal) return
 
     startTransition(async () => {
-      let fotoUrl = undefined
+      let fUrl = undefined
       if (formEdit.fotoBase64) {
-        const up = await uploadFotoRelatorio(formEdit.fotoBase64, formEdit.fileName, formEdit.contentType)
-        if (up.success) fotoUrl = up.url
+        const formData = new FormData();
+        formData.append('fileData', formEdit.fotoBase64);
+        formData.append('fileName', formEdit.fileName);
+        formData.append('contentType', formEdit.contentType);
+        const up = await uploadFotoRelatorio(formData)
+        if (up.success) fUrl = up.url
         else return alert('Erro no upload da nova foto')
       }
 
@@ -269,7 +277,7 @@ export default function RelatoriosAtividadesPage() {
         local: finalLocal,
         cidadeUf: formEdit.cidadeUf,
         descricao: formEdit.descricao,
-        fotoUrl: fotoUrl
+        fotoUrl: fUrl
       })
 
       if (res.success) {
@@ -360,7 +368,13 @@ export default function RelatoriosAtividadesPage() {
 
         // Upload em background para a nuvem
         const mesAnoFormat = `${formPdf.mes.toString().padStart(2, '0')}/${formPdf.ano}`
-        uploadRelatorioPdf(pdfObj.base64, pdfObj.fileName, mesAnoFormat)
+        if (pdfObj) {
+          const formData = new FormData();
+          formData.append('fileData', pdfObj.base64);
+          formData.append('fileName', pdfObj.fileName);
+          formData.append('mesAno', mesAnoFormat);
+          uploadRelatorioPdf(formData)
+        }
           .then(res => {
             if (!res.success) console.error(res.error)
           })

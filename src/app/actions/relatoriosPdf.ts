@@ -8,13 +8,19 @@ import { auth } from '@/lib/auth'
 const BUCKET_NAME = process.env.S3_BUCKET_RELATORIOS || 'relatorio-pdf'
 const FOLDER_NAME = 'sg4-relatorios/'
 
-export async function uploadRelatorioPdf(base64Data: string, fileName: string, mesAno: string) {
+export async function uploadRelatorioPdf(formData: FormData) {
   try {
     const session = await auth()
     const userId = session?.user?.id
     const user = await db.user.findUnique({ where: { id: userId }, include: { tecnico: true } })
     const tecnicoId = user?.tecnico?.id || null
     const elaborador = user?.name || 'Sistema'
+
+    const base64Data = formData.get('fileData') as string;
+    const fileName = formData.get('fileName') as string;
+    const mesAno = formData.get('mesAno') as string;
+
+    if (!base64Data || !fileName) return { success: false, error: 'Dados inválidos' }
 
     // Limpar o prefixo data:application/pdf;base64,
     const base64String = base64Data.split(',')[1] || base64Data

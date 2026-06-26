@@ -108,7 +108,7 @@ export async function deleteAta(id: string) {
   }
 }
 
-export async function uploadAnexoReuniao(base64: string, fileName: string, contentType: string) {
+export async function uploadAnexoReuniao(formData: FormData) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -117,6 +117,12 @@ export async function uploadAnexoReuniao(base64: string, fileName: string, conte
     if (role !== 'MASTER' && role !== 'ADMIN') {
       return { success: false, error: 'Sem permissão' }
     }
+
+    const base64 = formData.get('fileData') as string;
+    const fileName = formData.get('fileName') as string;
+    const contentType = formData.get('contentType') as string;
+
+    if (!base64 || !fileName) return { success: false, error: 'Dados inválidos' }
 
     // Remover header do base64 se houver
     const base64Data = base64.replace(/^data:.*?;base64,/, '')
