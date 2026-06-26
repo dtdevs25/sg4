@@ -398,6 +398,7 @@ export default function RelatoriosAtividadesPage() {
     } finally {
       setLoading(false)
     }
+  }
 
   // --- Render ---
   return (
