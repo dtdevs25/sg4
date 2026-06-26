@@ -171,7 +171,11 @@ export default function QuilometragemPage() {
     startTransition(async () => {
       let fotoUrl = undefined
       if (formStart.fotoBase64) {
-        const uploadRes = await uploadFotoKm(formStart.fotoBase64, formStart.fileName, formStart.contentType)
+        const formData = new FormData();
+        formData.append('fileData', formStart.fotoBase64);
+        formData.append('fileName', formStart.fileName);
+        formData.append('contentType', formStart.contentType);
+        const uploadRes = await uploadFotoKm(formData)
         if (uploadRes.success) fotoUrl = uploadRes.url
         else return alert('Falha ao subir foto')
       }
@@ -204,7 +208,11 @@ export default function QuilometragemPage() {
     startTransition(async () => {
       let fotoUrl = undefined
       if (formEnd.fotoBase64) {
-        const uploadRes = await uploadFotoKm(formEnd.fotoBase64, formEnd.fileName, formEnd.contentType)
+        const formData = new FormData();
+        formData.append('fileData', formEnd.fotoBase64);
+        formData.append('fileName', formEnd.fileName);
+        formData.append('contentType', formEnd.contentType);
+        const uploadRes = await uploadFotoKm(formData)
         if (uploadRes.success) fotoUrl = uploadRes.url
         else return alert('Falha ao subir foto')
       }
@@ -228,7 +236,11 @@ export default function QuilometragemPage() {
     startTransition(async () => {
       let fotoUrl = undefined
       if (formAbs.fotoBase64) {
-        const uploadRes = await uploadFotoKm(formAbs.fotoBase64, formAbs.fileName, formAbs.contentType)
+        const formData = new FormData();
+        formData.append('fileData', formAbs.fotoBase64);
+        formData.append('fileName', formAbs.fileName);
+        formData.append('contentType', formAbs.contentType);
+        const uploadRes = await uploadFotoKm(formData)
         if (uploadRes.success) fotoUrl = uploadRes.url
         else return alert('Falha ao subir foto')
       }
@@ -259,11 +271,19 @@ export default function QuilometragemPage() {
       let fotoFiUrl = undefined
 
       if (formEditKm.fotoInicialBase64) {
-        const upIn = await uploadFotoKm(formEditKm.fotoInicialBase64, 'edit_in.jpg', 'image/jpeg')
+        const formData = new FormData();
+        formData.append('fileData', formEditKm.fotoInicialBase64);
+        formData.append('fileName', 'edit_in.jpg');
+        formData.append('contentType', 'image/jpeg');
+        const upIn = await uploadFotoKm(formData)
         if (upIn.success) fotoInUrl = upIn.url
       }
       if (formEditKm.fotoFinalBase64) {
-        const upFi = await uploadFotoKm(formEditKm.fotoFinalBase64, 'edit_fi.jpg', 'image/jpeg')
+        const formData = new FormData();
+        formData.append('fileData', formEditKm.fotoFinalBase64);
+        formData.append('fileName', 'edit_fi.jpg');
+        formData.append('contentType', 'image/jpeg');
+        const upFi = await uploadFotoKm(formData)
         if (upFi.success) fotoFiUrl = upFi.url
       }
 
@@ -291,7 +311,11 @@ export default function QuilometragemPage() {
     startTransition(async () => {
       let fotoUrl = undefined
       if (formEditAbs.fotoCupomBase64) {
-        const up = await uploadFotoKm(formEditAbs.fotoCupomBase64, 'edit_abs.jpg', 'image/jpeg')
+        const formData = new FormData();
+        formData.append('fileData', formEditAbs.fotoCupomBase64);
+        formData.append('fileName', 'edit_abs.jpg');
+        formData.append('contentType', 'image/jpeg');
+        const up = await uploadFotoKm(formData)
         if (up.success) fotoUrl = up.url
       }
 
@@ -318,7 +342,11 @@ export default function QuilometragemPage() {
     startTransition(async () => {
       let fotoUrl = undefined
       if (formMaint.fotoBase64) {
-        const uploadRes = await uploadFotoKm(formMaint.fotoBase64, formMaint.fileName, formMaint.contentType)
+        const formData = new FormData();
+        formData.append('fileData', formMaint.fotoBase64);
+        formData.append('fileName', formMaint.fileName);
+        formData.append('contentType', formMaint.contentType);
+        const uploadRes = await uploadFotoKm(formData)
         if (uploadRes.success) fotoUrl = uploadRes.url
         else return alert('Falha ao subir foto do comprovante')
       }
