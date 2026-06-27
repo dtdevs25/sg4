@@ -120,11 +120,12 @@ export default function DialogosPage() {
   }, [])
 
   async function loadData() {
-    const [anos, tecRes, atvRes, arkRes] = await Promise.all([
+    const [anos, tecRes, atvRes, arkRes, aliadoRes] = await Promise.all([
       getAnosComDados(),
       getTecnicos(),
       getAtividades('DSS'),
-      getDssArkium()
+      getDssArkium(),
+      getDssAliados()
     ])
     setAnosDisponiveis(anos)
 
@@ -135,7 +136,34 @@ export default function DialogosPage() {
         inativos: tecnicos.filter((t: any) => !t.ativo).length
       })
       const atividades = atvRes.success && atvRes.data ? atvRes.data : []
-      const arkiumList = arkRes.success && arkRes.data ? arkRes.data : []
+      let arkiumList: any[] = arkRes.success && arkRes.data ? arkRes.data : []
+      const aliados = aliadoRes || []
+
+      const aliadosMapped = aliados.map((a: any) => {
+        const jsDate = new Date(a.data)
+        const dateStr = `${jsDate.getUTCDate().toString().padStart(2, '0')}/${(jsDate.getUTCMonth()+1).toString().padStart(2, '0')}/${jsDate.getUTCFullYear()}`
+        return {
+          id: a.id,
+          nome: a.tecnico?.nome || 'Desconhecido',
+          dataFechamento: dateStr,
+          assinado: 'SIM',
+          numeroDialogo: 'ALIADO-' + a.id.substring(0,6).toUpperCase(),
+          assunto: a.tema || 'DSS com Aliado',
+          lider: a.tecnico?.nome || 'DSS Aliado',
+          base: '-',
+          uf: '-',
+          localidade: '-',
+          matricula: 'N/A',
+          tipo: 'Aliado',
+          statusDSS: 'Realizado',
+          justificativa: '',
+          estado: 'FECHADO',
+          dbTecnico: a.tecnico,
+          isAliado: true,
+          fotoUrl: a.fotoUrl
+        }
+      })
+      arkiumList = [...arkiumList, ...aliadosMapped]
 
       const newData = tecnicos.map((t: any) => {
         const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
@@ -259,6 +287,8 @@ export default function DialogosPage() {
             justificativa: r.justificativa || '',
             estado: r.estado as 'ABERTO' | 'FECHADO',
             dbTecnico,
+            isAliado: r.isAliado,
+            fotoUrl: r.fotoUrl
           }
         })
         setArkiumData(fromDb)
