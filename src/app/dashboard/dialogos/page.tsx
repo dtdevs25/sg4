@@ -66,7 +66,7 @@ export default function DialogosPage() {
   const [data, setData] = useState<any[]>([])
   const [showInactive, setShowInactive] = useState(false)
   const [totalsTecnicos, setTotalsTecnicos] = useState({ ativos: 0, inativos: 0 })
-  const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'])
+  const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].slice(0, new Date().getMonth() + 1) as MesKey[])
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([new Date().getFullYear()])
   const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
   const [search, setSearch] = useState('')

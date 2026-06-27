@@ -336,7 +336,7 @@ export default function DashboardPage() {
 
   const currentYear = new Date().getFullYear().toString()
   const [ano, setAno] = useState<string>(currentYear)
-  const [meses, setMeses] = useState<string[]>(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']) // multi-select de meses
+  const [meses, setMeses] = useState<string[]>(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].slice(0, new Date().getMonth() + 1)) // multi-select de meses
   const [mostrarFotosGrafico, setMostrarFotosGrafico] = useState<boolean>(true)
   const [dropdownAberto, setDropdownAberto] = useState<boolean>(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
