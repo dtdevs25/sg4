@@ -23,7 +23,23 @@ const PR_COLORS: any = {
   BAIXA: { bg: '#e0e7ff', border: '#6366f1', text: '#4338ca' }
 }
 
-const CATEGORIES = ['ADMINISTRATIVA', 'INSPEÇÃO DE SEGURANÇA', 'GESTÃO DSS', 'REUNIÃO DE ALINHAMENTO', 'TREINAMENTO', 'OUTROS']
+const CATEGORIES = [
+  'ADMINISTRATIVA',
+  'AUDITORIA',
+  'AVALIAÇÃO ERGONÔMICA',
+  'CAMPANHA SST',
+  'CIPA',
+  'COMBATE A INCÊNDIO',
+  'DSS',
+  'EPI',
+  'GESTÃO DE ACIDENTES',
+  'INSPEÇÃO DE SEGURANÇA',
+  'KIT ERGONÔMICO',
+  'PGR',
+  'REUNIÃO',
+  'TREINAMENTO',
+  'OUTROS'
+]
 
 export default function PlanejamentoPage() {
   const { data: session } = useSession()
