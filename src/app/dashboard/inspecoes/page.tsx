@@ -77,6 +77,29 @@ export default function InspecoesPage() {
   const [currentPageConsolidado, setCurrentPageConsolidado] = useState(1)
   const [itemsPerPageConsolidado, setItemsPerPageConsolidado] = useState(10)
   
+  function getActiveMonthsForMeta(t: any, selMonths: MesKey[], selYear: number | 'ALL'): number {
+    if (t.contaMeta === false) return 0
+    if (selYear === 'ALL') return selMonths.length || 1
+    if (!t.admissaoData) return selMonths.length || 1
+    
+    const admDate = new Date(t.admissaoData)
+    const admYear = admDate.getUTCFullYear()
+    const admMonth = admDate.getUTCMonth()
+    
+    const mesIdx: Record<MesKey, number> = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 }
+    
+    let count = 0
+    selMonths.forEach(m => {
+      const mIdx = mesIdx[m]
+      if (selYear > admYear) {
+        count++
+      } else if (selYear === admYear && mIdx >= admMonth) {
+        count++
+      }
+    })
+    return count
+  }
+
   const targetMeta = 20
   const filtered = data.filter(t => {
     if (!showInactive && t.ativo === false) return false
@@ -85,7 +108,7 @@ export default function InspecoesPage() {
   const totalRealizado = filtered.reduce((acc, curr) => {
     return acc + selectedMonths.reduce((sum, m) => sum + curr[m], 0)
   }, 0)
-  const totalMeta = filtered.filter(t => t.contaMeta !== false).length * targetMeta * (selectedMonths.length || 1)
+  const totalMeta = filtered.reduce((acc, t) => acc + (targetMeta * getActiveMonthsForMeta(t, selectedMonths, selectedYear)), 0)
   const pctRealizado = totalMeta > 0 ? Math.round((totalRealizado / totalMeta) * 100) : 0
 
   useEffect(() => {
@@ -782,7 +805,7 @@ export default function InspecoesPage() {
                       <tr><td colSpan={5} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Nenhum técnico encontrado.</td></tr>
                     ) : paginatedConsolidado.map(t => {
                       const realizado = selectedMonths.reduce((sum, m) => sum + t[m], 0)
-                      const meta = t.contaMeta === false ? 0 : targetMeta * (selectedMonths.length || 1)
+                      const meta = targetMeta * getActiveMonthsForMeta(t, selectedMonths, selectedYear)
                       const statusPct = meta > 0 ? Math.round((realizado / meta) * 100) : (meta === 0 && realizado > 0 ? 100 : 0)
                       const isCompleted = meta === 0 ? true : realizado >= meta
                       const hasStarted = realizado > 0
