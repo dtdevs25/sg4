@@ -386,7 +386,7 @@ export default function DashboardPage() {
           const aliMapped = aliList.map((a: any) => {
             const jsDate = new Date(a.data);
             const dateStr = `${jsDate.getUTCDate().toString().padStart(2, '0')}/${(jsDate.getUTCMonth()+1).toString().padStart(2, '0')}/${jsDate.getUTCFullYear()}`;
-            return { id: a.id, assinado: 'SIM', dataFechamento: dateStr, tecnico: a.tecnico, isAliado: true };
+            return { id: a.id, nome: a.tecnico?.nome, assinado: 'SIM', dataFechamento: dateStr, tecnico: a.tecnico, isAliado: true };
           });
           setDssArkiumDb([...arkList, ...aliMapped]);
         }

@@ -647,6 +647,24 @@ export default function DialogosPage() {
     if (arkiumFilter === 'SIM') return a.assinado.toLowerCase() === 'sim' || a.assinado.toLowerCase() === 'yes'
     if (arkiumFilter === 'NA') return a.assinado.toLowerCase() !== 'sim' && a.assinado.toLowerCase() !== 'yes'
     return true
+  }).sort((a, b) => {
+    const parseDate = (dStr: string) => {
+      if (!dStr) return 0
+      if (dStr.includes('/')) {
+        const p = dStr.split('/')
+        if (p.length >= 3) {
+          const yy = p[2].length === 2 ? '20' + p[2] : p[2]
+          return new Date(`${yy}-${p[1]}-${p[0]}T00:00:00Z`).getTime()
+        }
+      } else if (dStr.includes('-')) {
+        return new Date(dStr).getTime()
+      } else {
+        const num = Number(dStr)
+        if (!isNaN(num) && num > 20000) return Math.round((num - 25569) * 86400 * 1000)
+      }
+      return 0
+    }
+    return parseDate(b.dataFechamento) - parseDate(a.dataFechamento)
   })
 
   const totalArkium = filteredArkiumByDateAndActive.length
