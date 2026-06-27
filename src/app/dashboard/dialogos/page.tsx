@@ -12,6 +12,7 @@ import { getAnosComDados } from '@/app/actions/anos'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
 import { getDssArkium, upsertDssArkiumBatch, updateEstadoDssArkium, limparDssArkiumInvalidos, deleteDssArkium } from '@/app/actions/dssArkium'
+import { getDssAliados, deleteDssAliado } from '@/app/actions/dssAliado'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
 
@@ -37,6 +38,8 @@ export type ArkiumDSSItem = {
   justificativa: string
   estado: 'ABERTO' | 'FECHADO'
   dbTecnico?: any
+  isAliado?: boolean
+  fotoUrl?: string
 }
 function formatDataFechamento(dateStr: string) {
   if (!dateStr) return '-'
@@ -1309,6 +1312,14 @@ export default function DialogosPage() {
                   </div>
                 </div>
 
+                {treatingItem.fotoUrl && (
+                  <div style={{ marginTop: 12, marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>Evid�ncia (Lista de Presen�a)</label>
+                    <a href={treatingItem.fotoUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', border: '1px solid #cbd5e1', borderRadius: 8, overflow: 'hidden' }}>
+                      <img src={treatingItem.fotoUrl} alt="Evid�ncia DSS Aliado" style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: 300, background: '#f8fafc' }} />
+                    </a>
+                  </div>
+                )}
                 {treatingItem.estado === 'ABERTO' ? (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
                     <button type="button" onClick={() => setTreatingItem(null)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
@@ -1460,3 +1471,4 @@ export default function DialogosPage() {
     </div>
   )
 }
+
