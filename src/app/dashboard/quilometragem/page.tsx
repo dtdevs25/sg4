@@ -456,17 +456,15 @@ export default function QuilometragemPage() {
           >
             Controle de KM
           </button>
-          {role !== 'TST' && (
-            <button
-              onClick={() => setActiveTab('abastecimento')}
-              style={{
-                padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-                background: activeTab === 'abastecimento' ? '#fff' : 'transparent', color: activeTab === 'abastecimento' ? '#660099' : '#64748b', boxShadow: activeTab === 'abastecimento' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-              }}
-            >
-              Abastecimentos
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('abastecimento')}
+            style={{
+              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+              background: activeTab === 'abastecimento' ? '#fff' : 'transparent', color: activeTab === 'abastecimento' ? '#660099' : '#64748b', boxShadow: activeTab === 'abastecimento' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            Abastecimentos
+          </button>
           <button
             onClick={() => setActiveTab('manutencao')}
             style={{
