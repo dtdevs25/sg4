@@ -338,6 +338,7 @@ export default function DashboardPage() {
   const [ano, setAno] = useState<string>(currentYear)
   const [meses, setMeses] = useState<string[]>(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].slice(0, new Date().getMonth() + 1)) // multi-select de meses
   const [mostrarFotosGrafico, setMostrarFotosGrafico] = useState<boolean>(true)
+  const [mostrarInativos, setMostrarInativos] = useState<boolean>(false)
   const [dropdownAberto, setDropdownAberto] = useState<boolean>(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -411,7 +412,7 @@ export default function DashboardPage() {
   const ANOS = Array.from(anosSet).sort().reverse()
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
-  const activeTecnicosAll = tecnicosDb.filter(t => t.ativo !== false)
+  const activeTecnicosAll = tecnicosDb.filter(t => mostrarInativos ? true : t.ativo !== false)
   const isByActiveTecnico = (nome: string) => activeTecnicosAll.some(t => matchTecnico(nome, t.nome))
 
   const dssArkiumValidos = dssArkiumDb.filter(a => isDssAssinado(a.assinado) && isByActiveTecnico(a.nome))
@@ -519,7 +520,7 @@ export default function DashboardPage() {
 
   const activeTecnicos = isConectadoTst 
     ? [tecnicosDb.find(t => t.nome === tecnicoConectado?.nome)].filter(Boolean) 
-    : tecnicosDb.filter(t => t.ativo && t.contaMeta !== false);
+    : tecnicosDb.filter(t => (mostrarInativos ? true : t.ativo !== false) && t.contaMeta !== false);
   
   const numYears = ano ? 1 : (ANOS.length || 1)
   const numMeses = meses.length > 0 ? meses.length : 12
@@ -666,6 +667,38 @@ export default function DashboardPage() {
 
         {/* Filtros */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          {/* Toggle Inativos */}
+          {!isTst && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={() => setMostrarInativos(!mostrarInativos)}
+                style={{
+                  background: mostrarInativos ? '#10b981' : '#f1f5f9',
+                  border: 'none',
+                  borderRadius: 20,
+                  width: 40,
+                  height: 22,
+                  position: 'relative',
+                  cursor: 'pointer',
+                  transition: 'background 0.3s'
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: 2,
+                  left: mostrarInativos ? 20 : 2,
+                  width: 18,
+                  height: 18,
+                  background: '#fff',
+                  borderRadius: '50%',
+                  transition: 'left 0.3s',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                }} />
+              </button>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Inativos</span>
+            </div>
+          )}
+
           {/* Seletor de Ano */}
           <div style={{ position: 'relative' }}>
             <select
