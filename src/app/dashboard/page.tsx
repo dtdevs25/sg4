@@ -411,17 +411,21 @@ export default function DashboardPage() {
   const ANOS = Array.from(anosSet).sort().reverse()
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
-  const dssArkiumValidos = dssArkiumDb.filter(a => isDssAssinado(a.assinado))
+  const activeTecnicosAll = tecnicosDb.filter(t => t.ativo !== false)
+  const isByActiveTecnico = (nome: string) => activeTecnicosAll.some(t => matchTecnico(nome, t.nome))
+
+  const dssArkiumValidos = dssArkiumDb.filter(a => isDssAssinado(a.assinado) && isByActiveTecnico(a.nome))
 
   const dssAno = ano ? dssArkiumValidos.filter(a => {
     const { year } = getArkiumMonthYear(a.dataFechamento)
     return year.toString() === ano
   }) : dssArkiumValidos
 
-  const inspAno = ano ? inspecoesArkiumDb.filter(a => {
+  const inspAtivas = inspecoesArkiumDb.filter(a => isByActiveTecnico(a.nome))
+  const inspAno = ano ? inspAtivas.filter(a => {
     const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
     return year.toString() === ano
-  }) : inspecoesArkiumDb
+  }) : inspAtivas
 
   const relatoriosAno = ano ? relatoriosDb.filter(r => new Date(r.data).getFullYear().toString() === ano) : relatoriosDb
   const kmAno = ano ? kmDb.filter(k => new Date(k.dataInicial).getFullYear().toString() === ano) : kmDb
