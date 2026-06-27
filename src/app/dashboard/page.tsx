@@ -422,7 +422,7 @@ export default function DashboardPage() {
     return year.toString() === ano
   }) : dssArkiumValidos
 
-  const inspAtivas = inspecoesArkiumDb.filter(a => isByActiveTecnico(a.nome))
+  const inspAtivas = inspecoesArkiumDb.filter(a => isByActiveTecnico(a.nomeAuditor) || activeTecnicosAll.some(t => t.id === a.tecnicoId))
   const inspAno = ano ? inspAtivas.filter(a => {
     const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
     return year.toString() === ano
