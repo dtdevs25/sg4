@@ -650,21 +650,27 @@ export default function DialogosPage() {
   }).sort((a, b) => {
     const parseDate = (dStr: string) => {
       if (!dStr) return 0
-      if (dStr.includes('/')) {
-        const p = dStr.split('/')
+      const datePart = dStr.split(' ')[0]
+      if (datePart.includes('/')) {
+        const p = datePart.split('/')
         if (p.length >= 3) {
           const yy = p[2].length === 2 ? '20' + p[2] : p[2]
           return new Date(`${yy}-${p[1]}-${p[0]}T00:00:00Z`).getTime()
         }
-      } else if (dStr.includes('-')) {
-        return new Date(dStr).getTime()
+      } else if (datePart.includes('-')) {
+        return new Date(datePart).getTime()
       } else {
-        const num = Number(dStr)
+        const num = Number(datePart)
         if (!isNaN(num) && num > 20000) return Math.round((num - 25569) * 86400 * 1000)
       }
       return 0
     }
-    return parseDate(b.dataFechamento) - parseDate(a.dataFechamento)
+    const timeA = parseDate(a.dataFechamento)
+    const timeB = parseDate(b.dataFechamento)
+    if (isNaN(timeA) && isNaN(timeB)) return 0
+    if (isNaN(timeA)) return 1
+    if (isNaN(timeB)) return -1
+    return timeB - timeA
   })
 
   const totalArkium = filteredArkiumByDateAndActive.length
