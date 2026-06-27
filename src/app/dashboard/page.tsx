@@ -17,6 +17,7 @@ import { getQuilometragens } from '@/app/actions/quilometragem'
 import { getAtividadesRelatorio } from '@/app/actions/relatorios'
 import { getDssArkium } from '@/app/actions/dssArkium'
 import { getInspecoesArkium } from '@/app/actions/inspecoesArkium'
+import { getDssAliados } from '@/app/actions/dssAliado'
 
 /* ── Constantes Visuais ── */
 const RED   = '#660099'
@@ -96,7 +97,7 @@ function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
 function isDssAssinado(assinadoStr?: string | null) {
   if (!assinadoStr) return false
   const s = assinadoStr.toLowerCase().trim()
-  if (s.includes('não') || s.includes('nao') || s.includes('pendente')) return false
+  if (s !== 'sim' && s !== 'yes' && !s.includes('sim')) return false
   return true
 }
 
@@ -367,18 +368,28 @@ export default function DashboardPage() {
       if (!role) return
       setLoading(true)
       try {
-        const [ativRes, tecRes, kmRes, dssRes, inspRes, relRes] = await Promise.all([
+        const [ativRes, tecRes, kmRes, dssRes, inspRes, relRes, aliadoRes] = await Promise.all([
           getAtividades(),
           getTecnicos(),
           getQuilometragens(),
           getDssArkium(),
           getInspecoesArkium(),
-          getAtividadesRelatorio()
+          getAtividadesRelatorio(),
+          getDssAliados()
         ])
         if (ativRes.success) setAtividadesDb(ativRes.data || [])
         if (tecRes.success) setTecnicosDb(tecRes.data || [])
         if (kmRes.success) setKmDb(kmRes.data || [])
-        if (dssRes.success) setDssArkiumDb(dssRes.data || [])
+        if (dssRes.success) {
+          const arkList = dssRes.data || [];
+          const aliList = aliadoRes || [];
+          const aliMapped = aliList.map((a: any) => {
+            const jsDate = new Date(a.data);
+            const dateStr = `${jsDate.getUTCDate().toString().padStart(2, '0')}/${(jsDate.getUTCMonth()+1).toString().padStart(2, '0')}/${jsDate.getUTCFullYear()}`;
+            return { id: a.id, assinado: 'SIM', dataFechamento: dateStr, tecnico: a.tecnico, isAliado: true };
+          });
+          setDssArkiumDb([...arkList, ...aliMapped]);
+        }
         if (inspRes.success) setInspecoesArkiumDb(inspRes.data || [])
         setRelatoriosDb(Array.isArray(relRes) ? relRes : [])
       } catch (err) {
@@ -472,11 +483,46 @@ export default function DashboardPage() {
   const isConectadoTst = isTst;
   const tstStat = isConectadoTst && tecnicoConectado ? tecnicosStats.find(t => t.nome === tecnicoConectado.nome) : null;
 
-  const nTecnicos = isConectadoTst ? 1 : (tecnicosDb.filter(t => t.ativo && t.contaMeta !== false).length || 1)
+  function getActiveMonthsForMetaDashboard(t: any, selMesesObj: string[], selYear: string): number {
+    if (t.contaMeta === false) return 0
+    const numYears = selYear ? 1 : (ANOS.length || 1)
+    const selMonthsCount = selMesesObj.length > 0 ? selMesesObj.length : 12
+
+    if (!selYear) return selMonthsCount * numYears
+
+    if (!t.admissao) return selMonthsCount
+
+    const admDate = new Date(t.admissao)
+    const admYear = admDate.getUTCFullYear()
+    const admMonth = admDate.getUTCMonth()
+
+    const mesIdx: Record<string, number> = { Jan: 0, Fev: 1, Mar: 2, Abr: 3, Mai: 4, Jun: 5, Jul: 6, Ago: 7, Set: 8, Out: 9, Nov: 10, Dez: 11 }
+
+    let count = 0
+    const monthsToIterate = selMesesObj.length > 0 ? selMesesObj : Object.keys(mesIdx)
+    const targetYear = parseInt(selYear, 10)
+
+    monthsToIterate.forEach(m => {
+      const mIdx = mesIdx[m]
+      if (targetYear > admYear) {
+        count++
+      } else if (targetYear === admYear && mIdx >= admMonth) {
+        count++
+      }
+    })
+    return count
+  }
+
+  const activeTecnicos = isConectadoTst 
+    ? [tecnicosDb.find(t => t.nome === tecnicoConectado?.nome)].filter(Boolean) 
+    : tecnicosDb.filter(t => t.ativo && t.contaMeta !== false);
+  
   const numYears = ano ? 1 : (ANOS.length || 1)
   const numMeses = meses.length > 0 ? meses.length : 12
-  const metaDssTotal = nTecnicos * META_DSS_POR_TEC * numMeses * numYears
-  const metaInspTotal = nTecnicos * META_INSP_POR_TEC * numMeses * numYears
+
+  const totalMesesMeta = activeTecnicos.reduce((sum, t) => sum + getActiveMonthsForMetaDashboard(t, meses, ano || ''), 0);
+  const metaDssTotal = totalMesesMeta * META_DSS_POR_TEC;
+  const metaInspTotal = totalMesesMeta * META_INSP_POR_TEC;
 
   // Valores reais baseados no filtro (Se TST, usa apenas do tstStat)
   const totalDss = isConectadoTst ? (tstStat?.dss || 0) : (meses.length > 0
@@ -574,12 +620,12 @@ export default function DashboardPage() {
                 <div style={{ background: '#f0f9ff', padding: 16, borderRadius: 12, border: '1px solid #bae6fd' }}>
                   <p style={{ fontSize: 11, color: '#0369a1', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>DSS</p>
                   <p style={{ fontSize: 28, fontWeight: 900, color: '#0284c7', margin: 0 }}>{modalData.dss}</p>
-                  <p style={{ fontSize: 10, color: '#0ea5e9', fontWeight: 600, marginTop: 4 }}>Meta: {META_DSS_POR_TEC * numMeses * numYears}</p>
+                  <p style={{ fontSize: 10, color: '#0ea5e9', fontWeight: 600, marginTop: 4 }}>Meta: {META_DSS_POR_TEC * (tecnicosDb.find(t => t.nome === modalData.nome) ? getActiveMonthsForMetaDashboard(tecnicosDb.find(t => t.nome === modalData.nome), meses, ano || '') : (numMeses * numYears))}</p>
                 </div>
                 <div style={{ background: '#fffbeb', padding: 16, borderRadius: 12, border: '1px solid #fde68a' }}>
                   <p style={{ fontSize: 11, color: '#b45309', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>Insp.</p>
                   <p style={{ fontSize: 28, fontWeight: 900, color: '#d97706', margin: 0 }}>{modalData.insp}</p>
-                  <p style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600, marginTop: 4 }}>Meta: {META_INSP_POR_TEC * numMeses * numYears}</p>
+                  <p style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600, marginTop: 4 }}>Meta: {META_INSP_POR_TEC * (tecnicosDb.find(t => t.nome === modalData.nome) ? getActiveMonthsForMetaDashboard(tecnicosDb.find(t => t.nome === modalData.nome), meses, ano || '') : (numMeses * numYears))}</p>
                 </div>
                 <div style={{ background: '#faf5ff', padding: 16, borderRadius: 12, border: '1px solid #e9d5ff' }}>
                   <p style={{ fontSize: 11, color: '#7e22ce', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>Relatórios</p>
