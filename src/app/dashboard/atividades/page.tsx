@@ -1225,8 +1225,8 @@ export default function PlanejamentoPage() {
               setShowPromptRelatorio(null)
             }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Não, apenas concluir</button>
             <button type="button" onClick={() => {
-              // Se a categoria do plano for GESTÃO DSS, pergunta sobre DSS com Aliado
-              if (showPromptRelatorio.plan.categoria === 'GESTÃO DSS') {
+              // Se a categoria do plano for GESTÃO DSS ou DSS, pergunta sobre DSS com Aliado
+              if (showPromptRelatorio.plan.categoria === 'GESTÃO DSS' || showPromptRelatorio.plan.categoria === 'DSS') {
                 setShowDssModal(showPromptRelatorio)
                 setShowPromptRelatorio(null)
                 return
