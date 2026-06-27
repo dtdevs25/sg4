@@ -155,7 +155,7 @@ export default function DialogosPage() {
             
             // Só conta se estiver assinado
             const s = (a.assinado || '').toLowerCase().trim()
-            if (!s || s.includes('não') || s.includes('nao') || s.includes('pendente')) return false
+            if (s !== 'sim' && s !== 'yes' && !s.includes('sim')) return false
 
             let month = 0, year = 0
             if (a.dataFechamento.includes('/')) {
@@ -1471,4 +1471,5 @@ export default function DialogosPage() {
     </div>
   )
 }
+
 
