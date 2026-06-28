@@ -156,11 +156,22 @@ export default function TecnicosPage() {
     })
   }
 
-  function toggleStatus(id: string) {
-    startTransition(async () => {
-      await toggleTecnicoStatus(id)
-      load()
+  function handleQuickToggleStatus(tecnico: any) {
+    setIsEditing(tecnico.id)
+    const admissao = new Date(tecnico.admissao).toLocaleDateString('pt-BR')
+    setForm({
+      nome: tecnico.nome, email: tecnico.email || '', telefone: tecnico.telefone || '',
+      admissao,
+      demissao: tecnico.demissao ? new Date(tecnico.demissao).toLocaleDateString('pt-BR') : '',
+      fotoUrl: tecnico.fotoUrl || '',
+      unidadeIds: tecnico.unidades?.map((u: any) => u.id) || [],
+      baseFixaId: tecnico.baseFixaId || null,
+      contaMeta: tecnico.contaMeta !== false,
+      ativo: !tecnico.ativo // Flip state immediately
     })
+    setFotoFile(null)
+    setPreviewUrl(tecnico.fotoUrl || '')
+    setShowModal(true)
   }
 
   function handleOpenDelete(id: string) {
@@ -355,7 +366,7 @@ export default function TecnicosPage() {
                         <button disabled={pending} onClick={() => handleOpenEdit(tecnico)} style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Editar Técnico">
                           <Edit2 size={18} />
                         </button>
-                        <button disabled={pending} onClick={() => toggleStatus(tecnico.id)} style={{ background: 'transparent', border: 'none', color: tecnico.ativo ? '#f59e0b' : '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title={tecnico.ativo ? 'Desativar Técnico' : 'Reativar Técnico'}>
+                        <button disabled={pending} onClick={() => handleQuickToggleStatus(tecnico)} style={{ background: 'transparent', border: 'none', color: tecnico.ativo ? '#f59e0b' : '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title={tecnico.ativo ? 'Desativar Técnico' : 'Reativar Técnico'}>
                           <Power size={18} />
                         </button>
                         <button disabled={pending} onClick={() => handleOpenDelete(tecnico.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Excluir Definitivamente">
