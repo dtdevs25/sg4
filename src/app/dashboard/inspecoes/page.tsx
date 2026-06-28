@@ -86,16 +86,36 @@ export default function InspecoesPage() {
     const admYear = admDate.getUTCFullYear()
     const admMonth = admDate.getUTCMonth()
     
+    let demYear: number | null = null
+    let demMonth: number | null = null
+    if (t.demissaoData) {
+      const demDate = new Date(t.demissaoData)
+      demYear = demDate.getUTCFullYear()
+      demMonth = demDate.getUTCMonth()
+    }
+
     const mesIdx: Record<MesKey, number> = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 }
     
     let count = 0
     selMonths.forEach(m => {
       const mIdx = mesIdx[m]
+      let isActive = false
+
       if (selYear > admYear) {
-        count++
+        isActive = true
       } else if (selYear === admYear && mIdx >= admMonth) {
-        count++
+        isActive = true
       }
+
+      if (isActive && demYear !== null && demMonth !== null) {
+        if (selYear > demYear) {
+          isActive = false
+        } else if (selYear === demYear && mIdx > demMonth) {
+          isActive = false
+        }
+      }
+
+      if (isActive) count++
     })
     return count
   }
@@ -163,7 +183,7 @@ export default function InspecoesPage() {
           return false
         })
 
-        const result: any = { id: t.id, nome: t.nome, admissao: new Date(t.admissao).toLocaleDateString('pt-BR'), fotoUrl: t.fotoUrl, ativo: t.ativo, contaMeta: t.contaMeta }
+        const result: any = { id: t.id, nome: t.nome, admissao: new Date(t.admissao).toLocaleDateString('pt-BR'), admissaoData: t.admissao, demissaoData: t.demissao, fotoUrl: t.fotoUrl, ativo: t.ativo, contaMeta: t.contaMeta }
         
         Object.keys(MES_MAP).forEach(k => {
           const mesName = MES_MAP[k as MesKey]

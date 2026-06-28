@@ -76,6 +76,7 @@ model Tecnico {
   cargo     String    @default("Técnico de Segurança do Trabalho")
   fotoUrl   String?
   admissao  DateTime
+  demissao  DateTime?
   ativo     Boolean   @default(true)
   contaMeta Boolean   @default(true)
   createdAt DateTime  @default(now())

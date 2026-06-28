@@ -65,7 +65,7 @@ export async function uploadFotoTecnico(formData: FormData) {
   }
 }
 
-export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null, contaMeta?: boolean }) {
+export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, demissao?: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null, contaMeta?: boolean, ativo?: boolean }) {
   try {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
@@ -74,15 +74,23 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
     const parts = data.admissao.split('/')
     const admissaoDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00Z`)
 
+    let demissaoDate = null
+    if (data.demissao) {
+      const dParts = data.demissao.split('/')
+      demissaoDate = new Date(`${dParts[2]}-${dParts[1]}-${dParts[0]}T12:00:00Z`)
+    }
+
     const payload: any = {
       nome: data.nome,
       email: data.email,
       telefone: data.telefone,
       cargo: 'Técnico de Segurança do Trabalho',
       admissao: admissaoDate,
+      demissao: demissaoDate,
       fotoUrl: data.fotoUrl,
       baseFixaId: data.baseFixaId || null,
-      contaMeta: data.contaMeta !== undefined ? data.contaMeta : true
+      contaMeta: data.contaMeta !== undefined ? data.contaMeta : true,
+      ativo: data.ativo !== undefined ? data.ativo : true
     }
 
     if (data.id) {

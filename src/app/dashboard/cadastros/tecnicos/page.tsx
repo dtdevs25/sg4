@@ -28,14 +28,16 @@ export default function TecnicosPage() {
   
   // Form state
   const [form, setForm] = useState<{
-    nome: string; email: string; telefone: string; admissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null; contaMeta: boolean
+    nome: string; email: string; telefone: string; admissao: string; demissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null; contaMeta: boolean; ativo: boolean
   }>({
     nome: '', email: '', telefone: '',
     admissao: new Date().toLocaleDateString('pt-BR'),
+    demissao: '',
     fotoUrl: '',
     unidadeIds: [],
     baseFixaId: null,
-    contaMeta: true
+    contaMeta: true,
+    ativo: true
   })
   
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -69,10 +71,12 @@ export default function TecnicosPage() {
     setForm({
       nome: '', email: '', telefone: '',
       admissao: new Date().toLocaleDateString('pt-BR'),
+      demissao: '',
       fotoUrl: '',
       unidadeIds: [],
       baseFixaId: null,
-      contaMeta: true
+      contaMeta: true,
+      ativo: true
     })
     setFotoFile(null)
     setPreviewUrl('')
@@ -85,10 +89,12 @@ export default function TecnicosPage() {
     setForm({
       nome: tecnico.nome, email: tecnico.email || '', telefone: tecnico.telefone || '',
       admissao,
+      demissao: tecnico.demissao ? new Date(tecnico.demissao).toLocaleDateString('pt-BR') : '',
       fotoUrl: tecnico.fotoUrl || '',
       unidadeIds: tecnico.unidades?.map((u: any) => u.id) || [],
       baseFixaId: tecnico.baseFixaId || null,
-      contaMeta: tecnico.contaMeta !== false
+      contaMeta: tecnico.contaMeta !== false,
+      ativo: tecnico.ativo !== false
     })
     setFotoFile(null)
     setPreviewUrl(tecnico.fotoUrl || '')
@@ -137,10 +143,12 @@ export default function TecnicosPage() {
         email: form.email,
         telefone: form.telefone,
         admissao: form.admissao,
+        demissao: form.demissao || undefined,
         fotoUrl: finalFotoUrl,
         unidadeIds: form.unidadeIds,
         baseFixaId: form.baseFixaId,
-        contaMeta: form.contaMeta
+        contaMeta: form.contaMeta,
+        ativo: form.ativo
       })
 
       setShowModal(false)
@@ -423,7 +431,7 @@ export default function TecnicosPage() {
                   <input type="text" value={form.telefone} onChange={(e) => setForm(p => ({ ...p, telefone: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Admissão (DD/MM/AAAA)</label>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Admissão</label>
                   <input type="text" value={form.admissao} onChange={(e) => setForm(p => ({ ...p, admissao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Ex: 05/08/2025" />
                 </div>
               </div>
@@ -478,17 +486,38 @@ export default function TecnicosPage() {
                 <input type="text" readOnly value="Técnico de Segurança do Trabalho" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc', color: '#64748b', fontWeight: 600 }} />
               </div>
 
-              <div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#334155', cursor: 'pointer', background: form.contaMeta ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', padding: '12px 16px', borderRadius: 8, border: `1px solid ${form.contaMeta ? '#10b981' : '#ef4444'}`, transition: 'all 0.2s' }}>
-                  <input
-                    type="checkbox"
-                    checked={form.contaMeta}
-                    onChange={(e) => setForm(p => ({ ...p, contaMeta: e.target.checked }))}
-                    style={{ margin: 0, width: 16, height: 16, accentColor: form.contaMeta ? '#10b981' : '#ef4444' }}
-                  />
-                  <span>Contabiliza para Metas da Empresa</span>
-                </label>
-                <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0 28px' }}>Se desmarcado, as atividades deste técnico não somarão aos números globais do Dashboard.</p>
+              <div style={{ display: 'flex', gap: 16, flexDirection: 'column' }}>
+                <div style={{ background: form.ativo ? 'transparent' : '#fef2f2', padding: form.ativo ? 0 : 16, borderRadius: 8, border: form.ativo ? 'none' : '1px solid #fecaca', transition: 'all 0.2s' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#334155', cursor: 'pointer', background: form.ativo ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', padding: '12px 16px', borderRadius: 8, border: `1px solid ${form.ativo ? '#10b981' : '#ef4444'}`, transition: 'all 0.2s' }}>
+                    <input
+                      type="checkbox"
+                      checked={form.ativo}
+                      onChange={(e) => setForm(p => ({ ...p, ativo: e.target.checked, demissao: e.target.checked ? '' : p.demissao }))}
+                      style={{ margin: 0, width: 16, height: 16, accentColor: form.ativo ? '#10b981' : '#ef4444' }}
+                    />
+                    <span>{form.ativo ? 'Técnico Ativo' : 'Técnico Desligado (Inativo)'}</span>
+                  </label>
+                  {!form.ativo && (
+                    <div style={{ marginTop: 16 }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', marginBottom: 6 }}>Qual foi a Data de Demissão? (DD/MM/AAAA)</label>
+                      <input type="text" required value={form.demissao} onChange={(e) => setForm(p => ({ ...p, demissao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #fca5a5', outline: 'none', background: '#fff' }} placeholder="Ex: 10/12/2026" />
+                      <p style={{ fontSize: 11, color: '#ef4444', margin: '6px 0 0 0', fontWeight: 600 }}>As metas no dashboard só contarão até esta data.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#334155', cursor: 'pointer', background: form.contaMeta ? 'rgba(59,130,246,0.1)' : 'rgba(148,163,184,0.1)', padding: '12px 16px', borderRadius: 8, border: `1px solid ${form.contaMeta ? '#3b82f6' : '#94a3b8'}`, transition: 'all 0.2s' }}>
+                    <input
+                      type="checkbox"
+                      checked={form.contaMeta}
+                      onChange={(e) => setForm(p => ({ ...p, contaMeta: e.target.checked }))}
+                      style={{ margin: 0, width: 16, height: 16, accentColor: form.contaMeta ? '#3b82f6' : '#94a3b8' }}
+                    />
+                    <span>Contabiliza para Metas da Empresa</span>
+                  </label>
+                  <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0 28px' }}>Se desmarcado, as atividades deste técnico não somarão aos números globais do Dashboard, mesmo se ele for ativo.</p>
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>

@@ -501,6 +501,14 @@ export default function DashboardPage() {
     const admYear = admDate.getUTCFullYear()
     const admMonth = admDate.getUTCMonth()
 
+    let demYear: number | null = null
+    let demMonth: number | null = null
+    if (t.demissao) {
+      const demDate = new Date(t.demissao)
+      demYear = demDate.getUTCFullYear()
+      demMonth = demDate.getUTCMonth()
+    }
+
     const mesIdx: Record<string, number> = { Jan: 0, Fev: 1, Mar: 2, Abr: 3, Mai: 4, Jun: 5, Jul: 6, Ago: 7, Set: 8, Out: 9, Nov: 10, Dez: 11 }
 
     let count = 0
@@ -509,11 +517,23 @@ export default function DashboardPage() {
 
     monthsToIterate.forEach(m => {
       const mIdx = mesIdx[m]
+      let isActive = false
+
       if (targetYear > admYear) {
-        count++
+        isActive = true
       } else if (targetYear === admYear && mIdx >= admMonth) {
-        count++
+        isActive = true
       }
+
+      if (isActive && demYear !== null && demMonth !== null) {
+        if (targetYear > demYear) {
+          isActive = false
+        } else if (targetYear === demYear && mIdx > demMonth) {
+          isActive = false
+        }
+      }
+
+      if (isActive) count++
     })
     return count
   }
