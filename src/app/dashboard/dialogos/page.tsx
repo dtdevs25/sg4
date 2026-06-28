@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useTransition } from 'react'
+import { useState, useRef, useEffect, useTransition, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   MessageSquare,
@@ -65,7 +65,6 @@ export default function DialogosPage() {
   // --- ESTADO: Visão Consolidada ---
   const [data, setData] = useState<any[]>([])
   const [showInactive, setShowInactive] = useState(false)
-  const [totalsTecnicos, setTotalsTecnicos] = useState({ ativos: 0, inativos: 0 })
   const [selectedMonths, setSelectedMonths] = useState<MesKey[]>(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].slice(0, new Date().getMonth() + 1) as MesKey[])
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([new Date().getFullYear()])
   const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
@@ -75,6 +74,13 @@ export default function DialogosPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [currentPageConsolidado, setCurrentPageConsolidado] = useState(1)
   const [itemsPerPageConsolidado, setItemsPerPageConsolidado] = useState(10)
+
+  const totalsTecnicos = useMemo(() => {
+    return {
+      ativos: data.filter((t: any) => t.ativo !== false).length,
+      inativos: data.filter((t: any) => t.ativo === false).length
+    }
+  }, [data])
 
   const targetMeta = 8 // Meta de DSS da planilha (8/mês)
   const baseData = data.filter(t => showInactive ? true : t.ativo)
@@ -151,10 +157,6 @@ export default function DialogosPage() {
 
     if (tecRes.success && tecRes.data) {
       const tecnicos = tecRes.data
-      setTotalsTecnicos({
-        ativos: tecnicos.filter((t: any) => t.ativo).length,
-        inativos: tecnicos.filter((t: any) => !t.ativo).length
-      })
       const atividades = atvRes.success && atvRes.data ? atvRes.data : []
       let arkiumList: any[] = arkRes.success && arkRes.data ? arkRes.data : []
       const aliados = aliadoRes || []
@@ -261,7 +263,7 @@ export default function DialogosPage() {
         result.ativo = t.ativo
         result.contaMeta = t.contaMeta
         return result
-      })
+      }).filter((r: any) => r.ativo || Object.keys(MES_MAP).some(k => r[k as MesKey] > 0))
       
       setData(newData)
       
