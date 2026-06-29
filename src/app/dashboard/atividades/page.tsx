@@ -78,6 +78,11 @@ export default function PlanejamentoPage() {
   const [execForm, setExecForm] = useState({
     descricaoExecutada: '', observacoes: ''
   })
+  
+  // Estado para edição inline do checklist no modal de execução
+  const [editingChecklistItem, setEditingChecklistItem] = useState<string | null>(null)
+  const [editingChecklistText, setEditingChecklistText] = useState('')
+
 
   // Novos modais
   const [showTransferPrompt, setShowTransferPrompt] = useState<any>(null)
@@ -237,7 +242,7 @@ export default function PlanejamentoPage() {
     setShowExecModal(plan)
     setIsModifying(false)
     setExecForm({
-      descricaoExecutada: plan.descricaoExecutada || plan.descricaoOriginal,
+      descricaoExecutada: plan.descricaoExecutada || (plan.checklist && plan.checklist.length > 0 ? '' : plan.descricaoOriginal),
       observacoes: plan.observacoes || ''
     })
   }
@@ -306,6 +311,36 @@ export default function PlanejamentoPage() {
 
     // Se estiver desmarcando, fluxo normal:
     const newChecklist = plan.checklist.map((c: any) => c.id === itemId ? { ...c, concluido: false } : c)
+    const allChecked = newChecklist.length > 0 && newChecklist.every((i:any) => i.concluido)
+    setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : p))
+    setShowExecModal((prev: any) => prev && prev.id === planId ? { ...prev, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : prev)
+    
+    startTransition(async () => {
+      await togglePlanejamentoChecklist(planId, newChecklist)
+    })
+  }
+
+  function deleteItemChecklist(planId: string, itemId: string) {
+    if (!confirm('Deseja excluir este item do planejamento?')) return;
+    const plan = planejamentos.find(p => p.id === planId)
+    if (!plan || !plan.checklist) return;
+    
+    const newChecklist = plan.checklist.filter((c: any) => c.id !== itemId)
+    const allChecked = newChecklist.length > 0 && newChecklist.every((i:any) => i.concluido)
+    setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : p))
+    setShowExecModal((prev: any) => prev && prev.id === planId ? { ...prev, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : prev)
+    
+    startTransition(async () => {
+      await togglePlanejamentoChecklist(planId, newChecklist)
+    })
+  }
+
+  function editItemChecklist(planId: string, itemId: string, newText: string) {
+    if (!newText.trim()) return;
+    const plan = planejamentos.find(p => p.id === planId)
+    if (!plan || !plan.checklist) return;
+    
+    const newChecklist = plan.checklist.map((c: any) => c.id === itemId ? { ...c, texto: newText } : c)
     const allChecked = newChecklist.length > 0 && newChecklist.every((i:any) => i.concluido)
     setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : p))
     setShowExecModal((prev: any) => prev && prev.id === planId ? { ...prev, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : prev)
@@ -1016,9 +1051,25 @@ export default function PlanejamentoPage() {
                           onChange={() => toggleItemChecklist(showExecModal.id, item.id)}
                           style={{ marginTop: 2, cursor: 'pointer', accentColor: '#10b981', width: 16, height: 16, flexShrink: 0 }}
                         />
-                        <span style={{ fontSize: 13, color: item.concluido ? '#94a3b8' : '#334155', textDecoration: item.concluido ? 'line-through' : 'none', lineHeight: 1.4, cursor: 'pointer', flex: 1 }} onClick={() => toggleItemChecklist(showExecModal.id, item.id)}>
-                          {item.texto}
-                        </span>
+                        {editingChecklistItem === item.id ? (
+                           <div style={{ flex: 1, display: 'flex', gap: 8 }}>
+                             <input type="text" value={editingChecklistText} onChange={e => setEditingChecklistText(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') { editItemChecklist(showExecModal.id, item.id, editingChecklistText); setEditingChecklistItem(null); } }} style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1' }} autoFocus />
+                             <button type="button" onClick={() => { editItemChecklist(showExecModal.id, item.id, editingChecklistText); setEditingChecklistItem(null); }} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, padding: '0 8px', cursor: 'pointer' }}><Check size={14}/></button>
+                             <button type="button" onClick={() => setEditingChecklistItem(null)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, padding: '0 8px', cursor: 'pointer' }}><X size={14}/></button>
+                           </div>
+                        ) : (
+                           <>
+                             <span style={{ fontSize: 13, color: item.concluido ? '#94a3b8' : '#334155', textDecoration: item.concluido ? 'line-through' : 'none', lineHeight: 1.4, cursor: 'pointer', flex: 1 }} onClick={() => toggleItemChecklist(showExecModal.id, item.id)}>
+                               {item.texto}
+                             </span>
+                             {(!isTst || showExecModal.status === 'PENDENTE') && (
+                               <div style={{ display: 'flex', gap: 4 }}>
+                                 <button type="button" onClick={() => { setEditingChecklistItem(item.id); setEditingChecklistText(item.texto); }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 2 }}><Edit2 size={14} /></button>
+                                 <button type="button" onClick={() => deleteItemChecklist(showExecModal.id, item.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 2 }}><Trash2 size={14} /></button>
+                               </div>
+                             )}
+                           </>
+                        )}
                       </div>
                     ))}
                   </div>
