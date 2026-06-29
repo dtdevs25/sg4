@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import s3Client from '@/lib/s3'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 
 export async function getAtas(ano?: number) {
   try {
@@ -147,5 +147,49 @@ export async function uploadAnexoReuniao(formData: FormData) {
   } catch (error) {
     console.error('Erro no upload de anexo de ata:', error)
     return { success: false, error: 'Falha no upload' }
+  }
+}
+
+export async function deleteAnexoAta(dataIso: string, assunto: string, anexoUrl: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    
+    const role = (session.user as any).role
+    if (role !== 'MASTER' && role !== 'ADMIN') {
+      return { success: false, error: 'Sem permissão' }
+    }
+
+    const dateObj = new Date(dataIso)
+
+    const ata = await prisma.ataReuniao.findUnique({
+      where: {
+        data_assunto: { data: dateObj, assunto }
+      }
+    })
+    
+    if (!ata || ata.anexoUrl !== anexoUrl) return { success: false, error: 'Anexo não confere ou não existe' }
+
+    const bucket = 'sg4-reunioes'
+    const bucketPart = `/${bucket}/`
+    const idx = anexoUrl.indexOf(bucketPart)
+    if (idx !== -1) {
+      const key = anexoUrl.substring(idx + bucketPart.length)
+      const command = new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: key
+      })
+      await s3Client.send(command)
+    }
+
+    await prisma.ataReuniao.update({
+      where: { id: ata.id },
+      data: { anexoUrl: null, anexoNome: null }
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao excluir anexo:', error)
+    return { success: false, error: 'Falha ao excluir anexo' }
   }
 }

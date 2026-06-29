@@ -7,7 +7,7 @@ import {
   PlusCircle, Search, Sparkles, X, Edit2, Trash2, Loader2, Save, FileText, Printer, FileEdit, FileCode2
 } from 'lucide-react'
 import { getReunioes, createReuniaoLote, deleteReuniaoLote, updatePresencasReuniao } from '@/app/actions/reunioes'
-import { getAtas, upsertAta, uploadAnexoReuniao } from '@/app/actions/atas'
+import { getAtas, upsertAta, uploadAnexoReuniao, deleteAnexoAta } from '@/app/actions/atas'
 import { useSession } from 'next-auth/react'
 
 type ReuniaoData = {
@@ -232,7 +232,9 @@ export default function ReunioesPage() {
       }
 
       // Salva a ata primeiro
-      const ataRes = await upsertAta(editingAta.data, editingAta.assunto, ataContent, finalAnexoUrl, finalAnexoNome)
+      const editorNode = document.getElementById('editor')
+      const contentToSave = editorNode ? editorNode.innerHTML : ataContent
+      const ataRes = await upsertAta(editingAta.data, editingAta.assunto, contentToSave, finalAnexoUrl, finalAnexoNome)
       
       // Salva os dados de presença da lista temporária
       const updatesList = tempPresencas.map(tp => ({
@@ -258,8 +260,14 @@ export default function ReunioesPage() {
   function openPrintPdf(dt: string, ast: string) {
     const existingAta = atas.find(a => new Date(a.data).toISOString() === dt && a.assunto === ast)
     const presencas = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast)
+    const rawDate = new Date(dt)
     setPrintData({
-      dataObj: { dt, ast, dateFmt: new Date(dt).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) },
+      dataObj: { 
+        dt, 
+        ast, 
+        dateFmt: rawDate.toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
+        timeFmt: rawDate.toLocaleTimeString('pt-BR', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })
+      },
       ata: existingAta || null,
       presencas
     })
@@ -273,8 +281,8 @@ export default function ReunioesPage() {
     const file = e.target.files?.[0]
     if (!file) return
     
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Arquivo muito grande. Limite é 10MB.')
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Arquivo muito grande. Limite é 50MB.')
       return
     }
 
@@ -310,43 +318,59 @@ export default function ReunioesPage() {
       {printData && (
         <div id="print-section" style={{ display: 'none', fontFamily: 'Arial, sans-serif', color: '#000', background: '#fff' }}>
           <div style={{ borderBottom: '2px solid #660099', paddingBottom: 20, marginBottom: 30, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 24, color: '#660099' }}>Ata de Reunião</h1>
-              <h2 style={{ margin: '5px 0 0 0', fontSize: 18, color: '#333' }}>{printData.dataObj.ast}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <img src="/logo.png" style={{ height: 48 }} alt="SG4" />
+                <div style={{ width: 2, height: 40, background: '#660099', opacity: 0.2 }} />
+                <img src="/logovivo.png" style={{ height: 28 }} alt="VIVO" />
+              </div>
+              <div>
+                <h1 style={{ margin: 0, fontSize: 24, color: '#660099' }}>Ata de Reunião</h1>
+                <h2 style={{ margin: '5px 0 0 0', fontSize: 18, color: '#333' }}>{printData.dataObj.ast}</h2>
+              </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 14, fontWeight: 'bold' }}>Data da Reunião</div>
-              <div style={{ fontSize: 16 }}>{printData.dataObj.dateFmt}</div>
+              <div style={{ fontSize: 12, fontWeight: 'bold', color: '#660099', textTransform: 'uppercase' }}>Data e Hora</div>
+              <div style={{ fontSize: 16, fontWeight: 'bold' }}>{printData.dataObj.dateFmt} às {printData.dataObj.timeFmt}</div>
             </div>
           </div>
 
           <div style={{ marginBottom: 40 }}>
-            <h3 style={{ fontSize: 16, borderBottom: '1px solid #ccc', paddingBottom: 5, marginBottom: 15 }}>Tópicos Abordados</h3>
+            <h3 style={{ fontSize: 16, color: '#660099', borderBottom: '1px solid #e2e8f0', paddingBottom: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              Tópicos Abordados
+            </h3>
             {printData.ata?.conteudo ? (
               <div dangerouslySetInnerHTML={{ __html: printData.ata.conteudo }} style={{ lineHeight: 1.6, fontSize: 14 }} />
             ) : (
               <p style={{ fontStyle: 'italic', color: '#666' }}>Nenhuma ata redigida para esta reunião.</p>
             )}
+            
+            {printData.ata?.anexoNome && (
+              <div style={{ marginTop: 20, padding: 12, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 'bold', color: '#660099' }}>Anexo:</span>
+                <span style={{ fontSize: 13, color: '#333', marginLeft: 8 }}>{printData.ata.anexoNome}</span>
+              </div>
+            )}
           </div>
 
           <div>
-            <h3 style={{ fontSize: 16, borderBottom: '1px solid #ccc', paddingBottom: 5, marginBottom: 15 }}>Controle de Presença</h3>
+            <h3 style={{ fontSize: 16, color: '#660099', borderBottom: '1px solid #e2e8f0', paddingBottom: 8, marginBottom: 16 }}>Controle de Presença</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: '#f0f0f0' }}>
-                  <th style={{ padding: 8, border: '1px solid #ccc', textAlign: 'left' }}>Técnico</th>
-                  <th style={{ padding: 8, border: '1px solid #ccc', textAlign: 'center' }}>Presença</th>
-                  <th style={{ padding: 8, border: '1px solid #ccc', textAlign: 'center' }}>Pontualidade</th>
-                  <th style={{ padding: 8, border: '1px solid #ccc', textAlign: 'left' }}>Observação</th>
+                <tr style={{ background: '#f8fafc' }}>
+                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>Técnico</th>
+                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'center', color: '#64748b' }}>Presença</th>
+                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'center', color: '#64748b' }}>Pontualidade</th>
+                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>Observação</th>
                 </tr>
               </thead>
               <tbody>
                 {printData.presencas.map(p => (
-                  <tr key={p.id}>
-                    <td style={{ padding: 8, border: '1px solid #ccc' }}>{p.tecnico.nome}</td>
-                    <td style={{ padding: 8, border: '1px solid #ccc', textAlign: 'center', color: p.presenca === 'PRESENTE' ? 'green' : 'red' }}>{p.presenca}</td>
-                    <td style={{ padding: 8, border: '1px solid #ccc', textAlign: 'center' }}>{p.pontualidade.replace('_', ' ')}</td>
-                    <td style={{ padding: 8, border: '1px solid #ccc' }}>{p.motivo || p.observacao || '-'}</td>
+                  <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: 'bold' }}>{p.tecnico.nome}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'center', color: p.presenca === 'PRESENTE' ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>{p.presenca}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>{p.presenca === 'PRESENTE' ? p.pontualidade.replace('_', ' ') : '-'}</td>
+                    <td style={{ padding: '10px 12px' }}>{p.motivo || p.observacao || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -501,7 +525,8 @@ export default function ReunioesPage() {
                 </thead>
                 <tbody>
                   {searchedMeetings.map(m => {
-                    const temAta = atas.some(a => new Date(a.data).toISOString() === m.data && a.assunto === m.assunto)
+                    const ata = atas.find(a => new Date(a.data).toISOString() === m.data && a.assunto === m.assunto)
+                    const temAta = !!ata
                     
                     return (
                     <tr key={m.data + m.assunto} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s', ...((deleteConfirmInfo?.data === m.data && deleteConfirmInfo?.assunto === m.assunto) ? { background: '#f8fafc' } : {}) }}>
@@ -529,6 +554,17 @@ export default function ReunioesPage() {
                       </td>
                       <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                          {ata?.anexoUrl && (
+                            <a
+                              href={ata.anexoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#2563eb', transition: 'all 0.2s' }}
+                              title={`Ver Anexo: ${ata.anexoNome || 'Documento'}`}
+                            >
+                              <FileText size={16} />
+                            </a>
+                          )}
                           <button
                             onClick={() => openPrintPdf(m.data, m.assunto)}
                             disabled={pending}
@@ -627,7 +663,8 @@ export default function ReunioesPage() {
                 <div
                   id="editor"
                   contentEditable
-                  onInput={(e) => setAtaContent(e.currentTarget.innerHTML)}
+                  suppressContentEditableWarning
+                  onBlur={(e) => setAtaContent(e.currentTarget.innerHTML)}
                   dangerouslySetInnerHTML={{ __html: ataContent }}
                   style={{
                     flex: 1, minHeight: 250, padding: 16, borderRadius: 8, border: '1px solid #cbd5e1',
@@ -644,12 +681,25 @@ export default function ReunioesPage() {
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{ataAnexoNome}</div>
                         {ataAnexoUrl && <a href={ataAnexoUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#2563eb', textDecoration: 'none' }}>Ver arquivo original</a>}
                       </div>
-                      <button type="button" onClick={() => { setAtaAnexoUrl(''); setAtaAnexoNome(''); setAtaAnexoBase64(''); setAtaAnexoContentType('') }} style={{ padding: '6px 12px', borderRadius: 6, background: '#fee2e2', color: '#ef4444', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: 11 }}>Remover</button>
+                      <button type="button" onClick={async () => {
+                        if (ataAnexoUrl && editingAta) {
+                          if (!confirm('Tem certeza que deseja excluir o anexo do servidor?')) return;
+                          const res = await deleteAnexoAta(editingAta.data, editingAta.assunto, ataAnexoUrl);
+                          if (res.success) {
+                            setAtaAnexoUrl(''); setAtaAnexoNome(''); setAtaAnexoBase64(''); setAtaAnexoContentType('');
+                            loadData();
+                          } else {
+                            alert(res.error || 'Erro ao excluir anexo');
+                          }
+                        } else {
+                          setAtaAnexoUrl(''); setAtaAnexoNome(''); setAtaAnexoBase64(''); setAtaAnexoContentType('');
+                        }
+                      }} disabled={pending} style={{ padding: '6px 12px', borderRadius: 6, background: '#fee2e2', color: '#ef4444', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: 11, opacity: pending ? 0.5 : 1 }}>Remover</button>
                     </div>
                   ) : (
                     <div>
                       <input type="file" id="ataAnexoInput" onChange={handleAnexoChange} style={{ display: 'none' }} />
-                      <button type="button" onClick={() => document.getElementById('ataAnexoInput')?.click()} style={{ padding: '10px 16px', borderRadius: 8, border: '1px dashed #64748b', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', width: '100%' }}>Adicionar Arquivo (10MB max)</button>
+                      <button type="button" onClick={() => document.getElementById('ataAnexoInput')?.click()} style={{ padding: '10px 16px', borderRadius: 8, border: '1px dashed #64748b', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', width: '100%' }}>Adicionar Arquivo (50MB max)</button>
                     </div>
                   )}
                 </div>
@@ -663,7 +713,17 @@ export default function ReunioesPage() {
                 </div>
                 
                 <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {tempPresencas.map((tp, idx) => (
+                  {tempPresencas.map((tp, idx) => {
+                    const isPresente = tp.presenca === 'PRESENTE';
+                    const isAusente = tp.presenca === 'AUSENTE';
+                    const isAtrasado = tp.pontualidade === 'ATRASADO';
+                    const isPontual = tp.pontualidade === 'PONTUAL';
+
+                    const showPontualidade = isPresente;
+                    const showJustificada = isAusente || (isPresente && isAtrasado);
+                    const showObservacao = isAusente || (isPresente && isAtrasado);
+
+                    return (
                     <div key={tp.id} style={{ background: '#fff', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                         {tp.tecnico.fotoUrl ? (
@@ -682,6 +742,11 @@ export default function ReunioesPage() {
                             onClick={() => {
                               const newArr = [...tempPresencas];
                               newArr[idx].presenca = 'PRESENTE';
+                              if (newArr[idx].pontualidade === 'NAO_SE_APLICA') newArr[idx].pontualidade = 'PONTUAL';
+                              if (newArr[idx].pontualidade === 'PONTUAL') {
+                                newArr[idx].justificada = 'NAO_SE_APLICA';
+                                newArr[idx].motivo = '';
+                              }
                               setTempPresencas(newArr);
                             }}
                             style={{ flex: 1, padding: '6px 0', borderRadius: 6, border: tp.presenca === 'PRESENTE' ? '1px solid #10b981' : '1px solid #e2e8f0', background: tp.presenca === 'PRESENTE' ? 'rgba(16,185,129,0.1)' : '#fff', color: tp.presenca === 'PRESENTE' ? '#10b981' : '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
@@ -692,6 +757,7 @@ export default function ReunioesPage() {
                             onClick={() => {
                               const newArr = [...tempPresencas];
                               newArr[idx].presenca = 'AUSENTE';
+                              newArr[idx].pontualidade = 'NAO_SE_APLICA';
                               setTempPresencas(newArr);
                             }}
                             style={{ flex: 1, padding: '6px 0', borderRadius: 6, border: tp.presenca === 'AUSENTE' ? '1px solid #ef4444' : '1px solid #e2e8f0', background: tp.presenca === 'AUSENTE' ? 'rgba(239,68,68,0.1)' : '#fff', color: tp.presenca === 'AUSENTE' ? '#ef4444' : '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
@@ -700,50 +766,62 @@ export default function ReunioesPage() {
                           </button>
                         </div>
                         
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <select 
-                            value={tp.pontualidade}
-                            onChange={(e) => {
-                              const newArr = [...tempPresencas];
-                              newArr[idx].pontualidade = e.target.value as any;
-                              setTempPresencas(newArr);
-                            }}
-                            style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, color: '#334155' }}
-                          >
-                            <option value="PONTUAL">Pontual</option>
-                            <option value="ATRASADO">Atrasado</option>
-                            <option value="NAO_SE_APLICA">N/A</option>
-                          </select>
+                        {(showPontualidade || showJustificada) && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {showPontualidade && (
+                              <select 
+                                value={tp.pontualidade}
+                                onChange={(e) => {
+                                  const newArr = [...tempPresencas];
+                                  newArr[idx].pontualidade = e.target.value as any;
+                                  if (e.target.value === 'PONTUAL') {
+                                    newArr[idx].justificada = 'NAO_SE_APLICA';
+                                    newArr[idx].motivo = '';
+                                  }
+                                  setTempPresencas(newArr);
+                                }}
+                                style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, color: '#334155' }}
+                              >
+                                <option value="PONTUAL">Pontual</option>
+                                <option value="ATRASADO">Atrasado</option>
+                              </select>
+                            )}
 
-                          <select 
-                            value={tp.justificada}
+                            {showJustificada && (
+                              <select 
+                                value={tp.justificada}
+                                onChange={(e) => {
+                                  const newArr = [...tempPresencas];
+                                  newArr[idx].justificada = e.target.value as any;
+                                  setTempPresencas(newArr);
+                                }}
+                                style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, color: '#334155' }}
+                              >
+                                <option value="NAO_SE_APLICA">Justificada? (N/A)</option>
+                                <option value="SIM">Sim</option>
+                                <option value="NAO">Não</option>
+                              </select>
+                            )}
+                          </div>
+                        )}
+                        
+                        {showObservacao && (
+                          <input 
+                            type="text" 
+                            placeholder="Motivo / Observação..." 
+                            value={tp.motivo || tp.observacao || ''}
                             onChange={(e) => {
                               const newArr = [...tempPresencas];
-                              newArr[idx].justificada = e.target.value as any;
+                              newArr[idx].motivo = e.target.value;
                               setTempPresencas(newArr);
                             }}
-                            style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, color: '#334155' }}
-                          >
-                            <option value="NAO_SE_APLICA">Justificada? (N/A)</option>
-                            <option value="SIM">Sim</option>
-                            <option value="NAO">Não</option>
-                          </select>
-                        </div>
-                        
-                        <input 
-                          type="text" 
-                          placeholder="Motivo / Observação..." 
-                          value={tp.motivo || tp.observacao || ''}
-                          onChange={(e) => {
-                            const newArr = [...tempPresencas];
-                            newArr[idx].motivo = e.target.value;
-                            setTempPresencas(newArr);
-                          }}
-                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
-                        />
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
+                          />
+                        )}
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             </div>
