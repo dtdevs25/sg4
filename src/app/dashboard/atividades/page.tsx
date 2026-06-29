@@ -654,7 +654,7 @@ export default function PlanejamentoPage() {
                 >
                   Todos os Técnicos
                 </div>
-                {tecnicos.map(t => (
+                {tecnicos.filter(t => t.ativo).map(t => (
                   <div key={t.id} onClick={() => { setSelectedTecnico(t.id); setShowSidebarDropdown(false) }}
                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: selectedTecnico === t.id ? 'rgba(102,0,153,0.06)' : '#fff' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
