@@ -1206,42 +1206,45 @@ export default function PlanejamentoPage() {
     {/* MODAL PROMPT RELATÓRIO */}
     {showPromptRelatorio && (
       <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-        <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#e0e7ff', color: '#4338ca', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <FileText size={32} />
-          </div>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0', textAlign: 'center' }}>Lançar no Relatório Diário?</h2>
-          <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px 0', lineHeight: 1.5, textAlign: 'center' }}>
-            Deseja registrar a conclusão deste item no seu relatório diário de atividades automaticamente?
-          </p>
-          <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 20, fontSize: 13, color: '#334155', border: '1px solid #e2e8f0' }}>
-            <strong>Item:</strong> {showPromptRelatorio.itemText}
+        <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><FileText size={20} /> Lançar no Relatório?</h2>
+            <button onClick={() => setShowPromptRelatorio(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff' }}><X size={20} /></button>
           </div>
           
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button type="button" onClick={() => {
-              // Cancela relatorio, mas marca como concluído no planejamento
-              confirmToggleItemChecklist(showPromptRelatorio.plan.id, showPromptRelatorio.itemId, true)
-              setShowPromptRelatorio(null)
-            }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Não, apenas concluir</button>
-            <button type="button" onClick={() => {
-              // Se a categoria do plano for GESTÃO DSS ou DSS, pergunta sobre DSS com Aliado
-              if (showPromptRelatorio.plan.categoria === 'GESTÃO DSS' || showPromptRelatorio.plan.categoria === 'DSS') {
-                setShowDssModal(showPromptRelatorio)
+          <div style={{ padding: 24 }}>
+            <p style={{ fontSize: 14, color: '#475569', margin: '0 0 20px 0', lineHeight: 1.5 }}>
+              Deseja registrar a conclusão deste item no seu relatório diário de atividades automaticamente?
+            </p>
+            <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, marginBottom: 20, fontSize: 13, color: '#334155', border: '1px solid #e2e8f0' }}>
+              <strong>Item:</strong> {showPromptRelatorio.itemText}
+            </div>
+            
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="button" onClick={() => {
+                // Cancela relatorio, mas marca como concluído no planejamento
+                confirmToggleItemChecklist(showPromptRelatorio.plan.id, showPromptRelatorio.itemId, true)
                 setShowPromptRelatorio(null)
-                return
-              }
-              setFormRelatorio({
-                empresa: 'Telefônica Brasil S.A', projeto: 'VIVO',
-                local: showPromptRelatorio.plan.local === 'OUTROS' ? 'OUTROS' : showPromptRelatorio.plan.local || '',
-                outroLocal: showPromptRelatorio.plan.outroLocal || '',
-                cidadeUf: `${showPromptRelatorio.plan.cidade || ''} / ${showPromptRelatorio.plan.estado || ''}`.replace(/^ \/ | \/ $/g, ''),
-                descricao: showPromptRelatorio.itemText,
-                fotoBase64: '', fileName: '', contentType: ''
-              })
-              setShowFormRelatorio(showPromptRelatorio)
-              setShowPromptRelatorio(null)
-            }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#4338ca', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Sim, lançar relatório</button>
+              }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Não, apenas concluir</button>
+              <button type="button" onClick={() => {
+                // Se a categoria do plano for GESTÃO DSS ou DSS, pergunta sobre DSS com Aliado
+                if (showPromptRelatorio.plan.categoria === 'GESTÃO DSS' || showPromptRelatorio.plan.categoria === 'DSS') {
+                  setShowDssModal(showPromptRelatorio)
+                  setShowPromptRelatorio(null)
+                  return
+                }
+                setFormRelatorio({
+                  empresa: 'Telefônica Brasil S.A', projeto: 'VIVO',
+                  local: showPromptRelatorio.plan.local === 'OUTROS' ? 'OUTROS' : showPromptRelatorio.plan.local || '',
+                  outroLocal: showPromptRelatorio.plan.outroLocal || '',
+                  cidadeUf: `${showPromptRelatorio.plan.cidade || ''} / ${showPromptRelatorio.plan.estado || ''}`.replace(/^ \/ | \/ $/g, ''),
+                  descricao: showPromptRelatorio.itemText,
+                  fotoBase64: '', fileName: '', contentType: ''
+                })
+                setShowFormRelatorio(showPromptRelatorio)
+                setShowPromptRelatorio(null)
+              }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#660099', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Sim, lançar relatório</button>
+            </div>
           </div>
         </div>
       </div>
