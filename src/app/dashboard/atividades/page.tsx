@@ -190,14 +190,38 @@ export default function PlanejamentoPage() {
     const planId = e.dataTransfer.getData('plan_id')
     if (!planId) return
     
+    const plan = planejamentos.find(p => p.id === planId)
+    if (!plan) return
+    
     startTransition(async () => {
-      // Otimisticamente:
-      setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, dataAtividade: new Date(`${dateStr}T12:00:00Z`) } : p))
+      const checklist = plan.checklist || []
+      const pendingItems = checklist.filter((i: any) => !i.concluido)
+      const completedItems = checklist.filter((i: any) => i.concluido)
       
-      const res = await moverPlanejamento(planId, new Date(`${dateStr}T12:00:00Z`))
-      if (!res.success) {
-        alert(res.error)
-        load() // reverte
+      if (completedItems.length > 0 && pendingItems.length > 0) {
+        // Mantém as concluídas na data original e move as pendentes para a nova data
+        const res = await concluirETransferirPendencias(
+          plan.id,
+          new Date(`${dateStr}T12:00:00Z`),
+          completedItems,
+          pendingItems,
+          plan.descricaoExecutada || '',
+          pendingItems.map((c: any) => `- ${c.texto}`).join('\n'),
+          plan.observacoes || ''
+        )
+        if (!res.success) {
+          alert(res.error)
+        }
+        load() // Sempre recarrega para pegar o novo ID do card duplicado
+      } else {
+        // Otimisticamente move tudo se não houver itens parciais concluídos
+        setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, dataAtividade: new Date(`${dateStr}T12:00:00Z`) } : p))
+        
+        const res = await moverPlanejamento(planId, new Date(`${dateStr}T12:00:00Z`))
+        if (!res.success) {
+          alert(res.error)
+          load() // reverte
+        }
       }
     })
   }
