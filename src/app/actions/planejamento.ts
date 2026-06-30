@@ -41,6 +41,76 @@ export async function getPlanejamentos(tecnicoId?: string, startDate?: Date, end
   }
 }
 
+export async function savePlanejamentoBatch(base: {
+  tecnicoId: string;
+  dataAtividade: Date;
+  equipe?: string;
+  local?: string;
+  cidade?: string;
+  estado?: string;
+}, items: Array<{
+  categoria: string;
+  descricaoOriginal: string;
+  prioridade: PrioridadePlanejamento;
+}>) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
+    const creatorTecnicoId = (session.user as any).tecnicoId
+
+    for (const item of items) {
+      const newPlan = await prisma.planejamento.create({
+        data: {
+          ...base,
+          categoria: item.categoria,
+          descricaoOriginal: item.descricaoOriginal,
+          prioridade: item.prioridade,
+          status: 'PENDENTE',
+          alteradaOriginal: false,
+          checklist: []
+        },
+        include: { tecnico: true }
+      })
+
+      await audit({ userId, action: 'CRIAR_PLANEJAMENTO', entity: 'Planejamento', entityId: newPlan.id, details: { categoria: item.categoria, tecnicoId: base.tecnicoId } })
+
+      if (newPlan.tecnico?.email && creatorTecnicoId !== newPlan.tecnicoId) {
+        const dataFormatada = newPlan.dataAtividade.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+        const html = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+            <div style="background: #660099; padding: 20px; text-align: center;">
+              <h2 style="color: #fff; margin: 0;">Nova Atividade na Agenda</h2>
+            </div>
+            <div style="padding: 24px; color: #334155;">
+              <p>Olá <strong>${newPlan.tecnico.nome}</strong>,</p>
+              <p>Uma nova atividade foi incluída no seu planejamento de segurança pelo administrador.</p>
+              <div style="background: #f8fafc; padding: 16px; border-left: 4px solid #660099; border-radius: 4px; margin: 20px 0;">
+                <p style="margin: 0 0 8px 0;"><strong>Data:</strong> ${dataFormatada}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Categoria:</strong> ${newPlan.categoria}</p>
+                <p style="margin: 0 0 8px 0;"><strong>Local:</strong> ${newPlan.local || 'Não informado'} ${newPlan.cidade ? '(' + newPlan.cidade + '-' + newPlan.estado + ')' : ''}</p>
+                <p style="margin: 0;"><strong>Atividade:</strong> ${newPlan.descricaoOriginal}</p>
+              </div>
+              <p>Por favor, acesse o sistema SG4 para visualizar os detalhes completos.</p>
+              <br/>
+              <p style="margin: 0;">Atenciosamente,</p>
+              <p style="margin: 0; font-weight: bold;">Equipe SG4</p>
+            </div>
+          </div>
+        `
+        const cc = session.user.email || undefined
+        sendMail({ to: newPlan.tecnico.email, cc, subject: 'SG4 - Nova Atividade Planejada', html })
+      }
+    }
+
+    revalidatePath('/dashboard/atividades')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error in savePlanejamentoBatch:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 export async function savePlanejamento(data: {
   id?: string;
   tecnicoId: string;
