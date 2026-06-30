@@ -30,7 +30,7 @@ export async function getPlanejamentos(tecnicoId?: string, startDate?: Date, end
 
     const planejamentos = await prisma.planejamento.findMany({
       where,
-      orderBy: { dataAtividade: 'asc' },
+      orderBy: [{ dataAtividade: 'asc' }, { hora: 'asc' }],
       include: { tecnico: { select: { nome: true, fotoUrl: true } } }
     })
 
@@ -49,6 +49,8 @@ export async function savePlanejamentoBatch(base: {
   cidade?: string;
   estado?: string;
 }, items: Array<{
+  hora: string;
+  titulo: string;
   categoria: string;
   descricaoOriginal: string;
   prioridade: PrioridadePlanejamento;
@@ -63,6 +65,8 @@ export async function savePlanejamentoBatch(base: {
       const newPlan = await prisma.planejamento.create({
         data: {
           ...base,
+          hora: item.hora,
+          titulo: item.titulo,
           categoria: item.categoria,
           descricaoOriginal: item.descricaoOriginal,
           prioridade: item.prioridade,
@@ -115,6 +119,8 @@ export async function savePlanejamento(data: {
   id?: string;
   tecnicoId: string;
   dataAtividade: Date;
+  hora?: string;
+  titulo?: string;
   categoria: string;
   descricaoOriginal: string;
   checklist?: any;
@@ -231,6 +237,8 @@ export async function concluirETransferirPendencias(id: string, novaData: Date, 
     const newPlan = await prisma.planejamento.create({
       data: {
         tecnicoId: plan.tecnicoId,
+        hora: plan.hora,
+        titulo: plan.titulo,
         categoria: plan.categoria,
         prioridade: plan.prioridade,
         local: plan.local,

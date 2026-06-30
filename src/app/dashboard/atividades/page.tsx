@@ -73,6 +73,8 @@ export default function PlanejamentoPage() {
     descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
     prioridade: 'MEDIA', checklist: [] as any[]
   })
+  const [newItemHora, setNewItemHora] = useState('08:00')
+  const [newItemTitulo, setNewItemTitulo] = useState('')
   const [newItemText, setNewItemText] = useState('')
   const [newItemCategoria, setNewItemCategoria] = useState(CATEGORIES[0])
   const [newItemOutraCategoria, setNewItemOutraCategoria] = useState('')
@@ -178,6 +180,8 @@ export default function PlanejamentoPage() {
       descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
       prioridade: 'MEDIA', checklist: []
     })
+    setNewItemHora('08:00')
+    setNewItemTitulo('')
     setNewItemText('')
     setNewItemCategoria(CATEGORIES[0])
     setNewItemOutraCategoria('')
@@ -253,42 +257,22 @@ export default function PlanejamentoPage() {
         estado: form.estado,
       }
 
-      // Modo Batch: vários itens = várias atividades individuais
-      if (form.checklist && form.checklist.length > 0) {
-        if (!form.tecnicoId) { alert('Selecione um técnico.'); return; }
-        if (!form.dataAtividade) { alert('Selecione uma data.'); return; }
-        const items = form.checklist.map((c: any) => ({
-          categoria: c.categoria || form.categoria,
-          descricaoOriginal: c.texto,
-          prioridade: (c.prioridade || 'MEDIA') as any
-        }))
-        const res = await savePlanejamentoBatch(base, items)
-        if (res.success) {
-          setShowAddModal(false)
-          load()
-        } else {
-          alert(res.error)
-        }
-        return
-      }
-
-      // Modo Simples: uma única atividade
-      const payload = {
-        ...form,
-        categoria: form.categoria === 'OUTROS' && form.outraCategoria ? form.outraCategoria : form.categoria,
-        local: form.local === 'OUTROS' && form.outroLocal ? form.outroLocal : form.local,
-        dataAtividade: new Date(`${form.dataAtividade}T12:00:00Z`),
-        prioridade: form.prioridade as any,
-      }
-      delete (payload as any).outraCategoria
-      delete (payload as any).outroLocal
-
-      if (!payload.descricaoOriginal.trim()) {
-        alert('Descreva a atividade ou adicione itens à lista.');
+      if (!form.checklist || form.checklist.length === 0) {
+        alert('Por favor, adicione atividades na lista abaixo.');
         return;
       }
+      if (!form.tecnicoId) { alert('Selecione um técnico.'); return; }
+      if (!form.dataAtividade) { alert('Selecione uma data.'); return; }
 
-      const res = await savePlanejamento(payload)
+      const items = form.checklist.map((c: any) => ({
+        hora: c.hora || '12:00',
+        titulo: c.titulo || 'Atividade Planejada',
+        categoria: c.categoria || 'OUTROS',
+        descricaoOriginal: c.texto || '',
+        prioridade: (c.prioridade || 'MEDIA') as any
+      }))
+      
+      const res = await savePlanejamentoBatch(base, items)
       if (res.success) {
         setShowAddModal(false)
         load()
@@ -676,7 +660,7 @@ export default function PlanejamentoPage() {
                         <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#660099', color: '#fff', fontSize: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }} title={p.tecnico?.nome}>{p.tecnico?.nome?.substring(0,1).toUpperCase() || 'T'}</div>
                       )}
                       <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: isConcluido ? 12 : 0 }}>
-                        {p.categoria}
+                        {p.hora ? p.hora + ' - ' : ''}{p.titulo || p.categoria}
                       </div>
                       {isConcluido && <CheckCircle2 size={10} style={{ position: 'absolute', top: 3, right: 3, color: '#10b981' }} />}
                     </div>
@@ -878,18 +862,7 @@ export default function PlanejamentoPage() {
                 )
               })()}
 
-              {/* Categoria global (apenas quando não há itens na lista) */}
-              {(!form.checklist || form.checklist.length === 0) && (
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>CATEGORIA</label>
-                  <select value={form.categoria} onChange={e => setForm({...form, categoria: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  {form.categoria === 'OUTROS' && (
-                    <input type="text" placeholder="Qual categoria?" required value={form.outraCategoria} onChange={e => setForm({...form, outraCategoria: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', marginTop: 8 }} />
-                  )}
-                </div>
-              )}
+
 
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
@@ -901,6 +874,8 @@ export default function PlanejamentoPage() {
                 )}
                 
                 <div style={{ display: 'flex', gap: 10, marginTop: 4, marginBottom: 16, alignItems: 'center', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+                  <input type="time" value={newItemHora} onChange={e => setNewItemHora(e.target.value)} style={{ width: 100, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }} />
+                  <input type="text" placeholder="Título do Card" value={newItemTitulo} onChange={e => setNewItemTitulo(e.target.value)} style={{ width: 160, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }} />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <select value={newItemCategoria} onChange={e => setNewItemCategoria(e.target.value)} style={{ width: 150, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}>
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -921,14 +896,15 @@ export default function PlanejamentoPage() {
                   <input type="text" value={newItemText} onChange={e => setNewItemText(e.target.value)} onKeyDown={e => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      if (newItemText.trim()) {
+                      if (newItemText.trim() || newItemTitulo.trim()) {
                         const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
-                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), texto: newItemText.trim(), categoria: finalCat, prioridade: newItemPrioridade, concluido: false }] }));
+                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), hora: newItemHora, titulo: newItemTitulo.trim(), texto: newItemText.trim(), categoria: finalCat, prioridade: newItemPrioridade, concluido: false }] }));
                         setNewItemText('');
+                        setNewItemTitulo('');
                         setNewItemOutraCategoria('');
                       }
                     }
-                  }} placeholder="Descreva a atividade e pressione Enter..." style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', minWidth: 200 }} />
+                  }} placeholder="Descrição opcional (pressione Enter)..." style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', minWidth: 150 }} />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button 
                       type="button" 
@@ -950,10 +926,11 @@ export default function PlanejamentoPage() {
                       {aiLoadingNewItem ? <Loader2 size={16} className="animate-spin" /> : <span>✨ IA</span>}
                     </button>
                     <button type="button" onClick={() => {
-                      if (newItemText.trim()) {
+                      if (newItemText.trim() || newItemTitulo.trim()) {
                         const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
-                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), texto: newItemText.trim(), categoria: finalCat, prioridade: newItemPrioridade, concluido: false }] }));
+                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), hora: newItemHora, titulo: newItemTitulo.trim(), texto: newItemText.trim(), categoria: finalCat, prioridade: newItemPrioridade, concluido: false }] }));
                         setNewItemText('');
+                        setNewItemTitulo('');
                         setNewItemOutraCategoria('');
                       }
                     }} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, cursor: 'pointer' }}>+ Adicionar</button>
@@ -968,15 +945,32 @@ export default function PlanejamentoPage() {
                         <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                           <span style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', width: 20, flexShrink: 0 }}>{i + 1}.</span>
                           <span style={{ fontSize: 9, fontWeight: 800, color: pr[0], background: pr[1], padding: '3px 6px', borderRadius: 4, flexShrink: 0 }}>{item.prioridade || 'MEDIA'}</span>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: '#4338ca', background: '#e0e7ff', padding: '3px 6px', borderRadius: 4, flexShrink: 0, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.categoria}</span>
                           <input 
-                            type="text" 
-                            value={item.texto} 
-                            onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, texto: e.target.value} : c)}))}
-                            style={{ fontSize: 13, color: '#334155', flex: 1, border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '4px 8px', borderRadius: 6, transition: 'all 0.2s', minWidth: 0 }}
+                            type="time" 
+                            value={item.hora || ''} 
+                            onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, hora: e.target.value} : c)}))}
+                            style={{ fontSize: 12, color: '#334155', border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '4px 6px', borderRadius: 6, width: 80, transition: 'all 0.2s', flexShrink: 0 }}
                             onFocus={e => { e.target.style.background = '#f1f5f9'; e.target.style.border = '1px solid #cbd5e1' }}
                             onBlur={e => { e.target.style.background = 'transparent'; e.target.style.border = '1px solid transparent' }}
-                            title="Clique para editar"
+                          />
+                          <input 
+                            type="text" 
+                            value={item.titulo || ''} 
+                            onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, titulo: e.target.value} : c)}))}
+                            placeholder="Título"
+                            style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '4px 8px', borderRadius: 6, width: 140, transition: 'all 0.2s', flexShrink: 0 }}
+                            onFocus={e => { e.target.style.background = '#f1f5f9'; e.target.style.border = '1px solid #cbd5e1' }}
+                            onBlur={e => { e.target.style.background = 'transparent'; e.target.style.border = '1px solid transparent' }}
+                          />
+                          <input 
+                            type="text" 
+                            value={item.texto || ''} 
+                            placeholder="Descrição"
+                            onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, texto: e.target.value} : c)}))}
+                            style={{ fontSize: 12, color: '#334155', flex: 1, border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '4px 8px', borderRadius: 6, transition: 'all 0.2s', minWidth: 0 }}
+                            onFocus={e => { e.target.style.background = '#f1f5f9'; e.target.style.border = '1px solid #cbd5e1' }}
+                            onBlur={e => { e.target.style.background = 'transparent'; e.target.style.border = '1px solid transparent' }}
+                            title="Clique para editar descrição"
                           />
                           {/* Selector de Prioridade inline */}
                           <select value={item.prioridade || 'MEDIA'} onChange={e => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, prioridade: e.target.value} : c)}))} style={{ fontSize: 10, padding: '4px 6px', borderRadius: 6, border: '1px solid #e2e8f0', outline: 'none', color: '#64748b', flexShrink: 0 }}>
@@ -1005,7 +999,7 @@ export default function PlanejamentoPage() {
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '16px', background: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: 12 }}>
-                    Nenhuma atividade na lista. Use o formulário acima para adicionar,<br/>ou preencha a descrição abaixo para criar uma atividade simples.
+                    Nenhuma atividade na lista. Adicione atividades acima para planejar o dia.
                   </div>
                 )}
               </div>
@@ -1145,7 +1139,9 @@ export default function PlanejamentoPage() {
             <div style={{ padding: 24, maxHeight: '85vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                 <div>
-                  <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 8px 0', color: '#1e293b' }}>{showExecModal.categoria}</h3>
+                  <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 8px 0', color: '#1e293b' }}>
+                    {showExecModal.hora ? showExecModal.hora + ' - ' : ''}{showExecModal.titulo || showExecModal.categoria}
+                  </h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 10, fontWeight: 800, color: PR_COLORS[showExecModal.prioridade].text, background: PR_COLORS[showExecModal.prioridade].bg, padding: '4px 8px', borderRadius: 6 }}>
                       PRIORIDADE {showExecModal.prioridade}
@@ -1675,12 +1671,14 @@ function PlanCard({ plan, onClick, onDragStart, onToggleChecklist }: { plan: any
 
       {/* Categoria e Prioridade */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5, flexWrap: 'wrap' }}>
+        {plan.hora && <span style={{ fontSize: 9, fontWeight: 800, color: '#334155', background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>{plan.hora}</span>}
         <span style={{ fontSize: 9, fontWeight: 800, color: c.text, background: c.bg, padding: '2px 6px', borderRadius: 4 }}>{plan.prioridade}</span>
         <span style={{ fontSize: 9, fontWeight: 800, color: '#4338ca', background: '#e0e7ff', padding: '2px 6px', borderRadius: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>{plan.categoria}</span>
       </div>
 
       {/* Descrição */}
-      <div style={{ fontSize: 11, color: '#334155', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 2 }}>{plan.titulo || 'Atividade Planejada'}</div>
+      <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
         {plan.descricaoOriginal}
       </div>
 

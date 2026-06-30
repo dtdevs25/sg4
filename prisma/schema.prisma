@@ -160,6 +160,8 @@ model Planejamento {
   id                  String    @id @default(cuid())
   tecnicoId           String
   dataAtividade       DateTime
+  hora                String?   // Ex: "08:00"
+  titulo              String?
   categoria           String
   descricaoOriginal   String
   descricaoExecutada  String?
