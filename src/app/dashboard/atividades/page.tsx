@@ -75,6 +75,7 @@ export default function PlanejamentoPage() {
   })
   const [newItemText, setNewItemText] = useState('')
   const [newItemCategoria, setNewItemCategoria] = useState(CATEGORIES[0])
+  const [newItemOutraCategoria, setNewItemOutraCategoria] = useState('')
   
   const [execForm, setExecForm] = useState({
     descricaoExecutada: '', observacoes: ''
@@ -84,6 +85,7 @@ export default function PlanejamentoPage() {
   const [editingChecklistItem, setEditingChecklistItem] = useState<string | null>(null)
   const [editingChecklistText, setEditingChecklistText] = useState('')
   const [editingChecklistCategoria, setEditingChecklistCategoria] = useState('')
+  const [editingChecklistOutraCategoria, setEditingChecklistOutraCategoria] = useState('')
   const [aiLoadingEditItem, setAiLoadingEditItem] = useState(false)
 
 
@@ -177,6 +179,7 @@ export default function PlanejamentoPage() {
     })
     setNewItemText('')
     setNewItemCategoria(CATEGORIES[0])
+    setNewItemOutraCategoria('')
     setShowAddModal(true)
   }
 
@@ -862,63 +865,88 @@ export default function PlanejamentoPage() {
                   <span style={{ color: '#660099' }}>{form.checklist?.length || 0} itens</span>
                 </label>
                 
-                <div style={{ display: 'flex', gap: 8, marginTop: 4, marginBottom: 12 }}>
-                  <select value={newItemCategoria} onChange={e => setNewItemCategoria(e.target.value)} style={{ width: 140, padding: '8px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4, marginBottom: 16, alignItems: 'center', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select value={newItemCategoria} onChange={e => setNewItemCategoria(e.target.value)} style={{ width: 150, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}>
+                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    {newItemCategoria === 'OUTROS' && (
+                      <input type="text" placeholder="Qual categoria?" value={newItemOutraCategoria} onChange={e => setNewItemOutraCategoria(e.target.value)} style={{ width: 140, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
+                    )}
+                  </div>
                   <input type="text" value={newItemText} onChange={e => setNewItemText(e.target.value)} onKeyDown={e => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       if (newItemText.trim()) {
-                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), texto: newItemText.trim(), categoria: newItemCategoria, concluido: false }] }));
+                        const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
+                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), texto: newItemText.trim(), categoria: finalCat, concluido: false }] }));
                         setNewItemText('');
+                        setNewItemOutraCategoria('');
                       }
                     }
-                  }} placeholder="Digite a tarefa e aperte Enter..." style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
-                  <button 
-                    type="button" 
-                    onClick={async () => {
-                      if (!newItemText.trim()) return
-                      setAiLoadingNewItem(true)
-                      const res = await optimizeTextWithAI(newItemText)
-                      setAiLoadingNewItem(false)
-                      if (res.success && res.text) {
-                        setNewItemText(res.text)
-                      } else {
-                        alert(res.error || 'Erro ao otimizar o texto.')
+                  }} placeholder="Digite a tarefa e aperte Enter..." style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', minWidth: 200 }} />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button 
+                      type="button" 
+                      onClick={async () => {
+                        if (!newItemText.trim()) return
+                        setAiLoadingNewItem(true)
+                        const res = await optimizeTextWithAI(newItemText)
+                        setAiLoadingNewItem(false)
+                        if (res.success && res.text) {
+                          setNewItemText(res.text)
+                        } else {
+                          alert(res.error || 'Erro ao otimizar o texto.')
+                        }
+                      }}
+                      disabled={aiLoadingNewItem}
+                      style={{ background: '#f3e8ff', color: '#7e22ce', border: 'none', borderRadius: 8, padding: '10px 12px', fontWeight: 700, cursor: aiLoadingNewItem ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                      title="Corrigir texto com IA"
+                    >
+                      {aiLoadingNewItem ? <Loader2 size={16} className="animate-spin" /> : <span>✨ IA</span>}
+                    </button>
+                    <button type="button" onClick={() => {
+                      if (newItemText.trim()) {
+                        const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
+                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), texto: newItemText.trim(), categoria: finalCat, concluido: false }] }));
+                        setNewItemText('');
+                        setNewItemOutraCategoria('');
                       }
-                    }}
-                    disabled={aiLoadingNewItem}
-                    style={{ background: '#f3e8ff', color: '#7e22ce', border: 'none', borderRadius: 8, padding: '0 12px', fontWeight: 700, cursor: aiLoadingNewItem ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                    title="Corrigir texto com IA"
-                  >
-                    {aiLoadingNewItem ? <Loader2 size={14} className="animate-spin" /> : <span>✨ IA</span>}
-                  </button>
-                  <button type="button" onClick={() => {
-                    if (newItemText.trim()) {
-                      setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), texto: newItemText.trim(), categoria: newItemCategoria, concluido: false }] }));
-                      setNewItemText('');
-                    }
-                  }} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, cursor: 'pointer' }}>Adicionar</button>
+                    }} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, cursor: 'pointer' }}>Adicionar</button>
+                  </div>
                 </div>
                 
                 {form.checklist && form.checklist.length > 0 ? (
-                  <div style={{ background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {form.checklist.map((item: any, i: number) => (
-                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px', background: '#fff', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', width: 20 }}>{i + 1}.</span>
-                        <select 
-                          value={item.categoria || CATEGORIES[0]} 
-                          onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, categoria: e.target.value} : c)}))}
-                          style={{ width: 110, padding: '4px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 10, color: '#475569', background: '#f8fafc', outline: 'none' }}
-                        >
-                          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: '#94a3b8', width: 24 }}>{i + 1}.</span>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <select 
+                            value={CATEGORIES.includes(item.categoria) ? item.categoria : 'OUTROS'} 
+                            onChange={(e) => {
+                               const val = e.target.value;
+                               setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, categoria: val} : c)}))
+                            }}
+                            style={{ width: 120, padding: '6px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 11, color: '#475569', background: '#f8fafc', outline: 'none' }}
+                          >
+                            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                          {(!CATEGORIES.includes(item.categoria) || item.categoria === 'OUTROS') && (
+                            <input 
+                              type="text" 
+                              placeholder="Qual?" 
+                              value={item.categoria === 'OUTROS' ? '' : item.categoria} 
+                              onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, categoria: e.target.value} : c)}))} 
+                              style={{ width: 100, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, outline: 'none' }} 
+                            />
+                          )}
+                        </div>
                         <input 
                           type="text" 
                           value={item.texto} 
                           onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, texto: e.target.value} : c)}))}
-                          style={{ fontSize: 13, color: '#334155', flex: 1, border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '4px 8px', borderRadius: 4, transition: 'all 0.2s' }}
+                          style={{ fontSize: 13, color: '#334155', flex: 1, border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '6px 8px', borderRadius: 6, transition: 'all 0.2s' }}
                           onFocus={e => { e.target.style.background = '#f1f5f9'; e.target.style.border = '1px solid #cbd5e1' }}
                           onBlur={e => { e.target.style.background = 'transparent'; e.target.style.border = '1px solid transparent' }}
                           title="Clique para editar"
@@ -1102,27 +1130,40 @@ export default function PlanejamentoPage() {
                           style={{ marginTop: 2, cursor: 'pointer', accentColor: '#10b981', width: 16, height: 16, flexShrink: 0 }}
                         />
                         {editingChecklistItem === item.id ? (
-                           <div style={{ flex: 1, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                             <select value={editingChecklistCategoria} onChange={e => setEditingChecklistCategoria(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}>
-                               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                             </select>
-                             <input type="text" value={editingChecklistText} onChange={e => setEditingChecklistText(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') { editItemChecklist(showExecModal.id, item.id, editingChecklistText, editingChecklistCategoria); setEditingChecklistItem(null); } }} style={{ flex: 1, padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', minWidth: 200 }} autoFocus />
-                             <button type="button" onClick={handleOptimizeTextEditItem} disabled={aiLoadingEditItem} style={{ background: '#f3e8ff', color: '#7e22ce', border: 'none', borderRadius: 6, padding: '0 8px', cursor: aiLoadingEditItem ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, fontSize: 11 }}>
-                               {aiLoadingEditItem ? <Loader2 size={12} className="animate-spin" /> : <span>✨ IA</span>}
-                             </button>
-                             <button type="button" onClick={() => { editItemChecklist(showExecModal.id, item.id, editingChecklistText, editingChecklistCategoria); setEditingChecklistItem(null); }} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, padding: '0 8px', cursor: 'pointer' }}><Check size={14}/></button>
-                             <button type="button" onClick={() => setEditingChecklistItem(null)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, padding: '0 8px', cursor: 'pointer' }}><X size={14}/></button>
+                           <div style={{ flex: 1, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', background: '#f8fafc', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }}>
+                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                               <select value={CATEGORIES.includes(editingChecklistCategoria) ? editingChecklistCategoria : 'OUTROS'} onChange={e => {
+                                 const val = e.target.value;
+                                 setEditingChecklistCategoria(val);
+                                 if (val !== 'OUTROS') setEditingChecklistOutraCategoria('');
+                               }} style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', height: 32 }}>
+                                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                               </select>
+                               {(!CATEGORIES.includes(editingChecklistCategoria) || editingChecklistCategoria === 'OUTROS') && (
+                                 <input type="text" placeholder="Qual categoria?" value={editingChecklistOutraCategoria} onChange={e => setEditingChecklistOutraCategoria(e.target.value)} style={{ width: 130, padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, height: 32, boxSizing: 'border-box', outline: 'none' }} />
+                               )}
+                             </div>
+                             
+                             <input type="text" value={editingChecklistText} onChange={e => setEditingChecklistText(e.target.value)} onKeyDown={e => { if(e.key === 'Enter') { const finalEditCat = editingChecklistCategoria === 'OUTROS' && editingChecklistOutraCategoria ? editingChecklistOutraCategoria : editingChecklistCategoria; editItemChecklist(showExecModal.id, item.id, editingChecklistText, finalEditCat); setEditingChecklistItem(null); } }} style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', minWidth: 200, height: 32, boxSizing: 'border-box', outline: 'none' }} autoFocus />
+                             
+                             <div style={{ display: 'flex', gap: 6 }}>
+                               <button type="button" onClick={handleOptimizeTextEditItem} disabled={aiLoadingEditItem} style={{ background: '#f3e8ff', color: '#7e22ce', border: 'none', borderRadius: 6, padding: '0 10px', height: 32, cursor: aiLoadingEditItem ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, fontSize: 11 }}>
+                                 {aiLoadingEditItem ? <Loader2 size={12} className="animate-spin" /> : <span>✨ IA</span>}
+                               </button>
+                               <button type="button" onClick={() => { const finalEditCat = editingChecklistCategoria === 'OUTROS' && editingChecklistOutraCategoria ? editingChecklistOutraCategoria : editingChecklistCategoria; editItemChecklist(showExecModal.id, item.id, editingChecklistText, finalEditCat); setEditingChecklistItem(null); }} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 6, padding: '0 10px', height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center' }}><Check size={14}/></button>
+                               <button type="button" onClick={() => setEditingChecklistItem(null)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, padding: '0 10px', height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center' }}><X size={14}/></button>
+                             </div>
                            </div>
                         ) : (
                            <>
-                             <span style={{ fontSize: 13, color: item.concluido ? '#94a3b8' : '#334155', textDecoration: item.concluido ? 'line-through' : 'none', lineHeight: 1.4, cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center' }} onClick={() => toggleItemChecklist(showExecModal.id, item.id)}>
-                               {item.categoria && <span style={{fontSize: 10, background: item.concluido ? '#f1f5f9' : '#e0e7ff', color: item.concluido ? '#94a3b8' : '#4338ca', padding: '2px 6px', borderRadius: 4, marginRight: 6, fontWeight: 700}}>{item.categoria}</span>}
-                               {item.texto}
+                             <span style={{ fontSize: 13, color: item.concluido ? '#94a3b8' : '#334155', textDecoration: item.concluido ? 'line-through' : 'none', lineHeight: 1.4, cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }} onClick={() => toggleItemChecklist(showExecModal.id, item.id)}>
+                               {item.categoria && <span style={{fontSize: 10, background: item.concluido ? '#f1f5f9' : '#e0e7ff', color: item.concluido ? '#94a3b8' : '#4338ca', padding: '3px 8px', borderRadius: 6, marginRight: 8, fontWeight: 700}}>{item.categoria}</span>}
+                               <span style={{ paddingTop: 2 }}>{item.texto}</span>
                              </span>
                              {(!isTst || showExecModal.status === 'PENDENTE') && (
-                               <div style={{ display: 'flex', gap: 4 }}>
-                                 <button type="button" onClick={() => { setEditingChecklistItem(item.id); setEditingChecklistText(item.texto); setEditingChecklistCategoria(item.categoria || CATEGORIES[0]); }} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 2 }}><Edit2 size={14} /></button>
-                                 <button type="button" onClick={() => deleteItemChecklist(showExecModal.id, item.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 2 }}><Trash2 size={14} /></button>
+                               <div style={{ display: 'flex', gap: 6, paddingLeft: 10 }}>
+                                 <button type="button" onClick={() => { setEditingChecklistItem(item.id); setEditingChecklistText(item.texto); setEditingChecklistCategoria(CATEGORIES.includes(item.categoria) ? item.categoria : 'OUTROS'); setEditingChecklistOutraCategoria(CATEGORIES.includes(item.categoria) ? '' : item.categoria); }} style={{ background: '#f1f5f9', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 6, borderRadius: 6 }}><Edit2 size={14} /></button>
+                                 <button type="button" onClick={() => deleteItemChecklist(showExecModal.id, item.id)} style={{ background: '#fef2f2', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6 }}><Trash2 size={14} /></button>
                                </div>
                              )}
                            </>
