@@ -87,7 +87,7 @@ export default function QuilometragemPage() {
   const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: '', valor: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formMaint, setFormMaint] = useState({ tecnicoId: '', dataManutencao: new Date().toISOString().split('T')[0], kmManutencao: '', fotoBase64: '', fileName: '', contentType: '' })
   
-  const [formEditKm, setFormEditKm] = useState({ dataInicial: '', diaSemana: '', kmInicial: '', fotoInicialBase64: '', kmFinal: '', fotoFinalBase64: '' })
+  const [formEditKm, setFormEditKm] = useState({ dataInicial: '', diaSemana: '', kmInicial: '', fotoInicialBase64: '', dataFinal: '', kmFinal: '', fotoFinalBase64: '' })
   const [formEditAbs, setFormEditAbs] = useState({ data: '', valor: '', fotoCupomBase64: '' })
 
   const fileInputRefStartCam = useRef<HTMLInputElement>(null)
@@ -289,12 +289,15 @@ export default function QuilometragemPage() {
 
       const jsDate = new Date(formEditKm.dataInicial + 'T12:00:00Z')
       const ds = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][jsDate.getUTCDay()]
+      
+      const jsDateFinal = formEditKm.dataFinal ? new Date(formEditKm.dataFinal + 'T12:00:00Z') : null
 
       const res = await updateQuilometragem(showEditKmModal.id, {
         dataInicial: jsDate,
         diaSemana: ds,
         kmInicial: formEditKm.kmInicial ? parseFormattedNumber(formEditKm.kmInicial) : undefined,
         fotoInicial: fotoInUrl,
+        dataFinal: jsDateFinal,
         kmFinal: formEditKm.kmFinal ? parseFormattedNumber(formEditKm.kmFinal) : null,
         fotoFinal: fotoFiUrl
       })
@@ -643,6 +646,7 @@ export default function QuilometragemPage() {
                                 diaSemana: k.diaSemana,
                                 kmInicial: k.kmInicial.toString(),
                                 fotoInicialBase64: '',
+                                dataFinal: k.dataFinal ? new Date(k.dataFinal).toISOString().split('T')[0] : '',
                                 kmFinal: k.kmFinal ? k.kmFinal.toString() : '',
                                 fotoFinalBase64: ''
                               })
@@ -1190,9 +1194,20 @@ export default function QuilometragemPage() {
               
               <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '4px 0' }} />
 
-              <div>
-                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>KM Final</label>
-                <input type="text" value={formEditKm.kmFinal} onChange={(e) => setFormEditKm(p => ({...p, kmFinal: formatKmStr(e.target.value)}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Data Final</label>
+                  <input type="date" value={formEditKm.dataFinal} onChange={(e) => setFormEditKm(p => ({...p, dataFinal: e.target.value}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  {formEditKm.dataFinal && (
+                    <span style={{ display: 'block', fontSize: 11, color: '#660099', marginTop: 4, fontWeight: 700 }}>
+                      {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][new Date(formEditKm.dataFinal + 'T12:00:00Z').getUTCDay()]}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>KM Final</label>
+                  <input type="text" value={formEditKm.kmFinal} onChange={(e) => setFormEditKm(p => ({...p, kmFinal: formatKmStr(e.target.value)}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                </div>
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Nova Foto Final</label>

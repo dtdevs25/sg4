@@ -143,6 +143,7 @@ export async function updateQuilometragem(id: string, data: {
   dataInicial?: Date
   kmInicial?: number
   fotoInicial?: string
+  dataFinal?: Date | null
   kmFinal?: number | null
   fotoFinal?: string | null
 }) {
@@ -167,6 +168,7 @@ export async function updateQuilometragem(id: string, data: {
         dataInicial: data.dataInicial !== undefined ? data.dataInicial : km.dataInicial,
         kmInicial: newKmInicial,
         fotoInicial: data.fotoInicial !== undefined ? data.fotoInicial : km.fotoInicial,
+        dataFinal: data.dataFinal !== undefined ? data.dataFinal : km.dataFinal,
         kmFinal: newKmFinal,
         fotoFinal: data.fotoFinal !== undefined ? data.fotoFinal : km.fotoFinal,
         diferenca
