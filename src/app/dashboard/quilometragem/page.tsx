@@ -87,7 +87,7 @@ export default function QuilometragemPage() {
   const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: '', valor: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formMaint, setFormMaint] = useState({ tecnicoId: '', dataManutencao: new Date().toISOString().split('T')[0], kmManutencao: '', fotoBase64: '', fileName: '', contentType: '' })
   
-  const [formEditKm, setFormEditKm] = useState({ diaSemana: '', kmInicial: '', fotoInicialBase64: '', kmFinal: '', fotoFinalBase64: '' })
+  const [formEditKm, setFormEditKm] = useState({ dataInicial: '', diaSemana: '', kmInicial: '', fotoInicialBase64: '', kmFinal: '', fotoFinalBase64: '' })
   const [formEditAbs, setFormEditAbs] = useState({ data: '', valor: '', fotoCupomBase64: '' })
 
   const fileInputRefStartCam = useRef<HTMLInputElement>(null)
@@ -287,8 +287,12 @@ export default function QuilometragemPage() {
         if (upFi.success) fotoFiUrl = upFi.url
       }
 
+      const jsDate = new Date(formEditKm.dataInicial + 'T12:00:00Z')
+      const ds = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][jsDate.getUTCDay()]
+
       const res = await updateQuilometragem(showEditKmModal.id, {
-        diaSemana: formEditKm.diaSemana,
+        dataInicial: jsDate,
+        diaSemana: ds,
         kmInicial: formEditKm.kmInicial ? parseFormattedNumber(formEditKm.kmInicial) : undefined,
         fotoInicial: fotoInUrl,
         kmFinal: formEditKm.kmFinal ? parseFormattedNumber(formEditKm.kmFinal) : null,
@@ -635,6 +639,7 @@ export default function QuilometragemPage() {
                           <>
                             <button onClick={() => {
                               setFormEditKm({
+                                dataInicial: new Date(k.dataInicial).toISOString().split('T')[0],
                                 diaSemana: k.diaSemana,
                                 kmInicial: k.kmInicial.toString(),
                                 fotoInicialBase64: '',
@@ -1156,14 +1161,13 @@ export default function QuilometragemPage() {
               <form onSubmit={handleEditKm} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Dia da Semana</label>
-                  <select required value={formEditKm.diaSemana} onChange={(e) => setFormEditKm(p => ({...p, diaSemana: e.target.value}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
-                    <option>Segunda-feira</option>
-                    <option>Terça-feira</option>
-                    <option>Quarta-feira</option>
-                    <option>Quinta-feira</option>
-                    <option>Sexta-feira</option>
-                  </select>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Data Inicial</label>
+                  <input type="date" required value={formEditKm.dataInicial} onChange={(e) => setFormEditKm(p => ({...p, dataInicial: e.target.value}))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }} />
+                  {formEditKm.dataInicial && (
+                    <span style={{ display: 'block', fontSize: 11, color: '#660099', marginTop: 4, fontWeight: 700 }}>
+                      {['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][new Date(formEditKm.dataInicial + 'T12:00:00Z').getUTCDay()]}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>KM Inicial</label>

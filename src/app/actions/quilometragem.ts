@@ -140,6 +140,7 @@ export async function fecharQuilometragem(id: string, kmFinal: number, fotoFinal
 
 export async function updateQuilometragem(id: string, data: {
   diaSemana?: string
+  dataInicial?: Date
   kmInicial?: number
   fotoInicial?: string
   kmFinal?: number | null
@@ -163,6 +164,7 @@ export async function updateQuilometragem(id: string, data: {
       where: { id },
       data: {
         diaSemana: data.diaSemana !== undefined ? data.diaSemana : km.diaSemana,
+        dataInicial: data.dataInicial !== undefined ? data.dataInicial : km.dataInicial,
         kmInicial: newKmInicial,
         fotoInicial: data.fotoInicial !== undefined ? data.fotoInicial : km.fotoInicial,
         kmFinal: newKmFinal,
