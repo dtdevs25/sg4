@@ -84,7 +84,7 @@ export default function QuilometragemPage() {
   // Forms
   const [formStart, setFormStart] = useState({ tecnicoId: '', dataInicial: new Date().toISOString().split('T')[0], kmInicial: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formEnd, setFormEnd] = useState({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
-  const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: '', valor: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: new Date().toISOString().split('T')[0], valor: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formMaint, setFormMaint] = useState({ tecnicoId: '', dataManutencao: new Date().toISOString().split('T')[0], kmManutencao: '', fotoBase64: '', fileName: '', contentType: '' })
   
   const [formEditKm, setFormEditKm] = useState({ dataInicial: '', diaSemana: '', kmInicial: '', fotoInicialBase64: '', dataFinal: '', kmFinal: '', fotoFinalBase64: '' })
@@ -254,7 +254,7 @@ export default function QuilometragemPage() {
 
       if (res.success) {
         setShowAbsModal(false)
-        setFormAbs(p => ({ ...p, data: '', valor: '', fotoBase64: '', fileName: '', contentType: '' }))
+        setFormAbs(p => ({ ...p, data: new Date().toISOString().split('T')[0], valor: '', fotoBase64: '', fileName: '', contentType: '' }))
         loadData()
       } else {
         alert(res.error)
