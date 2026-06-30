@@ -49,6 +49,7 @@ export async function savePlanejamentoBatch(base: {
   cidade?: string;
   estado?: string;
 }, items: Array<{
+  dataAtividade?: Date;
   hora: string;
   titulo: string;
   categoria: string;
@@ -65,6 +66,7 @@ export async function savePlanejamentoBatch(base: {
       const newPlan = await prisma.planejamento.create({
         data: {
           ...base,
+          dataAtividade: item.dataAtividade || base.dataAtividade,
           hora: item.hora,
           titulo: item.titulo,
           categoria: item.categoria,

@@ -74,6 +74,8 @@ export default function PlanejamentoPage() {
     prioridade: 'MEDIA', checklist: [] as any[]
   })
   const [newItemHora, setNewItemHora] = useState('08:00')
+  const [showAddItemModal, setShowAddItemModal] = useState(false)
+  const [newItemData, setNewItemData] = useState('')
   const [newItemTitulo, setNewItemTitulo] = useState('')
   const [newItemText, setNewItemText] = useState('')
   const [newItemCategoria, setNewItemCategoria] = useState(CATEGORIES[0])
@@ -792,22 +794,7 @@ export default function PlanejamentoPage() {
                 </div>
               </div>
 
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>PRIORIDADE</label>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  {[
-                    { val: 'ALTA', label: 'Alta', color: '#ef4444', bg: '#fee2e2' },
-                    { val: 'MEDIA', label: 'Média', color: '#f59e0b', bg: '#fef3c7' },
-                    { val: 'BAIXA', label: 'Baixa', color: '#6366f1', bg: '#e0e7ff' }
-                  ].map(p => (
-                    <label key={p.val} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', borderRadius: 8, border: `2px solid ${form.prioridade === p.val ? p.color : '#cbd5e1'}`, background: form.prioridade === p.val ? p.bg : '#fff', cursor: 'pointer', transition: 'all 0.2s' }}>
-                      <input type="radio" name="prioridade" value={p.val} checked={form.prioridade === p.val} onChange={e => setForm({...form, prioridade: e.target.value})} style={{ display: 'none' }} />
-                      <div style={{ width: 12, height: 12, borderRadius: '50%', background: p.color, marginRight: 8 }}></div>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: form.prioridade === p.val ? p.color : '#64748b' }}>{p.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+
 
               {!isTst ? (
                 <div style={{ position: 'relative' }}>
@@ -873,68 +860,10 @@ export default function PlanejamentoPage() {
                   <p style={{ fontSize: 11, color: '#64748b', margin: '2px 0 8px 0', lineHeight: 1.4 }}>Cada item será criado como uma atividade individual no calendário.</p>
                 )}
                 
-                <div style={{ display: 'flex', gap: 10, marginTop: 4, marginBottom: 16, alignItems: 'center', background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
-                  <input type="time" value={newItemHora} onChange={e => setNewItemHora(e.target.value)} style={{ width: 100, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }} />
-                  <input type="text" placeholder="Título do Card" value={newItemTitulo} onChange={e => setNewItemTitulo(e.target.value)} style={{ width: 160, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }} />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <select value={newItemCategoria} onChange={e => setNewItemCategoria(e.target.value)} style={{ width: 150, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}>
-                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                    {newItemCategoria === 'OUTROS' && (
-                      <input type="text" placeholder="Qual categoria?" value={newItemOutraCategoria} onChange={e => setNewItemOutraCategoria(e.target.value)} style={{ width: 140, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
-                    )}
-                  </div>
-                  {/* Seletor de Prioridade */}
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {([['ALTA','#ef4444','#fee2e2'],['MEDIA','#f59e0b','#fef3c7'],['BAIXA','#6366f1','#e0e7ff']] as const).map(([val, color, bg]) => (
-                      <button key={val} type="button" onClick={() => setNewItemPrioridade(val as any)}
-                        style={{ padding: '6px 10px', borderRadius: 6, border: `2px solid ${newItemPrioridade === val ? color : '#e2e8f0'}`, background: newItemPrioridade === val ? bg : '#fff', color: newItemPrioridade === val ? color : '#94a3b8', fontSize: 10, fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s' }}>
-                        {val}
-                      </button>
-                    ))}
-                  </div>
-                  <input type="text" value={newItemText} onChange={e => setNewItemText(e.target.value)} onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (newItemText.trim() || newItemTitulo.trim()) {
-                        const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
-                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), hora: newItemHora, titulo: newItemTitulo.trim(), texto: newItemText.trim(), categoria: finalCat, prioridade: newItemPrioridade, concluido: false }] }));
-                        setNewItemText('');
-                        setNewItemTitulo('');
-                        setNewItemOutraCategoria('');
-                      }
-                    }
-                  }} placeholder="Descrição opcional (pressione Enter)..." style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', minWidth: 150 }} />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button 
-                      type="button" 
-                      onClick={async () => {
-                        if (!newItemText.trim()) return
-                        setAiLoadingNewItem(true)
-                        const res = await optimizeTextWithAI(newItemText)
-                        setAiLoadingNewItem(false)
-                        if (res.success && res.text) {
-                          setNewItemText(res.text)
-                        } else {
-                          alert(res.error || 'Erro ao otimizar o texto.')
-                        }
-                      }}
-                      disabled={aiLoadingNewItem}
-                      style={{ background: '#f3e8ff', color: '#7e22ce', border: 'none', borderRadius: 8, padding: '10px 12px', fontWeight: 700, cursor: aiLoadingNewItem ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                      title="Corrigir texto com IA"
-                    >
-                      {aiLoadingNewItem ? <Loader2 size={16} className="animate-spin" /> : <span>✨ IA</span>}
-                    </button>
-                    <button type="button" onClick={() => {
-                      if (newItemText.trim() || newItemTitulo.trim()) {
-                        const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
-                        setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), hora: newItemHora, titulo: newItemTitulo.trim(), texto: newItemText.trim(), categoria: finalCat, prioridade: newItemPrioridade, concluido: false }] }));
-                        setNewItemText('');
-                        setNewItemTitulo('');
-                        setNewItemOutraCategoria('');
-                      }
-                    }} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, cursor: 'pointer' }}>+ Adicionar</button>
-                  </div>
+                <div style={{ marginBottom: 20 }}>
+                  <button type="button" onClick={() => { setNewItemData(form.dataAtividade); setShowAddItemModal(true); }} style={{ background: '#f3e8ff', color: '#7e22ce', border: '1px dashed #7e22ce', borderRadius: 8, padding: '16px', fontWeight: 800, cursor: 'pointer', fontSize: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    + Incluir Atividade
+                  </button>
                 </div>
                 
                 {form.checklist && form.checklist.length > 0 ? (
@@ -945,6 +874,7 @@ export default function PlanejamentoPage() {
                         <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                           <span style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', width: 20, flexShrink: 0 }}>{i + 1}.</span>
                           <span style={{ fontSize: 9, fontWeight: 800, color: pr[0], background: pr[1], padding: '3px 6px', borderRadius: 4, flexShrink: 0 }}>{item.prioridade || 'MEDIA'}</span>
+                          {item.dataAtividade && <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>{formatStrDate(item.dataAtividade).substring(0,5)}</span>}
                           <input 
                             type="time" 
                             value={item.hora || ''} 
@@ -1117,6 +1047,93 @@ export default function PlanejamentoPage() {
                 <button type="submit" disabled={pending} style={{ padding: '10px 20px', borderRadius: 8, background: '#660099', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Salvar Planejamento</button>
               </div>
             </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL INCLUIR ATIVIDADE */}
+      {showAddItemModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 550, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#7e22ce', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0 }}>Incluir Atividade</h2>
+              <button onClick={() => setShowAddItemModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>DIA</label>
+                  <input type="date" value={newItemData} onChange={e => setNewItemData(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>HORA</label>
+                  <input type="time" value={newItemHora} onChange={e => setNewItemHora(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>TÍTULO DA ATIVIDADE</label>
+                <input type="text" placeholder="Ex: Inspeção de Extintores" value={newItemTitulo} onChange={e => setNewItemTitulo(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>CATEGORIA</label>
+                  <select value={newItemCategoria} onChange={e => setNewItemCategoria(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>PRIORIDADE</label>
+                  <div style={{ display: 'flex', gap: 4, height: 40 }}>
+                    {([['ALTA','#ef4444','#fee2e2'],['MEDIA','#f59e0b','#fef3c7'],['BAIXA','#6366f1','#e0e7ff']] as const).map(([val, color, bg]) => (
+                      <button key={val} type="button" onClick={() => setNewItemPrioridade(val as any)}
+                        style={{ flex: 1, padding: '0', borderRadius: 8, border: `2px solid ${newItemPrioridade === val ? color : '#e2e8f0'}`, background: newItemPrioridade === val ? bg : '#fff', color: newItemPrioridade === val ? color : '#94a3b8', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s' }}>
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {newItemCategoria === 'OUTROS' && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>QUAL CATEGORIA?</label>
+                  <input type="text" placeholder="Digite a categoria" value={newItemOutraCategoria} onChange={e => setNewItemOutraCategoria(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              )}
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>DESCRIÇÃO (Opcional)</label>
+                <textarea 
+                  value={newItemText} 
+                  onChange={e => setNewItemText(e.target.value)} 
+                  placeholder="Detalhes adicionais da atividade..." 
+                  style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', minHeight: 60, resize: 'vertical', boxSizing: 'border-box' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowAddItemModal(false)} style={{ background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                  Cancelar
+                </button>
+                <button type="button" onClick={() => {
+                  if (newItemText.trim() || newItemTitulo.trim()) {
+                    const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
+                    const parsedDate = newItemData ? new Date(`${newItemData}T12:00:00Z`) : undefined;
+                    setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), dataAtividade: parsedDate, hora: newItemHora, titulo: newItemTitulo.trim(), texto: newItemText.trim(), categoria: finalCat, prioridade: newItemPrioridade, concluido: false }] }));
+                    setNewItemText('');
+                    setNewItemTitulo('');
+                    setNewItemOutraCategoria('');
+                    setShowAddItemModal(false);
+                  } else {
+                    alert("Preencha o título ou a descrição.");
+                  }
+                }} style={{ background: '#7e22ce', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>
+                  Adicionar na Lista
+                </button>
+              </div>
             </div>
           </div>
         </div>
