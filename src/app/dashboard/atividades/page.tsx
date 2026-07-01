@@ -113,6 +113,13 @@ export default function PlanejamentoPage() {
   const [aiLoadingTituloNew, setAiLoadingTituloNew] = useState(false)
   const [aiLoadingDescNew, setAiLoadingDescNew] = useState(false)
 
+  const [showEditPlanModal, setShowEditPlanModal] = useState(false)
+  const [editPlanForm, setEditPlanForm] = useState({
+    id: '', tecnicoId: '', dataAtividade: '', hora: '08:00', titulo: '', 
+    categoria: '', outraCategoria: '', local: '', outroLocal: '', 
+    cidade: '', estado: 'SP', prioridade: 'MEDIA', descricaoOriginal: ''
+  })
+
   // DSS Aliado Modal
   const [showDssModal, setShowDssModal] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
   const [showDssForm, setShowDssForm] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
@@ -202,7 +209,7 @@ export default function PlanejamentoPage() {
 
   function handleAdd(dateStr?: string) {
     setForm({
-      id: '', tecnicoId: isTst ? userTecnicoId : (selectedTecnico !== 'TODOS' ? selectedTecnico : ''),
+      id: '', tecnicoId: isTst ? (userTecnicoId || '') : (selectedTecnico !== 'TODOS' ? selectedTecnico : ''),
       dataAtividade: dateStr || formatStrDate(new Date()), categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
       descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
       prioridade: 'MEDIA', checklist: []
@@ -213,6 +220,11 @@ export default function PlanejamentoPage() {
     setNewItemCategoria(CATEGORIES[0])
     setNewItemOutraCategoria('')
     setNewItemPrioridade('MEDIA')
+    setNewItemLocal('')
+    setNewItemOutroLocal('')
+    setNewItemCidade('')
+    setNewItemEstado('SP')
+    setIsModifying(false)
     setShowAddModal(true)
   }
 
@@ -344,6 +356,53 @@ export default function PlanejamentoPage() {
       }
       setShowExecModal(null)
       load()
+    })
+  }
+
+  function handleEditRootPlan(plan: any) {
+    const catBase = CATEGORIES.includes(plan.categoria)
+    const locBase = unidades.find(u => u.nome === plan.local)
+    setEditPlanForm({
+      id: plan.id,
+      tecnicoId: plan.tecnicoId,
+      dataAtividade: formatStrDate(new Date(plan.dataAtividade)),
+      hora: plan.hora || '08:00',
+      titulo: plan.titulo || '',
+      categoria: catBase ? plan.categoria : 'OUTROS',
+      outraCategoria: catBase ? '' : plan.categoria,
+      local: locBase ? plan.local : (plan.local ? 'OUTROS' : ''),
+      outroLocal: locBase ? '' : (plan.local || ''),
+      cidade: plan.cidade || '',
+      estado: plan.estado || 'SP',
+      prioridade: plan.prioridade || 'MEDIA',
+      descricaoOriginal: plan.descricaoOriginal || ''
+    })
+    setShowEditPlanModal(true)
+    setShowExecModal(null)
+  }
+
+  async function handleSaveEditPlan(e: React.FormEvent) {
+    e.preventDefault()
+    startTransition(async () => {
+      const res = await savePlanejamento({
+        id: editPlanForm.id || undefined,
+        tecnicoId: editPlanForm.tecnicoId,
+        dataAtividade: new Date(`${editPlanForm.dataAtividade}T12:00:00Z`),
+        hora: editPlanForm.hora,
+        titulo: editPlanForm.titulo,
+        categoria: editPlanForm.categoria === 'OUTROS' && editPlanForm.outraCategoria ? editPlanForm.outraCategoria : editPlanForm.categoria,
+        descricaoOriginal: editPlanForm.descricaoOriginal,
+        local: editPlanForm.local === 'OUTROS' && editPlanForm.outroLocal ? editPlanForm.outroLocal : editPlanForm.local,
+        cidade: editPlanForm.cidade,
+        estado: editPlanForm.estado,
+        prioridade: editPlanForm.prioridade as any,
+      })
+      if (res.success) {
+        setShowEditPlanModal(false)
+        load()
+      } else {
+        alert(res.error)
+      }
     })
   }
 
@@ -1353,6 +1412,234 @@ export default function PlanejamentoPage() {
         </div>
       )}
 
+      {showEditPlanModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 550, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#0ea5e9', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                {editPlanForm.id ? <Edit2 size={18} /> : <Plus size={18} />} 
+                {editPlanForm.id ? 'Editar Atividade' : 'Planejar Atividade'}
+              </h2>
+              <button type="button" onClick={() => setShowEditPlanModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleSaveEditPlan} style={{ padding: 20, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>TÉCNICO</label>
+                <div style={{ position: 'relative' }}>
+                  <div
+                    onClick={() => { if(!isTst) setShowTecnicoDropdown(v => !v) }}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showTecnicoDropdown ? '#660099' : '#cbd5e1'}`, cursor: isTst ? 'default' : 'pointer', background: isTst ? '#f8fafc' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                  >
+                    {editPlanForm.tecnicoId ? (() => {
+                      const t = tecnicos.find(x => x.id === editPlanForm.tecnicoId)
+                      return t ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {t.fotoUrl ? (
+                            <img src={t.fotoUrl} alt={t.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff' }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                          )}
+                          <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span>
+                        </div>
+                      ) : <span style={{ color: '#94a3b8' }}>Selecione um técnico...</span>
+                    })() : <span style={{ color: '#94a3b8' }}>Selecione um técnico...</span>}
+                    {!isTst && <span style={{ color: '#94a3b8', fontSize: 12 }}>{showTecnicoDropdown ? '▲' : '▼'}</span>}
+                  </div>
+                  {!isTst && showTecnicoDropdown && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 200, overflowY: 'auto' }}>
+                      {tecnicos.filter(t => t.ativo).map(t => (
+                        <div key={t.id} onClick={() => { setEditPlanForm(prev => ({...prev, tecnicoId: t.id})); setShowTecnicoDropdown(false) }}
+                          style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8, background: editPlanForm.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = editPlanForm.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
+                        >
+                          {t.fotoUrl ? (
+                            <img src={t.fotoUrl} alt={t.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff' }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                          )}
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</span>
+                          {editPlanForm.tecnicoId === t.id && <Check size={16} color="#660099" style={{ marginLeft: 'auto' }} />}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>LOCAL ESPECÍFICO (UNIDADE)</label>
+                {(() => {
+                  let t = tecnicos.find(x => x.id === editPlanForm.tecnicoId)
+                  if (!t && isTst) t = tecnicos.find(x => x.id === userTecnicoId)
+                  let unidsDoTecnico = unidades
+                  if (role === 'MASTER' || role === 'ADMIN') {
+                    unidsDoTecnico = unidades
+                  } else if (t) {
+                    const idsUnidadesDoTecnico = [...(t.unidades?.map((u:any)=>u.id) || []), t.baseFixaId].filter(Boolean)
+                    if (idsUnidadesDoTecnico.length > 0) {
+                      unidsDoTecnico = unidades.filter(u => idsUnidadesDoTecnico.includes(u.id))
+                    } else {
+                      unidsDoTecnico = []
+                    }
+                  } else if (isTst) {
+                    unidsDoTecnico = []
+                  }
+
+                  return (
+                    <div style={{ position: 'relative' }}>
+                      <div
+                        onClick={() => setShowUnidadeDropdown(v => !v)}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showUnidadeDropdown ? '#660099' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.2s' }}
+                      >
+                        <span style={{ fontSize: 14, color: editPlanForm.local ? '#1e293b' : '#94a3b8', fontWeight: editPlanForm.local ? 700 : 400 }}>
+                          {editPlanForm.local ? (unidsDoTecnico.find(u => u.nome === editPlanForm.local) ? editPlanForm.local : editPlanForm.local === 'OUTROS' ? 'Outros...' : editPlanForm.local) : 'Selecione ou busque a unidade...'}
+                        </span>
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>{showUnidadeDropdown ? '▲' : '▼'}</span>
+                      </div>
+
+                      {showUnidadeDropdown && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                          <div style={{ padding: 8, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10 }} />
+                              <input 
+                                autoFocus 
+                                type="text" 
+                                placeholder="Buscar unidade..." 
+                                value={unidadeSearchTerm}
+                                onChange={e => setUnidadeSearchTerm(e.target.value)}
+                                onKeyDown={e => { if(e.key === 'Enter') e.preventDefault() }}
+                                style={{ width: '100%', padding: '8px 8px 8px 30px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                              />
+                            </div>
+                          </div>
+                          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                            {Array.from(new Map(unidsDoTecnico.map(u => [u.id, u])).values())
+                              .filter(u => u.nome.toLowerCase().includes(unidadeSearchTerm.toLowerCase()) || (u.cidade || '').toLowerCase().includes(unidadeSearchTerm.toLowerCase()))
+                              .map(u => (
+                              <div key={u.id} onClick={() => { 
+                                setEditPlanForm(prev => ({...prev, local: u.nome, outroLocal: '', cidade: u.cidade || '', estado: u.estado || 'SP'}))
+                                setShowUnidadeDropdown(false);
+                                setUnidadeSearchTerm('');
+                              }}
+                                style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: editPlanForm.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = editPlanForm.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff')}
+                              >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{u.nome}</span>
+                                  {editPlanForm.local === u.nome && <Check size={14} color="#660099" />}
+                                </div>
+                                <div style={{ fontSize: 11, color: '#64748b' }}>
+                                  {u.endereco ? u.endereco + ' - ' : ''}{u.cidade}/{u.estado}
+                                </div>
+                              </div>
+                            ))}
+                            {unidsDoTecnico.filter(u => u.nome.toLowerCase().includes(unidadeSearchTerm.toLowerCase())).length === 0 && (
+                              <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhuma unidade encontrada.</div>
+                            )}
+                            <div onClick={() => { 
+                                setEditPlanForm(prev => ({...prev, local: 'OUTROS', outroLocal: '', cidade: '', estado: 'SP'}))
+                                setShowUnidadeDropdown(false);
+                                setUnidadeSearchTerm('');
+                              }}
+                              style={{ padding: '10px 14px', cursor: 'pointer', background: editPlanForm.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = editPlanForm.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff')}
+                            >
+                              <span>Outros...</span>
+                              {editPlanForm.local === 'OUTROS' && <Check size={14} color="#660099" />}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+                {(!unidades.find(u => u.nome === editPlanForm.local) && editPlanForm.local === 'OUTROS') && (
+                  <input type="text" placeholder="Especifique o local..." required value={editPlanForm.outroLocal} onChange={e => setEditPlanForm({...editPlanForm, outroLocal: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box', marginTop: 8 }} />
+                )}
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>CIDADE/ESTADO</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="text" placeholder="Cidade" value={editPlanForm.cidade} onChange={e => setEditPlanForm({...editPlanForm, cidade: e.target.value})} style={{ flex: 2, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  <input type="text" placeholder="UF" value={editPlanForm.estado} maxLength={2} onChange={e => setEditPlanForm({...editPlanForm, estado: e.target.value.toUpperCase()})} style={{ width: 80, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>DIA</label>
+                  <input type="date" value={editPlanForm.dataAtividade} onChange={e => setEditPlanForm({...editPlanForm, dataAtividade: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>HORA</label>
+                  <input type="time" value={editPlanForm.hora} onChange={e => setEditPlanForm({...editPlanForm, hora: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>TÍTULO DA ATIVIDADE</label>
+                </div>
+                <input type="text" placeholder="Ex: Inspeção de Extintores" value={editPlanForm.titulo} onChange={e => setEditPlanForm({...editPlanForm, titulo: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>CATEGORIA</label>
+                  <select value={editPlanForm.categoria} onChange={e => setEditPlanForm({...editPlanForm, categoria: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}>
+                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>PRIORIDADE</label>
+                  <div style={{ display: 'flex', gap: 4, height: 40 }}>
+                    {([['ALTA','#ef4444','#fee2e2'],['MEDIA','#f59e0b','#fef3c7'],['BAIXA','#6366f1','#e0e7ff']] as const).map(([val, color, bg]) => (
+                      <button key={val} type="button" onClick={() => setEditPlanForm({...editPlanForm, prioridade: val})}
+                        style={{ flex: 1, padding: '0', borderRadius: 8, border: `2px solid ${editPlanForm.prioridade === val ? color : '#e2e8f0'}`, background: editPlanForm.prioridade === val ? bg : '#fff', color: editPlanForm.prioridade === val ? color : '#94a3b8', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s' }}>
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {editPlanForm.categoria === 'OUTROS' && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>QUAL CATEGORIA?</label>
+                  <input type="text" placeholder="Digite a categoria" value={editPlanForm.outraCategoria} onChange={e => setEditPlanForm({...editPlanForm, outraCategoria: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              )}
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>DESCRIÇÃO (Opcional)</label>
+                </div>
+                <textarea 
+                  value={editPlanForm.descricaoOriginal} 
+                  onChange={e => setEditPlanForm({...editPlanForm, descricaoOriginal: e.target.value})} 
+                  placeholder="Detalhes adicionais da atividade..." 
+                  style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', minHeight: 60, resize: 'vertical', boxSizing: 'border-box' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setShowEditPlanModal(false)} style={{ background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={pending} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 800, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, opacity: pending ? 0.7 : 1 }}>
+                  <Check size={18} /> {editPlanForm.id ? 'Salvar Edição' : 'Criar Planejamento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL EXECUÇÃO (CHECK-IN) */}
       {showExecModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
@@ -1409,28 +1696,7 @@ export default function PlanejamentoPage() {
                     </span>
                     {showExecModal.status === 'PENDENTE' && (
                       <div style={{ display: 'flex', gap: 6, paddingLeft: 10 }}>
-                        <button type="button" title="Editar atividade" onClick={() => {
-                          setShowExecModal(null)
-                          const catBase = CATEGORIES.includes(showExecModal.categoria)
-                          const locBase = unidades.find(u => u.nome === showExecModal.local)
-                          setForm({
-                            id: showExecModal.id,
-                            tecnicoId: showExecModal.tecnicoId,
-                            dataAtividade: formatStrDate(showExecModal.dataAtividade),
-                            categoria: catBase ? showExecModal.categoria : 'OUTROS',
-                            outraCategoria: catBase ? '' : showExecModal.categoria,
-                            descricaoOriginal: showExecModal.descricaoOriginal,
-                            equipe: showExecModal.equipe,
-                            local: locBase ? showExecModal.local : 'OUTROS',
-                            outroLocal: locBase ? '' : showExecModal.local,
-                            cidade: showExecModal.cidade || '',
-                            estado: showExecModal.estado || 'SP',
-                            prioridade: showExecModal.prioridade,
-                            checklist: showExecModal.checklist || []
-                          })
-                          setIsModifying(true)
-                          setShowAddModal(true)
-                        }} style={{ background: '#f0f9ff', border: 'none', color: '#0ea5e9', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#e0f2fe'} onMouseOut={e => e.currentTarget.style.background='#f0f9ff'}><Edit2 size={14} /></button>
+                        <button type="button" title="Editar atividade" onClick={() => handleEditRootPlan(showExecModal)} style={{ background: '#f0f9ff', border: 'none', color: '#0ea5e9', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#e0f2fe'} onMouseOut={e => e.currentTarget.style.background='#f0f9ff'}><Edit2 size={14} /></button>
                         <button type="button" title="Excluir atividade" onClick={() => handleDeletePlan(showExecModal.id)} style={{ background: '#fef2f2', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#fee2e2'} onMouseOut={e => e.currentTarget.style.background='#fef2f2'}><Trash2 size={14} /></button>
                       </div>
                     )}
@@ -1573,27 +1839,7 @@ export default function PlanejamentoPage() {
                   <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'center', marginTop: 24, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
                     {showExecModal.status === 'PENDENTE' ? (
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button type="button" title="Editar Planejamento" onClick={() => {
-                          setShowExecModal(null)
-                          const catBase = CATEGORIES.includes(showExecModal.categoria)
-                          const locBase = unidades.find(u => u.nome === showExecModal.local)
-                          setForm({
-                            id: showExecModal.id,
-                            tecnicoId: showExecModal.tecnicoId,
-                            dataAtividade: formatStrDate(new Date(showExecModal.dataAtividade)),
-                            categoria: catBase ? showExecModal.categoria : 'OUTROS',
-                            outraCategoria: catBase ? '' : showExecModal.categoria,
-                            descricaoOriginal: showExecModal.descricaoOriginal,
-                            equipe: showExecModal.equipe || 'Não se aplica',
-                            local: locBase ? showExecModal.local : (showExecModal.local ? 'OUTROS' : ''),
-                            outroLocal: locBase ? '' : (showExecModal.local || ''),
-                            cidade: showExecModal.cidade || '',
-                            estado: showExecModal.estado || 'SP',
-                            prioridade: showExecModal.prioridade,
-                            checklist: showExecModal.checklist || []
-                          })
-                          setShowAddModal(true)
-                        }} style={{ padding: '12px', background: '#f1f5f9', color: '#334155', borderRadius: 8, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <button type="button" title="Editar Planejamento" onClick={() => handleEditRootPlan(showExecModal)} style={{ padding: '12px', background: '#f1f5f9', color: '#334155', borderRadius: 8, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <Edit2 size={18} />
                         </button>
                         <button type="button" title="Excluir Planejamento" onClick={() => setConfirmDeleteId(showExecModal.id)} style={{ padding: '12px', background: '#fef2f2', color: '#ef4444', borderRadius: 8, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
