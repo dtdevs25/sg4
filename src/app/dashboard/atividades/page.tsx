@@ -1327,15 +1327,23 @@ export default function PlanejamentoPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                 <div>
                   <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 8px 0', color: '#1e293b' }}>
-                    {showExecModal.hora ? showExecModal.hora + ' - ' : ''}{showExecModal.titulo || showExecModal.categoria}
+                    {showExecModal.titulo || showExecModal.categoria}
                   </h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: PR_COLORS[showExecModal.prioridade].text, background: PR_COLORS[showExecModal.prioridade].bg, padding: '4px 8px', borderRadius: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, color: PR_COLORS[showExecModal.prioridade]?.text || '#475569', background: PR_COLORS[showExecModal.prioridade]?.bg || '#f1f5f9', padding: '4px 8px', borderRadius: 6 }}>
                       PRIORIDADE {showExecModal.prioridade}
                     </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Calendar size={12} /> {showExecModal.dataAtividade ? formatStrDate(showExecModal.dataAtividade) : ''}
+                    </span>
+                    {showExecModal.hora && (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Clock size={12} /> {showExecModal.hora}
+                      </span>
+                    )}
                     {showExecModal.local && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <MapPin size={12} /> Unidade: {showExecModal.local}
+                        <MapPin size={12} /> {showExecModal.local === 'OUTROS' ? showExecModal.outroLocal : showExecModal.local} {showExecModal.cidade ? `- ${showExecModal.cidade}` : ''}
                       </span>
                     )}
                   </div>
@@ -1384,13 +1392,12 @@ export default function PlanejamentoPage() {
                         ) : (
                            <>
                              <span style={{ fontSize: 13, color: item.concluido ? '#94a3b8' : '#334155', textDecoration: item.concluido ? 'line-through' : 'none', lineHeight: 1.4, cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }} onClick={() => toggleItemChecklist(showExecModal.id, item.id)}>
-                               {item.categoria && <span style={{fontSize: 10, background: item.concluido ? '#f1f5f9' : '#e0e7ff', color: item.concluido ? '#94a3b8' : '#4338ca', padding: '3px 8px', borderRadius: 6, marginRight: 8, fontWeight: 700}}>{item.categoria}</span>}
                                <span style={{ paddingTop: 2 }}>{item.texto}</span>
                              </span>
                              {(!isTst || showExecModal.status === 'PENDENTE') && (
                                <div style={{ display: 'flex', gap: 6, paddingLeft: 10 }}>
-                                 <button type="button" onClick={() => { setEditingChecklistItem(item.id); setEditingChecklistText(item.texto); setEditingChecklistCategoria(CATEGORIES.includes(item.categoria) ? item.categoria : 'OUTROS'); setEditingChecklistOutraCategoria(CATEGORIES.includes(item.categoria) ? '' : item.categoria); }} style={{ background: '#f1f5f9', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 6, borderRadius: 6 }}><Edit2 size={14} /></button>
-                                 <button type="button" onClick={() => deleteItemChecklist(showExecModal.id, item.id)} style={{ background: '#fef2f2', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6 }}><Trash2 size={14} /></button>
+                                 <button type="button" title="Editar item" onClick={() => { setEditingChecklistItem(item.id); setEditingChecklistText(item.texto); setEditingChecklistCategoria(CATEGORIES.includes(item.categoria) ? item.categoria : 'OUTROS'); setEditingChecklistOutraCategoria(CATEGORIES.includes(item.categoria) ? '' : item.categoria); }} style={{ background: '#f0f9ff', border: 'none', color: '#0ea5e9', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#e0f2fe'} onMouseOut={e => e.currentTarget.style.background='#f0f9ff'}><Edit2 size={14} /></button>
+                                 <button type="button" title="Excluir item" onClick={() => deleteItemChecklist(showExecModal.id, item.id)} style={{ background: '#fef2f2', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#fee2e2'} onMouseOut={e => e.currentTarget.style.background='#fef2f2'}><Trash2 size={14} /></button>
                                </div>
                              )}
                              {item.concluido && (
@@ -1430,11 +1437,6 @@ export default function PlanejamentoPage() {
                         <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff' }}>{showExecModal.tecnico.nome.substring(0, 2).toUpperCase()}</div>
                       )}
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{showExecModal.tecnico.nome}</span>
-                    </div>
-                  )}
-                  {showExecModal.cidade && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#64748b', fontWeight: 600 }}>
-                      <MapPin size={14} /> {showExecModal.cidade}/{showExecModal.estado}
                     </div>
                   )}
                 </div>
