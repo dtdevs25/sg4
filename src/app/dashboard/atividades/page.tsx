@@ -112,6 +112,10 @@ export default function PlanejamentoPage() {
   const [formDssAliado, setFormDssAliado] = useState({ tema: '', fotoBase64: '', fileName: '', contentType: '' })
   const [dssLoading, setDssLoading] = useState(false)
 
+  // Concluir Direto
+  const [showConcluirModal, setShowConcluirModal] = useState<any | null>(null)
+  const [concluirLoading, setConcluirLoading] = useState(false)
+
   useEffect(() => {
     getTecnicos().then(res => {
       if (res.success && res.data) setTecnicos(res.data)
@@ -493,27 +497,34 @@ export default function PlanejamentoPage() {
 
   function handleConcluirDireto(e: React.MouseEvent, plan: any) {
     e.stopPropagation()
-    const confirm = window.confirm("Deseja concluir esta atividade?")
-    if (!confirm) return
+    setShowConcluirModal(plan)
+  }
 
-    startTransition(async () => {
-      let newChecklist = plan.checklist || []
-      if (newChecklist.length > 0) {
-        newChecklist = newChecklist.map((c:any) => ({...c, concluido: true}))
-      }
-      setPlanejamentos(prev => prev.map(p => p.id === plan.id ? { ...p, checklist: newChecklist, status: 'CONCLUIDO' } : p))
-      
-      const resSave = await savePlanejamento({
-        id: plan.id, tecnicoId: plan.tecnicoId, dataAtividade: plan.dataAtividade,
-        categoria: plan.categoria, descricaoOriginal: plan.descricaoOriginal, checklist: newChecklist
-      })
-      if (resSave.success) {
-        await modificarExecucao(plan.id, plan.descricaoExecutada || plan.descricaoOriginal, plan.observacoes)
-      } else {
-        alert(resSave.error)
-        load() // reverte em caso de erro
-      }
+  async function confirmConcluirDireto() {
+    if (!showConcluirModal) return
+    setConcluirLoading(true)
+    const plan = showConcluirModal
+    
+    let newChecklist = plan.checklist || []
+    if (newChecklist.length > 0) {
+      newChecklist = newChecklist.map((c:any) => ({...c, concluido: true}))
+    }
+    
+    const resSave = await savePlanejamento({
+      id: plan.id, tecnicoId: plan.tecnicoId, dataAtividade: plan.dataAtividade,
+      categoria: plan.categoria, descricaoOriginal: plan.descricaoOriginal, checklist: newChecklist
     })
+    
+    if (resSave.success) {
+      await modificarExecucao(plan.id, plan.descricaoExecutada || plan.descricaoOriginal, plan.observacoes)
+      startTransition(() => {
+        setPlanejamentos(prev => prev.map(p => p.id === plan.id ? { ...p, checklist: newChecklist, status: 'CONCLUIDO' } : p))
+      })
+      setShowConcluirModal(null)
+    } else {
+      alert(resSave.error)
+    }
+    setConcluirLoading(false)
   }
 
   async function handleAddRelatorio(e: React.FormEvent) {
@@ -1679,6 +1690,28 @@ export default function PlanejamentoPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* MODAL CONCLUIR ATIVIDADE DIRETO */}
+    {showConcluirModal && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 460, padding: 28, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#10b981' }}>
+            <CheckCircle2 size={32} />
+          </div>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0', textAlign: 'center' }}>Concluir Atividade?</h2>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.5, textAlign: 'center' }}>
+            Deseja marcar <strong>{showConcluirModal.titulo || showConcluirModal.categoria}</strong> como concluída? 
+            {showConcluirModal.checklist && showConcluirModal.checklist.length > 0 && " Todos os itens do checklist serão marcados como finalizados."}
+          </p>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button type="button" onClick={() => setShowConcluirModal(null)} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Cancelar</button>
+            <button type="button" onClick={confirmConcluirDireto} disabled={concluirLoading} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#10b981', color: '#fff', border: 'none', fontWeight: 800, cursor: concluirLoading ? 'not-allowed' : 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: concluirLoading ? 0.7 : 1 }}>
+              {concluirLoading ? <><Loader2 size={16} className="animate-spin" /> Concluindo...</> : '✅ Sim, concluir!'}
+            </button>
           </div>
         </div>
       </div>
