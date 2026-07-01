@@ -81,6 +81,10 @@ export default function PlanejamentoPage() {
   const [newItemCategoria, setNewItemCategoria] = useState(CATEGORIES[0])
   const [newItemOutraCategoria, setNewItemOutraCategoria] = useState('')
   const [newItemPrioridade, setNewItemPrioridade] = useState<'ALTA'|'MEDIA'|'BAIXA'>('MEDIA')
+  const [newItemLocal, setNewItemLocal] = useState('')
+  const [newItemOutroLocal, setNewItemOutroLocal] = useState('')
+  const [newItemCidade, setNewItemCidade] = useState('')
+  const [newItemEstado, setNewItemEstado] = useState('SP')
   
   const [execForm, setExecForm] = useState({
     descricaoExecutada: '', observacoes: ''
@@ -944,58 +948,38 @@ export default function PlanejamentoPage() {
                     {form.checklist.map((item: any, i: number) => {
                       const pr = {ALTA: ['#ef4444','#fee2e2'], MEDIA: ['#f59e0b','#fef3c7'], BAIXA: ['#6366f1','#e0e7ff']}[item.prioridade as string] || ['#94a3b8','#f1f5f9'];
                       return (
-                        <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                          <span style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', width: 20, flexShrink: 0 }}>{i + 1}.</span>
-                          <span style={{ fontSize: 9, fontWeight: 800, color: pr[0], background: pr[1], padding: '3px 6px', borderRadius: 4, flexShrink: 0 }}>{item.prioridade || 'MEDIA'}</span>
-                          {item.dataAtividade && <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b' }}>{formatStrDate(item.dataAtividade).substring(0,5)}</span>}
-                          <input 
-                            type="time" 
-                            value={item.hora || ''} 
-                            onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, hora: e.target.value} : c)}))}
-                            style={{ fontSize: 12, color: '#334155', border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '4px 6px', borderRadius: 6, width: 80, transition: 'all 0.2s', flexShrink: 0 }}
-                            onFocus={e => { e.target.style.background = '#f1f5f9'; e.target.style.border = '1px solid #cbd5e1' }}
-                            onBlur={e => { e.target.style.background = 'transparent'; e.target.style.border = '1px solid transparent' }}
-                          />
-                          <input 
-                            type="text" 
-                            value={item.titulo || ''} 
-                            onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, titulo: e.target.value} : c)}))}
-                            placeholder="Título"
-                            style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '4px 8px', borderRadius: 6, width: 140, transition: 'all 0.2s', flexShrink: 0 }}
-                            onFocus={e => { e.target.style.background = '#f1f5f9'; e.target.style.border = '1px solid #cbd5e1' }}
-                            onBlur={e => { e.target.style.background = 'transparent'; e.target.style.border = '1px solid transparent' }}
-                          />
-                          <input 
-                            type="text" 
-                            value={item.texto || ''} 
-                            placeholder="Descrição"
-                            onChange={(e) => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, texto: e.target.value} : c)}))}
-                            style={{ fontSize: 12, color: '#334155', flex: 1, border: '1px solid transparent', background: 'transparent', outline: 'none', padding: '4px 8px', borderRadius: 6, transition: 'all 0.2s', minWidth: 0 }}
-                            onFocus={e => { e.target.style.background = '#f1f5f9'; e.target.style.border = '1px solid #cbd5e1' }}
-                            onBlur={e => { e.target.style.background = 'transparent'; e.target.style.border = '1px solid transparent' }}
-                            title="Clique para editar descrição"
-                          />
-                          {/* Selector de Prioridade inline */}
-                          <select value={item.prioridade || 'MEDIA'} onChange={e => setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, prioridade: e.target.value} : c)}))} style={{ fontSize: 10, padding: '4px 6px', borderRadius: 6, border: '1px solid #e2e8f0', outline: 'none', color: '#64748b', flexShrink: 0 }}>
-                            <option value="ALTA">Alta</option>
-                            <option value="MEDIA">Média</option>
-                            <option value="BAIXA">Baixa</option>
-                          </select>
-                          <select 
-                            value={CATEGORIES.includes(item.categoria) ? item.categoria : 'OUTROS'} 
-                            onChange={(e) => {
-                               const val = e.target.value;
-                               setForm(prev => ({...prev, checklist: prev.checklist.map((c: any) => c.id === item.id ? {...c, categoria: val} : c)}))
-                            }}
-                            style={{ fontSize: 10, padding: '4px 6px', borderRadius: 6, border: '1px solid #e2e8f0', color: '#475569', outline: 'none', flexShrink: 0, maxWidth: 120 }}
-                          >
-                            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                          </select>
-                          <button type="button" onClick={() => {
-                            setForm(prev => ({ ...prev, checklist: prev.checklist.filter((c: any) => c.id !== item.id) }))
-                          }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
-                            <Trash2 size={14} />
-                          </button>
+                        <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: '#94a3b8', width: 20 }}>{i + 1}.</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 9, fontWeight: 800, color: pr[0], background: pr[1], padding: '2px 6px', borderRadius: 4 }}>{item.prioridade || 'MEDIA'}</span>
+                                {item.dataAtividade && <span style={{ fontSize: 10, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>{formatStrDate(item.dataAtividade).substring(0,5)} {item.hora}</span>}
+                                {item.local && (
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: '#660099', background: 'rgba(102,0,153,0.06)', padding: '2px 6px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    <MapPin size={10} />
+                                    {item.local === 'OUTROS' ? item.outroLocal || 'Outros' : item.local} {item.cidade && `- ${item.cidade}`}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{item.titulo}</span>
+                                <span style={{ fontSize: 11, color: '#64748b', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.texto}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: '#f8fafc', padding: '4px 8px', borderRadius: 4, border: '1px solid #e2e8f0' }}>{item.categoria}</span>
+                            <button type="button" onClick={() => {
+                              setForm(prev => ({ ...prev, checklist: prev.checklist.filter((c: any) => c.id !== item.id) }))
+                            }} style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                            onMouseOver={e => e.currentTarget.style.background = '#fef2f2'}
+                            onMouseOut={e => e.currentTarget.style.background = '#fee2e2'}
+                            title="Remover item">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       )
                     })}
