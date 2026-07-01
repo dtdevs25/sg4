@@ -112,6 +112,8 @@ export default function PlanejamentoPage() {
   const [aiLoadingNewItem, setAiLoadingNewItem] = useState(false)
   const [aiLoadingTituloNew, setAiLoadingTituloNew] = useState(false)
   const [aiLoadingDescNew, setAiLoadingDescNew] = useState(false)
+  const [aiLoadingTituloEdit, setAiLoadingTituloEdit] = useState(false)
+  const [aiLoadingDescEdit, setAiLoadingDescEdit] = useState(false)
 
   const [showEditPlanModal, setShowEditPlanModal] = useState(false)
   const [editPlanForm, setEditPlanForm] = useState({
@@ -596,6 +598,30 @@ export default function PlanejamentoPage() {
     setAiLoadingTituloNew(false)
     if (res.success && res.text) {
       setNewItemTitulo(res.text)
+    } else {
+      alert(res.error || 'Erro ao otimizar o texto.')
+    }
+  }
+
+  async function handleOptimizeTituloEdit() {
+    if (!editPlanForm.titulo || editPlanForm.titulo.trim().length === 0) return
+    setAiLoadingTituloEdit(true)
+    const res = await optimizeTextWithAI(editPlanForm.titulo)
+    setAiLoadingTituloEdit(false)
+    if (res.success && res.text) {
+      setEditPlanForm(p => ({...p, titulo: res.text.replace(/["']/g, '')}))
+    } else {
+      alert(res.error || 'Erro ao otimizar o texto.')
+    }
+  }
+
+  async function handleOptimizeDescEdit() {
+    if (!editPlanForm.descricaoOriginal || editPlanForm.descricaoOriginal.trim().length === 0) return
+    setAiLoadingDescEdit(true)
+    const res = await optimizeTextWithAI(editPlanForm.descricaoOriginal)
+    setAiLoadingDescEdit(false)
+    if (res.success && res.text) {
+      setEditPlanForm(p => ({...p, descricaoOriginal: res.text}))
     } else {
       alert(res.error || 'Erro ao otimizar o texto.')
     }
@@ -1415,7 +1441,7 @@ export default function PlanejamentoPage() {
       {showEditPlanModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 550, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ background: '#0ea5e9', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ background: '#660099', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 {editPlanForm.id ? <Edit2 size={18} /> : <Plus size={18} />} 
                 {editPlanForm.id ? 'Editar Atividade' : 'Planejar Atividade'}
@@ -1584,6 +1610,18 @@ export default function PlanejamentoPage() {
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>TÍTULO DA ATIVIDADE</label>
+                  <button 
+                    type="button" 
+                    onClick={handleOptimizeTituloEdit}
+                    disabled={aiLoadingTituloEdit}
+                    style={{ 
+                      fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                      borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                      cursor: aiLoadingTituloEdit ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                    }}
+                  >
+                    {aiLoadingTituloEdit ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                  </button>
                 </div>
                 <input type="text" placeholder="Ex: Inspeção de Extintores" value={editPlanForm.titulo} onChange={e => setEditPlanForm({...editPlanForm, titulo: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
               </div>
@@ -1618,6 +1656,18 @@ export default function PlanejamentoPage() {
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>DESCRIÇÃO (Opcional)</label>
+                  <button 
+                    type="button" 
+                    onClick={handleOptimizeDescEdit}
+                    disabled={aiLoadingDescEdit}
+                    style={{ 
+                      fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                      borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                      cursor: aiLoadingDescEdit ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                    }}
+                  >
+                    {aiLoadingDescEdit ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                  </button>
                 </div>
                 <textarea 
                   value={editPlanForm.descricaoOriginal} 
@@ -1631,7 +1681,7 @@ export default function PlanejamentoPage() {
                 <button type="button" onClick={() => setShowEditPlanModal(false)} style={{ background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
                   Cancelar
                 </button>
-                <button type="submit" disabled={pending} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 800, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, opacity: pending ? 0.7 : 1 }}>
+                <button type="submit" disabled={pending} style={{ background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 800, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, opacity: pending ? 0.7 : 1 }}>
                   <Check size={18} /> {editPlanForm.id ? 'Salvar Edição' : 'Criar Planejamento'}
                 </button>
               </div>
