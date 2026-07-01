@@ -1007,14 +1007,30 @@ export default function PlanejamentoPage() {
                 )}
               </div>
 
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>LOCAL ESPECÍFICO (UNIDADE)</label>
-                {(() => {
-                  const filteredUnidades = form.tecnicoId 
-                    ? unidades.filter(u => u.tecnicos?.some((t: any) => t.id === form.tecnicoId) || u.baseFixaTecnicos?.some((t: any) => t.id === form.tecnicoId) || u.id === tecnicos.find(t=>t.id===form.tecnicoId)?.baseFixaId)
-                    : unidades;
+              {/* Os campos de local e cidade foram movidos para o modal de inclusão de item */}
 
-                  // Se a filteredUnidades não cobrir perfeitamente as relations de tecnico vs unidade, usamos uma busca mais resiliente:
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+                <button type="button" onClick={() => setShowAddModal(false)} style={{ padding: '10px 20px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" disabled={pending} style={{ padding: '10px 20px', borderRadius: 8, background: '#660099', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Salvar Planejamento</button>
+              </div>
+            </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL INCLUIR ATIVIDADE */}
+      {showAddItemModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 550, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#7e22ce', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0 }}>Incluir Atividade</h2>
+              <button onClick={() => setShowAddItemModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: 20 }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>LOCAL ESPECÍFICO (UNIDADE)</label>
+                {(() => {
                   let t = tecnicos.find(x => x.id === form.tecnicoId)
                   if (!t && isTst) t = tecnicos.find(x => x.id === userTecnicoId)
                   let unidsDoTecnico = unidades
@@ -1025,10 +1041,10 @@ export default function PlanejamentoPage() {
                     if (idsUnidadesDoTecnico.length > 0) {
                       unidsDoTecnico = unidades.filter(u => idsUnidadesDoTecnico.includes(u.id))
                     } else {
-                      unidsDoTecnico = [] // Técnico não tem unidades atreladas
+                      unidsDoTecnico = []
                     }
                   } else if (isTst) {
-                    unidsDoTecnico = [] // Previne vazamento mostrando tudo caso o tst não seja encontrado
+                    unidsDoTecnico = []
                   }
 
                   return (
@@ -1037,8 +1053,8 @@ export default function PlanejamentoPage() {
                         onClick={() => setShowUnidadeDropdown(v => !v)}
                         style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showUnidadeDropdown ? '#660099' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.2s' }}
                       >
-                        <span style={{ fontSize: 13, color: form.local ? '#1e293b' : '#94a3b8', fontWeight: form.local ? 700 : 400 }}>
-                          {form.local ? (unidsDoTecnico.find(u => u.nome === form.local) ? form.local : form.local === 'OUTROS' ? 'Outros...' : form.local) : 'Selecione ou busque a unidade...'}
+                        <span style={{ fontSize: 14, color: newItemLocal ? '#1e293b' : '#94a3b8', fontWeight: newItemLocal ? 700 : 400 }}>
+                          {newItemLocal ? (unidsDoTecnico.find(u => u.nome === newItemLocal) ? newItemLocal : newItemLocal === 'OUTROS' ? 'Outros...' : newItemLocal) : 'Selecione ou busque a unidade...'}
                         </span>
                         <span style={{ color: '#94a3b8', fontSize: 12 }}>{showUnidadeDropdown ? '▲' : '▼'}</span>
                       </div>
@@ -1060,21 +1076,24 @@ export default function PlanejamentoPage() {
                             </div>
                           </div>
                           <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                            {Array.from(new Map(unidsDoTecnico.map(u => [u.id, u])).values()) // Remove any possible duplicates
+                            {Array.from(new Map(unidsDoTecnico.map(u => [u.id, u])).values())
                               .filter(u => u.nome.toLowerCase().includes(unidadeSearchTerm.toLowerCase()) || (u.cidade || '').toLowerCase().includes(unidadeSearchTerm.toLowerCase()))
                               .map(u => (
                               <div key={u.id} onClick={() => { 
-                                setForm({...form, local: u.nome, outroLocal: '', cidade: u.cidade || '', estado: u.estado || 'SP'});
+                                setNewItemLocal(u.nome)
+                                setNewItemOutroLocal('')
+                                setNewItemCidade(u.cidade || '')
+                                setNewItemEstado(u.estado || 'SP')
                                 setShowUnidadeDropdown(false);
                                 setUnidadeSearchTerm('');
                               }}
-                                style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: form.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
+                                style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: newItemLocal === u.nome ? 'rgba(102,0,153,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
                                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
-                                onMouseLeave={e => (e.currentTarget.style.background = form.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff')}
+                                onMouseLeave={e => (e.currentTarget.style.background = newItemLocal === u.nome ? 'rgba(102,0,153,0.06)' : '#fff')}
                               >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{u.nome}</span>
-                                  {form.local === u.nome && <Check size={14} color="#660099" />}
+                                  {newItemLocal === u.nome && <Check size={14} color="#660099" />}
                                 </div>
                                 <div style={{ fontSize: 11, color: '#64748b' }}>
                                   {u.endereco ? u.endereco + ' - ' : ''}{u.cidade}/{u.estado}
@@ -1085,16 +1104,19 @@ export default function PlanejamentoPage() {
                               <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhuma unidade encontrada.</div>
                             )}
                             <div onClick={() => { 
-                                setForm({...form, local: 'OUTROS', outroLocal: '', cidade: '', estado: 'SP'});
+                                setNewItemLocal('OUTROS')
+                                setNewItemOutroLocal('')
+                                setNewItemCidade('')
+                                setNewItemEstado('SP')
                                 setShowUnidadeDropdown(false);
                                 setUnidadeSearchTerm('');
                               }}
-                              style={{ padding: '10px 14px', cursor: 'pointer', background: form.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                              style={{ padding: '10px 14px', cursor: 'pointer', background: newItemLocal === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
-                              onMouseLeave={e => (e.currentTarget.style.background = form.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff')}
+                              onMouseLeave={e => (e.currentTarget.style.background = newItemLocal === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff')}
                             >
                               <span>Outros...</span>
-                              {form.local === 'OUTROS' && <Check size={14} color="#660099" />}
+                              {newItemLocal === 'OUTROS' && <Check size={14} color="#660099" />}
                             </div>
                           </div>
                         </div>
@@ -1102,38 +1124,19 @@ export default function PlanejamentoPage() {
                     </div>
                   )
                 })()}
-                {(!unidades.find(u => u.nome === form.local) && form.local === 'OUTROS') && (
-                  <input type="text" placeholder="Especifique o local..." required value={form.outroLocal} onChange={e => setForm({...form, outroLocal: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', marginTop: 8 }} />
+                {(!unidades.find(u => u.nome === newItemLocal) && newItemLocal === 'OUTROS') && (
+                  <input type="text" placeholder="Especifique o local..." required value={newItemOutroLocal} onChange={e => setNewItemOutroLocal(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box', marginTop: 8 }} />
                 )}
               </div>
 
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>CIDADE/ESTADO</label>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>CIDADE/ESTADO</label>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input type="text" placeholder="Cidade" value={form.cidade} onChange={e => setForm({...form, cidade: e.target.value})} style={{ flex: 2, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
-                  <input type="text" placeholder="UF" value={form.estado} maxLength={2} onChange={e => setForm({...form, estado: e.target.value.toUpperCase()})} style={{ width: 80, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                  <input type="text" placeholder="Cidade" value={newItemCidade} onChange={e => setNewItemCidade(e.target.value)} style={{ flex: 2, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  <input type="text" placeholder="UF" value={newItemEstado} maxLength={2} onChange={e => setNewItemEstado(e.target.value.toUpperCase())} style={{ width: 80, padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
-                <button type="button" onClick={() => setShowAddModal(false)} style={{ padding: '10px 20px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
-                <button type="submit" disabled={pending} style={{ padding: '10px 20px', borderRadius: 8, background: '#660099', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Salvar Planejamento</button>
-              </div>
-            </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL INCLUIR ATIVIDADE */}
-      {showAddItemModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 550, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ background: '#7e22ce', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0 }}>Incluir Atividade</h2>
-              <button onClick={() => setShowAddItemModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}><X size={20} /></button>
-            </div>
-            <div style={{ padding: 20 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>DIA</label>
@@ -1223,10 +1226,27 @@ export default function PlanejamentoPage() {
                   if (newItemText.trim() || newItemTitulo.trim()) {
                     const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
                     const parsedDate = newItemData ? new Date(`${newItemData}T12:00:00Z`) : undefined;
-                    setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { id: Math.random().toString(36).substr(2, 9), dataAtividade: parsedDate, hora: newItemHora, titulo: newItemTitulo.trim(), texto: newItemText.trim(), categoria: finalCat, prioridade: newItemPrioridade, concluido: false }] }));
+                    const finalLocal = newItemLocal === 'OUTROS' && newItemOutroLocal ? newItemOutroLocal : newItemLocal;
+                    setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { 
+                      id: Math.random().toString(36).substr(2, 9), 
+                      dataAtividade: parsedDate, 
+                      hora: newItemHora, 
+                      titulo: newItemTitulo.trim(), 
+                      texto: newItemText.trim(), 
+                      categoria: finalCat, 
+                      prioridade: newItemPrioridade, 
+                      local: finalLocal,
+                      cidade: newItemCidade,
+                      estado: newItemEstado,
+                      concluido: false 
+                    }] }));
                     setNewItemText('');
                     setNewItemTitulo('');
                     setNewItemOutraCategoria('');
+                    setNewItemLocal('');
+                    setNewItemOutroLocal('');
+                    setNewItemCidade('');
+                    setNewItemEstado('SP');
                     setShowAddItemModal(false);
                   } else {
                     alert("Preencha o título ou a descrição.");

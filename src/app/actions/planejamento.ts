@@ -55,6 +55,9 @@ export async function savePlanejamentoBatch(base: {
   categoria: string;
   descricaoOriginal: string;
   prioridade: PrioridadePlanejamento;
+  local?: string;
+  cidade?: string;
+  estado?: string;
 }>) {
   try {
     const session = await auth()
@@ -67,6 +70,9 @@ export async function savePlanejamentoBatch(base: {
         data: {
           ...base,
           dataAtividade: item.dataAtividade || base.dataAtividade,
+          local: item.local || base.local,
+          cidade: item.cidade || base.cidade,
+          estado: item.estado || base.estado,
           hora: item.hora,
           titulo: item.titulo,
           categoria: item.categoria,
