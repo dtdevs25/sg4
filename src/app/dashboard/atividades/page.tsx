@@ -364,8 +364,12 @@ export default function PlanejamentoPage() {
 
     if (!item.concluido) {
       // O usuário está MARCANDO o item como concluído
-      // Vamos interceptar e perguntar se ele quer lançar no relatório
-      setShowPromptRelatorio({ plan, itemId, itemText: item.texto })
+      // Vamos interceptar e perguntar se ele quer lançar no relatório ou DSS
+      if (item.categoria === 'DSS') {
+        setShowDssModal({ plan, itemId, itemText: item.texto })
+      } else {
+        setShowPromptRelatorio({ plan, itemId, itemText: item.texto })
+      }
       return; // Interrompe o fluxo normal aqui.
     }
 
