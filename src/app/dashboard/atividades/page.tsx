@@ -105,6 +105,8 @@ export default function PlanejamentoPage() {
   const [aiLoadingRel, setAiLoadingRel] = useState(false)
   const [aiLoadingExec, setAiLoadingExec] = useState(false)
   const [aiLoadingNewItem, setAiLoadingNewItem] = useState(false)
+  const [aiLoadingTituloNew, setAiLoadingTituloNew] = useState(false)
+  const [aiLoadingDescNew, setAiLoadingDescNew] = useState(false)
 
   // DSS Aliado Modal
   const [showDssModal, setShowDssModal] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
@@ -478,6 +480,30 @@ export default function PlanejamentoPage() {
     setAiLoadingExec(false)
     if (res.success && res.text) {
       setExecForm(p => ({...p, descricaoExecutada: res.text}))
+    } else {
+      alert(res.error || 'Erro ao otimizar o texto.')
+    }
+  }
+
+  async function handleOptimizeTituloNew() {
+    if (!newItemTitulo || newItemTitulo.trim().length === 0) return
+    setAiLoadingTituloNew(true)
+    const res = await optimizeTextWithAI(newItemTitulo)
+    setAiLoadingTituloNew(false)
+    if (res.success && res.text) {
+      setNewItemTitulo(res.text)
+    } else {
+      alert(res.error || 'Erro ao otimizar o texto.')
+    }
+  }
+
+  async function handleOptimizeDescNew() {
+    if (!newItemText || newItemText.trim().length === 0) return
+    setAiLoadingDescNew(true)
+    const res = await optimizeTextWithAI(newItemText)
+    setAiLoadingDescNew(false)
+    if (res.success && res.text) {
+      setNewItemText(res.text)
     } else {
       alert(res.error || 'Erro ao otimizar o texto.')
     }
@@ -1120,7 +1146,21 @@ export default function PlanejamentoPage() {
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>TÍTULO DA ATIVIDADE</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>TÍTULO DA ATIVIDADE</label>
+                  <button 
+                    type="button" 
+                    onClick={handleOptimizeTituloNew}
+                    disabled={aiLoadingTituloNew}
+                    style={{ 
+                      fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                      borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                      cursor: aiLoadingTituloNew ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                    }}
+                  >
+                    {aiLoadingTituloNew ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                  </button>
+                </div>
                 <input type="text" placeholder="Ex: Inspeção de Extintores" value={newItemTitulo} onChange={e => setNewItemTitulo(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
               </div>
 
@@ -1152,7 +1192,21 @@ export default function PlanejamentoPage() {
               )}
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>DESCRIÇÃO (Opcional)</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>DESCRIÇÃO (Opcional)</label>
+                  <button 
+                    type="button" 
+                    onClick={handleOptimizeDescNew}
+                    disabled={aiLoadingDescNew}
+                    style={{ 
+                      fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                      borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                      cursor: aiLoadingDescNew ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                    }}
+                  >
+                    {aiLoadingDescNew ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                  </button>
+                </div>
                 <textarea 
                   value={newItemText} 
                   onChange={e => setNewItemText(e.target.value)} 
