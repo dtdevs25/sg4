@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import {
   CalendarDays, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
   Plus, Edit2, CheckCircle2, AlertTriangle, User, MapPin, Search, FileText, 
-  X, Check, AlertCircle, Trash2, RotateCcw, Camera, UploadCloud, Loader2, Circle
+  X, Check, AlertCircle, Trash2, RotateCcw, Camera, UploadCloud, Loader2, Circle, Clock
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getTecnicos } from '@/app/actions/tecnicos'
@@ -1337,7 +1337,7 @@ export default function PlanejamentoPage() {
                       PRIORIDADE {showExecModal.prioridade || 'MEDIA'}
                     </span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Calendar size={12} /> {showExecModal.dataAtividade ? formatStrDate(showExecModal.dataAtividade) : ''}
+                      <CalendarIcon size={12} /> {showExecModal.dataAtividade ? formatStrDate(showExecModal.dataAtividade) : ''}
                     </span>
                     {showExecModal.hora && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
