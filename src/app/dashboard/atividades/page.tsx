@@ -166,9 +166,12 @@ export default function PlanejamentoPage() {
     return new Date(d.setDate(diff))
   }
 
-  function formatStrDate(d: Date) {
-    const tzOffset = d.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(d.getTime() - tzOffset)).toISOString().slice(0, 10);
+  function formatStrDate(d: Date | string) {
+    if (!d) return '';
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    if (isNaN(dateObj.getTime())) return '';
+    const tzOffset = dateObj.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(dateObj.getTime() - tzOffset)).toISOString().slice(0, 10);
     return localISOTime;
   }
 
@@ -1330,8 +1333,8 @@ export default function PlanejamentoPage() {
                     {showExecModal.titulo || showExecModal.categoria}
                   </h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: PR_COLORS[showExecModal.prioridade]?.text || '#475569', background: PR_COLORS[showExecModal.prioridade]?.bg || '#f1f5f9', padding: '4px 8px', borderRadius: 6 }}>
-                      PRIORIDADE {showExecModal.prioridade}
+                    <span style={{ fontSize: 10, fontWeight: 800, color: PR_COLORS[showExecModal.prioridade || 'MEDIA']?.text || '#475569', background: PR_COLORS[showExecModal.prioridade || 'MEDIA']?.bg || '#f1f5f9', padding: '4px 8px', borderRadius: 6 }}>
+                      PRIORIDADE {showExecModal.prioridade || 'MEDIA'}
                     </span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Calendar size={12} /> {showExecModal.dataAtividade ? formatStrDate(showExecModal.dataAtividade) : ''}
