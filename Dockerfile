@@ -34,6 +34,9 @@ RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# Remove dependências de desenvolvimento para deixar a imagem leve e evitar problemas de ENOSPC
+RUN npm prune --production
+
 # ─── RUNNER ─────────────────────────────────────────────────────────────────
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -57,12 +60,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/start.sh ./start.sh
 # Dar permissão de execução ao script
 RUN chmod +x ./start.sh
 
-# Prisma Client gerado no builder (já compilado para Alpine)
-# Copiamos também a CLI do prisma para conseguir rodar db push no runtime
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/.bin ./node_modules/.bin
+# Copia todos os módulos de produção otimizados do builder, garantindo que
+# a CLI do Prisma e todos os seus sub-módulos (como 'effect') estejam presentes.
+COPY --from=builder /app/node_modules ./node_modules
 
 USER nextjs
 
