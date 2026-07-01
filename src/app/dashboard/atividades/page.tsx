@@ -4,12 +4,12 @@ import { useState, useEffect, useTransition } from 'react'
 import {
   CalendarDays, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
   Plus, Edit2, CheckCircle2, AlertTriangle, User, MapPin, Search, FileText, 
-  X, Check, AlertCircle, Trash2, RotateCcw, Camera, UploadCloud, Loader2
+  X, Check, AlertCircle, Trash2, RotateCcw, Camera, UploadCloud, Loader2, Circle
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import {
-  getPlanejamentos, savePlanejamento, savePlanejamentoBatch, modificarExecucao, concluirPlanejamento, deletePlanejamento, moverPlanejamento, reverterPlanejamento, togglePlanejamentoChecklist
+  getPlanejamentos, savePlanejamento, savePlanejamentoBatch, modificarExecucao, concluirPlanejamento, deletePlanejamento, moverPlanejamento, reverterPlanejamento, togglePlanejamentoChecklist, concluirETransferirPendencias
 } from '@/app/actions/planejamento'
 import { getUnidades } from '@/app/actions/unidades'
 import { addAtividade, uploadFotoRelatorio } from '@/app/actions/relatorios'
@@ -1711,7 +1711,9 @@ function PlanCard({ plan, onClick, onDragStart, onConcluir }: { plan: any, onCli
       <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: c.border }}></div>
       
       {isConcluido ? (
-        <CheckCircle2 size={14} color="#10b981" style={{ position: 'absolute', top: 8, right: 8 }} title="Concluído" />
+        <div style={{ position: 'absolute', top: 8, right: 8 }} title="Concluído">
+          <CheckCircle2 size={14} color="#10b981" />
+        </div>
       ) : (
         <button 
           onClick={(e) => onConcluir && onConcluir(e, plan)} 
