@@ -175,6 +175,17 @@ export default function PlanejamentoPage() {
     return localISOTime;
   }
 
+  function formatDisplayDate(d: Date | string) {
+    if (!d) return '';
+    const dateObj = typeof d === 'string' ? new Date(d) : d;
+    if (isNaN(dateObj.getTime())) return '';
+    const tzOffset = dateObj.getTimezoneOffset() * 60000;
+    const local = new Date(dateObj.getTime() - tzOffset);
+    const day = String(local.getDate()).padStart(2, '0');
+    const month = String(local.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}/${local.getFullYear()}`;
+  }
+
   function handlePrev() {
     const d = new Date(currentDate)
     if (view === 'semana') d.setDate(d.getDate() - 7)
@@ -421,8 +432,26 @@ export default function PlanejamentoPage() {
   // Função chamada se o usuário disser "NÃO" no prompt ou após salvar o relatório:
   function confirmToggleItemChecklist(planId: string, itemId: string, markAsDone: boolean) {
     const plan = planejamentos.find(p => p.id === planId)
-    if (!plan || !plan.checklist) return;
+    if (!plan) return;
     
+    if (!plan.checklist || plan.checklist.length === 0) {
+      const newStatus = markAsDone ? 'CONCLUIDO' : 'PENDENTE';
+      setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, status: newStatus } : p))
+      if (showExecModal?.id === planId) {
+        setShowExecModal((prev: any) => ({ ...prev, status: newStatus }))
+      }
+      
+      startTransition(async () => {
+        if (markAsDone) {
+          await concluirPlanejamento(planId, plan.descricaoExecutada || plan.descricaoOriginal, plan.observacoes)
+        } else {
+          await reverterPlanejamento(planId)
+        }
+        load()
+      })
+      return;
+    }
+
     const newChecklist = plan.checklist.map((c: any) => c.id === itemId ? { ...c, concluido: markAsDone } : c)
     const allChecked = newChecklist.length > 0 && newChecklist.every((i:any) => i.concluido)
     setPlanejamentos(prev => prev.map(p => p.id === planId ? { ...p, checklist: newChecklist, status: allChecked ? 'CONCLUIDO' : 'PENDENTE' } : p))
@@ -537,9 +566,21 @@ export default function PlanejamentoPage() {
     }
   }
 
-  function handleConcluirDireto(e: React.MouseEvent, plan: any) {
-    e.stopPropagation()
+  function handleConcluirDireto(e: React.MouseEvent | null, plan: any) {
+    if (e) e.stopPropagation()
     const checklist = plan.checklist || []
+    
+    if (checklist.length === 0) {
+      if (plan.status !== 'CONCLUIDO') {
+        if (plan.categoria === 'DSS') {
+          setShowDssModal({ plan, itemId: plan.id, itemText: plan.descricaoOriginal })
+        } else {
+          setShowPromptRelatorio({ plan, itemId: plan.id, itemText: plan.descricaoOriginal })
+        }
+      }
+      return;
+    }
+
     const pendingItems = checklist.filter((i: any) => !i.concluido)
 
     if (pendingItems.length === 1) {
@@ -1337,7 +1378,7 @@ export default function PlanejamentoPage() {
                       PRIORIDADE {showExecModal.prioridade || 'MEDIA'}
                     </span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <CalendarIcon size={12} /> {showExecModal.dataAtividade ? formatStrDate(showExecModal.dataAtividade) : ''}
+                      <CalendarIcon size={12} /> {showExecModal.dataAtividade ? formatDisplayDate(showExecModal.dataAtividade) : ''}
                     </span>
                     {showExecModal.hora && (
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', background: '#f1f5f9', padding: '4px 8px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1356,7 +1397,23 @@ export default function PlanejamentoPage() {
               <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 20 }}>
                 <p style={{ fontSize: 11, fontWeight: 800, color: '#64748b', margin: '0 0 6px 0', textTransform: 'uppercase' }}>O que estava planejado?</p>
                 {!showExecModal.checklist || showExecModal.checklist.length === 0 ? (
-                  <p style={{ fontSize: 14, color: '#334155', margin: 0, lineHeight: 1.5 }}>{showExecModal.descricaoOriginal}</p>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', transition: 'all 0.2s' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={showExecModal.status === 'CONCLUIDO'} 
+                      onChange={(e) => handleConcluirDireto(e, showExecModal)}
+                      style={{ marginTop: 2, cursor: 'pointer', accentColor: '#10b981', width: 16, height: 16, flexShrink: 0 }}
+                    />
+                    <span style={{ fontSize: 13, color: showExecModal.status === 'CONCLUIDO' ? '#94a3b8' : '#334155', textDecoration: showExecModal.status === 'CONCLUIDO' ? 'line-through' : 'none', lineHeight: 1.4, cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }} onClick={(e) => handleConcluirDireto(e, showExecModal)}>
+                      <span style={{ paddingTop: 2 }}>{showExecModal.descricaoOriginal}</span>
+                    </span>
+                    {(!isTst || showExecModal.status === 'PENDENTE') && (
+                      <div style={{ display: 'flex', gap: 6, paddingLeft: 10 }}>
+                        <button type="button" title="Editar atividade" onClick={() => { setShowExecModal(null); setConfirmDeleteId(null); handleAdd(formatStrDate(showExecModal.dataAtividade)); }} style={{ background: '#f0f9ff', border: 'none', color: '#0ea5e9', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#e0f2fe'} onMouseOut={e => e.currentTarget.style.background='#f0f9ff'}><Edit2 size={14} /></button>
+                        <button type="button" title="Excluir atividade" onClick={() => handleDeletePlan(showExecModal.id)} style={{ background: '#fef2f2', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#fee2e2'} onMouseOut={e => e.currentTarget.style.background='#fef2f2'}><Trash2 size={14} /></button>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
                     {showExecModal.checklist.map((item: any) => (
