@@ -277,11 +277,15 @@ export default function PlanejamentoPage() {
       if (!form.dataAtividade) { alert('Selecione uma data.'); return; }
 
       const items = form.checklist.map((c: any) => ({
+        dataAtividade: c.dataAtividade ? new Date(c.dataAtividade) : undefined,
         hora: c.hora || '12:00',
         titulo: c.titulo || 'Atividade Planejada',
         categoria: c.categoria || 'OUTROS',
         descricaoOriginal: c.texto || '',
-        prioridade: (c.prioridade || 'MEDIA') as any
+        prioridade: (c.prioridade || 'MEDIA') as any,
+        local: c.local,
+        cidade: c.cidade,
+        estado: c.estado
       }))
       
       const res = await savePlanejamentoBatch(base, items)
@@ -971,6 +975,26 @@ export default function PlanejamentoPage() {
                           
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 10, fontWeight: 600, color: '#64748b', background: '#f8fafc', padding: '4px 8px', borderRadius: 4, border: '1px solid #e2e8f0' }}>{item.categoria}</span>
+                            
+                            <button type="button" onClick={() => {
+                              setNewItemData(item.dataAtividade ? formatStrDate(item.dataAtividade) : '')
+                              setNewItemHora(item.hora || '08:00')
+                              setNewItemTitulo(item.titulo || '')
+                              setNewItemText(item.texto || '')
+                              setNewItemCategoria(item.categoria || CATEGORIES[0])
+                              setNewItemPrioridade(item.prioridade || 'MEDIA')
+                              setNewItemLocal(item.local || '')
+                              setNewItemCidade(item.cidade || '')
+                              setNewItemEstado(item.estado || 'SP')
+                              setForm(prev => ({ ...prev, checklist: prev.checklist.filter((c: any) => c.id !== item.id) }))
+                              setShowAddItemModal(true)
+                            }} style={{ background: '#e0e7ff', border: '1px solid #c7d2fe', color: '#4f46e5', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                            onMouseOver={e => e.currentTarget.style.background = '#e0e7ff'}
+                            onMouseOut={e => e.currentTarget.style.background = '#e0e7ff'}
+                            title="Editar item">
+                              <Edit2 size={14} />
+                            </button>
+
                             <button type="button" onClick={() => {
                               setForm(prev => ({ ...prev, checklist: prev.checklist.filter((c: any) => c.id !== item.id) }))
                             }} style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
