@@ -85,6 +85,7 @@ export default function PlanejamentoPage() {
   const [newItemOutroLocal, setNewItemOutroLocal] = useState('')
   const [newItemCidade, setNewItemCidade] = useState('')
   const [newItemEstado, setNewItemEstado] = useState('SP')
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
   
   const [execForm, setExecForm] = useState({
     descricaoExecutada: '', observacoes: ''
@@ -1005,7 +1006,7 @@ export default function PlanejamentoPage() {
                               setNewItemLocal(item.local || '')
                               setNewItemCidade(item.cidade || '')
                               setNewItemEstado(item.estado || 'SP')
-                              setForm(prev => ({ ...prev, checklist: prev.checklist.filter((c: any) => c.id !== item.id) }))
+                              setEditingDraftId(item.id)
                               setShowAddItemModal(true)
                             }} style={{ background: '#e0e7ff', border: '1px solid #c7d2fe', color: '#4f46e5', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                             onMouseOver={e => e.currentTarget.style.background = '#e0e7ff'}
@@ -1051,8 +1052,8 @@ export default function PlanejamentoPage() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 550, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
             <div style={{ background: '#7e22ce', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0 }}>Incluir Atividade</h2>
-              <button onClick={() => setShowAddItemModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}><X size={20} /></button>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0 }}>{editingDraftId ? 'Editar Atividade' : 'Incluir Atividade'}</h2>
+              <button onClick={() => { setShowAddItemModal(false); setEditingDraftId(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}><X size={20} /></button>
             </div>
             <div style={{ padding: 20, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
               <div style={{ marginBottom: 16 }}>
@@ -1246,7 +1247,7 @@ export default function PlanejamentoPage() {
               </div>
 
               <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setShowAddItemModal(false)} style={{ background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                <button type="button" onClick={() => { setShowAddItemModal(false); setEditingDraftId(null); }} style={{ background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, padding: '10px 16px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
                   Cancelar
                 </button>
                 <button type="button" onClick={() => {
@@ -1254,19 +1255,40 @@ export default function PlanejamentoPage() {
                     const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
                     const parsedDate = newItemData ? new Date(`${newItemData}T12:00:00Z`) : undefined;
                     const finalLocal = newItemLocal === 'OUTROS' && newItemOutroLocal ? newItemOutroLocal : newItemLocal;
-                    setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { 
-                      id: Math.random().toString(36).substr(2, 9), 
-                      dataAtividade: parsedDate, 
-                      hora: newItemHora, 
-                      titulo: newItemTitulo.trim(), 
-                      texto: newItemText.trim(), 
-                      categoria: finalCat, 
-                      prioridade: newItemPrioridade, 
-                      local: finalLocal,
-                      cidade: newItemCidade,
-                      estado: newItemEstado,
-                      concluido: false 
-                    }] }));
+                    
+                    if (editingDraftId) {
+                      setForm(prev => ({
+                        ...prev,
+                        checklist: prev.checklist.map((c: any) => c.id === editingDraftId ? {
+                          ...c,
+                          dataAtividade: parsedDate, 
+                          hora: newItemHora, 
+                          titulo: newItemTitulo.trim(), 
+                          texto: newItemText.trim(), 
+                          categoria: finalCat, 
+                          prioridade: newItemPrioridade, 
+                          local: finalLocal,
+                          cidade: newItemCidade,
+                          estado: newItemEstado
+                        } : c)
+                      }));
+                      setEditingDraftId(null);
+                    } else {
+                      setForm(prev => ({ ...prev, checklist: [...(prev.checklist || []), { 
+                        id: Math.random().toString(36).substr(2, 9), 
+                        dataAtividade: parsedDate, 
+                        hora: newItemHora, 
+                        titulo: newItemTitulo.trim(), 
+                        texto: newItemText.trim(), 
+                        categoria: finalCat, 
+                        prioridade: newItemPrioridade, 
+                        local: finalLocal,
+                        cidade: newItemCidade,
+                        estado: newItemEstado,
+                        concluido: false 
+                      }] }));
+                    }
+                    
                     setNewItemText('');
                     setNewItemTitulo('');
                     setNewItemOutraCategoria('');
@@ -1279,7 +1301,7 @@ export default function PlanejamentoPage() {
                     alert("Preencha o título ou a descrição.");
                   }
                 }} style={{ background: '#7e22ce', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>
-                  Adicionar na Lista
+                  {editingDraftId ? 'Salvar Edição' : 'Adicionar na Lista'}
                 </button>
               </div>
             </div>
