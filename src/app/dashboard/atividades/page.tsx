@@ -1324,6 +1324,27 @@ export default function PlanejamentoPage() {
                                  <button type="button" onClick={() => deleteItemChecklist(showExecModal.id, item.id)} style={{ background: '#fef2f2', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6 }}><Trash2 size={14} /></button>
                                </div>
                              )}
+                             {item.concluido && (
+                               <div style={{ display: 'flex', gap: 6, paddingLeft: 10 }}>
+                                 {item.categoria === 'DSS' ? (
+                                   <button 
+                                     type="button" 
+                                     onClick={(e) => { e.stopPropagation(); setShowDssModal({plan: showExecModal, itemId: item.id, itemText: item.texto}); }}
+                                     style={{ background: '#fdf4ff', border: '1px solid #f0abfc', color: '#c026d3', cursor: 'pointer', padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                                   >
+                                     <FileText size={12} /> Gerar DSS
+                                   </button>
+                                 ) : (
+                                   <button 
+                                     type="button" 
+                                     onClick={(e) => { e.stopPropagation(); setShowPromptRelatorio({plan: showExecModal, itemId: item.id, itemText: item.texto}); }}
+                                     style={{ background: '#f0fdf4', border: '1px solid #86efac', color: '#16a34a', cursor: 'pointer', padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}
+                                   >
+                                     <FileText size={12} /> Relatório
+                                   </button>
+                                 )}
+                               </div>
+                             )}
                            </>
                         )}
                       </div>
