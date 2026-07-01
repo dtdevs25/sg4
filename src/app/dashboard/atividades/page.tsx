@@ -535,7 +535,22 @@ export default function PlanejamentoPage() {
 
   function handleConcluirDireto(e: React.MouseEvent, plan: any) {
     e.stopPropagation()
-    setShowConcluirModal(plan)
+    const checklist = plan.checklist || []
+    const pendingItems = checklist.filter((i: any) => !i.concluido)
+
+    if (pendingItems.length === 1) {
+      const item = pendingItems[0]
+      if (item.categoria === 'DSS') {
+        setShowDssModal({ plan, itemId: item.id, itemText: item.texto })
+      } else {
+        setShowPromptRelatorio({ plan, itemId: item.id, itemText: item.texto })
+      }
+    } else if (pendingItems.length > 1) {
+      alert('Esta atividade possui múltiplos itens. Por favor, abra o card para concluí-los individualmente.')
+      handleActionExecute(plan)
+    } else {
+      setShowConcluirModal(plan)
+    }
   }
 
   async function confirmConcluirDireto() {
