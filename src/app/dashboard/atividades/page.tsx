@@ -688,7 +688,7 @@ export default function PlanejamentoPage() {
                         <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#660099', color: '#fff', fontSize: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, flexShrink: 0 }} title={p.tecnico?.nome}>{p.tecnico?.nome?.substring(0,1).toUpperCase() || 'T'}</div>
                       )}
                       <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {p.hora ? p.hora + ' - ' : ''}{p.titulo || p.categoria}
+                        {p.titulo || p.categoria}
                       </div>
                       {isConcluido ? (
                         <CheckCircle2 size={10} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: 4, color: '#10b981' }} />
@@ -1736,10 +1736,8 @@ function PlanCard({ plan, onClick, onDragStart, onConcluir }: { plan: any, onCli
         </div>
       )}
 
-      {/* Categoria e Prioridade */}
+      {/* Categoria */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 5, flexWrap: 'wrap' }}>
-        {plan.hora && <span style={{ fontSize: 9, fontWeight: 800, color: '#334155', background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>{plan.hora}</span>}
-        <span style={{ fontSize: 9, fontWeight: 800, color: c.text, background: c.bg, padding: '2px 6px', borderRadius: 4 }}>{plan.prioridade}</span>
         <span style={{ fontSize: 9, fontWeight: 800, color: '#4338ca', background: '#e0e7ff', padding: '2px 6px', borderRadius: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>{plan.categoria}</span>
       </div>
 
