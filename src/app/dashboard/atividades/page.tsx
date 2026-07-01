@@ -317,7 +317,7 @@ export default function PlanejamentoPage() {
     setShowExecModal(plan)
     setIsModifying(false)
     setExecForm({
-      descricaoExecutada: plan.descricaoExecutada || (plan.checklist && plan.checklist.length > 0 ? '' : plan.descricaoOriginal),
+      descricaoExecutada: plan.descricaoExecutada || '',
       observacoes: plan.observacoes || ''
     })
   }
@@ -1407,9 +1407,30 @@ export default function PlanejamentoPage() {
                     <span style={{ fontSize: 13, color: showExecModal.status === 'CONCLUIDO' ? '#94a3b8' : '#334155', textDecoration: showExecModal.status === 'CONCLUIDO' ? 'line-through' : 'none', lineHeight: 1.4, cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }} onClick={(e) => handleConcluirDireto(e, showExecModal)}>
                       <span style={{ paddingTop: 2 }}>{showExecModal.descricaoOriginal}</span>
                     </span>
-                    {(!isTst || showExecModal.status === 'PENDENTE') && (
+                    {showExecModal.status === 'PENDENTE' && (
                       <div style={{ display: 'flex', gap: 6, paddingLeft: 10 }}>
-                        <button type="button" title="Editar atividade" onClick={() => { setShowExecModal(null); setConfirmDeleteId(null); handleAdd(formatStrDate(showExecModal.dataAtividade)); }} style={{ background: '#f0f9ff', border: 'none', color: '#0ea5e9', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#e0f2fe'} onMouseOut={e => e.currentTarget.style.background='#f0f9ff'}><Edit2 size={14} /></button>
+                        <button type="button" title="Editar atividade" onClick={() => {
+                          setShowExecModal(null)
+                          const catBase = CATEGORIES.includes(showExecModal.categoria)
+                          const locBase = unidades.find(u => u.nome === showExecModal.local)
+                          setForm({
+                            id: showExecModal.id,
+                            tecnicoId: showExecModal.tecnicoId,
+                            dataAtividade: formatStrDate(showExecModal.dataAtividade),
+                            categoria: catBase ? showExecModal.categoria : 'OUTROS',
+                            outraCategoria: catBase ? '' : showExecModal.categoria,
+                            descricaoOriginal: showExecModal.descricaoOriginal,
+                            equipe: showExecModal.equipe,
+                            local: locBase ? showExecModal.local : 'OUTROS',
+                            outroLocal: locBase ? '' : showExecModal.local,
+                            cidade: showExecModal.cidade || '',
+                            estado: showExecModal.estado || 'SP',
+                            prioridade: showExecModal.prioridade,
+                            checklist: showExecModal.checklist || []
+                          })
+                          setIsModifying(true)
+                          setShowAddModal(true)
+                        }} style={{ background: '#f0f9ff', border: 'none', color: '#0ea5e9', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#e0f2fe'} onMouseOut={e => e.currentTarget.style.background='#f0f9ff'}><Edit2 size={14} /></button>
                         <button type="button" title="Excluir atividade" onClick={() => handleDeletePlan(showExecModal.id)} style={{ background: '#fef2f2', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#fee2e2'} onMouseOut={e => e.currentTarget.style.background='#fef2f2'}><Trash2 size={14} /></button>
                       </div>
                     )}
@@ -1454,7 +1475,7 @@ export default function PlanejamentoPage() {
                              <span style={{ fontSize: 13, color: item.concluido ? '#94a3b8' : '#334155', textDecoration: item.concluido ? 'line-through' : 'none', lineHeight: 1.4, cursor: 'pointer', flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }} onClick={() => toggleItemChecklist(showExecModal.id, item.id)}>
                                <span style={{ paddingTop: 2 }}>{item.texto}</span>
                              </span>
-                             {(!isTst || showExecModal.status === 'PENDENTE') && (
+                             {!item.concluido && (
                                <div style={{ display: 'flex', gap: 6, paddingLeft: 10 }}>
                                  <button type="button" title="Editar item" onClick={() => { setEditingChecklistItem(item.id); setEditingChecklistText(item.texto); setEditingChecklistCategoria(CATEGORIES.includes(item.categoria) ? item.categoria : 'OUTROS'); setEditingChecklistOutraCategoria(CATEGORIES.includes(item.categoria) ? '' : item.categoria); }} style={{ background: '#f0f9ff', border: 'none', color: '#0ea5e9', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#e0f2fe'} onMouseOut={e => e.currentTarget.style.background='#f0f9ff'}><Edit2 size={14} /></button>
                                  <button type="button" title="Excluir item" onClick={() => deleteItemChecklist(showExecModal.id, item.id)} style={{ background: '#fef2f2', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background='#fee2e2'} onMouseOut={e => e.currentTarget.style.background='#fef2f2'}><Trash2 size={14} /></button>
@@ -1549,48 +1570,44 @@ export default function PlanejamentoPage() {
                     <textarea rows={3} value={execForm.descricaoExecutada} onChange={e => setExecForm({...execForm, descricaoExecutada: e.target.value})} placeholder="Adicione detalhes se algo ocorreu diferente do planejado..." style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box', resize: 'none' }}></textarea>
                   </div>
                   
-                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                    {(!isTst || showExecModal.status === 'PENDENTE') && showExecModal.status === 'PENDENTE' && (
-                      <button type="button" onClick={() => {
-                        setShowExecModal(null)
-                        const catBase = CATEGORIES.includes(showExecModal.categoria)
-                        const locBase = unidades.find(u => u.nome === showExecModal.local)
-                        setForm({
-                          id: showExecModal.id,
-                          tecnicoId: showExecModal.tecnicoId,
-                          dataAtividade: formatStrDate(new Date(showExecModal.dataAtividade)),
-                          categoria: catBase ? showExecModal.categoria : 'OUTROS',
-                          outraCategoria: catBase ? '' : showExecModal.categoria,
-                          descricaoOriginal: showExecModal.descricaoOriginal,
-                          equipe: showExecModal.equipe || 'Não se aplica',
-                          local: locBase ? showExecModal.local : (showExecModal.local ? 'OUTROS' : ''),
-                          outroLocal: locBase ? '' : (showExecModal.local || ''),
-                          cidade: showExecModal.cidade || '',
-                          estado: showExecModal.estado || 'SP',
-                          prioridade: showExecModal.prioridade,
-                          checklist: showExecModal.checklist || []
-                        })
-                        setShowAddModal(true)
-                      }} style={{ flex: '1 1 180px', padding: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <Edit2 size={16} /> Editar Planejamento
-                      </button>
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'center', marginTop: 24, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+                    {showExecModal.status === 'PENDENTE' ? (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" title="Editar Planejamento" onClick={() => {
+                          setShowExecModal(null)
+                          const catBase = CATEGORIES.includes(showExecModal.categoria)
+                          const locBase = unidades.find(u => u.nome === showExecModal.local)
+                          setForm({
+                            id: showExecModal.id,
+                            tecnicoId: showExecModal.tecnicoId,
+                            dataAtividade: formatStrDate(new Date(showExecModal.dataAtividade)),
+                            categoria: catBase ? showExecModal.categoria : 'OUTROS',
+                            outraCategoria: catBase ? '' : showExecModal.categoria,
+                            descricaoOriginal: showExecModal.descricaoOriginal,
+                            equipe: showExecModal.equipe || 'Não se aplica',
+                            local: locBase ? showExecModal.local : (showExecModal.local ? 'OUTROS' : ''),
+                            outroLocal: locBase ? '' : (showExecModal.local || ''),
+                            cidade: showExecModal.cidade || '',
+                            estado: showExecModal.estado || 'SP',
+                            prioridade: showExecModal.prioridade,
+                            checklist: showExecModal.checklist || []
+                          })
+                          setShowAddModal(true)
+                        }} style={{ padding: '12px', background: '#f1f5f9', color: '#334155', borderRadius: 8, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Edit2 size={18} />
+                        </button>
+                        <button type="button" title="Excluir Planejamento" onClick={() => setConfirmDeleteId(showExecModal.id)} style={{ padding: '12px', background: '#fef2f2', color: '#ef4444', borderRadius: 8, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div />
                     )}
-
-                    <button type="submit" disabled={pending} style={{ flex: '1 1 180px', padding: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: pending ? 0.7 : 1 }}>
+                    
+                    <button type="submit" disabled={pending} style={{ padding: '12px 24px', background: '#10b981', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: pending ? 0.7 : 1, cursor: 'pointer', flex: 1, maxWidth: 300 }}>
                       <Check size={18} /> Concluir Atividade
                     </button>
                   </div>
-                </form>
-              )}
-
-              {/* Apenas líderes ou admin podem deletar do banco livremente, ou o dono se ainda estiver pendente */}
-              {!isModifying && (!isTst || showExecModal.status === 'PENDENTE') && (
-                <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'center' }}>
-                  <button type="button" onClick={() => handleDeletePlan(showExecModal.id)} style={{ padding: '10px 16px', background: '#fef2f2', border: '1px solid #fca5a5', color: '#ef4444', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', transition: 'all 0.2s' }}>
-                    <Trash2 size={16} /> Excluir Planejamento
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
