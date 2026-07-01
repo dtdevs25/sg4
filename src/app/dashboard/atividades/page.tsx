@@ -1608,6 +1608,8 @@ export default function PlanejamentoPage() {
                       <Check size={18} /> Concluir Atividade
                     </button>
                   </div>
+                </form>
+              )}
             </div>
           </div>
         </div>
