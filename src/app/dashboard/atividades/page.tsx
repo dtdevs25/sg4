@@ -1011,7 +1011,7 @@ export default function PlanejamentoPage() {
               <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0 }}>Incluir Atividade</h2>
               <button onClick={() => setShowAddItemModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex' }}><X size={20} /></button>
             </div>
-            <div style={{ padding: 20 }}>
+            <div style={{ padding: 20, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>LOCAL ESPECÍFICO (UNIDADE)</label>
                 {(() => {
