@@ -491,6 +491,31 @@ export default function PlanejamentoPage() {
     }
   }
 
+  function handleConcluirDireto(e: React.MouseEvent, plan: any) {
+    e.stopPropagation()
+    const confirm = window.confirm("Deseja concluir esta atividade?")
+    if (!confirm) return
+
+    startTransition(async () => {
+      let newChecklist = plan.checklist || []
+      if (newChecklist.length > 0) {
+        newChecklist = newChecklist.map((c:any) => ({...c, concluido: true}))
+      }
+      setPlanejamentos(prev => prev.map(p => p.id === plan.id ? { ...p, checklist: newChecklist, status: 'CONCLUIDO' } : p))
+      
+      const resSave = await savePlanejamento({
+        id: plan.id, tecnicoId: plan.tecnicoId, dataAtividade: plan.dataAtividade,
+        categoria: plan.categoria, descricaoOriginal: plan.descricaoOriginal, checklist: newChecklist
+      })
+      if (resSave.success) {
+        await modificarExecucao(plan.id, plan.descricaoExecutada || plan.descricaoOriginal, plan.observacoes)
+      } else {
+        alert(resSave.error)
+        load() // reverte em caso de erro
+      }
+    })
+  }
+
   async function handleAddRelatorio(e: React.FormEvent) {
     e.preventDefault()
     if (!showFormRelatorio) return
@@ -602,7 +627,7 @@ export default function PlanejamentoPage() {
                 </button>
               </div>
               <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 150 }}>
-                {dayPlans.map(p => <PlanCard key={p.id} plan={p} onClick={() => handleActionExecute(p)} onDragStart={handleDragStart} onToggleChecklist={toggleItemChecklist} />)}
+                {dayPlans.map(p => <PlanCard key={p.id} plan={p} onClick={() => handleActionExecute(p)} onDragStart={handleDragStart} onConcluir={handleConcluirDireto} />)}
               </div>
             </div>
           )
@@ -654,17 +679,28 @@ export default function PlanejamentoPage() {
                       onClick={() => handleActionExecute(p)} 
                       draggable={!isConcluido}
                       onDragStart={(e) => handleDragStart(e, p.id)}
-                      style={{ fontSize: 9, padding: '3px 4px', borderRadius: 4, background: PR_COLORS[p.prioridade].bg, borderLeft: `3px solid ${PR_COLORS[p.prioridade].border}`, color: PR_COLORS[p.prioridade].text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: isConcluido ? 'pointer' : 'grab', display: 'flex', alignItems: 'center', gap: 4, opacity: isConcluido ? 0.6 : 1, position: 'relative' }}
+                      title={p.descricaoOriginal}
+                      style={{ fontSize: 9, padding: '3px 4px', borderRadius: 4, background: PR_COLORS[p.prioridade].bg, borderLeft: `3px solid ${PR_COLORS[p.prioridade].border}`, color: PR_COLORS[p.prioridade].text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: isConcluido ? 'pointer' : 'grab', display: 'flex', alignItems: 'center', gap: 4, opacity: isConcluido ? 0.6 : 1, position: 'relative', paddingRight: 16 }}
                     >
                       {p.tecnico?.fotoUrl ? (
-                        <img src={p.tecnico.fotoUrl} alt={p.tecnico.nome} style={{ width: 14, height: 14, borderRadius: '50%', objectFit: 'cover' }} title={p.tecnico.nome} />
+                        <img src={p.tecnico.fotoUrl} alt={p.tecnico.nome} style={{ width: 14, height: 14, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} title={p.tecnico.nome} />
                       ) : (
-                        <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#660099', color: '#fff', fontSize: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }} title={p.tecnico?.nome}>{p.tecnico?.nome?.substring(0,1).toUpperCase() || 'T'}</div>
+                        <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#660099', color: '#fff', fontSize: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, flexShrink: 0 }} title={p.tecnico?.nome}>{p.tecnico?.nome?.substring(0,1).toUpperCase() || 'T'}</div>
                       )}
-                      <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: isConcluido ? 12 : 0 }}>
+                      <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {p.hora ? p.hora + ' - ' : ''}{p.titulo || p.categoria}
                       </div>
-                      {isConcluido && <CheckCircle2 size={10} style={{ position: 'absolute', top: 3, right: 3, color: '#10b981' }} />}
+                      {isConcluido ? (
+                        <CheckCircle2 size={10} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: 4, color: '#10b981' }} />
+                      ) : (
+                        <button 
+                          onClick={(e) => handleConcluirDireto(e, p)} 
+                          style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: 4, background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit', opacity: 0.5 }}
+                          title="Concluir"
+                        >
+                          <Circle size={10} />
+                        </button>
+                      )}
                     </div>
                   )
                 })}
@@ -1652,7 +1688,7 @@ export default function PlanejamentoPage() {
   )
 }
 
-function PlanCard({ plan, onClick, onDragStart, onToggleChecklist }: { plan: any, onClick: () => void, onDragStart: (e: React.DragEvent<HTMLDivElement>, id: string) => void, onToggleChecklist?: (planId: string, itemId: string) => void }) {
+function PlanCard({ plan, onClick, onDragStart, onConcluir }: { plan: any, onClick: () => void, onDragStart: (e: React.DragEvent<HTMLDivElement>, id: string) => void, onConcluir?: (e: React.MouseEvent, plan: any) => void }) {
   const c = PR_COLORS[plan.prioridade]
   const isConcluido = plan.status === 'CONCLUIDO'
   
@@ -1667,12 +1703,24 @@ function PlanCard({ plan, onClick, onDragStart, onToggleChecklist }: { plan: any
       draggable={!isConcluido}
       onDragStart={(e) => onDragStart(e, plan.id)}
       onClick={onClick}
-      style={{ background: '#fff', border: `1px solid ${c.border}`, borderRadius: 8, padding: '10px 10px 10px 14px', cursor: isConcluido ? 'pointer' : 'grab', position: 'relative', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'transform 0.1s', opacity: isConcluido ? 0.65 : 1 }} 
+      title={plan.descricaoOriginal}
+      style={{ background: '#fff', border: `1px solid ${c.border}`, borderRadius: 8, padding: '10px 10px 10px 14px', cursor: isConcluido ? 'pointer' : 'grab', position: 'relative', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', transition: 'transform 0.1s', opacity: isConcluido ? 0.65 : 1, paddingRight: 24 }} 
       onMouseEnter={e => e.currentTarget.style.transform='translateY(-2px)'} 
       onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}
     >
       <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: c.border }}></div>
-      {isConcluido && <CheckCircle2 size={14} color="#10b981" style={{ position: 'absolute', top: 6, right: 6 }} />}
+      
+      {isConcluido ? (
+        <CheckCircle2 size={14} color="#10b981" style={{ position: 'absolute', top: 8, right: 8 }} title="Concluído" />
+      ) : (
+        <button 
+          onClick={(e) => onConcluir && onConcluir(e, plan)} 
+          style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: '#cbd5e1' }}
+          title="Marcar como concluído"
+        >
+          <Circle size={14} />
+        </button>
+      )}
 
       {/* Técnico */}
       {plan.tecnico && (
@@ -1693,11 +1741,8 @@ function PlanCard({ plan, onClick, onDragStart, onToggleChecklist }: { plan: any
         <span style={{ fontSize: 9, fontWeight: 800, color: '#4338ca', background: '#e0e7ff', padding: '2px 6px', borderRadius: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>{plan.categoria}</span>
       </div>
 
-      {/* Descrição */}
+      {/* Descrição - Removido para diminuir altura, adicionado no title do card */}
       <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 2 }}>{plan.titulo || 'Atividade Planejada'}</div>
-      <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-        {plan.descricaoOriginal}
-      </div>
 
       {plan.alteradaOriginal && (
         <div style={{ marginTop: 6, fontSize: 9, color: '#ef4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
