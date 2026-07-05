@@ -640,4 +640,29 @@ export async function enviarPdfPorEmail(tecnicoEmail: string, base64Pdf: string,
   }
 }
 
+export async function definirRecebedorRelatorioProdutividade(tecnicoId: string) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+  try {
+    // 1. Zera todos
+    await prisma.tecnico.updateMany({
+      data: { recebeRelatorioProdutividade: false }
+    })
+
+    // 2. Define o novo se foi passado
+    if (tecnicoId) {
+      await prisma.tecnico.update({
+        where: { id: tecnicoId },
+        data: { recebeRelatorioProdutividade: true }
+      })
+    }
+    
+    return { success: true }
+  } catch (error: any) {
+    console.error('Erro ao definir recebedor:', error)
+    return { success: false, error: 'Erro interno' }
+  }
+}
+
 

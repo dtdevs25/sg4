@@ -13,6 +13,7 @@ import {
   getRelatorioAusencias, getRelatorioReunioes, getRelatorioKm,
   getRelatorioAtividadesCampo, getRelatorioRanking, getTecnicosParaFiltro,
   getRelatorioProdutividadeDssInspecoes, enviarPdfPorEmail,
+  definirRecebedorRelatorioProdutividade,
   type FiltrosRelatorio
 } from '@/app/actions/relatoriosGerais'
 
@@ -77,6 +78,20 @@ export default function AdminRelatoriosPage() {
       setTecnicos(t)
       setTecLoading(false)
     }
+  }
+
+  async function setarRecebedorAutomatico() {
+    if (!destinatarioId) return setErro('Selecione um técnico primeiro.')
+    startT(async () => {
+      setErro('')
+      const res = await definirRecebedorRelatorioProdutividade(destinatarioId)
+      if (res.success) {
+        setSucesso(true)
+        setTimeout(() => setSucesso(false), 3000)
+      } else {
+        setErro(res.error || 'Erro ao definir recebedor')
+      }
+    })
   }
 
   async function gerar(formato: 'pdf' | 'excel' | 'email') {
@@ -323,10 +338,16 @@ export default function AdminRelatoriosPage() {
                       {tecnicos.filter(t => !!t.email).map(t => <option key={t.id} value={t.id}>{t.nome} ({t.email})</option>)}
                     </select>
 
-                    <button onClick={() => gerar('email')} disabled={loading || !destinatarioId}
+                    <button onClick={() => gerar('email')} disabled={loading || !destinatarioId} title="Enviar Teste Agora"
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 20px', borderRadius: 8, background: '#1e293b', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1 }}>
                       {loading && exportando === 'email' ? <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Send size={16} />}
                       Enviar
+                    </button>
+                  </div>
+                  <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+                    <button onClick={setarRecebedorAutomatico} disabled={loading || !destinatarioId}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'transparent', border: '1px solid #cbd5e1', borderRadius: 6, color: '#475569', fontSize: 12, fontWeight: 600, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1 }}>
+                      <Clock size={14} /> Salvar Recebedor (Todo 5º Dia Útil)
                     </button>
                   </div>
                 </div>
