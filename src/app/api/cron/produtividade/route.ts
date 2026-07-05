@@ -209,11 +209,19 @@ export async function GET(request: Request) {
       tls: { rejectUnauthorized: false }
     })
 
+    // Busca emails de usuarios MASTER para enviar cópia (bcc)
+    const masters = await prisma.user.findMany({
+      where: { role: 'MASTER', active: '1' },
+      select: { email: true }
+    })
+    const bccEmails = masters.map(m => m.email).filter(Boolean) as string[]
+
     for (const tec of tecnicos) {
       if (tec.email) {
         await transporter.sendMail({
           from: `"SG4 - Gestão de Segurança do Trabalho" <${process.env.SMTP_USER || 'sg4@ehspro.com.br'}>`,
           to: tec.email,
+          bcc: bccEmails,
           subject: `Relatório de Produtividade Mensal - ${mesFormatado}`,
           html: htmlEmail
         })
