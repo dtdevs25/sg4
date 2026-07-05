@@ -37,8 +37,8 @@ async function loadLogo(src: string, makeWhite: boolean = false): Promise<string
           ctx.fillRect(0, 0, w, h)
         }
       }
-      // JPEG com qualidade 70% = muito menor que PNG
-      resolve(c.toDataURL('image/jpeg', 0.7))
+      // PNG para manter a transparência (já está pequeno pois foi redimensionado max 200px)
+      resolve(c.toDataURL('image/png'))
     }
     img.onerror = () => resolve('')
   })
