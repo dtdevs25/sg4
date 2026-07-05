@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   BarChart3, FileText, ShieldAlert, AlertTriangle, Clock,
@@ -63,6 +63,11 @@ export default function AdminRelatoriosPage() {
   const [exportando, setExportando] = useState<'pdf' | 'excel' | 'email' | null>(null)
   const [sucesso, setSucesso]     = useState(false)
   const [destinatarioId, setDestinatarioId] = useState('')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('tstDestinoEmailId')
+    if (saved) setDestinatarioId(saved)
+  }, [])
 
   async function abrirFiltros(id: string) {
     setTipoSel(id); setErro('')
@@ -307,7 +312,12 @@ export default function AdminRelatoriosPage() {
                   </label>
                   
                   <div style={{ display: 'flex', gap: 10 }}>
-                    <select value={destinatarioId} onChange={e => setDestinatarioId(e.target.value)}
+                    <select value={destinatarioId} onChange={e => {
+                        const v = e.target.value
+                        setDestinatarioId(v)
+                        if (v) localStorage.setItem('tstDestinoEmailId', v)
+                        else localStorage.removeItem('tstDestinoEmailId')
+                      }}
                       style={{ flex: 1, padding: '12px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
                       <option value=''>Selecione o TST Destino...</option>
                       {tecnicos.filter(t => !!t.email).map(t => <option key={t.id} value={t.id}>{t.nome} ({t.email})</option>)}
