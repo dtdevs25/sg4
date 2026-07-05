@@ -87,12 +87,14 @@ export default function AbastecimentoOrcamentoPage() {
 
           <div style={{ display: 'flex', gap: 12, background: '#fff', padding: 8, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
             <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f8fafc', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer' }}>
+              <option value={0}>Todos os meses (Consolidado)</option>
               {Array.from({length: 12}, (_, i) => i + 1).map(m => (
                 <option key={m} value={m}>{new Date(2024, m-1, 1).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>
               ))}
             </select>
-            <select value={ano} onChange={e => setAno(Number(e.target.value))} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f8fafc', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer' }}>
-              {[2024, 2025, 2026, 2027].map(a => <option key={a} value={a}>{a}</option>)}
+            <select value={ano} onChange={e => setAno(Number(e.target.value))} disabled={mes === 0} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f8fafc', fontWeight: 700, color: '#334155', outline: 'none', cursor: mes === 0 ? 'not-allowed' : 'pointer', opacity: mes === 0 ? 0.5 : 1 }}>
+              <option value={0}>Todos os anos</option>
+              {[2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
         </div>
@@ -123,9 +125,12 @@ export default function AbastecimentoOrcamentoPage() {
                   </div>
                   <div>
                     <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{item.tecnico.nome}</h3>
-                    <div style={{ display: 'flex', gap: 16 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>
-                        Verba Mensal: <strong style={{ color: '#334155' }}>R$ {item.orcamento.toFixed(2)}</strong>
+                        Base Mensal: <strong style={{ color: '#334155' }}>R$ {item.orcamento.toFixed(2)}</strong>
+                      </span>
+                      <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
+                        ({item.mesesValidos} meses apurados)
                       </span>
                     </div>
                   </div>
@@ -133,31 +138,43 @@ export default function AbastecimentoOrcamentoPage() {
 
                 <div style={{ display: 'flex', gap: 32, alignItems: 'center', flex: 1.5, justifyContent: 'center' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', marginBottom: 4 }}>GASTO NO MÊS</div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#ef4444' }}>
-                      R$ {item.gastoTotal.toFixed(2)}
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', marginBottom: 4 }}>
+                      {ano === 0 ? 'GASTO TOTAL' : 'GASTO ACUMULADO'}
                     </div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#ef4444' }}>
+                      R$ {item.gastoTotalAcumulado.toFixed(2)}
+                    </div>
+                    {ano !== 0 && (
+                      <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', marginTop: 4 }}>
+                        Apenas neste mês: R$ {item.gastoMesSelecionado.toFixed(2)}
+                      </div>
+                    )}
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', marginBottom: 4 }}>SALDO ATUAL</div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', marginBottom: 4 }}>
+                      {ano === 0 ? 'SALDO CONSOLIDADO' : 'SALDO ATUAL ACUMULADO'}
+                    </div>
                     <div style={{ fontSize: 16, fontWeight: 800, color: item.saldo <= 100 ? '#f59e0b' : '#10b981' }}>
                       R$ {item.saldo.toFixed(2)}
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', marginTop: 4 }}>
+                        (Teto acumulado: R$ {item.orcamentoAcumulado.toFixed(2)})
                     </div>
                   </div>
                 </div>
 
                 <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16 }}>
-                  {item.status === 'ADEQUADO' && (
+                  {ano !== 0 && item.status === 'ADEQUADO' && (
                     <div style={{ background: '#dcfce7', color: '#16a34a', padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <CheckCircle2 size={14} /> ADEQUADO
                     </div>
                   )}
-                  {item.status === 'ALERTA_PENDENTE' && (
+                  {ano !== 0 && item.status === 'ALERTA_PENDENTE' && (
                     <div style={{ background: '#fef3c7', color: '#d97706', padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <AlertTriangle size={14} /> ALERTA PENDENTE
                     </div>
                   )}
-                  {item.status === 'ALERTA_ENVIADO' && (
+                  {ano !== 0 && item.status === 'ALERTA_ENVIADO' && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                       <div style={{ background: '#fee2e2', color: '#dc2626', padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <AlertCircle size={14} /> ALERTA ENVIADO

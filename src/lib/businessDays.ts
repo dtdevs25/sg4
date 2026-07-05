@@ -24,3 +24,39 @@ export function getBusinessDaysPassedInMonth(year: number, month: number, maxDay
   }
   return count;
 }
+
+export function getValidMonthsCount(admissao: Date, targetAno: number, targetMes: number): number {
+  // Marco zero global: Junho de 2026 (mês 5 em 0-index)
+  let validMonths = 0;
+  
+  let currDate = new Date(2026, 5, 1);
+  const endDate = new Date(targetAno, targetMes - 1, 1);
+  
+  // Normalizar admissão (remover horas)
+  const admissaoDate = new Date(admissao);
+  admissaoDate.setHours(0,0,0,0);
+
+  while (currDate <= endDate) {
+    const ano = currDate.getFullYear();
+    const mes = currDate.getMonth();
+    
+    // Descobrir qual é o 1º dia útil deste mês
+    let firstBusinessDay = new Date(ano, mes, 1);
+    for(let i=1; i<=7; i++) {
+        let d = new Date(ano, mes, i);
+        if(d.getDay() !== 0 && d.getDay() !== 6) {
+           firstBusinessDay = d;
+           break;
+        }
+    }
+    
+    // Se a admissão for ANTES ou NO MESMO DIA do 1º dia útil, o mês é válido para receber verba
+    if (admissaoDate <= firstBusinessDay) {
+        validMonths++;
+    }
+    
+    currDate.setMonth(currDate.getMonth() + 1);
+  }
+  
+  return validMonths;
+}

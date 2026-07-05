@@ -13,47 +13,68 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
     // Busca todos os técnicos ativos
     const tecnicos = await prisma.tecnico.findMany({
       where: { ativo: true },
-      select: { id: true, nome: true, fotoUrl: true, orcamentoAbastecimento: true }
+      select: { id: true, nome: true, fotoUrl: true, orcamentoAbastecimento: true, admissao: true }
     })
 
-    const startDate = new Date(ano, mes - 1, 1)
-    const endDate = new Date(ano, mes, 0, 23, 59, 59)
-    const mesAnoStr = `${String(mes).padStart(2, '0')}/${ano}`
+    const isConsolidado = ano === 0;
+
+    // Se for consolidado, o alvo é o mês atual. Senão, é o mês selecionado.
+    const targetAno = isConsolidado ? new Date().getFullYear() : ano;
+    const targetMes = isConsolidado ? new Date().getMonth() + 1 : mes;
+
+    const startDate = new Date(2026, 5, 1) // Marco zero: Junho 2026
+    const endDate = new Date(targetAno, targetMes, 0, 23, 59, 59)
+    const mesAnoStr = `${String(targetMes).padStart(2, '0')}/${targetAno}`
 
     const resumos = []
 
     for (const tec of tecnicos) {
-      // Pega soma de abastecimentos
+      // Pega soma de TODOS os abastecimentos desde o marco zero até o fim do mês alvo
       const abastecimentos = await prisma.abastecimento.findMany({
         where: {
           tecnicoId: tec.id,
           data: { gte: startDate, lte: endDate }
         }
       })
-      const gastoTotal = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
-      
-      // Pega se o alerta foi enviado
-      const alerta = await prisma.alertaAbastecimento.findUnique({
-        where: {
-          tecnicoId_mesAno: {
-            tecnicoId: tec.id,
-            mesAno: mesAnoStr
-          }
-        }
-      })
+      const gastoTotalAcumulado = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
 
-      const saldo = tec.orcamentoAbastecimento - gastoTotal
+      // Calcula os meses válidos de orçamento para esse TST
+      const mesesValidos = getValidMonthsCount(tec.admissao, targetAno, targetMes);
+      const orcamentoAcumulado = tec.orcamentoAbastecimento * mesesValidos;
+      
+      const saldoAcumulado = orcamentoAcumulado - gastoTotalAcumulado
       
       let status = 'ADEQUADO'
-      if (saldo <= 100) {
-        status = alerta ? 'ALERTA_ENVIADO' : 'ALERTA_PENDENTE'
+      let alerta = null;
+
+      if (!isConsolidado) {
+        alerta = await prisma.alertaAbastecimento.findUnique({
+          where: {
+            tecnicoId_mesAno: {
+              tecnicoId: tec.id,
+              mesAno: mesAnoStr
+            }
+          }
+        })
+        if (saldoAcumulado <= 100) {
+          status = alerta ? 'ALERTA_ENVIADO' : 'ALERTA_PENDENTE'
+        }
       }
+
+      // Vamos calcular também o gasto só desse mês isolado para exibição, caso o usuário queira saber
+      const inicioMesAtual = new Date(targetAno, targetMes - 1, 1)
+      const gastoApenasMesSelecionado = abastecimentos
+        .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
+        .reduce((acc, curr) => acc + curr.valor, 0)
 
       resumos.push({
         tecnico: tec,
         orcamento: tec.orcamentoAbastecimento,
-        gastoTotal,
-        saldo,
+        orcamentoAcumulado,
+        mesesValidos,
+        gastoTotalAcumulado,
+        gastoMesSelecionado: gastoApenasMesSelecionado,
+        saldo: saldoAcumulado,
         status,
         alertaEnviadoEm: alerta?.enviadoEm || null,
         valorExtraCalculado: alerta?.valorExtra || 0
@@ -105,7 +126,8 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
     })
     if (!tec) return
 
-    const startDate = new Date(ano, mes - 1, 1)
+    // O marco zero é sempre junho de 2026
+    const startDate = new Date(2026, 5, 1)
     const endDate = new Date(ano, mes, 0, 23, 59, 59)
 
     const abastecimentos = await prisma.abastecimento.findMany({
@@ -114,10 +136,14 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
         data: { gte: startDate, lte: endDate }
       }
     })
-    const gastoTotal = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
-    const saldo = tec.orcamentoAbastecimento - gastoTotal
+    
+    const gastoTotalAcumulado = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
+    
+    const mesesValidos = getValidMonthsCount(tec.admissao, ano, mes);
+    const orcamentoAcumulado = tec.orcamentoAbastecimento * mesesValidos;
+    const saldoAcumulado = orcamentoAcumulado - gastoTotalAcumulado
 
-    if (saldo <= 100) {
+    if (saldoAcumulado <= 100) {
       // Checa se ja tem alerta
       const alertaExists = await prisma.alertaAbastecimento.findUnique({
         where: {
@@ -129,22 +155,27 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
       })
 
       if (!alertaExists) {
-        // Calcula valor
+        // Para calcular a média diária, usamos apenas os gastos do MÊS ATUAL
+        const inicioMesAtual = new Date(ano, mes - 1, 1);
+        const gastoMesAtual = abastecimentos
+          .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
+          .reduce((acc, curr) => acc + curr.valor, 0)
+
+        // Calcula valor baseado no mês atual
         const diasUteisTotais = getBusinessDaysInMonth(ano, mes - 1)
-        const diaAtual = new Date().getDate() // consideramos os dias uteis até hj, mesmo se o abastecimento for retroativo
+        const diaAtual = new Date().getDate()
         let diasUteisPassados = getBusinessDaysPassedInMonth(ano, mes - 1, diaAtual)
-        if (diasUteisPassados === 0) diasUteisPassados = 1 // evitar divisao por 0
+        if (diasUteisPassados === 0) diasUteisPassados = 1 
         
-        const mediaDiaria = gastoTotal / diasUteisPassados
+        const mediaDiaria = gastoMesAtual / diasUteisPassados
         const diasRestantes = diasUteisTotais - diasUteisPassados
         
-        // Quanto a mais ele precisa ate o fim do mes (descontando o saldo atual que ele ainda tem)
-        let valorExtra = (mediaDiaria * diasRestantes) - saldo
+        // Quanto a mais ele precisa ate o fim do mes (descontando o saldo acumulado total)
+        let valorExtra = (mediaDiaria * diasRestantes) - saldoAcumulado
         if (valorExtra < 0) valorExtra = 0
         
         valorExtra = Number(valorExtra.toFixed(2))
 
-        // Trigger webhook if variable is set
         const webhookUrl = process.env.N8N_WEBHOOK_ABASTECIMENTO
         if (webhookUrl) {
           try {
@@ -156,8 +187,10 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
                 nome: tec.nome,
                 mesAno: mesAnoStr,
                 orcamentoBase: tec.orcamentoAbastecimento,
-                gastoAteAgora: gastoTotal,
-                saldoAtual: saldo,
+                orcamentoAcumulado,
+                gastoTotalAcumulado,
+                gastoMesAtual,
+                saldoAtual: saldoAcumulado,
                 diasUteisTotais,
                 diasUteisPassados,
                 mediaDiariaGasto: Number(mediaDiaria.toFixed(2)),
@@ -199,7 +232,9 @@ export async function testN8NWebhook() {
       nome: 'João da Silva (TESTE)',
       mesAno: '07/2026',
       orcamentoBase: 800,
-      gastoAteAgora: 750,
+      orcamentoAcumulado: 1600,
+      gastoTotalAcumulado: 1550,
+      gastoMesAtual: 750,
       saldoAtual: 50,
       diasUteisTotais: 22,
       diasUteisPassados: 15,
