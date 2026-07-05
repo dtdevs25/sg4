@@ -536,7 +536,7 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
   const endOfMonth = f.dataFim ? new Date(f.dataFim + 'T23:59:59') : new Date()
 
   const [dssRaw, inspecoesRaw, tecnicos] = await Promise.all([
-    prisma.dssArkium.findMany({ select: { lider: true, dataFechamento: true } }),
+    prisma.dssArkium.findMany({ select: { lider: true, nome: true, dataFechamento: true } }),
     prisma.inspecoesArkium.findMany({ select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataFechamento: true } }),
     prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true, admissao: true, demissao: true } })
   ])
@@ -560,28 +560,39 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     return dt && dt >= startOfMonth && dt <= endOfMonth
   })
 
+  function normalize(s?: string | null) {
+    if (!s) return ''
+    return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+  }
+
   // Aggregate
-  const stats = new Map<string, { dss: number; inspecoes: number }>()
+  const stats = new Map<string, { dss: number; inspecoes: number, norm: string }>()
 
   // Inicializa apenas os técnicos ativos no período (os "da SG4")
   for (const t of tecnicos) {
     const isAtivoNoPeriodo = t.admissao <= endOfMonth && (!t.demissao || t.demissao >= startOfMonth)
     if (isAtivoNoPeriodo) {
-      stats.set(t.nome, { dss: 0, inspecoes: 0 })
+      stats.set(t.nome, { dss: 0, inspecoes: 0, norm: normalize(t.nome) })
     }
   }
 
   for (const d of dss) {
-    const nome = d.lider?.trim() || ''
-    if (stats.has(nome)) {
-      stats.get(nome)!.dss++
+    const liderNorm = normalize(d.lider || d.nome)
+    for (const [nome, val] of stats.entries()) {
+      if (liderNorm === val.norm || liderNorm.includes(val.norm)) {
+        val.dss++
+        break
+      }
     }
   }
 
   for (const i of inspecoes) {
-    const nome = i.tecnico?.nome || i.nomeAuditor?.trim() || ''
-    if (stats.has(nome)) {
-      stats.get(nome)!.inspecoes++
+    const audNorm = normalize(i.tecnico?.nome || i.nomeAuditor)
+    for (const [nome, val] of stats.entries()) {
+      if (audNorm === val.norm || audNorm.includes(val.norm)) {
+        val.inspecoes++
+        break
+      }
     }
   }
 
@@ -590,7 +601,7 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     dss: val.dss,
     inspecoes: val.inspecoes,
     total: val.dss + val.inspecoes
-  })).sort((a, b) => b.total - a.total)
+  })).sort((a, b) => a.tecnico.localeCompare(b.tecnico))
 
   return {
     success: true,

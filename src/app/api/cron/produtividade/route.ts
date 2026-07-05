@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const endOfMonth = new Date(filtros.dataFim + 'T23:59:59')
 
     const [dssRaw, inspecoesRaw, todosTecnicos] = await Promise.all([
-      prisma.dssArkium.findMany({ select: { lider: true, dataFechamento: true } }),
+      prisma.dssArkium.findMany({ select: { lider: true, nome: true, dataFechamento: true } }),
       prisma.inspecoesArkium.findMany({ select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataFechamento: true } }),
       prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true, admissao: true, demissao: true } })
     ])
@@ -69,23 +69,38 @@ export async function GET(request: Request) {
       return dt && dt >= startOfMonth && dt <= endOfMonth
     })
 
-    const stats = new Map<string, { dss: number; inspecoes: number }>()
+    function normalize(s?: string | null) {
+      if (!s) return ''
+      return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+    }
+
+    const stats = new Map<string, { dss: number; inspecoes: number, norm: string }>()
 
     for (const t of todosTecnicos) {
       const isAtivoNoPeriodo = t.admissao <= endOfMonth && (!t.demissao || t.demissao >= startOfMonth)
       if (isAtivoNoPeriodo) {
-        stats.set(t.nome, { dss: 0, inspecoes: 0 })
+        stats.set(t.nome, { dss: 0, inspecoes: 0, norm: normalize(t.nome) })
       }
     }
 
     for (const d of dss) {
-      const nome = d.lider?.trim() || ''
-      if (stats.has(nome)) stats.get(nome)!.dss++
+      const liderNorm = normalize(d.lider || d.nome)
+      for (const [nome, val] of stats.entries()) {
+        if (liderNorm === val.norm || liderNorm.includes(val.norm)) {
+          val.dss++
+          break
+        }
+      }
     }
 
     for (const i of inspecoes) {
-      const nome = i.tecnico?.nome || i.nomeAuditor?.trim() || ''
-      if (stats.has(nome)) stats.get(nome)!.inspecoes++
+      const audNorm = normalize(i.tecnico?.nome || i.nomeAuditor)
+      for (const [nome, val] of stats.entries()) {
+        if (audNorm === val.norm || audNorm.includes(val.norm)) {
+          val.inspecoes++
+          break
+        }
+      }
     }
 
     const rows = Array.from(stats.entries()).map(([tecnico, val]) => ({
@@ -93,7 +108,7 @@ export async function GET(request: Request) {
       dss: val.dss,
       inspecoes: val.inspecoes,
       total: val.dss + val.inspecoes
-    })).sort((a, b) => b.total - a.total)
+    })).sort((a, b) => a.tecnico.localeCompare(b.tecnico))
 
     let rowsHtml = rows.map(r => `
       <tr>

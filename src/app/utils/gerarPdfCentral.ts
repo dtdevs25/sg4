@@ -142,7 +142,14 @@ export async function gerarPdfCentral(opts: {
     styles: { fontSize: 7.5, cellPadding: 3.5, valign: 'middle', lineColor: [220, 220, 220], lineWidth: 0.3, textColor: DARK },
     headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', halign: 'center' },
     alternateRowStyles: { fillColor: GRAY_BG },
-    margin: { top: 76, left: 14, right: 14, bottom: 30 }
+    margin: { top: 76, left: 14, right: 14, bottom: 30 },
+    didParseCell: (data: any) => {
+      if (data.row.raw && data.row.raw[0] === 'TOTAL GERAL') {
+        data.cell.styles.fillColor = [241, 245, 249] // slate-100
+        data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.textColor = [102, 0, 153] // Roxo
+      }
+    }
   })
 
   // repintar cabeçalho + rodapé em todas as páginas para ter as numerações certas de total
