@@ -532,13 +532,13 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
-  const startOfMonth = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00Z') : new Date('2020-01-01T00:00:00Z')
-  const endOfMonth = f.dataFim ? new Date(f.dataFim + 'T23:59:59Z') : new Date()
+  const startOfMonth = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00') : new Date('2020-01-01T00:00:00')
+  const endOfMonth = f.dataFim ? new Date(f.dataFim + 'T23:59:59') : new Date()
 
   const [dssRaw, inspecoesRaw, tecnicos] = await Promise.all([
     prisma.dssArkium.findMany({ select: { lider: true, dataFechamento: true } }),
     prisma.inspecoesArkium.findMany({ select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataFechamento: true } }),
-    prisma.tecnico.findMany({ select: { nome: true, admissao: true, demissao: true } })
+    prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true, admissao: true, demissao: true } })
   ])
 
   function parseBrDate(dStr?: string | null) {

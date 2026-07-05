@@ -34,7 +34,7 @@ const TIPOS = [
   { id: 'km',          label: 'Quilometragem',                icon: Car,            cor: '#0ea5e9', grupo: 'Gerenciais',       desc: 'KM rodados e abastecimentos por técnico' },
   { id: 'atividades',  label: 'Atividades de Campo',          icon: BarChart3,      cor: '#16a34a', grupo: 'Gerenciais',       desc: 'Atividades executadas com empresa, local e descrição' },
   { id: 'ranking',     label: 'Ranking de Desempenho',        icon: Trophy,         cor: '#d97706', grupo: 'Gerenciais',       desc: 'Score consolidado: DSS + Inspeções + Reuniões' },
-  { id: 'produtividade',label: 'Produtividade (DSS e Insp.)', icon: CheckCircle,    cor: '#ec4899', grupo: 'Operacionais',    desc: 'Consolidado de DSS e Inspeções realizadas por técnico' },
+  { id: 'produtividade',label: 'Produtividade', icon: CheckCircle,    cor: '#ec4899', grupo: 'Operacionais',    desc: 'Consolidado de DSS e Inspeções realizadas por técnico' },
 ]
 
 const GRUPOS = ['Operacionais', 'Não Conformidades', 'Gerenciais']
@@ -152,7 +152,12 @@ export default function AdminRelatoriosPage() {
           genOpts = { titulo: 'Ranking de Desempenho', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos avaliados`, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.score}%`,pct:r.score})), headers: ['Pos.','Técnico','DSS','% DSS','Inspeções','% Insp.','Reuniões','% Pres.','Score'], rows: d.data.map((r:any,i:number)=>[`${i+1}º`,r.tecnico,r.dss,`${r.pctDss}%`,r.inspecoes,`${r.pctInsp}%`,r.reunioes,`${r.pctReunioes}%`,`${r.score}%`]) }
         } else if (tipoSel === 'produtividade') {
           const d = await getRelatorioProdutividadeDssInspecoes(filtros)
-          genOpts = { titulo: 'Produtividade (DSS e Inspeções)', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos consolidados`, headers: ['Técnico', 'DSS Realizados', 'Inspeções Realizadas'], rows: d.data.map((r:any) => [r.tecnico, r.dss, r.inspecoes]) }
+          const totalDss = d.data.reduce((acc: number, r: any) => acc + r.dss, 0)
+          const totalInsp = d.data.reduce((acc: number, r: any) => acc + r.inspecoes, 0)
+          const rows = d.data.map((r:any) => [r.tecnico, r.dss, r.inspecoes])
+          if (rows.length > 0) rows.push(['TOTAL GERAL', totalDss, totalInsp])
+          
+          genOpts = { titulo: 'Produtividade (DSS e Inspeções)', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos consolidados`, headers: ['Técnico', 'DSS Realizados', 'Inspeções Realizadas'], rows }
         }
 
         if (genOpts) {
@@ -335,7 +340,7 @@ export default function AdminRelatoriosPage() {
                       }}
                       style={{ flex: 1, padding: '12px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
                       <option value=''>Selecione o TST Destino...</option>
-                      {tecnicos.filter(t => !!t.email).map(t => <option key={t.id} value={t.id}>{t.nome} ({t.email})</option>)}
+                      {tecnicos.filter(t => !!t.email).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                     </select>
 
                     <button onClick={() => gerar('email')} disabled={loading || !destinatarioId} title="Enviar Teste Agora"

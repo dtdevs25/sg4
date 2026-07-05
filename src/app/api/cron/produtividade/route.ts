@@ -41,15 +41,13 @@ export async function GET(request: Request) {
     // 2. Coleta os dados de produtividade
     // Como a action usa `auth()`, e o CRON não tem sessão, precisaremos pegar a lógica bruta.
     // Mas a action exportada `getRelatorioProdutividadeDssInspecoes` exige sessão.
-    // Para contornar no CRON, replicamos a busca aqui:
-    
-    const startOfMonth = new Date(filtros.dataInicio + 'T00:00:00Z')
-    const endOfMonth = new Date(filtros.dataFim + 'T23:59:59Z')
+    const startOfMonth = new Date(filtros.dataInicio + 'T00:00:00')
+    const endOfMonth = new Date(filtros.dataFim + 'T23:59:59')
 
     const [dssRaw, inspecoesRaw, todosTecnicos] = await Promise.all([
       prisma.dssArkium.findMany({ select: { lider: true, dataFechamento: true } }),
       prisma.inspecoesArkium.findMany({ select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataFechamento: true } }),
-      prisma.tecnico.findMany({ select: { nome: true, admissao: true, demissao: true } })
+      prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true, admissao: true, demissao: true } })
     ])
 
     function parseBrDate(dStr?: string | null) {
@@ -97,14 +95,25 @@ export async function GET(request: Request) {
       total: val.dss + val.inspecoes
     })).sort((a, b) => b.total - a.total)
 
-    // 3. Montar a tabela HTML para o Corpo do E-mail
-    const rowsHtml = rows.map(r => `
+    let rowsHtml = rows.map(r => `
       <tr>
         <td style="padding: 10px; border-bottom: 1px solid #eee;">${r.tecnico}</td>
         <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.dss}</td>
         <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.inspecoes}</td>
       </tr>
     `).join('')
+
+    const sumDss = rows.reduce((acc, r) => acc + r.dss, 0)
+    const sumInsp = rows.reduce((acc, r) => acc + r.inspecoes, 0)
+    if (rows.length > 0) {
+      rowsHtml += `
+        <tr style="background-color: #f1f5f9; font-weight: bold; color: #660099;">
+          <td style="padding: 10px; border-bottom: 1px solid #eee;">TOTAL GERAL</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${sumDss}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${sumInsp}</td>
+        </tr>
+      `
+    }
 
     const mesFormatado = mesAnterior.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     const htmlEmail = `
