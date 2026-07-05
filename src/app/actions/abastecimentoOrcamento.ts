@@ -57,6 +57,29 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
       
       let status = 'ADEQUADO'
       let alerta = null;
+      let valorExtraDinamico = 0;
+
+      // Vamos calcular também o gasto só desse mês isolado para exibição, caso o usuário queira saber
+      const inicioMesAtual = new Date(targetAno, targetMes - 1, 1)
+      const gastoApenasMesSelecionado = abastecimentos
+        .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
+        .reduce((acc, curr) => acc + curr.valor, 0)
+
+      if (saldoAcumulado <= 100) {
+        const diasUteisTotais = getBusinessDaysInMonth(targetAno, targetMes - 1)
+        const diaAtual = new Date().getDate()
+        const mesAtualReal = new Date().getMonth() + 1
+        
+        let diasUteisPassados = getBusinessDaysPassedInMonth(targetAno, targetMes - 1, mesAtualReal === targetMes ? diaAtual : 31)
+        if (diasUteisPassados === 0) diasUteisPassados = 1 
+        
+        const mediaDiaria = gastoApenasMesSelecionado / diasUteisPassados
+        const diasRestantes = diasUteisTotais - diasUteisPassados
+        
+        valorExtraDinamico = (mediaDiaria * diasRestantes) - saldoAcumulado
+        if (valorExtraDinamico < 0) valorExtraDinamico = 0
+        valorExtraDinamico = Number(valorExtraDinamico.toFixed(2))
+      }
 
       if (!isConsolidado) {
         alerta = await prisma.alertaAbastecimento.findUnique({
@@ -67,16 +90,17 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
             }
           }
         })
+
+        // Se por acaso excluíram o abastecimento e o saldo voltou a ficar positivo, a gente limpa o alerta falso do banco
+        if (saldoAcumulado > 100 && alerta) {
+          await prisma.alertaAbastecimento.delete({ where: { id: alerta.id } })
+          alerta = null;
+        }
+
         if (saldoAcumulado <= 100) {
           status = alerta ? 'ALERTA_ENVIADO' : 'ALERTA_PENDENTE'
         }
       }
-
-      // Vamos calcular também o gasto só desse mês isolado para exibição, caso o usuário queira saber
-      const inicioMesAtual = new Date(targetAno, targetMes - 1, 1)
-      const gastoApenasMesSelecionado = abastecimentos
-        .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
-        .reduce((acc, curr) => acc + curr.valor, 0)
 
       const recargasApenasMesSelecionado = recargas
         .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
@@ -97,7 +121,7 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
         saldo: saldoAcumulado,
         status,
         alertaEnviadoEm: alerta?.enviadoEm || null,
-        valorExtraCalculado: alerta?.valorExtra || 0
+        valorExtraCalculado: valorExtraDinamico
       })
     }
 
