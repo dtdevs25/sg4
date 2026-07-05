@@ -87,6 +87,7 @@ export async function gerarPdfCentral(opts: {
   geradoPor: string
   headers: string[]
   rows: (string | number)[][]
+  totaisGerais?: number[]
   resumo?: { label: string; valor: string; pct?: number }[]
   totalTexto?: string
   fileName?: string
@@ -142,15 +143,26 @@ export async function gerarPdfCentral(opts: {
     styles: { fontSize: 7.5, cellPadding: 3.5, valign: 'middle', lineColor: [220, 220, 220], lineWidth: 0.3, textColor: DARK },
     headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', halign: 'center' },
     alternateRowStyles: { fillColor: GRAY_BG },
-    margin: { top: 76, left: 14, right: 14, bottom: 30 },
-    didParseCell: (data: any) => {
-      if (data.row.raw && data.row.raw[0] === 'TOTAL GERAL') {
-        data.cell.styles.fillColor = [241, 245, 249] // slate-100
-        data.cell.styles.fontStyle = 'bold'
-        data.cell.styles.textColor = [102, 0, 153] // Roxo
-      }
-    }
+    margin: { top: 76, left: 14, right: 14, bottom: 30 }
   })
+
+  let finalY = (doc as any).lastAutoTable.finalY || startY
+
+  if (opts.totaisGerais) {
+    const y = finalY + 10
+    doc.setFillColor(...GRAY_BG)
+    doc.setDrawColor(220, 220, 220)
+    doc.setLineWidth(0.4)
+    doc.roundedRect(14, y, W - 28, 20, 3, 3, 'FD')
+    
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(...PURPLE)
+    doc.text('TOTAL GERAL', 24, y + 13)
+    
+    const texto = `${opts.totaisGerais[0]} DSS Realizados   |   ${opts.totaisGerais[1]} Inspeções Realizadas`
+    doc.text(texto, W - 24, y + 13, { align: 'right' })
+  }
 
   // repintar cabeçalho + rodapé em todas as páginas para ter as numerações certas de total
   const total = (doc as any).internal.getNumberOfPages()
