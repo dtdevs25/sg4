@@ -575,13 +575,31 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
       return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
     }
 
-    // Matching por tokens: todos os tokens do nome cadastrado (>2 chars) devem existir no nome do Arkium
+    // Matching mais flexível para lidar com nomes Arkium abreviados vs nomes longos no DB (ex: Daniel Gregorio Jr vs Daniel José Gregorio Junior)
     function nameMatches(arkiumName: string, dbName: string): boolean {
       if (!arkiumName || !dbName) return false
       if (arkiumName === dbName) return true
+      if (arkiumName.includes(dbName) || dbName.includes(arkiumName)) return true
+      
+      const arkTokens = arkiumName.split(' ').filter(t => t.length > 2)
       const dbTokens = dbName.split(' ').filter(t => t.length > 2)
-      if (dbTokens.length === 0) return false
-      return dbTokens.every(token => arkiumName.includes(token))
+      
+      const firstDb = dbTokens[0]
+      const firstArk = arkTokens[0]
+      if (!firstDb || !firstArk) return false
+      
+      const firstNameMatch = firstDb === firstArk || firstArk.includes(firstDb) || firstDb.includes(firstArk)
+      if (!firstNameMatch) return false
+      
+      // Se um dos nomes só tem 1 palavra, assume que é a mesma pessoa já que o primeiro nome bateu
+      if (dbTokens.length === 1 || arkTokens.length === 1) return true
+      
+      // Verifica se existe pelo menos um sobrenome em comum
+      for (let i = 1; i < dbTokens.length; i++) {
+        if (arkTokens.includes(dbTokens[i])) return true
+      }
+      
+      return false
     }
 
     // Inicializa Map: Set<numeroDialogo> para DSS (evita contar o mesmo DSS duas vezes)

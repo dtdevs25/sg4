@@ -68,9 +68,25 @@ export async function GET(request: Request) {
     function nameMatches(arkiumName: string, dbName: string): boolean {
       if (!arkiumName || !dbName) return false
       if (arkiumName === dbName) return true
+      if (arkiumName.includes(dbName) || dbName.includes(arkiumName)) return true
+      
+      const arkTokens = arkiumName.split(' ').filter(t => t.length > 2)
       const dbTokens = dbName.split(' ').filter(t => t.length > 2)
-      if (dbTokens.length === 0) return false
-      return dbTokens.every(token => arkiumName.includes(token))
+      
+      const firstDb = dbTokens[0]
+      const firstArk = arkTokens[0]
+      if (!firstDb || !firstArk) return false
+      
+      const firstNameMatch = firstDb === firstArk || firstArk.includes(firstDb) || firstDb.includes(firstArk)
+      if (!firstNameMatch) return false
+      
+      if (dbTokens.length === 1 || arkTokens.length === 1) return true
+      
+      for (let i = 1; i < dbTokens.length; i++) {
+        if (arkTokens.includes(dbTokens[i])) return true
+      }
+      
+      return false
     }
 
     const stats = new Map<string, { dss: Set<string>; inspecoes: number; norm: string }>()
