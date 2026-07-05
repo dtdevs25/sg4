@@ -44,20 +44,38 @@ export async function GET(request: Request) {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
     const endOfMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
 
-    const [dss, inspecoes, todosTecnicos] = await Promise.all([
+    const [dssFull, inspecoesFull, todosTecnicos] = await Promise.all([
       prisma.dssArkium.findMany({ 
-        where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
-        select: { numeroDialogo: true, lider: true, nome: true } 
+        select: { numeroDialogo: true, lider: true, nome: true, dataFechamento: true } 
       }),
       prisma.inspecoesArkium.findMany({ 
-        where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
-        select: { tecnico: { select: { nome: true } }, nomeAuditor: true } 
+        select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataAbertura: true } 
       }),
       prisma.tecnico.findMany({ 
         where: { ativo: true }, 
         select: { nome: true, admissao: true, demissao: true } 
       })
     ])
+
+    function parseDate(d: string | null): Date | null {
+      if (!d) return null
+      const datePart = d.split(' ')[0]
+      const [dia, mes, ano] = datePart.split('/')
+      if (!dia || !mes || !ano) return null
+      return new Date(Number(ano), Number(mes) - 1, Number(dia))
+    }
+
+    const dss = dssFull.filter(d => {
+      const parsed = parseDate(d.dataFechamento)
+      if (!parsed) return false
+      return parsed >= startOfMonth && parsed <= endOfMonth
+    })
+
+    const inspecoes = inspecoesFull.filter(i => {
+      const parsed = parseDate(i.dataAbertura)
+      if (!parsed) return false
+      return parsed >= startOfMonth && parsed <= endOfMonth
+    })
 
     function normalize(s?: string | null) {
       if (!s) return ''
