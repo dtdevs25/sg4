@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
-import { getBusinessDaysInMonth, getBusinessDaysPassedInMonth } from '@/lib/businessDays'
+import { getBusinessDaysInMonth, getBusinessDaysPassedInMonth, getValidMonthsCount } from '@/lib/businessDays'
 
 export async function getResumoOrcamentoMes(ano: number, mes: number) {
   try {
@@ -38,9 +38,20 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
       })
       const gastoTotalAcumulado = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
 
+      // Busca recargas extras do período
+      const recargas = await prisma.recargaAbastecimento.findMany({
+        where: {
+          tecnicoId: tec.id,
+          data: { gte: startDate, lte: endDate }
+        }
+      })
+      const recargasTotalAcumulado = recargas.reduce((acc, curr) => acc + curr.valor, 0)
+
       // Calcula os meses válidos de orçamento para esse TST
       const mesesValidos = getValidMonthsCount(tec.admissao, targetAno, targetMes);
-      const orcamentoAcumulado = tec.orcamentoAbastecimento * mesesValidos;
+      
+      // O orcamento acumulado agora inclui as recargas extras
+      const orcamentoAcumulado = (tec.orcamentoAbastecimento * mesesValidos) + recargasTotalAcumulado;
       
       const saldoAcumulado = orcamentoAcumulado - gastoTotalAcumulado
       
@@ -67,10 +78,16 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
         .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
         .reduce((acc, curr) => acc + curr.valor, 0)
 
+      const recargasApenasMesSelecionado = recargas
+        .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
+        .reduce((acc, curr) => acc + curr.valor, 0)
+
       resumos.push({
         tecnico: tec,
         orcamento: tec.orcamentoAbastecimento,
         orcamentoAcumulado,
+        recargasTotalAcumulado,
+        recargasMesSelecionado: recargasApenasMesSelecionado,
         mesesValidos,
         gastoTotalAcumulado,
         gastoMesSelecionado: gastoApenasMesSelecionado,
@@ -139,8 +156,16 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
     
     const gastoTotalAcumulado = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
     
+    const recargas = await prisma.recargaAbastecimento.findMany({
+      where: {
+        tecnicoId: tec.id,
+        data: { gte: startDate, lte: endDate }
+      }
+    })
+    const recargasTotalAcumulado = recargas.reduce((acc, curr) => acc + curr.valor, 0)
+
     const mesesValidos = getValidMonthsCount(tec.admissao, ano, mes);
-    const orcamentoAcumulado = tec.orcamentoAbastecimento * mesesValidos;
+    const orcamentoAcumulado = (tec.orcamentoAbastecimento * mesesValidos) + recargasTotalAcumulado;
     const saldoAcumulado = orcamentoAcumulado - gastoTotalAcumulado
 
     if (saldoAcumulado <= 100) {
@@ -256,5 +281,35 @@ export async function testN8NWebhook() {
   } catch (error) {
     console.error('Erro ao testar webhook n8n:', error)
     return { success: false, error: 'Falha ao fazer a requisição para o N8N. Verifique a URL.' }
+  }
+}
+
+export async function createRecargaExtra(tecnicoId: string, valor: number, observacao: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const userId = (session.user as any).id
+
+    await prisma.recargaAbastecimento.create({
+      data: {
+        tecnicoId,
+        valor,
+        observacao
+      }
+    })
+
+    await audit({
+      userId,
+      action: 'CRIAR_RECARGA_ABASTECIMENTO',
+      entity: 'RecargaAbastecimento',
+      entityId: tecnicoId,
+      details: { valor, observacao }
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao registrar recarga:', error)
+    return { success: false, error: 'Falha ao registrar a recarga extra.' }
   }
 }

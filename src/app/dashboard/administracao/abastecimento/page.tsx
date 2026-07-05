@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { getResumoOrcamentoMes, updateOrcamentoTecnico, testN8NWebhook } from '@/app/actions/abastecimentoOrcamento'
-import { Fuel, AlertTriangle, CheckCircle2, AlertCircle, Edit2, Loader2, Save, X, Send } from 'lucide-react'
+import { getResumoOrcamentoMes, updateOrcamentoTecnico, testN8NWebhook, createRecargaExtra } from '@/app/actions/abastecimentoOrcamento'
+import { Fuel, AlertTriangle, CheckCircle2, AlertCircle, Edit2, Loader2, Save, X, Send, PlusCircle } from 'lucide-react'
 
 export default function AbastecimentoOrcamentoPage() {
   const [ano, setAno] = useState(new Date().getFullYear())
@@ -14,6 +14,11 @@ export default function AbastecimentoOrcamentoPage() {
   // Modal de edição de orçamento
   const [editModal, setEditModal] = useState<{ id: string, nome: string, orcamentoAtual: number } | null>(null)
   const [novoValor, setNovoValor] = useState('')
+
+  // Modal de Recarga
+  const [recargaModal, setRecargaModal] = useState<{ id: string, nome: string } | null>(null)
+  const [recargaValor, setRecargaValor] = useState('')
+  const [recargaObs, setRecargaObs] = useState('')
 
   useEffect(() => {
     load()
@@ -47,6 +52,25 @@ export default function AbastecimentoOrcamentoPage() {
         load()
       } else {
         alert(res.error || 'Erro ao atualizar orçamento')
+      }
+    })
+  }
+
+  function handleSalvarRecarga(e: React.FormEvent) {
+    e.preventDefault()
+    if (!recargaModal) return
+    const valor = parseFloat(recargaValor.replace(',', '.'))
+    if (isNaN(valor) || valor <= 0) return alert('Valor inválido')
+    
+    startTransition(async () => {
+      const res = await createRecargaExtra(recargaModal.id, valor, recargaObs)
+      if (res.success) {
+        setRecargaModal(null)
+        setRecargaValor('')
+        setRecargaObs('')
+        load()
+      } else {
+        alert(res.error || 'Erro ao registrar recarga extra')
       }
     })
   }
@@ -132,6 +156,11 @@ export default function AbastecimentoOrcamentoPage() {
                       <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
                         ({item.mesesValidos} meses apurados)
                       </span>
+                      {(ano === 0 ? item.recargasTotalAcumulado : item.recargasMesSelecionado) > 0 && (
+                        <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700, background: '#d1fae5', padding: '2px 6px', borderRadius: 4, display: 'inline-block', marginTop: 4 }}>
+                          + R$ {(ano === 0 ? item.recargasTotalAcumulado : item.recargasMesSelecionado).toFixed(2)} extra
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -185,16 +214,27 @@ export default function AbastecimentoOrcamentoPage() {
                     </div>
                   )}
 
-                  <button
-                    onClick={() => {
-                      setEditModal({ id: item.tecnico.id, nome: item.tecnico.nome, orcamentoAtual: item.orcamento })
-                      setNovoValor(item.orcamento.toString())
-                    }}
-                    style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: 10, color: '#475569', cursor: 'pointer', transition: 'all 0.2s' }}
-                    title="Editar Orçamento"
-                  >
-                    <Edit2 size={16} />
-                  </button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        setRecargaModal({ id: item.tecnico.id, nome: item.tecnico.nome })
+                      }}
+                      style={{ background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, color: '#16a34a', cursor: 'pointer', transition: 'all 0.2s' }}
+                      title="Adicionar Recarga Extra"
+                    >
+                      <PlusCircle size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditModal({ id: item.tecnico.id, nome: item.tecnico.nome, orcamentoAtual: item.orcamento })
+                        setNovoValor(item.orcamento.toString())
+                      }}
+                      style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: 10, color: '#475569', cursor: 'pointer', transition: 'all 0.2s' }}
+                      title="Editar Orçamento Base"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))
@@ -235,6 +275,59 @@ export default function AbastecimentoOrcamentoPage() {
                   Cancelar
                 </button>
                 <button type="submit" disabled={isPending} style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isPending ? 0.7 : 1 }}>
+                  {isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Recarga Extra */}
+      {recargaModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#10b981', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <PlusCircle size={18} /> Adicionar Recarga Extra
+              </h2>
+              <button onClick={() => setRecargaModal(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20}/></button>
+            </div>
+            <form onSubmit={handleSalvarRecarga} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#475569', lineHeight: 1.5 }}>
+                Lançar valor complementar depositado para <strong>{recargaModal.nome}</strong>. Esse valor aumenta o teto acumulado dele.
+              </p>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>VALOR DA RECARGA (R$)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  required
+                  value={recargaValor}
+                  onChange={e => setRecargaValor(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 16, fontWeight: 700, boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>MOTIVO / OBSERVAÇÃO</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="Ex: Complemento via N8N"
+                  value={recargaObs}
+                  onChange={e => setRecargaObs(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <button type="button" onClick={() => setRecargaModal(null)} style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', background: '#f1f5f9', color: '#475569', fontWeight: 800, cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={isPending} style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', background: '#10b981', color: '#fff', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: isPending ? 0.7 : 1 }}>
                   {isPending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   Salvar
                 </button>

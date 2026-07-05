@@ -107,6 +107,7 @@ model Tecnico {
   dssAliados        DssAliado[]
 
   alertasAbastecimento AlertaAbastecimento[]
+  recargasAbastecimento RecargaAbastecimento[]
 
   @@map("tecnicos")
 }
@@ -512,4 +513,17 @@ model AlertaAbastecimento {
   @@index([tecnicoId])
   @@map("alertas_abastecimento")
 }
+
+model RecargaAbastecimento {
+  id          String   @id @default(cuid())
+  tecnicoId   String
+  tecnico     Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+  data        DateTime @default(now())
+  valor       Float
+  observacao  String?
+
+  @@index([tecnicoId])
+  @@map("recargas_abastecimento")
+}
+
 
