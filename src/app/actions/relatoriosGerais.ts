@@ -537,20 +537,38 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     const startOfDay = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00') : new Date('2020-01-01T00:00:00')
     const endOfDay   = f.dataFim   ? new Date(f.dataFim   + 'T23:59:59') : new Date()
 
-    const [dss, inspecoes, tecnicos] = await Promise.all([
+    const [dssFull, inspecoesFull, tecnicos] = await Promise.all([
       prisma.dssArkium.findMany({ 
-        where: { importadoEm: { gte: startOfDay, lte: endOfDay } },
-        select: { numeroDialogo: true, lider: true, nome: true } 
+        select: { numeroDialogo: true, lider: true, nome: true, dataFechamento: true } 
       }),
       prisma.inspecoesArkium.findMany({ 
-        where: { importadoEm: { gte: startOfDay, lte: endOfDay } },
-        select: { tecnico: { select: { nome: true } }, nomeAuditor: true } 
+        select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataAbertura: true } 
       }),
       prisma.tecnico.findMany({ 
         where: { ativo: true }, 
         select: { nome: true, admissao: true, demissao: true } 
       })
     ])
+
+    function parseDate(d: string | null): Date | null {
+      if (!d) return null
+      const datePart = d.split(' ')[0]
+      const [dia, mes, ano] = datePart.split('/')
+      if (!dia || !mes || !ano) return null
+      return new Date(Number(ano), Number(mes) - 1, Number(dia))
+    }
+
+    const dss = dssFull.filter(d => {
+      const parsed = parseDate(d.dataFechamento)
+      if (!parsed) return false
+      return parsed >= startOfDay && parsed <= endOfDay
+    })
+
+    const inspecoes = inspecoesFull.filter(i => {
+      const parsed = parseDate(i.dataAbertura)
+      if (!parsed) return false
+      return parsed >= startOfDay && parsed <= endOfDay
+    })
 
     function normalize(s?: string | null) {
       if (!s) return ''

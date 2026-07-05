@@ -115,7 +115,7 @@ export default function AdminRelatoriosPage() {
         const safeTitle = tipo?.label.replace(/[^a-zA-Z0-9 \-]/g, '').slice(0, 30) || 'Relatorio'
         const dataStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '.')
         const baseFileName = `${safeTitle}${tName ? ` - ${tName}` : ''} - ${dataStr}`
-        const fn = formato === 'pdf' ? `${baseFileName}.pdf` : `${baseFileName}.xlsx`
+        const fn = formato === 'excel' ? `${baseFileName}.xlsx` : `${baseFileName}.pdf`
 
         if (tipoSel === 'agenda') {
           const d = await getRelatorioAgenda(filtros)
