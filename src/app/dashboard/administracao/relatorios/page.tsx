@@ -5,13 +5,14 @@ import { useSession } from 'next-auth/react'
 import {
   BarChart3, FileText, ShieldAlert, AlertTriangle, Clock,
   Users, Car, Trophy, Search, ChevronDown, FileSpreadsheet,
-  Download, Calendar, X, Loader2, CheckCircle
+  Download, Calendar, X, Loader2, CheckCircle, Mail, Send
 } from 'lucide-react'
 import {
   getRelatorioAgenda, getRelatorioDss, getRelatorioInspecoes,
   getRelatorioNaoConformes, getRelatorioDssPendentes, getRelatorioPlanejamentosAtrasados,
   getRelatorioAusencias, getRelatorioReunioes, getRelatorioKm,
   getRelatorioAtividadesCampo, getRelatorioRanking, getTecnicosParaFiltro,
+  getRelatorioProdutividadeDssInspecoes, enviarPdfPorEmail,
   type FiltrosRelatorio
 } from '@/app/actions/relatoriosGerais'
 
@@ -32,6 +33,7 @@ const TIPOS = [
   { id: 'km',          label: 'Quilometragem',                icon: Car,            cor: '#0ea5e9', grupo: 'Gerenciais',       desc: 'KM rodados e abastecimentos por técnico' },
   { id: 'atividades',  label: 'Atividades de Campo',          icon: BarChart3,      cor: '#16a34a', grupo: 'Gerenciais',       desc: 'Atividades executadas com empresa, local e descrição' },
   { id: 'ranking',     label: 'Ranking de Desempenho',        icon: Trophy,         cor: '#d97706', grupo: 'Gerenciais',       desc: 'Score consolidado: DSS + Inspeções + Reuniões' },
+  { id: 'produtividade',label: 'Produtividade (DSS e Insp.)', icon: CheckCircle,    cor: '#ec4899', grupo: 'Operacionais',    desc: 'Consolidado de DSS e Inspeções realizadas por técnico' },
 ]
 
 const GRUPOS = ['Operacionais', 'Não Conformidades', 'Gerenciais']
@@ -58,8 +60,9 @@ export default function AdminRelatoriosPage() {
   const [erro, setErro]           = useState('')
   const [loading, startT]         = useTransition()
   const [tecLoading, setTecLoading] = useState(false)
-  const [exportando, setExportando] = useState<'pdf' | 'excel' | null>(null)
+  const [exportando, setExportando] = useState<'pdf' | 'excel' | 'email' | null>(null)
   const [sucesso, setSucesso]     = useState(false)
+  const [destinatarioId, setDestinatarioId] = useState('')
 
   async function abrirFiltros(id: string) {
     setTipoSel(id); setErro('')
@@ -71,7 +74,7 @@ export default function AdminRelatoriosPage() {
     }
   }
 
-  async function gerar(formato: 'pdf' | 'excel') {
+  async function gerar(formato: 'pdf' | 'excel' | 'email') {
     const filtros: FiltrosRelatorio = {
       tecnicoId: tecnicoId || undefined,
       dataInicio, dataFim,
@@ -127,15 +130,33 @@ export default function AdminRelatoriosPage() {
         } else if (tipoSel === 'ranking') {
           const d = await getRelatorioRanking(filtros)
           genOpts = { titulo: 'Ranking de Desempenho', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos avaliados`, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.score}%`,pct:r.score})), headers: ['Pos.','Técnico','DSS','% DSS','Inspeções','% Insp.','Reuniões','% Pres.','Score'], rows: d.data.map((r:any,i:number)=>[`${i+1}º`,r.tecnico,r.dss,`${r.pctDss}%`,r.inspecoes,`${r.pctInsp}%`,r.reunioes,`${r.pctReunioes}%`,`${r.score}%`]) }
+        } else if (tipoSel === 'produtividade') {
+          const d = await getRelatorioProdutividadeDssInspecoes(filtros)
+          genOpts = { titulo: 'Produtividade (DSS e Inspeções)', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos consolidados`, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.total}`,pct: Math.min(100, r.total * 2)})), headers: ['Técnico', 'DSS Realizados', 'Inspeções Realizadas', 'Total'], rows: d.data.map((r:any) => [r.tecnico, r.dss, r.inspecoes, r.total]) }
         }
 
         if (genOpts) {
-          if (formato === 'pdf') {
+          if (formato === 'pdf' || formato === 'email') {
             const result = await gerarPdfCentral(genOpts)
             if (result?.base64) {
-              const a = document.createElement('a')
-              a.href = result.base64; a.download = result.fileName
-              document.body.appendChild(a); a.click(); document.body.removeChild(a)
+              if (formato === 'email') {
+                const dest = tecnicos.find(t => t.id === destinatarioId)
+                if (!dest || !dest.email) {
+                  setErro('Técnico destinatário não possui e-mail cadastrado ou não foi selecionado.')
+                  setExportando(null)
+                  return
+                }
+                const res = await enviarPdfPorEmail(dest.email, result.base64, result.fileName)
+                if (!res.success) {
+                  setErro(res.error || 'Erro ao enviar e-mail.')
+                  setExportando(null)
+                  return
+                }
+              } else {
+                const a = document.createElement('a')
+                a.href = result.base64; a.download = result.fileName
+                document.body.appendChild(a); a.click(); document.body.removeChild(a)
+              }
             }
           } else {
             await gerarExcelCentral(genOpts)
@@ -264,6 +285,7 @@ export default function AdminRelatoriosPage() {
                 </div>
               )}
 
+              {/* Botões Normais */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 24 }}>
                 <button onClick={() => gerar('pdf')} disabled={loading}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 10, background: tipo.cor, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'opacity 0.15s' }}>
@@ -276,6 +298,29 @@ export default function AdminRelatoriosPage() {
                   Gerar Excel
                 </button>
               </div>
+
+              {/* Área de E-mail (Só para Produtividade, ou disponível em todos) */}
+              {tipoSel === 'produtividade' && (
+                <div style={{ marginTop: 20, padding: 16, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <Mail size={14} /> Enviar PDF por E-mail
+                  </label>
+                  
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <select value={destinatarioId} onChange={e => setDestinatarioId(e.target.value)}
+                      style={{ flex: 1, padding: '12px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
+                      <option value=''>Selecione o TST Destino...</option>
+                      {tecnicos.filter(t => !!t.email).map(t => <option key={t.id} value={t.id}>{t.nome} ({t.email})</option>)}
+                    </select>
+
+                    <button onClick={() => gerar('email')} disabled={loading || !destinatarioId}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 20px', borderRadius: 8, background: '#1e293b', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1 }}>
+                      {loading && exportando === 'email' ? <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Send size={16} />}
+                      Enviar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -289,7 +334,7 @@ export default function AdminRelatoriosPage() {
               <CheckCircle size={32} color="#16a34a" />
             </div>
             <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0' }}>Sucesso!</h2>
-            <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>O relatório foi gerado e baixado automaticamente.</p>
+            <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>A operação foi concluída com êxito.</p>
           </div>
         </div>
       )}

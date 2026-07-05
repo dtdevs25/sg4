@@ -521,7 +521,109 @@ export async function getTecnicosParaFiltro() {
   if (!session?.user) return []
   return prisma.tecnico.findMany({
     where: { ativo: true },
-    select: { id: true, nome: true, fotoUrl: true },
+    select: { id: true, nome: true, fotoUrl: true, email: true },
     orderBy: { nome: 'asc' }
   })
 }
+
+// ── 12. Produtividade (DSS e Inspeções) ──────────────────────────────────────
+
+export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
+
+  const whereDate = (f.dataInicio && f.dataFim) ? {
+    gte: new Date(f.dataInicio + 'T00:00:00Z'),
+    lte: new Date(f.dataFim   + 'T23:59:59Z'),
+  } : undefined
+
+  const [dss, inspecoes] = await Promise.all([
+    prisma.dssArkium.findMany({ where: whereDate ? { importadoEm: whereDate } : {} }),
+    prisma.inspecoesArkium.findMany({ where: whereDate ? { importadoEm: whereDate } : {}, include: { tecnico: { select: { nome: true } } } }),
+  ])
+
+  // Aggregate
+  const stats = new Map<string, { dss: number; inspecoes: number }>()
+
+  for (const d of dss) {
+    const nome = d.lider?.trim() || 'Não Identificado'
+    if (!stats.has(nome)) stats.set(nome, { dss: 0, inspecoes: 0 })
+    stats.get(nome)!.dss++
+  }
+
+  for (const i of inspecoes) {
+    const nome = i.tecnico?.nome || i.nomeAuditor?.trim() || 'Não Identificado'
+    if (!stats.has(nome)) stats.set(nome, { dss: 0, inspecoes: 0 })
+    stats.get(nome)!.inspecoes++
+  }
+
+  const rows = Array.from(stats.entries()).map(([tecnico, val]) => ({
+    tecnico,
+    dss: val.dss,
+    inspecoes: val.inspecoes,
+    total: val.dss + val.inspecoes
+  })).sort((a, b) => b.total - a.total)
+
+  return {
+    success: true,
+    data: rows
+  }
+}
+
+// ── 13. Envio de E-mail com Relatório (PDF) ──────────────────────────────────
+import { sendMail } from '@/lib/mail'
+
+export async function enviarPdfPorEmail(tecnicoEmail: string, base64Pdf: string, fileName: string) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+  if (!tecnicoEmail) {
+    return { success: false, error: 'Técnico selecionado não possui e-mail cadastrado.' }
+  }
+
+  try {
+    // Remover o prefixo 'data:application/pdf;filename=generated.pdf;base64,' se existir
+    const base64Data = base64Pdf.includes('base64,') ? base64Pdf.split('base64,')[1] : base64Pdf
+    
+    // Anexar o PDF
+    const transporter = require('nodemailer').createTransport({
+      host: process.env.SMTP_HOST || 'srv-captain--mailserver',
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER || 'sg4@ehspro.com.br',
+        pass: process.env.SMTP_PASS || 'nova@2026',
+      },
+      tls: { rejectUnauthorized: false }
+    })
+
+    await transporter.sendMail({
+      from: `"SG4 - Gestão de Segurança do Trabalho" <${process.env.SMTP_USER || 'sg4@ehspro.com.br'}>`,
+      to: tecnicoEmail,
+      subject: `Relatório Consolidado de Produtividade - SG4`,
+      html: `
+        <div style="font-family: sans-serif; color: #333; max-width: 600px;">
+          <h2 style="color: #660099;">Relatório de Produtividade</h2>
+          <p>Olá,</p>
+          <p>Segue em anexo o relatório de Produtividade (DSS e Inspeções) gerado no sistema SG4.</p>
+          <br/>
+          <p style="font-size: 12px; color: #888;">Este é um e-mail automático enviado pelo painel executivo SG4.</p>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: fileName,
+          content: base64Data,
+          encoding: 'base64'
+        }
+      ]
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Erro ao enviar email com anexo', error)
+    return { success: false, error: error?.message || 'Erro interno ao enviar e-mail' }
+  }
+}
+
+
