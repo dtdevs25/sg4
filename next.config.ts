@@ -5,8 +5,10 @@ const nextConfig: any = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  serverActions: {
-    bodySizeLimit: '10mb',
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb',
+    },
   },
 };
 
