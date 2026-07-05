@@ -12,7 +12,7 @@ import {
   getRelatorioNaoConformes, getRelatorioDssPendentes, getRelatorioPlanejamentosAtrasados,
   getRelatorioAusencias, getRelatorioReunioes, getRelatorioKm,
   getRelatorioAtividadesCampo, getRelatorioRanking, getTecnicosParaFiltro,
-  getRelatorioProdutividadeDssInspecoes, enviarPdfPorEmail,
+  getRelatorioProdutividadeDssInspecoes,
   definirRecebedorRelatorioProdutividade,
   type FiltrosRelatorio
 } from '@/app/actions/relatoriosGerais'
@@ -155,9 +155,7 @@ export default function AdminRelatoriosPage() {
           const totalDss = d.data.reduce((acc: number, r: any) => acc + r.dss, 0)
           const totalInsp = d.data.reduce((acc: number, r: any) => acc + r.inspecoes, 0)
           const rows = d.data.map((r:any) => [r.tecnico, r.dss, r.inspecoes])
-          if (rows.length > 0) rows.push(['TOTAL GERAL', totalDss, totalInsp])
-          
-          genOpts = { titulo: 'Produtividade (DSS e Inspeções)', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos consolidados`, headers: ['Técnico', 'DSS Realizados', 'Inspeções Realizadas'], rows }
+          genOpts = { titulo: 'Produtividade (DSS e Inspeções)', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos consolidados`, headers: ['Técnico', 'DSS Realizados', 'Inspeções Realizadas'], rows, totaisGerais: [totalDss, totalInsp] }
         }
 
         if (genOpts) {
@@ -171,7 +169,13 @@ export default function AdminRelatoriosPage() {
                   setExportando(null)
                   return
                 }
-                const res = await enviarPdfPorEmail(dest.email, result.base64, result.fileName)
+                // Usa API route para evitar o limite de tamanho das Server Actions
+                const resp = await fetch('/api/email/enviar-pdf', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tecnicoEmail: dest.email, base64Pdf: result.base64, fileName: result.fileName })
+                })
+                const res = await resp.json()
                 if (!res.success) {
                   setErro(res.error || 'Erro ao enviar e-mail.')
                   setExportando(null)

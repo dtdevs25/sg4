@@ -533,16 +533,17 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
-    const startOfMonth = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00Z') : new Date('2020-01-01T00:00:00Z')
-    const endOfMonth = f.dataFim ? new Date(f.dataFim + 'T23:59:59Z') : new Date()
+    // Sem 'Z' para respeitar fuso do servidor (UTC-3 Brasil)
+    const startOfDay = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00') : new Date('2020-01-01T00:00:00')
+    const endOfDay   = f.dataFim   ? new Date(f.dataFim   + 'T23:59:59') : new Date()
 
     const [dss, inspecoes, tecnicos] = await Promise.all([
       prisma.dssArkium.findMany({ 
-        where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
+        where: { importadoEm: { gte: startOfDay, lte: endOfDay } },
         select: { lider: true, nome: true } 
       }),
       prisma.inspecoesArkium.findMany({ 
-        where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
+        where: { importadoEm: { gte: startOfDay, lte: endOfDay } },
         select: { tecnico: { select: { nome: true } }, nomeAuditor: true } 
       }),
       prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true, admissao: true, demissao: true } })
@@ -557,9 +558,9 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
   // Aggregate
   const stats = new Map<string, { dss: number; inspecoes: number, norm: string }>()
 
-  // Inicializa apenas os técnicos ativos no período (os "da SG4")
+  // Inicializa apenas os técnicos ativos no período
   for (const t of tecnicos) {
-    const isAtivoNoPeriodo = t.admissao <= endOfMonth && (!t.demissao || t.demissao >= startOfMonth)
+    const isAtivoNoPeriodo = t.admissao <= endOfDay && (!t.demissao || t.demissao >= startOfDay)
     if (isAtivoNoPeriodo) {
       stats.set(t.nome, { dss: 0, inspecoes: 0, norm: normalize(t.nome) })
     }
@@ -567,7 +568,8 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
 
   for (const d of dss) {
     const liderNorm = normalize(d.lider || d.nome)
-    for (const [nome, val] of stats.entries()) {
+    for (const [, val] of stats.entries()) {
+      // O nome do técnico cadastrado deve estar contido no nome do lider Arkium
       if (liderNorm === val.norm || liderNorm.includes(val.norm)) {
         val.dss++
         break
@@ -577,7 +579,7 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
 
   for (const i of inspecoes) {
     const audNorm = normalize(i.tecnico?.nome || i.nomeAuditor)
-    for (const [nome, val] of stats.entries()) {
+    for (const [, val] of stats.entries()) {
       if (audNorm === val.norm || audNorm.includes(val.norm)) {
         val.inspecoes++
         break
@@ -585,12 +587,14 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     }
   }
 
-    const rows = Array.from(stats.entries()).map(([tecnico, val]) => ({
-      tecnico,
-      dss: val.dss,
-      inspecoes: val.inspecoes,
-      total: val.dss + val.inspecoes
-    })).sort((a, b) => a.tecnico.localeCompare(b.tecnico))
+    const rows = Array.from(stats.entries())
+      .map(([tecnico, val]) => ({
+        tecnico,
+        dss: val.dss,
+        inspecoes: val.inspecoes,
+        total: val.dss + val.inspecoes
+      }))
+      .sort((a, b) => a.tecnico.localeCompare(b.tecnico, 'pt-BR'))
 
     return {
       success: true,
@@ -603,7 +607,7 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
 }
 
 // ── 13. Envio de E-mail com Relatório (PDF) ──────────────────────────────────
-import { sendMail } from '@/lib/mail'
+// O PDF é enviado via API route /api/email/enviar-pdf para evitar o limite de tamanho das Server Actions
 
 export async function enviarPdfPorEmail(tecnicoEmail: string, base64Pdf: string, fileName: string) {
   const session = await auth()
