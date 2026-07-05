@@ -26,8 +26,8 @@ const NAV: NavItemType[] = [
   { href: '/dashboard/atividades',  label: 'Planejamento',icon: CalendarDays       },
   { href: '/dashboard/reunioes',    label: 'Reuniões',    icon: CalendarCheck    },
   { href: '/dashboard/quilometragem',label: 'Quilometragem',icon: Car              },
-  { href: '/dashboard/apr',         label: 'APR',         icon: ShieldCheck      },
-  { href: '/dashboard/epi',         label: 'EPI',         icon: HardHat          },
+  // { href: '/dashboard/apr',         label: 'APR',         icon: ShieldCheck      },
+  // { href: '/dashboard/epi',         label: 'EPI',         icon: HardHat          },
   { href: '/dashboard/relatorios',  label: 'Relatórios',  icon: FileText         },
   { 
     label: 'Cadastros', icon: UserIcon, 
@@ -42,7 +42,7 @@ const NAV: NavItemType[] = [
     subItems: [
       { href: '/dashboard/administracao/abastecimento', label: 'Abastecimento' },
       { href: '/dashboard/administracao/logs', label: 'Logs' },
-      { href: '/dashboard/administracao/programacao', label: 'Programação' },
+      // { href: '/dashboard/administracao/programacao', label: 'Programação' },
       { href: '/dashboard/administracao/relatorios', label: 'Relatórios' },
     ]
   },
