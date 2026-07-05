@@ -169,12 +169,17 @@ export default function AdminRelatoriosPage() {
                   setExportando(null)
                   return
                 }
-                // Usa API route para evitar o limite de tamanho das Server Actions
-                const resp = await fetch('/api/email/enviar-pdf', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ tecnicoEmail: dest.email, base64Pdf: result.base64, fileName: result.fileName })
-                })
+                // Usa FormData (multipart) para evitar limite do JSON parser
+                const base64Only = result.base64.includes('base64,') ? result.base64.split('base64,')[1] : result.base64
+                const binaryStr = atob(base64Only)
+                const bytes = new Uint8Array(binaryStr.length)
+                for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
+                const pdfBlob = new Blob([bytes], { type: 'application/pdf' })
+                const fd = new FormData()
+                fd.append('tecnicoEmail', dest.email)
+                fd.append('fileName', result.fileName)
+                fd.append('pdf', pdfBlob, result.fileName)
+                const resp = await fetch('/api/email/enviar-pdf', { method: 'POST', body: fd })
                 const res = await resp.json()
                 if (!res.success) {
                   setErro(res.error || 'Erro ao enviar e-mail.')

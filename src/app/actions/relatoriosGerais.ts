@@ -540,59 +540,73 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     const [dss, inspecoes, tecnicos] = await Promise.all([
       prisma.dssArkium.findMany({ 
         where: { importadoEm: { gte: startOfDay, lte: endOfDay } },
-        select: { lider: true, nome: true } 
+        select: { numeroDialogo: true, lider: true, nome: true } 
       }),
       prisma.inspecoesArkium.findMany({ 
         where: { importadoEm: { gte: startOfDay, lte: endOfDay } },
         select: { tecnico: { select: { nome: true } }, nomeAuditor: true } 
       }),
-      prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true, admissao: true, demissao: true } })
+      prisma.tecnico.findMany({ 
+        where: { ativo: true }, 
+        select: { nome: true, admissao: true, demissao: true } 
+      })
     ])
 
-
-  function normalize(s?: string | null) {
-    if (!s) return ''
-    return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
-  }
-
-  // Aggregate
-  const stats = new Map<string, { dss: number; inspecoes: number, norm: string }>()
-
-  // Inicializa apenas os técnicos ativos no período
-  for (const t of tecnicos) {
-    const isAtivoNoPeriodo = t.admissao <= endOfDay && (!t.demissao || t.demissao >= startOfDay)
-    if (isAtivoNoPeriodo) {
-      stats.set(t.nome, { dss: 0, inspecoes: 0, norm: normalize(t.nome) })
+    function normalize(s?: string | null) {
+      if (!s) return ''
+      return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
     }
-  }
 
-  for (const d of dss) {
-    const liderNorm = normalize(d.lider || d.nome)
-    for (const [, val] of stats.entries()) {
-      // O nome do técnico cadastrado deve estar contido no nome do lider Arkium
-      if (liderNorm === val.norm || liderNorm.includes(val.norm)) {
-        val.dss++
-        break
+    // Matching por tokens: todos os tokens do nome cadastrado (>2 chars) devem existir no nome do Arkium
+    function nameMatches(arkiumName: string, dbName: string): boolean {
+      if (!arkiumName || !dbName) return false
+      if (arkiumName === dbName) return true
+      const dbTokens = dbName.split(' ').filter(t => t.length > 2)
+      if (dbTokens.length === 0) return false
+      return dbTokens.every(token => arkiumName.includes(token))
+    }
+
+    // Inicializa Map: Set<numeroDialogo> para DSS (evita contar o mesmo DSS duas vezes)
+    const stats = new Map<string, { dss: Set<string>; inspecoes: number; norm: string }>()
+    for (const t of tecnicos) {
+      const isAtivoNoPeriodo = t.admissao <= endOfDay && (!t.demissao || t.demissao >= startOfDay)
+      if (isAtivoNoPeriodo) {
+        stats.set(t.nome, { dss: new Set(), inspecoes: 0, norm: normalize(t.nome) })
       }
     }
-  }
 
-  for (const i of inspecoes) {
-    const audNorm = normalize(i.tecnico?.nome || i.nomeAuditor)
-    for (const [, val] of stats.entries()) {
-      if (audNorm === val.norm || audNorm.includes(val.norm)) {
-        val.inspecoes++
-        break
+    // Conta DSS: o técnico conta se for LÍDER ou PARTICIPANTE (campo nome) no diálogo
+    for (const d of dss) {
+      const liderNorm = normalize(d.lider)
+      const participanteNorm = normalize(d.nome)
+      for (const [, val] of stats.entries()) {
+        const isLider = !!liderNorm && nameMatches(liderNorm, val.norm)
+        const isParticipante = !!participanteNorm && nameMatches(participanteNorm, val.norm)
+        if (isLider || isParticipante) {
+          val.dss.add(d.numeroDialogo) // Set garante que o mesmo DSS não conta duas vezes
+          break
+        }
       }
     }
-  }
+
+    // Conta Inspeções
+    for (const i of inspecoes) {
+      const audNorm = normalize(i.tecnico?.nome || i.nomeAuditor)
+      if (!audNorm) continue
+      for (const [, val] of stats.entries()) {
+        if (nameMatches(audNorm, val.norm)) {
+          val.inspecoes++
+          break
+        }
+      }
+    }
 
     const rows = Array.from(stats.entries())
       .map(([tecnico, val]) => ({
         tecnico,
-        dss: val.dss,
+        dss: val.dss.size,
         inspecoes: val.inspecoes,
-        total: val.dss + val.inspecoes
+        total: val.dss.size + val.inspecoes
       }))
       .sort((a, b) => a.tecnico.localeCompare(b.tecnico, 'pt-BR'))
 

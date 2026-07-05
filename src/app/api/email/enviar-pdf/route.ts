@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 
+// Aumenta o limite de tamanho do body para esta rota (PDFs com logos são grandes)
+export const maxDuration = 60
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
@@ -8,18 +11,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Não autorizado' }, { status: 401 })
     }
 
-    const body = await req.json()
-    const { tecnicoEmail, base64Pdf, fileName } = body
+    const formData = await req.formData()
+    const tecnicoEmail = formData.get('tecnicoEmail') as string
+    const fileName = formData.get('fileName') as string
+    const pdfFile = formData.get('pdf') as File | null
 
     if (!tecnicoEmail) {
       return NextResponse.json({ success: false, error: 'E-mail do destinatário não informado.' }, { status: 400 })
     }
 
-    if (!base64Pdf) {
+    if (!pdfFile) {
       return NextResponse.json({ success: false, error: 'PDF não informado.' }, { status: 400 })
     }
 
-    const base64Data = base64Pdf.includes('base64,') ? base64Pdf.split('base64,')[1] : base64Pdf
+    const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer())
 
     const nodemailer = require('nodemailer')
     const transporter = nodemailer.createTransport({
@@ -49,8 +54,7 @@ export async function POST(req: NextRequest) {
       attachments: [
         {
           filename: fileName || 'relatorio.pdf',
-          content: base64Data,
-          encoding: 'base64'
+          content: pdfBuffer
         }
       ]
     })

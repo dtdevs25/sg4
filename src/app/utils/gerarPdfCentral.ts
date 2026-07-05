@@ -21,18 +21,24 @@ async function loadLogo(src: string, makeWhite: boolean = false): Promise<string
     img.crossOrigin = 'Anonymous'
     img.src = src
     img.onload = () => {
+      // Redimensionar para no máximo 200px de largura para manter PDF leve
+      const MAX_W = 200
+      const scale = img.width > MAX_W ? MAX_W / img.width : 1
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
       const c = document.createElement('canvas')
-      c.width = img.width; c.height = img.height
+      c.width = w; c.height = h
       const ctx = c.getContext('2d')
       if (ctx) {
-        ctx.drawImage(img, 0, 0)
+        ctx.drawImage(img, 0, 0, w, h)
         if (makeWhite) {
           ctx.globalCompositeOperation = 'source-in'
           ctx.fillStyle = '#ffffff'
-          ctx.fillRect(0, 0, c.width, c.height)
+          ctx.fillRect(0, 0, w, h)
         }
       }
-      resolve(c.toDataURL('image/png'))
+      // JPEG com qualidade 70% = muito menor que PNG
+      resolve(c.toDataURL('image/jpeg', 0.7))
     }
     img.onerror = () => resolve('')
   })

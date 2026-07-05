@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     const [dss, inspecoes, todosTecnicos] = await Promise.all([
       prisma.dssArkium.findMany({ 
         where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
-        select: { lider: true, nome: true } 
+        select: { numeroDialogo: true, lider: true, nome: true } 
       }),
       prisma.inspecoesArkium.findMany({ 
         where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
@@ -64,20 +64,35 @@ export async function GET(request: Request) {
       return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
     }
 
-    const stats = new Map<string, { dss: number; inspecoes: number, norm: string }>()
+    function normalize(s?: string | null) {
+      if (!s) return ''
+      return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+    }
 
+    function nameMatches(arkiumName: string, dbName: string): boolean {
+      if (!arkiumName || !dbName) return false
+      if (arkiumName === dbName) return true
+      const dbTokens = dbName.split(' ').filter(t => t.length > 2)
+      if (dbTokens.length === 0) return false
+      return dbTokens.every(token => arkiumName.includes(token))
+    }
+
+    const stats = new Map<string, { dss: Set<string>; inspecoes: number; norm: string }>()
     for (const t of todosTecnicos) {
       const isAtivoNoPeriodo = t.admissao <= endOfMonth && (!t.demissao || t.demissao >= startOfMonth)
       if (isAtivoNoPeriodo) {
-        stats.set(t.nome, { dss: 0, inspecoes: 0, norm: normalize(t.nome) })
+        stats.set(t.nome, { dss: new Set(), inspecoes: 0, norm: normalize(t.nome) })
       }
     }
 
     for (const d of dss) {
-      const liderNorm = normalize(d.lider || d.nome)
-      for (const [nome, val] of stats.entries()) {
-        if (liderNorm === val.norm || liderNorm.includes(val.norm)) {
-          val.dss++
+      const liderNorm = normalize(d.lider)
+      const participanteNorm = normalize(d.nome)
+      for (const [, val] of stats.entries()) {
+        const isLider = !!liderNorm && nameMatches(liderNorm, val.norm)
+        const isParticipante = !!participanteNorm && nameMatches(participanteNorm, val.norm)
+        if (isLider || isParticipante) {
+          val.dss.add(d.numeroDialogo)
           break
         }
       }
@@ -85,8 +100,9 @@ export async function GET(request: Request) {
 
     for (const i of inspecoes) {
       const audNorm = normalize(i.tecnico?.nome || i.nomeAuditor)
-      for (const [nome, val] of stats.entries()) {
-        if (audNorm === val.norm || audNorm.includes(val.norm)) {
+      if (!audNorm) continue
+      for (const [, val] of stats.entries()) {
+        if (nameMatches(audNorm, val.norm)) {
           val.inspecoes++
           break
         }
@@ -95,10 +111,10 @@ export async function GET(request: Request) {
 
     const rows = Array.from(stats.entries()).map(([tecnico, val]) => ({
       tecnico,
-      dss: val.dss,
+      dss: val.dss.size,
       inspecoes: val.inspecoes,
-      total: val.dss + val.inspecoes
-    })).sort((a, b) => a.tecnico.localeCompare(b.tecnico))
+      total: val.dss.size + val.inspecoes
+    })).sort((a, b) => a.tecnico.localeCompare(b.tecnico, 'pt-BR'))
 
     let rowsHtml = rows.map(r => `
       <tr>
