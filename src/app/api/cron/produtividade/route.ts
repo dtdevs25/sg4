@@ -64,10 +64,6 @@ export async function GET(request: Request) {
       return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
     }
 
-    function normalize(s?: string | null) {
-      if (!s) return ''
-      return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
-    }
 
     function nameMatches(arkiumName: string, dbName: string): boolean {
       if (!arkiumName || !dbName) return false
