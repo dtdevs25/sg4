@@ -101,8 +101,12 @@ model Tecnico {
 
   ultimoKmAlerta Int?
 
+  orcamentoAbastecimento Float @default(800)
+
   manutencoesVeiculo ManutencaoVeiculo[]
   dssAliados        DssAliado[]
+
+  alertasAbastecimento AlertaAbastecimento[]
 
   @@map("tecnicos")
 }
@@ -492,3 +496,20 @@ model RelatorioPdf {
   @@index([tecnicoId])
   @@map("relatorios_pdf")
 }
+
+// ─── ALERTAS DE ABASTECIMENTO ───────────────────────────────────────────────
+
+model AlertaAbastecimento {
+  id         String   @id @default(cuid())
+  tecnicoId  String
+  mesAno     String   // ex: "07/2026"
+  enviadoEm  DateTime @default(now())
+  valorExtra Float
+  
+  tecnico    Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+
+  @@unique([tecnicoId, mesAno])
+  @@index([tecnicoId])
+  @@map("alertas_abastecimento")
+}
+

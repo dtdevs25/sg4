@@ -6,6 +6,7 @@ import { audit } from '@/lib/audit'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
 import { checkMaintenanceAlert } from './manutencao'
+import { triggerN8NAlertCheck } from './abastecimentoOrcamento'
 
 // ─── UPLOAD PARA O MINIO (Bucket: sg4-km) ───
 export async function uploadFotoKm(formData: FormData) {
@@ -256,6 +257,9 @@ export async function createAbastecimento(data: {
     })
     await audit({ userId, action: 'CRIAR_ABASTECIMENTO', entity: 'Abastecimento', entityId: item.id, details: { valor: data.valor, tecnicoId: data.tecnicoId } })
 
+    // Disparar checagem de orçamento assíncrona
+    triggerN8NAlertCheck(data.tecnicoId, data.data).catch(console.error)
+
     return { success: true, data: item }
   } catch (error) {
     console.error('Erro ao criar abastecimento:', error)
@@ -282,6 +286,9 @@ export async function updateAbastecimento(id: string, data: {
       }
     })
     await audit({ userId, action: 'EDITAR_ABASTECIMENTO', entity: 'Abastecimento', entityId: id, details: { valor: data.valor } })
+
+    // Disparar checagem de orçamento assíncrona (usamos data do item)
+    triggerN8NAlertCheck(item.tecnicoId, item.data).catch(console.error)
 
     return { success: true, data: item }
   } catch (error) {
