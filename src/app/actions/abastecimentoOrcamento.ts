@@ -182,6 +182,10 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
 
     const mesesValidos = getValidMonthsCount(tec.admissao, ano, mes);
     const orcamentoAcumulado = (tec.orcamentoAbastecimento * mesesValidos) + recargasTotalAcumulado;
+    
+    // Se não há nenhum orçamento base e nenhuma recarga, ele não participa da regra de alertas
+    if (orcamentoAcumulado === 0) return;
+    
     const saldoAcumulado = orcamentoAcumulado - gastoTotalAcumulado
 
     if (saldoAcumulado <= 100) {
