@@ -533,33 +533,21 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
-    const startOfMonth = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00') : new Date('2020-01-01T00:00:00')
-    const endOfMonth = f.dataFim ? new Date(f.dataFim + 'T23:59:59') : new Date()
+    const startOfMonth = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00Z') : new Date('2020-01-01T00:00:00Z')
+    const endOfMonth = f.dataFim ? new Date(f.dataFim + 'T23:59:59Z') : new Date()
 
-    const [dssRaw, inspecoesRaw, tecnicos] = await Promise.all([
-      prisma.dssArkium.findMany({ select: { numeroDialogo: true, lider: true, nome: true, dataFechamento: true } }),
-      prisma.inspecoesArkium.findMany({ select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataFechamento: true } }),
+    const [dss, inspecoes, tecnicos] = await Promise.all([
+      prisma.dssArkium.findMany({ 
+        where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
+        select: { lider: true, nome: true } 
+      }),
+      prisma.inspecoesArkium.findMany({ 
+        where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
+        select: { tecnico: { select: { nome: true } }, nomeAuditor: true } 
+      }),
       prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true, admissao: true, demissao: true } })
     ])
 
-  function parseBrDate(dStr?: string | null) {
-    if (!dStr) return null;
-    const p = dStr.trim().split('/')
-    if (p.length === 3) return new Date(parseInt(p[2],10), parseInt(p[1],10)-1, parseInt(p[0],10))
-    const p2 = dStr.trim().split('-')
-    if (p2.length === 3) return new Date(parseInt(p2[0],10), parseInt(p2[1],10)-1, parseInt(p2[2],10))
-    return null
-  }
-
-  const dss = dssRaw.filter(d => {
-    const dt = parseBrDate(d.dataFechamento)
-    return dt && dt >= startOfMonth && dt <= endOfMonth
-  })
-
-  const inspecoes = inspecoesRaw.filter(i => {
-    const dt = parseBrDate(i.dataFechamento)
-    return dt && dt >= startOfMonth && dt <= endOfMonth
-  })
 
   function normalize(s?: string | null) {
     if (!s) return ''
@@ -567,13 +555,13 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
   }
 
   // Aggregate
-  const stats = new Map<string, { dss: Set<string>; inspecoes: number, norm: string }>()
+  const stats = new Map<string, { dss: number; inspecoes: number, norm: string }>()
 
   // Inicializa apenas os técnicos ativos no período (os "da SG4")
   for (const t of tecnicos) {
     const isAtivoNoPeriodo = t.admissao <= endOfMonth && (!t.demissao || t.demissao >= startOfMonth)
     if (isAtivoNoPeriodo) {
-      stats.set(t.nome, { dss: new Set(), inspecoes: 0, norm: normalize(t.nome) })
+      stats.set(t.nome, { dss: 0, inspecoes: 0, norm: normalize(t.nome) })
     }
   }
 
@@ -581,7 +569,7 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     const liderNorm = normalize(d.lider || d.nome)
     for (const [nome, val] of stats.entries()) {
       if (liderNorm === val.norm || liderNorm.includes(val.norm)) {
-        val.dss.add(d.numeroDialogo)
+        val.dss++
         break
       }
     }
@@ -599,9 +587,9 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
 
     const rows = Array.from(stats.entries()).map(([tecnico, val]) => ({
       tecnico,
-      dss: val.dss.size,
+      dss: val.dss,
       inspecoes: val.inspecoes,
-      total: val.dss.size + val.inspecoes
+      total: val.dss + val.inspecoes
     })).sort((a, b) => a.tecnico.localeCompare(b.tecnico))
 
     return {

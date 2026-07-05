@@ -39,35 +39,25 @@ export async function GET(request: Request) {
     }
 
     // 2. Coleta os dados de produtividade
-    // Como a action usa `auth()`, e o CRON não tem sessão, precisaremos pegar a lógica bruta.
-    // Mas a action exportada `getRelatorioProdutividadeDssInspecoes` exige sessão.
-    const startOfMonth = new Date(filtros.dataInicio + 'T00:00:00')
-    const endOfMonth = new Date(filtros.dataFim + 'T23:59:59')
+    // Para manter alinhamento, usaremos o filtro exato do Dashboard (importadoEm)
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
 
-    const [dssRaw, inspecoesRaw, todosTecnicos] = await Promise.all([
-      prisma.dssArkium.findMany({ select: { lider: true, nome: true, dataFechamento: true } }),
-      prisma.inspecoesArkium.findMany({ select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataFechamento: true } }),
-      prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true, admissao: true, demissao: true } })
+    const [dss, inspecoes, todosTecnicos] = await Promise.all([
+      prisma.dssArkium.findMany({ 
+        where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
+        select: { lider: true, nome: true } 
+      }),
+      prisma.inspecoesArkium.findMany({ 
+        where: { importadoEm: { gte: startOfMonth, lte: endOfMonth } },
+        select: { tecnico: { select: { nome: true } }, nomeAuditor: true } 
+      }),
+      prisma.tecnico.findMany({ 
+        where: { ativo: true }, 
+        select: { nome: true, admissao: true, demissao: true } 
+      })
     ])
-
-    function parseBrDate(dStr?: string | null) {
-      if (!dStr) return null;
-      const p = dStr.trim().split('/')
-      if (p.length === 3) return new Date(parseInt(p[2],10), parseInt(p[1],10)-1, parseInt(p[0],10))
-      const p2 = dStr.trim().split('-')
-      if (p2.length === 3) return new Date(parseInt(p2[0],10), parseInt(p2[1],10)-1, parseInt(p2[2],10))
-      return null
-    }
-
-    const dss = dssRaw.filter(d => {
-      const dt = parseBrDate(d.dataFechamento)
-      return dt && dt >= startOfMonth && dt <= endOfMonth
-    })
-
-    const inspecoes = inspecoesRaw.filter(i => {
-      const dt = parseBrDate(i.dataFechamento)
-      return dt && dt >= startOfMonth && dt <= endOfMonth
-    })
 
     function normalize(s?: string | null) {
       if (!s) return ''
