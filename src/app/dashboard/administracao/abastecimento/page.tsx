@@ -20,6 +20,9 @@ export default function AbastecimentoOrcamentoPage() {
   const [recargaValor, setRecargaValor] = useState('')
   const [recargaObs, setRecargaObs] = useState('')
 
+  // Notificações (Substitui os alerts nativos)
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', title: string, message: string } | null>(null)
+
   useEffect(() => {
     load()
   }, [ano, mes])
@@ -31,7 +34,7 @@ export default function AbastecimentoOrcamentoPage() {
       if (res.success && res.data) {
         setDados(res.data)
       } else {
-        alert(res.error || 'Erro ao carregar')
+        setNotification({ type: 'error', title: 'Erro de Carregamento', message: res.error || 'Erro ao carregar dados' })
       }
       setLoading(false)
     })
@@ -43,15 +46,16 @@ export default function AbastecimentoOrcamentoPage() {
     e.preventDefault()
     if (!editModal) return
     const valor = parseFloat(novoValor.replace(',', '.'))
-    if (isNaN(valor) || valor <= 0) return alert('Valor inválido')
+    if (isNaN(valor) || valor < 0) return setNotification({ type: 'error', title: 'Valor Inválido', message: 'O valor não pode ser negativo.' })
     
     startTransition(async () => {
       const res = await updateOrcamentoTecnico(editModal.id, valor)
       if (res.success) {
         setEditModal(null)
+        setNotification({ type: 'success', title: 'Sucesso', message: 'Orçamento atualizado com sucesso!' })
         load()
       } else {
-        alert(res.error || 'Erro ao atualizar orçamento')
+        setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao atualizar orçamento' })
       }
     })
   }
@@ -60,7 +64,7 @@ export default function AbastecimentoOrcamentoPage() {
     e.preventDefault()
     if (!recargaModal) return
     const valor = parseFloat(recargaValor.replace(',', '.'))
-    if (isNaN(valor) || valor <= 0) return alert('Valor inválido')
+    if (isNaN(valor) || valor <= 0) return setNotification({ type: 'error', title: 'Valor Inválido', message: 'A recarga precisa ser maior que zero.' })
     
     startTransition(async () => {
       const res = await createRecargaExtra(recargaModal.id, valor, recargaObs)
@@ -68,9 +72,10 @@ export default function AbastecimentoOrcamentoPage() {
         setRecargaModal(null)
         setRecargaValor('')
         setRecargaObs('')
+        setNotification({ type: 'success', title: 'Sucesso', message: 'Recarga extra lançada com sucesso!' })
         load()
       } else {
-        alert(res.error || 'Erro ao registrar recarga extra')
+        setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao registrar recarga extra' })
       }
     })
   }
@@ -104,9 +109,9 @@ export default function AbastecimentoOrcamentoPage() {
                 const res = await testN8NWebhook()
                 setTestandoN8N(false)
                 if (res.success) {
-                  alert('Mensagem de teste enviada para o N8N com sucesso!')
+                  setNotification({ type: 'success', title: 'Teste Enviado', message: 'Mensagem de teste enviada para o N8N com sucesso!' })
                 } else {
-                  alert(res.error || 'Erro ao enviar o teste pro N8N')
+                  setNotification({ type: 'error', title: 'Falha no Teste', message: res.error || 'Erro ao enviar o teste pro N8N' })
                 }
               })
             }}
@@ -342,6 +347,31 @@ export default function AbastecimentoOrcamentoPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Notification */}
+      {notification && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 360, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: notification.type === 'success' ? '#dcfce7' : '#fee2e2', color: notification.type === 'success' ? '#16a34a' : '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+              {notification.type === 'success' ? <CheckCircle2 size={32} /> : <AlertTriangle size={32} />}
+            </div>
+            
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+              {notification.title}
+            </h2>
+            <p style={{ margin: 0, fontSize: 14, color: '#475569', lineHeight: 1.5 }}>
+              {notification.message}
+            </p>
+
+            <button 
+              onClick={() => setNotification(null)}
+              style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: notification.type === 'success' ? '#16a34a' : '#dc2626', color: '#fff', fontWeight: 800, cursor: 'pointer', marginTop: 12 }}
+            >
+              OK
+            </button>
           </div>
         </div>
       )}
