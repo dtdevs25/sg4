@@ -7,7 +7,7 @@ RUN apk add --no-cache libc6-compat
 
 # --- CACHE BUSTER ---
 # Mudando esse valor forçamos o Docker a ignorar o cache corrompido da layer "unknown parent image ID"
-ENV DOCKER_CACHE_BUSTER=1
+ENV DOCKER_CACHE_BUSTER=2
 # --------------------
 
 # Copiar manifests ANTES do código fonte para aproveitar cache de layers.
