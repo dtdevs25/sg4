@@ -76,18 +76,27 @@ export default function AbastecimentoOrcamentoPage() {
   }
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1200, margin: '0 auto', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Fuel size={28} color="#660099" /> Gestão de Verba de Abastecimento
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Fuel color="#660099" size={22} />
+            Gestão de Verba de Abastecimento
           </h1>
-          <p style={{ color: '#64748b', margin: 0, fontSize: 14 }}>
-            Monitore o saldo dos TSTs e acompanhe os alertas automáticos via WhatsApp.
-          </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <button 
             onClick={() => {
               setTestandoN8N(true)
@@ -109,14 +118,14 @@ export default function AbastecimentoOrcamentoPage() {
             Testar N8N
           </button>
 
-          <div style={{ display: 'flex', gap: 12, background: '#fff', padding: 8, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-            <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f8fafc', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer' }}>
+          <div style={{ display: 'flex', gap: 12, background: '#f1f5f9', padding: 4, borderRadius: 8 }}>
+            <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
               <option value={0}>Todos os meses (Consolidado)</option>
               {Array.from({length: 12}, (_, i) => i + 1).map(m => (
                 <option key={m} value={m}>{new Date(2024, m-1, 1).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>
               ))}
             </select>
-            <select value={ano} onChange={e => setAno(Number(e.target.value))} disabled={mes === 0} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f8fafc', fontWeight: 700, color: '#334155', outline: 'none', cursor: mes === 0 ? 'not-allowed' : 'pointer', opacity: mes === 0 ? 0.5 : 1 }}>
+            <select value={ano} onChange={e => setAno(Number(e.target.value))} disabled={mes === 0} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: mes === 0 ? 'not-allowed' : 'pointer', opacity: mes === 0 ? 0.5 : 1, boxShadow: mes === 0 ? 'none' : '0 1px 3px rgba(0,0,0,0.1)' }}>
               <option value={0}>Todos os anos</option>
               {[2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
             </select>
