@@ -60,3 +60,25 @@ export function getValidMonthsCount(admissao: Date, targetAno: number, targetMes
   
   return validMonths;
 }
+
+export function isQuintoDiaUtil(dataObj = new Date()) {
+  const ano = dataObj.getFullYear()
+  const mes = dataObj.getMonth()
+  let diasUteis = 0
+  let diaIteracao = 1
+
+  while (diaIteracao <= 31) {
+    const d = new Date(ano, mes, diaIteracao)
+    if (d.getMonth() !== mes) break 
+    
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6
+    if (!isWeekend) {
+      diasUteis++
+      if (diasUteis === 5) {
+        return dataObj.getDate() === diaIteracao
+      }
+    }
+    diaIteracao++
+  }
+  return false
+}

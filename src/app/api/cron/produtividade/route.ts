@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 import { isQuintoDiaUtil } from '@/lib/businessDays'
 import { getRelatorioProdutividadeDssInspecoes } from '@/app/actions/relatoriosGerais'
 import { sendMail } from '@/lib/mail'
@@ -137,16 +137,16 @@ export async function GET(request: Request) {
     for (const tec of tecnicos) {
       if (tec.email) {
         await transporter.sendMail({
-          from: \`"SG4 - Gestão de Segurança do Trabalho" <\${process.env.SMTP_USER || 'sg4@ehspro.com.br'}>\`,
+          from: `"SG4 - Gestão de Segurança do Trabalho" <${process.env.SMTP_USER || 'sg4@ehspro.com.br'}>`,
           to: tec.email,
-          subject: \`Relatório de Produtividade Mensal - \${mesFormatado}\`,
+          subject: `Relatório de Produtividade Mensal - ${mesFormatado}`,
           html: htmlEmail
         })
         enviados++
       }
     }
 
-    return NextResponse.json({ success: true, message: \`Relatório enviado com sucesso para \${enviados} técnico(s).\` })
+    return NextResponse.json({ success: true, message: `Relatório enviado com sucesso para ${enviados} técnico(s).` })
 
   } catch (error: any) {
     console.error('Erro no CRON de Produtividade:', error)
