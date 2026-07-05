@@ -46,13 +46,30 @@ export async function GET(request: Request) {
     const startOfMonth = new Date(filtros.dataInicio + 'T00:00:00Z')
     const endOfMonth = new Date(filtros.dataFim + 'T23:59:59Z')
 
-    const whereDate = { gte: startOfMonth, lte: endOfMonth }
-
-    const [dss, inspecoes, todosTecnicos] = await Promise.all([
-      prisma.dssArkium.findMany({ where: { importadoEm: whereDate } }),
-      prisma.inspecoesArkium.findMany({ where: { importadoEm: whereDate }, include: { tecnico: { select: { nome: true } } } }),
+    const [dssRaw, inspecoesRaw, todosTecnicos] = await Promise.all([
+      prisma.dssArkium.findMany({ select: { lider: true, dataFechamento: true } }),
+      prisma.inspecoesArkium.findMany({ select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataFechamento: true } }),
       prisma.tecnico.findMany({ select: { nome: true, admissao: true, demissao: true } })
     ])
+
+    function parseBrDate(dStr?: string | null) {
+      if (!dStr) return null;
+      const p = dStr.trim().split('/')
+      if (p.length === 3) return new Date(parseInt(p[2],10), parseInt(p[1],10)-1, parseInt(p[0],10))
+      const p2 = dStr.trim().split('-')
+      if (p2.length === 3) return new Date(parseInt(p2[0],10), parseInt(p2[1],10)-1, parseInt(p2[2],10))
+      return null
+    }
+
+    const dss = dssRaw.filter(d => {
+      const dt = parseBrDate(d.dataFechamento)
+      return dt && dt >= startOfMonth && dt <= endOfMonth
+    })
+
+    const inspecoes = inspecoesRaw.filter(i => {
+      const dt = parseBrDate(i.dataFechamento)
+      return dt && dt >= startOfMonth && dt <= endOfMonth
+    })
 
     const stats = new Map<string, { dss: number; inspecoes: number }>()
 
@@ -86,7 +103,6 @@ export async function GET(request: Request) {
         <td style="padding: 10px; border-bottom: 1px solid #eee;">${r.tecnico}</td>
         <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.dss}</td>
         <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${r.inspecoes}</td>
-        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center; font-weight: bold; color: #660099;">${r.total}</td>
       </tr>
     `).join('')
 
@@ -108,7 +124,6 @@ export async function GET(request: Request) {
                 <th style="padding: 12px 10px; border-bottom: 2px solid #cbd5e1; text-align: left;">Técnico (SG4)</th>
                 <th style="padding: 12px 10px; border-bottom: 2px solid #cbd5e1; text-align: center;">DSS Realizados</th>
                 <th style="padding: 12px 10px; border-bottom: 2px solid #cbd5e1; text-align: center;">Inspeções Realizadas</th>
-                <th style="padding: 12px 10px; border-bottom: 2px solid #cbd5e1; text-align: center;">Total</th>
               </tr>
             </thead>
             <tbody>

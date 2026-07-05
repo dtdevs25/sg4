@@ -535,16 +535,30 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
   const startOfMonth = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00Z') : new Date('2020-01-01T00:00:00Z')
   const endOfMonth = f.dataFim ? new Date(f.dataFim + 'T23:59:59Z') : new Date()
 
-  const whereDate = (f.dataInicio && f.dataFim) ? {
-    gte: startOfMonth,
-    lte: endOfMonth,
-  } : undefined
-
-  const [dss, inspecoes, tecnicos] = await Promise.all([
-    prisma.dssArkium.findMany({ where: whereDate ? { importadoEm: whereDate } : {} }),
-    prisma.inspecoesArkium.findMany({ where: whereDate ? { importadoEm: whereDate } : {}, include: { tecnico: { select: { nome: true } } } }),
+  const [dssRaw, inspecoesRaw, tecnicos] = await Promise.all([
+    prisma.dssArkium.findMany({ select: { lider: true, dataFechamento: true } }),
+    prisma.inspecoesArkium.findMany({ select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataFechamento: true } }),
     prisma.tecnico.findMany({ select: { nome: true, admissao: true, demissao: true } })
   ])
+
+  function parseBrDate(dStr?: string | null) {
+    if (!dStr) return null;
+    const p = dStr.trim().split('/')
+    if (p.length === 3) return new Date(parseInt(p[2],10), parseInt(p[1],10)-1, parseInt(p[0],10))
+    const p2 = dStr.trim().split('-')
+    if (p2.length === 3) return new Date(parseInt(p2[0],10), parseInt(p2[1],10)-1, parseInt(p2[2],10))
+    return null
+  }
+
+  const dss = dssRaw.filter(d => {
+    const dt = parseBrDate(d.dataFechamento)
+    return dt && dt >= startOfMonth && dt <= endOfMonth
+  })
+
+  const inspecoes = inspecoesRaw.filter(i => {
+    const dt = parseBrDate(i.dataFechamento)
+    return dt && dt >= startOfMonth && dt <= endOfMonth
+  })
 
   // Aggregate
   const stats = new Map<string, { dss: number; inspecoes: number }>()

@@ -152,7 +152,7 @@ export default function AdminRelatoriosPage() {
           genOpts = { titulo: 'Ranking de Desempenho', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos avaliados`, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.score}%`,pct:r.score})), headers: ['Pos.','Técnico','DSS','% DSS','Inspeções','% Insp.','Reuniões','% Pres.','Score'], rows: d.data.map((r:any,i:number)=>[`${i+1}º`,r.tecnico,r.dss,`${r.pctDss}%`,r.inspecoes,`${r.pctInsp}%`,r.reunioes,`${r.pctReunioes}%`,`${r.score}%`]) }
         } else if (tipoSel === 'produtividade') {
           const d = await getRelatorioProdutividadeDssInspecoes(filtros)
-          genOpts = { titulo: 'Produtividade (DSS e Inspeções)', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos consolidados`, resumo: d.data.slice(0,8).map((r:any)=>({label:r.tecnico,valor:`${r.total}`,pct: Math.min(100, r.total * 2)})), headers: ['Técnico', 'DSS Realizados', 'Inspeções Realizadas', 'Total'], rows: d.data.map((r:any) => [r.tecnico, r.dss, r.inspecoes, r.total]) }
+          genOpts = { titulo: 'Produtividade (DSS e Inspeções)', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos consolidados`, headers: ['Técnico', 'DSS Realizados', 'Inspeções Realizadas'], rows: d.data.map((r:any) => [r.tecnico, r.dss, r.inspecoes]) }
         }
 
         if (genOpts) {
