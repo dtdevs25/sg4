@@ -532,29 +532,43 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
+  const startOfMonth = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00Z') : new Date('2020-01-01T00:00:00Z')
+  const endOfMonth = f.dataFim ? new Date(f.dataFim + 'T23:59:59Z') : new Date()
+
   const whereDate = (f.dataInicio && f.dataFim) ? {
-    gte: new Date(f.dataInicio + 'T00:00:00Z'),
-    lte: new Date(f.dataFim   + 'T23:59:59Z'),
+    gte: startOfMonth,
+    lte: endOfMonth,
   } : undefined
 
-  const [dss, inspecoes] = await Promise.all([
+  const [dss, inspecoes, tecnicos] = await Promise.all([
     prisma.dssArkium.findMany({ where: whereDate ? { importadoEm: whereDate } : {} }),
     prisma.inspecoesArkium.findMany({ where: whereDate ? { importadoEm: whereDate } : {}, include: { tecnico: { select: { nome: true } } } }),
+    prisma.tecnico.findMany({ select: { nome: true, admissao: true, demissao: true } })
   ])
 
   // Aggregate
   const stats = new Map<string, { dss: number; inspecoes: number }>()
 
+  // Inicializa apenas os técnicos ativos no período (os "da SG4")
+  for (const t of tecnicos) {
+    const isAtivoNoPeriodo = t.admissao <= endOfMonth && (!t.demissao || t.demissao >= startOfMonth)
+    if (isAtivoNoPeriodo) {
+      stats.set(t.nome, { dss: 0, inspecoes: 0 })
+    }
+  }
+
   for (const d of dss) {
-    const nome = d.lider?.trim() || 'Não Identificado'
-    if (!stats.has(nome)) stats.set(nome, { dss: 0, inspecoes: 0 })
-    stats.get(nome)!.dss++
+    const nome = d.lider?.trim() || ''
+    if (stats.has(nome)) {
+      stats.get(nome)!.dss++
+    }
   }
 
   for (const i of inspecoes) {
-    const nome = i.tecnico?.nome || i.nomeAuditor?.trim() || 'Não Identificado'
-    if (!stats.has(nome)) stats.set(nome, { dss: 0, inspecoes: 0 })
-    stats.get(nome)!.inspecoes++
+    const nome = i.tecnico?.nome || i.nomeAuditor?.trim() || ''
+    if (stats.has(nome)) {
+      stats.get(nome)!.inspecoes++
+    }
   }
 
   const rows = Array.from(stats.entries()).map(([tecnico, val]) => ({
