@@ -22,7 +22,7 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
     const targetAno = isConsolidado ? new Date().getFullYear() : ano;
     const targetMes = isConsolidado ? new Date().getMonth() + 1 : mes;
 
-    const startDate = new Date(2026, 5, 1) // Marco zero: Junho 2026
+    const startDate = new Date(2026, 6, 1) // Marco zero global: Julho 2026
     const endDate = new Date(targetAno, targetMes, 0, 23, 59, 59)
     const mesAnoStr = `${String(targetMes).padStart(2, '0')}/${targetAno}`
 
@@ -38,12 +38,11 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
       })
       const gastoTotalAcumulado = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
 
-      // A regra de negócio define que recargas extras só devem ser contabilizadas a partir de Julho/2026
-      const startDateRecargas = new Date(2026, 6, 1) // Julho 2026
+      // Busca recargas extras do período (a partir do marco zero Julho 2026)
       const recargas = await prisma.recargaAbastecimento.findMany({
         where: {
           tecnicoId: tec.id,
-          data: { gte: startDateRecargas, lte: endDate }
+          data: { gte: startDate, lte: endDate }
         }
       })
       const recargasTotalAcumulado = recargas.reduce((acc, curr) => acc + curr.valor, 0)
@@ -157,8 +156,8 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
     })
     if (!tec) return
 
-    // O marco zero é sempre junho de 2026
-    const startDate = new Date(2026, 5, 1)
+    // O marco zero é sempre julho de 2026
+    const startDate = new Date(2026, 6, 1)
     const endDate = new Date(ano, mes, 0, 23, 59, 59)
 
     const abastecimentos = await prisma.abastecimento.findMany({
@@ -169,12 +168,10 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
     })
     
     const gastoTotalAcumulado = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
-    // A regra de negócio define que recargas extras só devem ser contabilizadas a partir de Julho/2026
-    const startDateRecargas = new Date(2026, 6, 1) // Julho 2026
     const recargas = await prisma.recargaAbastecimento.findMany({
       where: {
         tecnicoId: tec.id,
-        data: { gte: startDateRecargas, lte: endDate }
+        data: { gte: startDate, lte: endDate }
       }
     })
     const recargasTotalAcumulado = recargas.reduce((acc, curr) => acc + curr.valor, 0)

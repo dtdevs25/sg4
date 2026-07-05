@@ -26,10 +26,10 @@ export function getBusinessDaysPassedInMonth(year: number, month: number, maxDay
 }
 
 export function getValidMonthsCount(admissao: Date, targetAno: number, targetMes: number): number {
-  // Marco zero global: Junho de 2026 (mês 5 em 0-index)
+  // Marco zero global: Julho de 2026 (mês 6 em 0-index)
   let validMonths = 0;
   
-  let currDate = new Date(2026, 5, 1);
+  let currDate = new Date(2026, 6, 1);
   const endDate = new Date(targetAno, targetMes - 1, 1);
   
   // Normalizar admissão (remover horas)
