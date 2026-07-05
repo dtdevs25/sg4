@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { getResumoOrcamentoMes, updateOrcamentoTecnico } from '@/app/actions/abastecimentoOrcamento'
-import { Fuel, AlertTriangle, CheckCircle2, AlertCircle, Edit2, Loader2, Save, X } from 'lucide-react'
+import { getResumoOrcamentoMes, updateOrcamentoTecnico, testN8NWebhook } from '@/app/actions/abastecimentoOrcamento'
+import { Fuel, AlertTriangle, CheckCircle2, AlertCircle, Edit2, Loader2, Save, X, Send } from 'lucide-react'
 
 export default function AbastecimentoOrcamentoPage() {
   const [ano, setAno] = useState(new Date().getFullYear())
@@ -31,6 +31,8 @@ export default function AbastecimentoOrcamentoPage() {
       setLoading(false)
     })
   }
+
+  const [testandoN8N, setTestandoN8N] = useState(false)
 
   function handleSalvarEdicao(e: React.FormEvent) {
     e.preventDefault()
@@ -61,15 +63,38 @@ export default function AbastecimentoOrcamentoPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, background: '#fff', padding: 8, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-          <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f8fafc', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer' }}>
-            {Array.from({length: 12}, (_, i) => i + 1).map(m => (
-              <option key={m} value={m}>{new Date(2024, m-1, 1).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>
-            ))}
-          </select>
-          <select value={ano} onChange={e => setAno(Number(e.target.value))} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f8fafc', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer' }}>
-            {[2024, 2025, 2026, 2027].map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <button 
+            onClick={() => {
+              setTestandoN8N(true)
+              startTransition(async () => {
+                const res = await testN8NWebhook()
+                setTestandoN8N(false)
+                if (res.success) {
+                  alert('Mensagem de teste enviada para o N8N com sucesso!')
+                } else {
+                  alert(res.error || 'Erro ao enviar o teste pro N8N')
+                }
+              })
+            }}
+            disabled={testandoN8N}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e0e7ff', color: '#4f46e5', border: '1px solid #c7d2fe', padding: '8px 16px', borderRadius: 8, fontWeight: 700, cursor: testandoN8N ? 'not-allowed' : 'pointer' }}
+            title="Dispara um JSON de teste para o N8N"
+          >
+            {testandoN8N ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            Testar N8N
+          </button>
+
+          <div style={{ display: 'flex', gap: 12, background: '#fff', padding: 8, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+            <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f8fafc', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer' }}>
+              {Array.from({length: 12}, (_, i) => i + 1).map(m => (
+                <option key={m} value={m}>{new Date(2024, m-1, 1).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>
+              ))}
+            </select>
+            <select value={ano} onChange={e => setAno(Number(e.target.value))} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f8fafc', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer' }}>
+              {[2024, 2025, 2026, 2027].map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 

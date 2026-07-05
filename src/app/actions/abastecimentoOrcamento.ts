@@ -183,3 +183,43 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
     console.error('Erro na trigger de alerta de abastecimento:', error)
   }
 }
+
+export async function testN8NWebhook() {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const webhookUrl = process.env.N8N_WEBHOOK_ABASTECIMENTO
+    if (!webhookUrl) {
+      return { success: false, error: 'Variável de ambiente N8N_WEBHOOK_ABASTECIMENTO não está configurada no servidor.' }
+    }
+
+    const payload = {
+      tecnicoId: 'teste-1234',
+      nome: 'João da Silva (TESTE)',
+      mesAno: '07/2026',
+      orcamentoBase: 800,
+      gastoAteAgora: 750,
+      saldoAtual: 50,
+      diasUteisTotais: 22,
+      diasUteisPassados: 15,
+      mediaDiariaGasto: 50.00,
+      valorComplementarSugerido: 300.00
+    }
+
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+
+    if (!res.ok) {
+      return { success: false, error: `O N8N retornou erro de status: ${res.status}` }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao testar webhook n8n:', error)
+    return { success: false, error: 'Falha ao fazer a requisição para o N8N. Verifique a URL.' }
+  }
+}
