@@ -38,11 +38,12 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
       })
       const gastoTotalAcumulado = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
 
-      // Busca recargas extras do período
+      // A regra de negócio define que recargas extras só devem ser contabilizadas a partir de Julho/2026
+      const startDateRecargas = new Date(2026, 6, 1) // Julho 2026
       const recargas = await prisma.recargaAbastecimento.findMany({
         where: {
           tecnicoId: tec.id,
-          data: { gte: startDate, lte: endDate }
+          data: { gte: startDateRecargas, lte: endDate }
         }
       })
       const recargasTotalAcumulado = recargas.reduce((acc, curr) => acc + curr.valor, 0)
@@ -168,11 +169,12 @@ export async function triggerN8NAlertCheck(tecnicoId: string, dataAbastecimento:
     })
     
     const gastoTotalAcumulado = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
-    
+    // A regra de negócio define que recargas extras só devem ser contabilizadas a partir de Julho/2026
+    const startDateRecargas = new Date(2026, 6, 1) // Julho 2026
     const recargas = await prisma.recargaAbastecimento.findMany({
       where: {
         tecnicoId: tec.id,
-        data: { gte: startDate, lte: endDate }
+        data: { gte: startDateRecargas, lte: endDate }
       }
     })
     const recargasTotalAcumulado = recargas.reduce((acc, curr) => acc + curr.valor, 0)

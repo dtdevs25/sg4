@@ -122,22 +122,21 @@ export default function AbastecimentoOrcamentoPage() {
               })
             }}
             disabled={testandoN8N}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e0e7ff', color: '#4f46e5', border: '1px solid #c7d2fe', padding: '6px 12px', fontSize: 13, borderRadius: 6, fontWeight: 700, cursor: testandoN8N ? 'not-allowed' : 'pointer' }}
-            title="Dispara um JSON de teste para o N8N"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: '#e0e7ff', color: '#4f46e5', border: '1px solid #c7d2fe', borderRadius: 6, cursor: testandoN8N ? 'not-allowed' : 'pointer' }}
+            title="Disparar teste para N8N"
           >
-            {testandoN8N ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-            Testar N8N
+            {testandoN8N ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
 
           <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 6 }}>
             <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <option value={0}>Todos os meses (Consolidado)</option>
+              <option value={0}>Acumulado (Todos)</option>
               {Array.from({length: 12}, (_, i) => i + 1).map(m => (
                 <option key={m} value={m}>{new Date(2024, m-1, 1).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>
               ))}
             </select>
             <select value={ano} onChange={e => setAno(Number(e.target.value))} disabled={mes === 0} style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: mes === 0 ? 'not-allowed' : 'pointer', opacity: mes === 0 ? 0.5 : 1, boxShadow: mes === 0 ? 'none' : '0 1px 3px rgba(0,0,0,0.1)' }}>
-              <option value={0}>Todos os anos</option>
+              <option value={0}>Acumulado (Todos)</option>
               {[2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
