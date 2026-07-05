@@ -8,6 +8,7 @@ export default function AbastecimentoOrcamentoPage() {
   const [ano, setAno] = useState(new Date().getFullYear())
   const [mes, setMes] = useState(new Date().getMonth() + 1)
   const [dados, setDados] = useState<any[]>([])
+  const [mostrarOcultos, setMostrarOcultos] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isPending, startTransition] = useTransition()
 
@@ -102,6 +103,11 @@ export default function AbastecimentoOrcamentoPage() {
         </div>
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+            <input type="checkbox" checked={mostrarOcultos} onChange={e => setMostrarOcultos(e.target.checked)} style={{ accentColor: '#660099', cursor: 'pointer' }} />
+            Exibir TSTs zerados
+          </label>
+
           <button 
             onClick={() => {
               setTestandoN8N(true)
@@ -116,21 +122,21 @@ export default function AbastecimentoOrcamentoPage() {
               })
             }}
             disabled={testandoN8N}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e0e7ff', color: '#4f46e5', border: '1px solid #c7d2fe', padding: '8px 16px', borderRadius: 8, fontWeight: 700, cursor: testandoN8N ? 'not-allowed' : 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#e0e7ff', color: '#4f46e5', border: '1px solid #c7d2fe', padding: '6px 12px', fontSize: 13, borderRadius: 6, fontWeight: 700, cursor: testandoN8N ? 'not-allowed' : 'pointer' }}
             title="Dispara um JSON de teste para o N8N"
           >
-            {testandoN8N ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            {testandoN8N ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             Testar N8N
           </button>
 
-          <div style={{ display: 'flex', gap: 12, background: '#f1f5f9', padding: 4, borderRadius: 8 }}>
-            <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 6 }}>
+            <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
               <option value={0}>Todos os meses (Consolidado)</option>
               {Array.from({length: 12}, (_, i) => i + 1).map(m => (
                 <option key={m} value={m}>{new Date(2024, m-1, 1).toLocaleString('pt-BR', { month: 'long' }).toUpperCase()}</option>
               ))}
             </select>
-            <select value={ano} onChange={e => setAno(Number(e.target.value))} disabled={mes === 0} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: mes === 0 ? 'not-allowed' : 'pointer', opacity: mes === 0 ? 0.5 : 1, boxShadow: mes === 0 ? 'none' : '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <select value={ano} onChange={e => setAno(Number(e.target.value))} disabled={mes === 0} style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: mes === 0 ? 'not-allowed' : 'pointer', opacity: mes === 0 ? 0.5 : 1, boxShadow: mes === 0 ? 'none' : '0 1px 3px rgba(0,0,0,0.1)' }}>
               <option value={0}>Todos os anos</option>
               {[2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
             </select>
@@ -139,15 +145,17 @@ export default function AbastecimentoOrcamentoPage() {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 100 }}>
-          <Loader2 size={40} className="animate-spin" color="#660099" />
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+          <Loader2 className="animate-spin text-purple-600" size={32} />
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {dados.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Nenhum TST encontrado.</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {dados.filter(item => mostrarOcultos || !(item.orcamento === 0 && item.gastoTotalAcumulado === 0 && item.recargasTotalAcumulado === 0)).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 48, color: '#64748b' }}>
+              Nenhum dado encontrado para o período.
+            </div>
           ) : (
-            dados.map((item) => (
+            dados.filter(item => mostrarOcultos || !(item.orcamento === 0 && item.gastoTotalAcumulado === 0 && item.recargasTotalAcumulado === 0)).map((item, index) => (
               <div key={item.tecnico.id} style={{ 
                 background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', 
                 padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between',

@@ -82,11 +82,8 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
         .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
         .reduce((acc, curr) => acc + curr.valor, 0)
 
-      // Se o TST tiver orçamento ZERO e NENHUM gasto acumulado nem recarga, a gente oculta da tela
-      // para não poluir com quem não tem direito a abastecimento.
-      if (tec.orcamentoAbastecimento === 0 && gastoTotalAcumulado === 0 && recargasTotalAcumulado === 0) {
-        continue;
-      }
+      // Não filtra no backend para permitir que a interface tenha um botão de "Exibir ocultos"
+      // para restaurar técnicos zerados.
 
       resumos.push({
         tecnico: tec,
