@@ -82,6 +82,12 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
         .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
         .reduce((acc, curr) => acc + curr.valor, 0)
 
+      // Se o TST tiver orçamento ZERO e NENHUM gasto acumulado nem recarga, a gente oculta da tela
+      // para não poluir com quem não tem direito a abastecimento.
+      if (tec.orcamentoAbastecimento === 0 && gastoTotalAcumulado === 0 && recargasTotalAcumulado === 0) {
+        continue;
+      }
+
       resumos.push({
         tecnico: tec,
         orcamento: tec.orcamentoAbastecimento,
@@ -97,6 +103,16 @@ export async function getResumoOrcamentoMes(ano: number, mes: number) {
         valorExtraCalculado: alerta?.valorExtra || 0
       })
     }
+
+    // Ordena de forma que quem está em ALERTA apareça primeiro, depois pelo nome
+    resumos.sort((a, b) => {
+      const isAlertaA = a.status === 'ALERTA_PENDENTE' || a.status === 'ALERTA_ENVIADO'
+      const isAlertaB = b.status === 'ALERTA_PENDENTE' || b.status === 'ALERTA_ENVIADO'
+      
+      if (isAlertaA && !isAlertaB) return -1
+      if (!isAlertaA && isAlertaB) return 1
+      return a.tecnico.nome.localeCompare(b.tecnico.nome)
+    })
 
     return { success: true, data: resumos }
   } catch (error) {
