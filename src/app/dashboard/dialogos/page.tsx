@@ -484,7 +484,7 @@ export default function DialogosPage() {
               estado: isFechado ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'
             }
           })
-          .filter(item => item.matricula.toUpperCase().startsWith('SG4'))
+          .filter(item => item.matricula.toUpperCase().startsWith('SG4') || item.matricula.match(/^\d+$/) || item.matricula !== '')
           .map(item => {
             const dbTecnico = data.find(t => {
                const nomePlanilha = normalize(item.nome)
