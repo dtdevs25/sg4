@@ -418,26 +418,34 @@ export default function InspecoesPage() {
               return ''
             }
 
-            const dtFechamento = getKey(['Data Fechamento', 'DataFechamento'])
+            const dtFechamento = getKey(['Data Fechamento', 'DataFechamento', 'FECHAMENTO'])
+            const statusStr = String(getKey(['Resultado', 'SITUAÇÃO/STATUS', 'SITUAÇO/STATUS', 'SITUACAO/STATUS', 'STATUS']))
+            let resultadoFinal = statusStr
+            if (statusStr.toLowerCase().includes('sem não conformidade') || statusStr.toLowerCase().includes('sem nao conformidade')) {
+              resultadoFinal = 'Conforme'
+            } else if (statusStr.toLowerCase().includes('com não conformidade') || statusStr.toLowerCase().includes('com nao conformidade')) {
+              resultadoFinal = 'Não Conforme'
+            }
+
             return {
               id: Math.random().toString(36).substr(2, 9),
-              numero: String(getKey(['Numero', 'Número'])),
-              resultado: String(getKey(['Resultado'])),
+              numero: String(getKey(['Numero', 'Número', 'NUMERO DA AUDITORIA'])),
+              resultado: resultadoFinal,
               dataAbertura: String(getKey(['Data Abertura', 'DataAbertura'])),
               dataFechamento: String(dtFechamento),
-              matriculaAuditor: String(getKey(['Matricula Auditor', 'MatriculaAuditor', 'Matrícula Auditor'])),
-              nomeAuditor: String(getKey(['Nome Auditor', 'NomeAuditor'])),
-              identificadorObjeto: String(getKey(['Identificador Objeto', 'IdentificadorObjeto'])),
-              nomeQuestionario: String(getKey(['Nome Questionario', 'NomeQuestionário', 'NomeQuestionario'])),
+              matriculaAuditor: String(getKey(['Matricula Auditor', 'MatriculaAuditor', 'Matrícula Auditor', 'MATRICULA'])),
+              nomeAuditor: String(getKey(['Nome Auditor', 'NomeAuditor', 'COLABORADOR'])),
+              identificadorObjeto: String(getKey(['Identificador Objeto', 'IdentificadorObjeto', 'Nome do Objeto'])),
+              nomeQuestionario: String(getKey(['Nome Questionario', 'NomeQuestionário', 'NomeQuestionario', 'TIPO DE OBJETO'])),
               clienteObjeto: String(getKey(['Cliente Objeto', 'ClienteObjeto'])),
-              localidadeObjeto: String(getKey(['Localidade Objeto', 'LocalidadeObjeto'])),
+              localidadeObjeto: String(getKey(['Localidade Objeto', 'LocalidadeObjeto', 'LOCALIDADE'])),
               autocheck: String(getKey(['Autocheck'])),
               observacao: String(getKey(['Observação', 'Observacao', 'Observao'])),
               status: dtFechamento ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'
             }
           })
           .filter(item => item.numero.trim() !== '') // Evita linhas vazias
-          .filter(item => item.matriculaAuditor.toUpperCase().startsWith('SG4'))
+          .filter(item => item.matriculaAuditor.toUpperCase().startsWith('SG4') || item.matriculaAuditor.match(/^\d+$/) || item.matriculaAuditor !== '')
           .map(item => {
             // Tenta achar o técnico correspondente no array 'data' (que veio do BD)
             // Match simples: nome exato ou contendo partes do nome (ex: nome e sobrenome principais)
