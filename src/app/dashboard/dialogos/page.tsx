@@ -52,6 +52,35 @@ function formatDataFechamento(dateStr: string) {
   return dateStr
 }
 
+function normalize(str: string | null | undefined): string {
+  if (!str) return ''
+  return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+}
+
+function nameMatches(arkiumName: string, dbName: string): boolean {
+  if (!arkiumName || !dbName) return false
+  if (arkiumName === dbName) return true
+  if (arkiumName.includes(dbName) || dbName.includes(arkiumName)) return true
+  
+  const arkTokens = arkiumName.split(' ').filter(t => t.length > 2)
+  const dbTokens = dbName.split(' ').filter(t => t.length > 2)
+  
+  const firstDb = dbTokens[0]
+  const firstArk = arkTokens[0]
+  if (!firstDb || !firstArk) return false
+  
+  const firstNameMatch = firstDb === firstArk || firstArk.includes(firstDb) || firstDb.includes(firstArk)
+  if (!firstNameMatch) return false
+  
+  if (dbTokens.length === 1 || arkTokens.length === 1) return true
+  
+  for (let i = 1; i < dbTokens.length; i++) {
+    if (arkTokens.includes(dbTokens[i])) return true
+  }
+  
+  return false
+}
+
 export default function DialogosPage() {
   const { data: session } = useSession()
   const userRole = (session?.user as any)?.role
@@ -191,30 +220,9 @@ export default function DialogosPage() {
         const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
         const tecArkium = arkiumList.filter((a: any) => {
           if (!a.nome || !t.nome) return false
-          const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-          const nomePlanilha = removeAccents(a.nome.toLowerCase().trim())
-          const nomeBd = removeAccents(t.nome.toLowerCase().trim())
-          if (nomePlanilha === nomeBd) return true
-          
-          const planTokens = nomePlanilha.split(' ')
-          const dbTokens = nomeBd.split(' ')
-          
-          if (planTokens[0] === dbTokens[0]) {
-             if (planTokens.length === 1 || dbTokens.length === 1) return true
-             
-             const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
-             const planSurnames = planTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
-             const dbSurnames = dbTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
-             
-             for (let i = 0; i < planSurnames.length; i++) {
-                for (let j = 0; j < dbSurnames.length; j++) {
-                   if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
-                      return true
-                   }
-                }
-             }
-          }
-          return false
+          const nomePlanilha = normalize(a.nome)
+          const nomeBd = normalize(t.nome)
+          return nameMatches(nomePlanilha, nomeBd)
         })
 
         const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl, admissao: t.admissao ? new Date(t.admissao).toLocaleDateString('pt-BR') : '--', admissaoData: t.admissao, demissaoData: t.demissao, ativo: t.ativo, contaMeta: t.contaMeta }
@@ -271,26 +279,9 @@ export default function DialogosPage() {
       if (arkiumList.length > 0) {
         const fromDb: ArkiumDSSItem[] = arkiumList.map((r: any) => {
           const dbTecnico = newData.find((t: any) => {
-            const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            const nomeDb = removeAccents(t.nome.toLowerCase().trim())
-            const nomePlanilha = removeAccents(r.nome.toLowerCase().trim())
-            if (nomePlanilha === nomeDb) return true
-            const planTokens = nomePlanilha.split(' ')
-            const dbTokens = nomeDb.split(' ')
-            if (planTokens[0] === dbTokens[0]) {
-               if (planTokens.length === 1 || dbTokens.length === 1) return true
-               const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
-               const planSurnames = planTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
-               const dbSurnames = dbTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
-               for (let i = 0; i < planSurnames.length; i++) {
-                  for (let j = 0; j < dbSurnames.length; j++) {
-                     if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
-                        return true
-                     }
-                  }
-               }
-            }
-            return false
+            const nomeDb = normalize(t.nome)
+            const nomePlanilha = normalize(r.nome)
+            return nameMatches(nomePlanilha, nomeDb)
           })
           return {
             id: r.id,
@@ -496,23 +487,9 @@ export default function DialogosPage() {
           .filter(item => item.matricula.toUpperCase().startsWith('SG4'))
           .map(item => {
             const dbTecnico = data.find(t => {
-               const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-               const nomePlanilha = removeAccents(item.nome.toLowerCase().trim())
-               const nomeBd = removeAccents(t.nome.toLowerCase().trim())
-               if (nomePlanilha === nomeBd) return true
-               const planTokens = nomePlanilha.split(' ')
-               const dbTokens = nomeBd.split(' ')
-               if (planTokens[0] === dbTokens[0]) {
-                  if (planTokens.length === 1 || dbTokens.length === 1) return true
-                  for (let i = 1; i < planTokens.length; i++) {
-                     for (let j = 1; j < dbTokens.length; j++) {
-                        if (planTokens[i] === dbTokens[j] || (planTokens[i] === 'jr' && dbTokens[j] === 'junior') || (planTokens[i] === 'junior' && dbTokens[j] === 'jr')) {
-                           return true
-                        }
-                     }
-                  }
-               }
-               return false
+               const nomePlanilha = normalize(item.nome)
+               const nomeBd = normalize(t.nome)
+               return nameMatches(nomePlanilha, nomeBd)
             })
             return { ...item, dbTecnico }
           })
@@ -537,7 +514,7 @@ export default function DialogosPage() {
         })))
 
         const msg = saveRes.success 
-           ? `${saveRes.inseridos} registros processados e salvos no banco.` 
+           ? `${saveRes.inseridos} novos importados, ${saveRes.ignorados} atualizados (já existiam).` 
            : `${imported.length} itens processados.`
            
         setImportProgress(msg)
@@ -555,14 +532,16 @@ export default function DialogosPage() {
         // Limpa inválidos logo após o upsert e antes de atualizar localmente
         await limparDssArkiumInvalidos()
         
-        setTimeout(() => setIsImporting(false), 2500)
+        setImportResult(true)
       } catch (err) {
         setIsImporting(false)
+        setImportResult(false)
         alert("Erro ao ler o arquivo. Certifique-se de que é um Excel (.xlsx) ou CSV válido.")
       }
     }
     reader.onerror = () => {
       setIsImporting(false)
+      setImportResult(false)
       alert("Não foi possível ler o arquivo. Tente novamente.")
     }
     reader.readAsArrayBuffer(file)
@@ -729,17 +708,34 @@ export default function DialogosPage() {
             boxShadow: '0 25px 50px rgba(0,0,0,0.4)', maxWidth: 400, width: '90%',
           }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(102,0,153,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Loader2 size={32} color="#660099" style={{ animation: 'sg4-spin 1s linear infinite' }} />
+              {importResult ? (
+                <div style={{ color: '#10b981', display: 'flex' }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </div>
+              ) : (
+                <Loader2 size={32} color="#660099" style={{ animation: 'sg4-spin 1s linear infinite' }} />
+              )}
             </div>
             <div style={{ textAlign: 'center' }}>
-              <h3 style={{ margin: '0 0 6px 0', fontSize: 18, fontWeight: 800, color: '#1e293b' }}>Importando DSS Arkium</h3>
+              <h3 style={{ margin: '0 0 6px 0', fontSize: 18, fontWeight: 800, color: '#1e293b' }}>{importResult ? 'Importação Concluída!' : 'Importando DSS Arkium'}</h3>
               <p style={{ margin: '0 0 4px 0', fontSize: 12, color: '#64748b', fontWeight: 500, maxWidth: 280, lineHeight: 1.5 }}>{importingFileName}</p>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#660099', animation: 'sg4-pulse 1.5s ease-in-out infinite' }}>{importProgress}</p>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: importResult ? '#10b981' : '#660099', animation: importResult ? 'none' : 'sg4-pulse 1.5s ease-in-out infinite' }}>{importProgress}</p>
             </div>
-            <div style={{ width: '100%', background: '#f1f5f9', borderRadius: 8, height: 6, overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: 'linear-gradient(90deg, #660099, #8e44ad)', borderRadius: 8, animation: 'sg4-progress 1.5s ease-in-out infinite' }} />
-            </div>
-            <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Não feche nem atualize a página durante a importação.</p>
+            
+            {!importResult ? (
+              <div style={{ width: '100%', background: '#f1f5f9', borderRadius: 8, height: 6, overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: 'linear-gradient(90deg, #660099, #8e44ad)', borderRadius: 8, animation: 'sg4-progress 1.5s ease-in-out infinite' }} />
+              </div>
+            ) : (
+              <button 
+                onClick={() => { setIsImporting(false); setImportResult(false); }}
+                style={{ marginTop: 10, padding: '10px 24px', background: '#660099', color: '#fff', borderRadius: 8, border: 'none', fontWeight: 700, cursor: 'pointer', outline: 'none' }}
+              >
+                Continuar
+              </button>
+            )}
+            
+            {!importResult && <p style={{ margin: 0, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>Não feche nem atualize a página durante a importação.</p>}
           </div>
         </div>
       )}

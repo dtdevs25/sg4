@@ -4,6 +4,35 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 
+function normalize(str: string | null | undefined): string {
+  if (!str) return ''
+  return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+}
+
+function nameMatches(arkiumName: string, dbName: string): boolean {
+  if (!arkiumName || !dbName) return false
+  if (arkiumName === dbName) return true
+  if (arkiumName.includes(dbName) || dbName.includes(arkiumName)) return true
+  
+  const arkTokens = arkiumName.split(' ').filter(t => t.length > 2)
+  const dbTokens = dbName.split(' ').filter(t => t.length > 2)
+  
+  const firstDb = dbTokens[0]
+  const firstArk = arkTokens[0]
+  if (!firstDb || !firstArk) return false
+  
+  const firstNameMatch = firstDb === firstArk || firstArk.includes(firstDb) || firstDb.includes(firstArk)
+  if (!firstNameMatch) return false
+  
+  if (dbTokens.length === 1 || arkTokens.length === 1) return true
+  
+  for (let i = 1; i < dbTokens.length; i++) {
+    if (arkTokens.includes(dbTokens[i])) return true
+  }
+  
+  return false
+}
+
 export type DssArkiumPayload = {
   numeroDialogo: string
   assunto: string
@@ -103,35 +132,12 @@ export async function getDssArkium() {
     if (role === 'TST' && tecnicoId) {
       const tecnico = await prisma.tecnico.findUnique({ where: { id: tecnicoId } })
       if (tecnico) {
-        const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        const nomeDb = removeAccents(tecnico.nome.toLowerCase().trim())
-        const dbTokens = nomeDb.split(' ')
+        const nomeDb = normalize(tecnico.nome)
 
         registros = registros.filter((r: any) => {
           if (!r.nome) return false
-          const nomePlanilha = removeAccents(r.nome.toLowerCase().trim())
-          if (nomePlanilha === nomeDb) return true
-          
-          const planTokens = nomePlanilha.split(' ').filter(Boolean)
-          const dbTokensFiltered = dbTokens.filter(Boolean)
-          if (planTokens.length === 0 || dbTokensFiltered.length === 0) return false
-          
-          if (planTokens[0] === dbTokensFiltered[0]) {
-            if (planTokens.length === 1 || dbTokensFiltered.length === 1) return true
-            
-            const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
-            const planSurnames = planTokens.slice(1).filter((t: string) => !ignoreList.includes(t))
-            const dbSurnames = dbTokensFiltered.slice(1).filter((t: string) => !ignoreList.includes(t))
-            
-            for (let i = 0; i < planSurnames.length; i++) {
-              for (let j = 0; j < dbSurnames.length; j++) {
-                if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
-                  return true
-                }
-              }
-            }
-          }
-          return false
+          const nomePlanilha = normalize(r.nome)
+          return nameMatches(nomePlanilha, nomeDb)
         })
       } else {
         registros = []
