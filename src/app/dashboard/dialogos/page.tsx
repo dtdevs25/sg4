@@ -402,6 +402,7 @@ export default function DialogosPage() {
   const [currentPageArkium, setCurrentPageArkium] = useState(1)
   const [itemsPerPageArkium, setItemsPerPageArkium] = useState(10)
   const [isImporting, setIsImporting] = useState(false)
+  const [importResult, setImportResult] = useState(false)
   const [importingFileName, setImportingFileName] = useState('')
   const [importProgress, setImportProgress] = useState('')
   const [deleteArkiumConfirmId, setDeleteArkiumConfirmId] = useState<string | null>(null)
