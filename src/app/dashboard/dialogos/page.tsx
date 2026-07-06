@@ -446,39 +446,56 @@ export default function DialogosPage() {
           parsed = XLSX.utils.sheet_to_json(ws) as any[]
         }
 
+        const firstRow = parsed[0]
+        const rowKeys = firstRow ? Object.keys(firstRow) : []
+        const findMatch = (keysList: string[]) => {
+          for (const k of keysList) {
+            const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, ''))
+            if (match) return match
+          }
+          return null
+        }
+
+        const matchedKeys = {
+          assunto: findMatch(['Assunto']),
+          numeroDialogo: findMatch(['Número do Diálogo', 'Numero do Diálogo', 'Numero do Dialogo', 'Numero', 'N° Diálogo', 'N Diálogo']),
+          lider: findMatch(['Lider', 'Líder']),
+          base: findMatch(['Base']),
+          uf: findMatch(['UF']),
+          localidade: findMatch(['Localidade']),
+          dataFechamento: findMatch(['Data Fechamento', 'DataFechamento']),
+          matricula: findMatch(['Matricula', 'Matrícula']),
+          nome: findMatch(['Nome']),
+          tipo: findMatch(['Tipo']),
+          statusDSS: findMatch(['Status']),
+          assinado: findMatch(['Assinado']),
+          justificativa: findMatch(['Justificativa'])
+        }
+
         const imported: ArkiumDSSItem[] = parsed
           .map((row: any) => {
-            // Busca segura de chaves por causa de possíveis espaços ou acentos
-            const getKey = (keys: string[]) => {
-              const rowKeys = Object.keys(row)
-              for (const k of keys) {
-                const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, ''))
-                if (match && row[match] !== undefined && row[match] !== null) return row[match]
-              }
-              return ''
+            const getVal = (keyName: keyof typeof matchedKeys) => {
+              const matchedKey = matchedKeys[keyName]
+              return (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) ? row[matchedKey] : ''
             }
 
-            const assinadoVal = String(getKey(['Assinado']))
-            const justifVal = String(getKey(['Justificativa']))
-            
-            // Lógica de "ABERTO": Se não está assinado E não tem justificativa, consideramos aberto
-            // Ou se a "Data Fechamento" estiver vazia. Depende do seu processo. 
-            // Assumiremos que falta "Assinatura" ou "Justificativa" para fechá-lo.
+            const assinadoVal = String(getVal('assinado'))
+            const justifVal = String(getVal('justificativa'))
             const isFechado = (assinadoVal.toLowerCase() === 'sim' || assinadoVal.toLowerCase() === 'yes') || justifVal.length > 0
 
             return {
               id: Math.random().toString(36).substr(2, 9),
-              assunto: String(getKey(['Assunto'])),
-              numeroDialogo: String(getKey(['Número do Diálogo', 'Numero do Diálogo', 'Numero do Dialogo', 'Numero', 'N° Diálogo', 'N Diálogo'])).trim(),
-              lider: String(getKey(['Lider', 'Líder'])),
-              base: String(getKey(['Base'])),
-              uf: String(getKey(['UF'])),
-              localidade: String(getKey(['Localidade'])),
-              dataFechamento: String(getKey(['Data Fechamento', 'DataFechamento'])),
-              matricula: String(getKey(['Matricula', 'Matrícula'])),
-              nome: String(getKey(['Nome'])),
-              tipo: String(getKey(['Tipo'])),
-              statusDSS: String(getKey(['Status'])),
+              assunto: String(getVal('assunto')),
+              numeroDialogo: String(getVal('numeroDialogo')).trim(),
+              lider: String(getVal('lider')),
+              base: String(getVal('base')),
+              uf: String(getVal('uf')),
+              localidade: String(getVal('localidade')),
+              dataFechamento: String(getVal('dataFechamento')),
+              matricula: String(getVal('matricula')),
+              nome: String(getVal('nome')),
+              tipo: String(getVal('tipo')),
+              statusDSS: String(getVal('statusDSS')),
               assinado: assinadoVal || 'NA',
               justificativa: justifVal,
               estado: isFechado ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'

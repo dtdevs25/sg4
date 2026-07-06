@@ -406,20 +406,40 @@ export default function InspecoesPage() {
           parsed = XLSX.utils.sheet_to_json(ws) as any[]
         }
 
+        const firstRow = parsed[0]
+        const rowKeys = firstRow ? Object.keys(firstRow) : []
+        const findMatch = (keysList: string[]) => {
+          for (const k of keysList) {
+            const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, ''))
+            if (match) return match
+          }
+          return null
+        }
+
+        const matchedKeys = {
+          numero: findMatch(['Numero', 'Número', 'NUMERO DA AUDITORIA']),
+          resultado: findMatch(['Resultado', 'SITUAÇÃO/STATUS', 'SITUAÇO/STATUS', 'SITUACAO/STATUS', 'STATUS']),
+          dataAbertura: findMatch(['Data Abertura', 'DataAbertura']),
+          dataFechamento: findMatch(['Data Fechamento', 'DataFechamento', 'FECHAMENTO']),
+          matriculaAuditor: findMatch(['Matricula Auditor', 'MatriculaAuditor', 'Matrícula Auditor', 'MATRICULA']),
+          nomeAuditor: findMatch(['Nome Auditor', 'NomeAuditor', 'COLABORADOR']),
+          identificadorObjeto: findMatch(['Identificador Objeto', 'IdentificadorObjeto', 'Nome do Objeto']),
+          nomeQuestionario: findMatch(['Nome Questionario', 'NomeQuestionário', 'NomeQuestionario', 'TIPO DE OBJETO']),
+          clienteObjeto: findMatch(['Cliente Objeto', 'ClienteObjeto']),
+          localidadeObjeto: findMatch(['Localidade Objeto', 'LocalidadeObjeto', 'LOCALIDADE']),
+          autocheck: findMatch(['Autocheck']),
+          observacao: findMatch(['Observação', 'Observacao', 'Observao'])
+        }
+
         const imported: ArkiumItem[] = parsed
           .map((row: any) => {
-            // Busca segura de chaves por causa de possíveis espaços ou acentos
-            const getKey = (keys: string[]) => {
-              const rowKeys = Object.keys(row)
-              for (const k of keys) {
-                const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, ''))
-                if (match && row[match] !== undefined && row[match] !== null) return row[match]
-              }
-              return ''
+            const getVal = (keyName: keyof typeof matchedKeys) => {
+              const matchedKey = matchedKeys[keyName]
+              return (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) ? row[matchedKey] : ''
             }
 
-            const dtFechamento = getKey(['Data Fechamento', 'DataFechamento', 'FECHAMENTO'])
-            const statusStr = String(getKey(['Resultado', 'SITUAÇÃO/STATUS', 'SITUAÇO/STATUS', 'SITUACAO/STATUS', 'STATUS']))
+            const dtFechamento = getVal('dataFechamento')
+            const statusStr = String(getVal('resultado'))
             let resultadoFinal = statusStr
             if (statusStr.toLowerCase().includes('sem não conformidade') || statusStr.toLowerCase().includes('sem nao conformidade')) {
               resultadoFinal = 'Conforme'
@@ -429,18 +449,18 @@ export default function InspecoesPage() {
 
             return {
               id: Math.random().toString(36).substr(2, 9),
-              numero: String(getKey(['Numero', 'Número', 'NUMERO DA AUDITORIA'])),
+              numero: String(getVal('numero')),
               resultado: resultadoFinal,
-              dataAbertura: String(getKey(['Data Abertura', 'DataAbertura'])),
+              dataAbertura: String(getVal('dataAbertura')),
               dataFechamento: String(dtFechamento),
-              matriculaAuditor: String(getKey(['Matricula Auditor', 'MatriculaAuditor', 'Matrícula Auditor', 'MATRICULA'])),
-              nomeAuditor: String(getKey(['Nome Auditor', 'NomeAuditor', 'COLABORADOR'])),
-              identificadorObjeto: String(getKey(['Identificador Objeto', 'IdentificadorObjeto', 'Nome do Objeto'])),
-              nomeQuestionario: String(getKey(['Nome Questionario', 'NomeQuestionário', 'NomeQuestionario', 'TIPO DE OBJETO'])),
-              clienteObjeto: String(getKey(['Cliente Objeto', 'ClienteObjeto'])),
-              localidadeObjeto: String(getKey(['Localidade Objeto', 'LocalidadeObjeto', 'LOCALIDADE'])),
-              autocheck: String(getKey(['Autocheck'])),
-              observacao: String(getKey(['Observação', 'Observacao', 'Observao'])),
+              matriculaAuditor: String(getVal('matriculaAuditor')),
+              nomeAuditor: String(getVal('nomeAuditor')),
+              identificadorObjeto: String(getVal('identificadorObjeto')),
+              nomeQuestionario: String(getVal('nomeQuestionario')),
+              clienteObjeto: String(getVal('clienteObjeto')),
+              localidadeObjeto: String(getVal('localidadeObjeto')),
+              autocheck: String(getVal('autocheck')),
+              observacao: String(getVal('observacao')),
               status: dtFechamento ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'
             }
           })
