@@ -1253,7 +1253,7 @@ export default function DialogosPage() {
                             <div style={{ fontSize: 10, color: '#94a3b8' }}>Tipo: {a.tipo} | Base: {a.base}</div>
                           </td>
                           <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                            {a.assinado.toLowerCase() === 'sim' || a.assinado.toLowerCase() === 'yes' ? (
+                            {(a.assinado || '').toLowerCase() === 'sim' || (a.assinado || '').toLowerCase() === 'yes' ? (
                               <CheckCircle2 size={16} color="#10b981" />
                             ) : (
                               <X size={16} color="#ef4444" />
