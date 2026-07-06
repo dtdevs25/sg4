@@ -640,13 +640,13 @@ export default function DialogosPage() {
   })
 
   const filteredArkium = filteredArkiumByDateAndActive.filter(a => {
-    const textMatch = a.numeroDialogo.toLowerCase().includes(arkiumSearch.toLowerCase()) || 
-                      a.nome.toLowerCase().includes(arkiumSearch.toLowerCase()) ||
-                      a.assunto.toLowerCase().includes(arkiumSearch.toLowerCase())
+    const textMatch = (a.numeroDialogo || '').toLowerCase().includes(arkiumSearch.toLowerCase()) || 
+                      (a.nome || '').toLowerCase().includes(arkiumSearch.toLowerCase()) ||
+                      (a.assunto || '').toLowerCase().includes(arkiumSearch.toLowerCase())
     if (!textMatch) return false
     
-    if (arkiumFilter === 'SIM') return a.assinado.toLowerCase() === 'sim' || a.assinado.toLowerCase() === 'yes'
-    if (arkiumFilter === 'NA') return a.assinado.toLowerCase() !== 'sim' && a.assinado.toLowerCase() !== 'yes'
+    if (arkiumFilter === 'SIM') return (a.assinado || '').toLowerCase() === 'sim' || (a.assinado || '').toLowerCase() === 'yes'
+    if (arkiumFilter === 'NA') return (a.assinado || '').toLowerCase() !== 'sim' && (a.assinado || '').toLowerCase() !== 'yes'
     return true
   }).sort((a, b) => {
     const parseDate = (dStr: string) => {
@@ -675,8 +675,8 @@ export default function DialogosPage() {
   })
 
   const totalArkium = filteredArkiumByDateAndActive.length
-  const assinadasArkium = filteredArkiumByDateAndActive.filter(a => a.assinado.toLowerCase() === 'sim' || a.assinado.toLowerCase() === 'yes').length
-  const naoAssinadasArkium = filteredArkiumByDateAndActive.filter(a => a.assinado.toLowerCase() !== 'sim' && a.assinado.toLowerCase() !== 'yes').length
+  const assinadasArkium = filteredArkiumByDateAndActive.filter(a => (a.assinado || '').toLowerCase() === 'sim' || (a.assinado || '').toLowerCase() === 'yes').length
+  const naoAssinadasArkium = filteredArkiumByDateAndActive.filter(a => (a.assinado || '').toLowerCase() !== 'sim' && (a.assinado || '').toLowerCase() !== 'yes').length
 
   useEffect(() => {
     setCurrentPageArkium(1)
@@ -1201,7 +1201,7 @@ export default function DialogosPage() {
                                 <img src={a.dbTecnico.fotoUrl} alt={a.nome} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', objectFit: 'cover' }} />
                               ) : (
                                 <div style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>
-                                  {a.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                                  {(a.nome || '').split(' ').map((n: string) => n && n[0]).slice(0, 2).join('')}
                                 </div>
                               )}
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1331,7 +1331,7 @@ export default function DialogosPage() {
                     <img src={treatingItem.dbTecnico.fotoUrl} alt={treatingItem.nome} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} />
                   ) : (
                     <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#fff', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, border: '2px solid #e2e8f0' }}>
-                      {treatingItem.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                      {(treatingItem.nome || '').split(' ').map((n: string) => n && n[0]).slice(0, 2).join('')}
                     </div>
                   )}
                   <div style={{ flex: 1 }}>

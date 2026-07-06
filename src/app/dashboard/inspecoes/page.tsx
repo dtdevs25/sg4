@@ -590,22 +590,47 @@ export default function InspecoesPage() {
   })
 
   const filteredArkium = filteredArkiumByDateAndActive.filter(a => {
-    const textMatch = a.numero.toLowerCase().includes(arkiumSearch.toLowerCase()) || 
-                      a.nomeAuditor.toLowerCase().includes(arkiumSearch.toLowerCase()) ||
-                      a.nomeQuestionario.toLowerCase().includes(arkiumSearch.toLowerCase())
+    const textMatch = (a.numero || '').toLowerCase().includes(arkiumSearch.toLowerCase()) || 
+                      (a.nomeAuditor || '').toLowerCase().includes(arkiumSearch.toLowerCase()) ||
+                      (a.nomeQuestionario || '').toLowerCase().includes(arkiumSearch.toLowerCase())
     if (!textMatch) return false
-    if (arkiumFilter === 'CONFORME') return a.resultado.toLowerCase().trim() === 'conforme'
+    
+    if (arkiumFilter === 'CONFORME') return (a.resultado || '').toLowerCase().trim() === 'conforme'
     if (arkiumFilter === 'NAO_CONFORME') {
-      const res = a.resultado.toLowerCase().trim()
-      return res.includes('não conforme') || res.includes('nao conforme')
+      const res = (a.resultado || '').toLowerCase().trim()
+      return res !== 'conforme' && res !== ''
     }
     return true
+  }).sort((a, b) => {
+    const parseDate = (dStr: string) => {
+      if (!dStr) return 0
+      const datePart = dStr.split(' ')[0]
+      if (datePart.includes('/')) {
+        const p = datePart.split('/')
+        if (p.length >= 3) {
+          const yy = p[2].length === 2 ? '20' + p[2] : p[2]
+          return new Date(`${yy}-${p[1]}-${p[0]}T00:00:00Z`).getTime()
+        }
+      } else if (datePart.includes('-')) {
+        return new Date(datePart).getTime()
+      } else {
+        const num = Number(datePart)
+        if (!isNaN(num) && num > 20000) return Math.round((num - 25569) * 86400 * 1000)
+      }
+      return 0
+    }
+    const timeA = parseDate(a.dataFechamento)
+    const timeB = parseDate(b.dataFechamento)
+    if (isNaN(timeA) && isNaN(timeB)) return 0
+    if (isNaN(timeA)) return 1
+    if (isNaN(timeB)) return -1
+    return timeB - timeA
   })
-  
+
   const totalArkium = filteredArkiumByDateAndActive.length
-  const conformesArkium = filteredArkiumByDateAndActive.filter(a => a.resultado.toLowerCase().trim() === 'conforme').length
+  const conformesArkium = filteredArkiumByDateAndActive.filter(a => (a.resultado || '').toLowerCase().trim() === 'conforme').length
   const naoConformesArkium = filteredArkiumByDateAndActive.filter(a => {
-    const res = a.resultado.toLowerCase().trim()
+    const res = (a.resultado || '').toLowerCase().trim()
     return res.includes('não conforme') || res.includes('nao conforme')
   }).length
 
