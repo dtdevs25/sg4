@@ -228,7 +228,7 @@ export default function DialogosPage() {
           return nameMatches(nomePlanilha, nomeBd)
         })
 
-        const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl, admissao: t.admissao ? new Date(t.admissao).toLocaleDateString('pt-BR') : '--', admissaoData: t.admissao, demissaoData: t.demissao, ativo: t.ativo, contaMeta: t.contaMeta }
+        const result: any = { id: t.id, nome: t.nome, fotoUrl: t.fotoUrl, admissao: t.admissao ? new Date(t.admissao).toLocaleDateString('pt-BR') : '--', admissaoData: t.admissao, demissaoData: t.demissao, ativo: t.ativo, contaMeta: t.contaMeta, matriculaArkium: t.matriculaArkium }
         
         Object.keys(MES_MAP).forEach(k => {
           const mesName = MES_MAP[k as MesKey]

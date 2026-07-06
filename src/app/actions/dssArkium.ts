@@ -208,10 +208,7 @@ export async function limparDssArkiumInvalidos() {
     const resultEmpty = await prisma.dssArkium.deleteMany({ where: { numeroDialogo: '' } })
     const resultNonSg4 = await prisma.dssArkium.deleteMany({
       where: {
-        OR: [
-          { matricula: null },
-          { NOT: { matricula: { startsWith: 'SG4', mode: 'insensitive' } } }
-        ]
+        NOT: { matricula: { startsWith: 'SG4', mode: 'insensitive' } }
       }
     })
 
