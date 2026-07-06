@@ -1086,8 +1086,7 @@ export default function DialogosPage() {
             </div>
 
           {/* Table Area */}
-          {arkiumData.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Filtros e Importação */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
                 {/* Filtro de Meses e Ano na Estratificação */}
@@ -1339,7 +1338,6 @@ export default function DialogosPage() {
                 </div>
               )}
             </div>
-          )}
         </div>
       )}
 

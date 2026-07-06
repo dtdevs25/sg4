@@ -1058,8 +1058,7 @@ export default function InspecoesPage() {
 
 
           {/* Table Area */}
-          {arkiumData.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* Filtros e Importação */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
                 {/* Filtro de Meses e Ano */}
@@ -1269,7 +1268,6 @@ export default function InspecoesPage() {
                 </div>
               )}
             </div>
-          )}
         </div>
       )}
 
