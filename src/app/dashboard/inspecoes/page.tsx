@@ -458,25 +458,39 @@ export default function InspecoesPage() {
           })
         setImportProgress('Salvando no banco de dados...')
 
-        const saveRes = await upsertInspecoesArkiumBatch(imported.map(item => ({
-          numero: item.numero,
-          resultado: item.resultado,
-          dataAbertura: item.dataAbertura,
-          dataFechamento: item.dataFechamento,
-          matriculaAuditor: item.matriculaAuditor,
-          nomeAuditor: item.nomeAuditor,
-          identificadorObjeto: item.identificadorObjeto,
-          nomeQuestionario: item.nomeQuestionario,
-          clienteObjeto: item.clienteObjeto,
-          localidadeObjeto: item.localidadeObjeto,
-          autocheck: item.autocheck,
-          observacao: item.observacao,
-          status: item.status,
-        })))
+        const batchSize = 100
+        let totalInseridos = 0
+        let totalAtualizados = 0
+        let success = true
 
-        const msg = saveRes.success 
-           ? `${saveRes.inseridos} novos importados, ${saveRes.atualizados} atualizados (já existiam).` 
-           : `${imported.length} itens processados.`
+        for (let i = 0; i < imported.length; i += batchSize) {
+          const chunk = imported.slice(i, i + batchSize)
+          const saveRes = await upsertInspecoesArkiumBatch(chunk.map(item => ({
+            numero: item.numero,
+            resultado: item.resultado,
+            dataAbertura: item.dataAbertura,
+            dataFechamento: item.dataFechamento,
+            matriculaAuditor: item.matriculaAuditor,
+            nomeAuditor: item.nomeAuditor,
+            identificadorObjeto: item.identificadorObjeto,
+            nomeQuestionario: item.nomeQuestionario,
+            clienteObjeto: item.clienteObjeto,
+            localidadeObjeto: item.localidadeObjeto,
+            autocheck: item.autocheck,
+            observacao: item.observacao,
+            status: item.status,
+          })))
+          if (saveRes.success) {
+            totalInseridos += saveRes.inseridos || 0
+            totalAtualizados += saveRes.atualizados || 0
+          } else {
+            success = false
+          }
+        }
+
+        const msg = success 
+           ? `${totalInseridos} novos importados, ${totalAtualizados} atualizados.` 
+           : `Erro parcial: ${totalInseridos} inseridos.`
            
         setImportProgress(msg)
         
@@ -494,10 +508,10 @@ export default function InspecoesPage() {
         await limparInspecoesArkiumInvalidos()
         
         setImportResult(true)
-      } catch (err) {
+      } catch (err: any) {
         setIsImporting(false)
         setImportResult(false)
-        alert("Erro ao ler o arquivo. Certifique-se de que é um Excel (.xlsx) ou CSV válido.")
+        alert("Erro ao processar o arquivo: " + (err?.message || err))
       }
     }
     reader.onerror = () => {

@@ -495,27 +495,40 @@ export default function DialogosPage() {
           })
         setImportProgress('Salvando no banco de dados...')
         
-        // Persiste no banco via server action (passando tudo para o UPSERT)
-        const saveRes = await upsertDssArkiumBatch(imported.map(item => ({
-          numeroDialogo: item.numeroDialogo,
-          assunto: item.assunto,
-          lider: item.lider,
-          base: item.base,
-          uf: item.uf,
-          localidade: item.localidade,
-          dataFechamento: item.dataFechamento,
-          matricula: item.matricula,
-          nome: item.nome,
-          tipo: item.tipo,
-          statusDSS: item.statusDSS,
-          assinado: item.assinado,
-          justificativa: item.justificativa,
-          estado: item.estado,
-        })))
+        const batchSize = 100
+        let totalInseridos = 0
+        let totalIgnorados = 0
+        let success = true
 
-        const msg = saveRes.success 
-           ? `${saveRes.inseridos} novos importados, ${saveRes.ignorados} atualizados (já existiam).` 
-           : `${imported.length} itens processados.`
+        for (let i = 0; i < imported.length; i += batchSize) {
+          const chunk = imported.slice(i, i + batchSize)
+          const saveRes = await upsertDssArkiumBatch(chunk.map(item => ({
+            numeroDialogo: item.numeroDialogo,
+            assunto: item.assunto,
+            lider: item.lider,
+            base: item.base,
+            uf: item.uf,
+            localidade: item.localidade,
+            dataFechamento: item.dataFechamento,
+            matricula: item.matricula,
+            nome: item.nome,
+            tipo: item.tipo,
+            statusDSS: item.statusDSS,
+            assinado: item.assinado,
+            justificativa: item.justificativa,
+            estado: item.estado,
+          })))
+          if (saveRes.success) {
+            totalInseridos += saveRes.inseridos || 0
+            totalIgnorados += saveRes.ignorados || 0
+          } else {
+            success = false
+          }
+        }
+
+        const msg = success 
+           ? `${totalInseridos} novos importados, ${totalIgnorados} atualizados.` 
+           : `Erro parcial: ${totalInseridos} inseridos.`
            
         setImportProgress(msg)
         
@@ -533,10 +546,10 @@ export default function DialogosPage() {
         await limparDssArkiumInvalidos()
         
         setImportResult(true)
-      } catch (err) {
+      } catch (err: any) {
         setIsImporting(false)
         setImportResult(false)
-        alert("Erro ao ler o arquivo. Certifique-se de que é um Excel (.xlsx) ou CSV válido.")
+        alert("Erro ao processar o arquivo: " + (err?.message || err))
       }
     }
     reader.onerror = () => {
