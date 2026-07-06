@@ -219,6 +219,9 @@ export default function DialogosPage() {
       const newData = tecnicos.map((t: any) => {
         const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
         const tecArkium = arkiumList.filter((a: any) => {
+          if (t.matriculaArkium && a.matricula) {
+            return t.matriculaArkium.toUpperCase().trim() === a.matricula.toUpperCase().trim()
+          }
           if (!a.nome || !t.nome) return false
           const nomePlanilha = normalize(a.nome)
           const nomeBd = normalize(t.nome)
@@ -279,6 +282,9 @@ export default function DialogosPage() {
       if (arkiumList.length > 0) {
         const fromDb: ArkiumDSSItem[] = arkiumList.map((r: any) => {
           const dbTecnico = newData.find((t: any) => {
+            if (t.matriculaArkium && r.matricula) {
+              return t.matriculaArkium.toUpperCase().trim() === r.matricula.toUpperCase().trim()
+            }
             const nomeDb = normalize(t.nome)
             const nomePlanilha = normalize(r.nome)
             return nameMatches(nomePlanilha, nomeDb)
