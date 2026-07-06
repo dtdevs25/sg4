@@ -62,8 +62,29 @@ export async function upsertDssArkiumBatch(items: DssArkiumPayload[]) {
 
     const itemsValidos = items.filter(item => item.numeroDialogo && item.numeroDialogo.trim() !== '')
 
+    const tecnicos = await prisma.tecnico.findMany({ select: { id: true, nome: true, matriculaArkium: true } })
+
     for (const item of itemsValidos) {
       try {
+        let tecnicoId = null
+        if (item.matricula) {
+          const match = tecnicos.find(t => t.matriculaArkium && t.matriculaArkium.toUpperCase().trim() === item.matricula.toUpperCase().trim())
+          if (match) {
+            tecnicoId = match.id
+          }
+        }
+
+        if (!tecnicoId && item.nome) {
+          const itemNomeLimpo = normalize(item.nome)
+          for (const t of tecnicos) {
+            const tNomeLimpo = normalize(t.nome)
+            if (nameMatches(itemNomeLimpo, tNomeLimpo)) {
+              tecnicoId = t.id
+              break
+            }
+          }
+        }
+
         await prisma.dssArkium.upsert({
           where: {
             numeroDialogo_matricula: {
@@ -84,6 +105,7 @@ export async function upsertDssArkiumBatch(items: DssArkiumPayload[]) {
             assinado: item.assinado || null,
             justificativa: item.justificativa || null,
             estado: item.estado,
+            tecnicoId: tecnicoId
           },
           create: {
             numeroDialogo: item.numeroDialogo,
@@ -101,10 +123,12 @@ export async function upsertDssArkiumBatch(items: DssArkiumPayload[]) {
             justificativa: item.justificativa || null,
             estado: item.estado,
             importadoPor: userId || null,
+            tecnicoId: tecnicoId
           },
         })
         inseridos++
-      } catch {
+      } catch (err) {
+        console.error('Erro no upsert dss:', err)
         ignorados++
       }
     }
@@ -181,10 +205,20 @@ export async function limparDssArkiumInvalidos() {
     if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Sem permissão' }
     const userId = (session.user as any).id
 
-    const result = await prisma.dssArkium.deleteMany({ where: { numeroDialogo: '' } })
-    await audit({ userId, action: 'LIMPAR_DSS_INVALIDOS', entity: 'DSS Arkium', details: { removidos: result.count } })
+    const resultEmpty = await prisma.dssArkium.deleteMany({ where: { numeroDialogo: '' } })
+    const resultNonSg4 = await prisma.dssArkium.deleteMany({
+      where: {
+        OR: [
+          { matricula: null },
+          { NOT: { matricula: { startsWith: 'SG4', mode: 'insensitive' } } }
+        ]
+      }
+    })
 
-    return { success: true, removidos: result.count }
+    const removidos = (resultEmpty.count || 0) + (resultNonSg4.count || 0)
+    await audit({ userId, action: 'LIMPAR_DSS_INVALIDOS', entity: 'DSS Arkium', details: { removidos } })
+
+    return { success: true, removidos }
   } catch (error) {
     console.error('Erro ao limpar registros inválidos:', error)
     return { success: false, error: 'Erro ao limpar registros.' }

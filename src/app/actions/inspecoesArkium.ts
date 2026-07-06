@@ -191,11 +191,22 @@ export async function limparInspecoesArkiumInvalidos() {
     if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Sem permissão' }
     const userId = (session?.user as any)?.id ?? null
 
-    const result = await prisma.inspecoesArkium.deleteMany({ where: { numero: '' } })
-    await audit({ userId, action: 'LIMPAR_INSPECOES_INVALIDAS', entity: 'Inspeções Arkium', details: { removidos: result.count } })
+    const resultEmpty = await prisma.inspecoesArkium.deleteMany({ where: { numero: '' } })
+    const resultNonSg4 = await prisma.inspecoesArkium.deleteMany({
+      where: {
+        OR: [
+          { matriculaAuditor: null },
+          { NOT: { matriculaAuditor: { startsWith: 'SG4', mode: 'insensitive' } } }
+        ]
+      }
+    })
+
+    const removidos = (resultEmpty.count || 0) + (resultNonSg4.count || 0)
+    await audit({ userId, action: 'LIMPAR_INSPECOES_INVALIDAS', entity: 'Inspeções Arkium', details: { removidos } })
 
     return { success: true }
   } catch (error) {
+    console.error('Erro ao limpar inspeções:', error)
     return { success: false }
   }
 }

@@ -484,9 +484,12 @@ export default function DialogosPage() {
               estado: isFechado ? 'FECHADO' : 'ABERTO' as 'ABERTO' | 'FECHADO'
             }
           })
-          .filter(item => item.matricula.toUpperCase().startsWith('SG4') || item.matricula.match(/^\d+$/) || item.matricula !== '')
+          .filter(item => item.matricula.toUpperCase().startsWith('SG4'))
           .map(item => {
             const dbTecnico = data.find(t => {
+               if (t.matriculaArkium && item.matricula) {
+                 return t.matriculaArkium.toUpperCase().trim() === item.matricula.toUpperCase().trim()
+               }
                const nomePlanilha = normalize(item.nome)
                const nomeBd = normalize(t.nome)
                return nameMatches(nomePlanilha, nomeBd)
