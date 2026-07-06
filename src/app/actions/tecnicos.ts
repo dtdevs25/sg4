@@ -65,7 +65,7 @@ export async function uploadFotoTecnico(formData: FormData) {
   }
 }
 
-export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, demissao?: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null, contaMeta?: boolean, ativo?: boolean }) {
+export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, demissao?: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null, contaMeta?: boolean, ativo?: boolean, matriculaArkium?: string }) {
   try {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
@@ -90,7 +90,8 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
       fotoUrl: data.fotoUrl,
       baseFixaId: data.baseFixaId || null,
       contaMeta: data.contaMeta !== undefined ? data.contaMeta : true,
-      ativo: data.ativo !== undefined ? data.ativo : true
+      ativo: data.ativo !== undefined ? data.ativo : true,
+      matriculaArkium: data.matriculaArkium || null
     }
 
     if (data.id) {

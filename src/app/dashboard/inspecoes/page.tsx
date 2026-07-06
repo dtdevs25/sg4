@@ -445,11 +445,14 @@ export default function InspecoesPage() {
             }
           })
           .filter(item => item.numero.trim() !== '') // Evita linhas vazias
-          .filter(item => item.matriculaAuditor.toUpperCase().startsWith('SG4') || item.matriculaAuditor.match(/^\d+$/) || item.matriculaAuditor !== '')
+          .filter(item => item.matriculaAuditor.toUpperCase().startsWith('SG4'))
           .map(item => {
             // Tenta achar o técnico correspondente no array 'data' (que veio do BD)
-            // Match simples: nome exato ou contendo partes do nome (ex: nome e sobrenome principais)
+            // Primeiro pela matrícula Arkium cadastrada, senão pelo nome
             const dbTecnico = data.find(t => {
+               if (t.matriculaArkium && item.matriculaAuditor) {
+                 return t.matriculaArkium.toUpperCase().trim() === item.matriculaAuditor.toUpperCase().trim()
+               }
                const nomePlanilha = normalize(item.nomeAuditor)
                const nomeBd = normalize(t.nome)
                return nameMatches(nomePlanilha, nomeBd)

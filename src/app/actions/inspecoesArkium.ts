@@ -75,11 +75,19 @@ export async function upsertInspecoesArkiumBatch(items: any[]) {
     let inseridos = 0
     let atualizados = 0
 
-    const tecnicos = await prisma.tecnico.findMany({ select: { id: true, nome: true } })
+    const tecnicos = await prisma.tecnico.findMany({ select: { id: true, nome: true, matriculaArkium: true } })
 
     for (const item of items) {
       let tecnicoId = null
-      if (item.nomeAuditor) {
+      
+      if (item.matriculaAuditor) {
+        const match = tecnicos.find(t => t.matriculaArkium && t.matriculaArkium.toUpperCase().trim() === item.matriculaAuditor.toUpperCase().trim())
+        if (match) {
+          tecnicoId = match.id
+        }
+      }
+
+      if (!tecnicoId && item.nomeAuditor) {
         const itemNomeLimpo = normalize(item.nomeAuditor)
 
         for (const t of tecnicos) {

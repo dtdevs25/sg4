@@ -28,7 +28,7 @@ export default function TecnicosPage() {
   
   // Form state
   const [form, setForm] = useState<{
-    nome: string; email: string; telefone: string; admissao: string; demissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null; contaMeta: boolean; ativo: boolean
+    nome: string; email: string; telefone: string; admissao: string; demissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null; contaMeta: boolean; ativo: boolean; matriculaArkium: string
   }>({
     nome: '', email: '', telefone: '',
     admissao: new Date().toLocaleDateString('pt-BR'),
@@ -37,7 +37,8 @@ export default function TecnicosPage() {
     unidadeIds: [],
     baseFixaId: null,
     contaMeta: true,
-    ativo: true
+    ativo: true,
+    matriculaArkium: ''
   })
   
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -76,7 +77,8 @@ export default function TecnicosPage() {
       unidadeIds: [],
       baseFixaId: null,
       contaMeta: true,
-      ativo: true
+      ativo: true,
+      matriculaArkium: ''
     })
     setFotoFile(null)
     setPreviewUrl('')
@@ -94,7 +96,8 @@ export default function TecnicosPage() {
       unidadeIds: tecnico.unidades?.map((u: any) => u.id) || [],
       baseFixaId: tecnico.baseFixaId || null,
       contaMeta: tecnico.contaMeta !== false,
-      ativo: tecnico.ativo !== false
+      ativo: tecnico.ativo !== false,
+      matriculaArkium: tecnico.matriculaArkium || ''
     })
     setFotoFile(null)
     setPreviewUrl(tecnico.fotoUrl || '')
@@ -148,7 +151,8 @@ export default function TecnicosPage() {
         unidadeIds: form.unidadeIds,
         baseFixaId: form.baseFixaId,
         contaMeta: form.contaMeta,
-        ativo: form.ativo
+        ativo: form.ativo,
+        matriculaArkium: form.matriculaArkium
       })
 
       setShowModal(false)
@@ -167,7 +171,8 @@ export default function TecnicosPage() {
       unidadeIds: tecnico.unidades?.map((u: any) => u.id) || [],
       baseFixaId: tecnico.baseFixaId || null,
       contaMeta: tecnico.contaMeta !== false,
-      ativo: !tecnico.ativo // Flip state immediately
+      ativo: !tecnico.ativo, // Flip state immediately
+      matriculaArkium: tecnico.matriculaArkium || ''
     })
     setFotoFile(null)
     setPreviewUrl(tecnico.fotoUrl || '')
@@ -323,7 +328,9 @@ export default function TecnicosPage() {
                       )}
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: '#334155' }}>{tecnico.nome}</div>
-                        <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>{tecnico.cargo}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>
+                          {tecnico.cargo} {tecnico.matriculaArkium ? `• ${tecnico.matriculaArkium}` : ''}
+                        </div>
                       </div>
                     </div>
                     {tecnico.contaMeta === false && (
@@ -434,6 +441,11 @@ export default function TecnicosPage() {
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>E-mail Profissional</label>
                 <input type="email" required value={form.email} onChange={(e) => setForm(p => ({ ...p, email: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Matrícula Arkium (Ex: SG4003)</label>
+                <input type="text" value={form.matriculaArkium} onChange={(e) => setForm(p => ({ ...p, matriculaArkium: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Opcional. Ex: SG4003" />
               </div>
 
               <div style={{ display: 'flex', gap: 16 }}>
