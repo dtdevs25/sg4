@@ -537,12 +537,15 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     const startOfDay = f.dataInicio ? new Date(f.dataInicio + 'T00:00:00') : new Date('2020-01-01T00:00:00')
     const endOfDay   = f.dataFim   ? new Date(f.dataFim   + 'T23:59:59') : new Date()
 
-    const [dssFull, inspecoesFull, tecnicos] = await Promise.all([
+    const [dssFull, inspecoesFull, aliadosFull, tecnicos] = await Promise.all([
       prisma.dssArkium.findMany({ 
         select: { numeroDialogo: true, lider: true, nome: true, dataFechamento: true, assinado: true } 
       }),
       prisma.inspecoesArkium.findMany({ 
         select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataAbertura: true, dataFechamento: true } 
+      }),
+      prisma.dssAliado.findMany({
+        select: { id: true, data: true, tecnico: { select: { nome: true } } }
       }),
       prisma.tecnico.findMany({ 
         where: { ativo: true }, 
@@ -597,6 +600,15 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
       return parsed >= startOfDay && parsed <= endOfDay
     })
 
+    const aliados = aliadosFull.filter(a => {
+      const jsDate = new Date(a.data)
+      const day = jsDate.getUTCDate()
+      const month = jsDate.getUTCMonth()
+      const year = jsDate.getUTCFullYear()
+      const parsed = new Date(year, month, day)
+      return parsed >= startOfDay && parsed <= endOfDay
+    })
+
     function normalize(s?: string | null) {
       if (!s) return ''
       return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
@@ -647,6 +659,18 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
         const isParticipante = !!participanteNorm && nameMatches(participanteNorm, val.norm)
         if (isLider || isParticipante) {
           val.dss.add(d.numeroDialogo) // Set garante que o mesmo DSS não conta duas vezes
+          break
+        }
+      }
+    }
+
+    // Conta DSS de Aliados
+    for (const a of aliados) {
+      if (!a.tecnico?.nome) continue
+      const tecNorm = normalize(a.tecnico.nome)
+      for (const [, val] of stats.entries()) {
+        if (nameMatches(tecNorm, val.norm)) {
+          val.dss.add('ALIADO-' + a.id.substring(0, 6).toUpperCase())
           break
         }
       }
