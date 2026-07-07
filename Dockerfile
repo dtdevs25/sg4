@@ -7,7 +7,7 @@ RUN apk add --no-cache libc6-compat
 
 # --- CACHE BUSTER ---
 # Mudando esse valor forçamos o Docker a ignorar o cache corrompido da layer "unknown parent image ID"
-ENV DOCKER_CACHE_BUSTER=2
+ENV DOCKER_CACHE_BUSTER=3
 # --------------------
 
 # Copiar manifests ANTES do código fonte para aproveitar cache de layers.
@@ -41,6 +41,7 @@ RUN npm prune --production
 FROM node:22-alpine AS runner
 WORKDIR /app
 
+ENV DOCKER_CACHE_BUSTER=3
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
