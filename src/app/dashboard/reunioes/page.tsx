@@ -305,81 +305,9 @@ export default function ReunioesPage() {
 
   return (
     <>
-      <style>{`
-        #print-section { display: none; }
-        @media print {
-          body * { visibility: hidden; }
-          #print-section, #print-section * { visibility: visible; }
-          #print-section { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
-          @page { margin: 1cm; }
-        }
-      `}</style>
 
-      {/* --- ÁREA DE IMPRESSÃO --- */}
-      {printData && (
-        <div id="print-section" style={{ fontFamily: 'Arial, sans-serif', color: '#000', background: '#fff' }}>
-          <div style={{ background: '#660099', padding: '16px 24px', marginBottom: 30, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <img src="/logo.png" style={{ height: 40, filter: 'brightness(0) invert(1)' }} alt="SG4" />
-                <div style={{ width: 1, height: 28, background: '#fff', opacity: 0.3 }} />
-                <img src="/logovivo.png" style={{ height: 24, filter: 'brightness(0) invert(1)' }} alt="VIVO" />
-              </div>
-              <div style={{ width: 1, height: 28, background: '#fff', opacity: 0.3 }} />
-              <div>
-                <h1 style={{ margin: 0, fontSize: 18, color: '#fff', fontWeight: 800 }}>Ata de Reunião</h1>
-                <h2 style={{ margin: '2px 0 0 0', fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{printData.dataObj.ast}</h2>
-              </div>
-            </div>
-            <div style={{ textAlign: 'right', color: '#fff' }}>
-              <div style={{ fontSize: 10, fontWeight: 'bold', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Data e Hora</div>
-              <div style={{ fontSize: 14, fontWeight: 'bold' }}>{printData.dataObj.dateFmt} às {printData.dataObj.timeFmt}</div>
-            </div>
-          </div>
 
-          <div style={{ marginBottom: 40 }}>
-            <h3 style={{ fontSize: 16, color: '#660099', borderBottom: '1px solid #e2e8f0', paddingBottom: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              Tópicos Abordados
-            </h3>
-            {printData.ata?.conteudo ? (
-              <div dangerouslySetInnerHTML={{ __html: printData.ata.conteudo }} style={{ lineHeight: 1.6, fontSize: 14 }} />
-            ) : (
-              <p style={{ fontStyle: 'italic', color: '#666' }}>Nenhuma ata redigida para esta reunião.</p>
-            )}
-            
-            {printData.ata?.anexoNome && (
-              <div style={{ marginTop: 20, padding: 12, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 'bold', color: '#660099' }}>Anexo:</span>
-                <span style={{ fontSize: 13, color: '#333', marginLeft: 8 }}>{printData.ata.anexoNome}</span>
-              </div>
-            )}
-          </div>
 
-          <div>
-            <h3 style={{ fontSize: 16, color: '#660099', borderBottom: '1px solid #e2e8f0', paddingBottom: 8, marginBottom: 16 }}>Controle de Presença</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#660099', color: '#fff' }}>
-                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#fff', fontWeight: 'bold' }}>Técnico</th>
-                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Presença</th>
-                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Pontualidade</th>
-                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#fff', fontWeight: 'bold' }}>Observação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {printData.presencas.map(p => (
-                  <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 'bold' }}>{p.tecnico.nome}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'center', color: p.presenca === 'PRESENTE' ? '#10b981' : '#ef4444', fontWeight: 'bold' }}>{p.presenca}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>{p.presenca === 'PRESENTE' ? p.pontualidade.replace('_', ' ') : '-'}</td>
-                    <td style={{ padding: '10px 12px' }}>{p.motivo || p.observacao || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* --- TELA PRINCIPAL --- */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
