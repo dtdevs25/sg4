@@ -542,7 +542,7 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
         select: { numeroDialogo: true, lider: true, nome: true, dataFechamento: true } 
       }),
       prisma.inspecoesArkium.findMany({ 
-        select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataAbertura: true } 
+        select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataAbertura: true, dataFechamento: true } 
       }),
       prisma.tecnico.findMany({ 
         where: { ativo: true }, 
@@ -587,7 +587,7 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     })
 
     const inspecoes = inspecoesFull.filter(i => {
-      const parsed = parseDate(i.dataAbertura)
+      const parsed = parseDate(i.dataAbertura || i.dataFechamento)
       if (!parsed) return false
       return parsed >= startOfDay && parsed <= endOfDay
     })
