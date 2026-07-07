@@ -35,7 +35,7 @@ async function loadLogo(src: string, makeWhite: boolean = false): Promise<string
 function cleanHtml(html: string): string {
   if (!html) return ''
   let text = html
-    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/p>/gi, '\n')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<li>/gi, '• ')
     .replace(/<\/li>/gi, '\n')
@@ -49,6 +49,9 @@ function cleanHtml(html: string): string {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
+  
+  // Substitui múltiplos novos parágrafos consecutivos por no máximo um salto de linha vazio
+  text = text.replace(/\n{3,}/g, '\n\n')
   
   return text.trim()
 }
@@ -70,12 +73,13 @@ export async function gerarPdfAta(opts: {
   const doc = new jsPDF('p', 'pt', 'a4') // Portrait A4: 595 x 842 pt
   const W = 595
   const H = 842
+  const MARGIN = 50
 
   // 1. Desenhar o Cabeçalho Roxo
   doc.setFillColor(...PURPLE)
-  doc.rect(30, 30, W - 60, 60, 'F')
+  doc.rect(MARGIN, 30, W - (MARGIN * 2), 60, 'F')
 
-  let logoX = 45
+  let logoX = MARGIN + 15
 
   // SG4 Logo
   if (sg4) {
@@ -108,15 +112,15 @@ export async function gerarPdfAta(opts: {
 
   // Título e Assunto
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
+  doc.setFontSize(13)
   doc.setTextColor(...WHITE)
-  doc.text('ATA DE REUNIÃO', W - 45, 56, { align: 'right' })
+  doc.text('ATA DE REUNIÃO', W - MARGIN - 15, 56, { align: 'right' })
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9)
+  doc.setFontSize(8.5)
   doc.setTextColor(230, 230, 230)
-  const assuntoTruncated = opts.assunto.length > 40 ? opts.assunto.slice(0, 37) + '...' : opts.assunto
-  doc.text(assuntoTruncated.toUpperCase(), W - 45, 72, { align: 'right' })
+  const assuntoTruncated = opts.assunto.length > 35 ? opts.assunto.slice(0, 32) + '...' : opts.assunto
+  doc.text(assuntoTruncated.toUpperCase(), W - MARGIN - 15, 72, { align: 'right' })
 
   // 2. Data e Hora da Reunião
   let y = 120
@@ -127,29 +131,29 @@ export async function gerarPdfAta(opts: {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
   doc.setTextColor(...DARK)
-  doc.text(`Data e Hora: ${dateFmt} às ${timeFmt}`, 30, y)
+  doc.text(`Data e Hora: ${dateFmt} às ${timeFmt}`, MARGIN, y)
 
   y += 24
 
   // 3. Tópicos Abordados (Conteúdo)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
+  doc.setFontSize(10.5)
   doc.setTextColor(...PURPLE)
-  doc.text('TÓPICOS ABORDADOS', 30, y)
+  doc.text('TÓPICOS ABORDADOS', MARGIN, y)
   
   doc.setDrawColor(...PURPLE)
   doc.setLineWidth(1)
-  doc.line(30, y + 4, W - 30, y + 4)
+  doc.line(MARGIN, y + 4, W - MARGIN, y + 4)
 
   y += 20
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(9.5)
+  doc.setFontSize(9)
   doc.setTextColor(50, 50, 50)
 
   const cleanedText = cleanHtml(opts.conteudo)
-  const lines = doc.splitTextToSize(cleanedText, W - 60)
-  const lineHeight = 15
+  const lines = doc.splitTextToSize(cleanedText, W - (MARGIN * 2))
+  const lineHeight = 14
   const pageLimit = H - 50
 
   for (const line of lines) {
@@ -157,7 +161,7 @@ export async function gerarPdfAta(opts: {
       doc.addPage()
       y = 50
     }
-    doc.text(line, 30, y)
+    doc.text(line, MARGIN, y)
     y += lineHeight
   }
 
@@ -169,15 +173,15 @@ export async function gerarPdfAta(opts: {
     }
     doc.setFillColor(248, 250, 252)
     doc.setDrawColor(226, 232, 240)
-    doc.roundedRect(30, y, W - 60, 26, 4, 4, 'FD')
+    doc.roundedRect(MARGIN, y, W - (MARGIN * 2), 26, 4, 4, 'FD')
     
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...PURPLE)
-    doc.text('Anexo:', 38, y + 16)
+    doc.text('Anexo:', MARGIN + 8, y + 16)
     
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(70, 70, 70)
-    doc.text(opts.anexoNome, 80, y + 16)
+    doc.text(opts.anexoNome, MARGIN + 50, y + 16)
     y += 40
   } else {
     y += 20
@@ -190,13 +194,13 @@ export async function gerarPdfAta(opts: {
   }
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
+  doc.setFontSize(10.5)
   doc.setTextColor(...PURPLE)
-  doc.text('CONTROLE DE PRESENÇA', 30, y)
+  doc.text('CONTROLE DE PRESENÇA', MARGIN, y)
   
   doc.setDrawColor(...PURPLE)
   doc.setLineWidth(1)
-  doc.line(30, y + 4, W - 30, y + 4)
+  doc.line(MARGIN, y + 4, W - MARGIN, y + 4)
 
   autoTable(doc, {
     theme: 'grid',
@@ -211,7 +215,7 @@ export async function gerarPdfAta(opts: {
     styles: { fontSize: 8, cellPadding: 4.5, valign: 'middle', lineColor: [220, 220, 220], lineWidth: 0.3, textColor: [30, 41, 59] },
     headStyles: { fillColor: PURPLE, textColor: WHITE, fontStyle: 'bold', halign: 'center' },
     alternateRowStyles: { fillColor: [248, 250, 252] },
-    margin: { left: 30, right: 30 }
+    margin: { left: MARGIN, right: MARGIN }
   })
 
   // Rodapé em todas as páginas
