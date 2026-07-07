@@ -67,8 +67,6 @@ export default function ReunioesPage() {
   const [ataAnexoUrl, setAtaAnexoUrl] = useState('')
   const [ataAnexoBase64, setAtaAnexoBase64] = useState('')
   const [ataAnexoContentType, setAtaAnexoContentType] = useState('')
-  const [printData, setPrintData] = useState<{dataObj: any, ata: AtaData | null, presencas: ReuniaoData[]} | null>(null)
-  
   // Lista de presença temporária (no modal)
   const [tempPresencas, setTempPresencas] = useState<ReuniaoData[]>([])
 
@@ -257,24 +255,30 @@ export default function ReunioesPage() {
     })
   }
 
-  function openPrintPdf(dt: string, ast: string) {
+  async function openPrintPdf(dt: string, ast: string) {
     const existingAta = atas.find(a => new Date(a.data).toISOString() === dt && a.assunto === ast)
     const presencas = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast)
-    const rawDate = new Date(dt)
-    setPrintData({
-      dataObj: { 
-        dt, 
-        ast, 
-        dateFmt: rawDate.toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
-        timeFmt: rawDate.toLocaleTimeString('pt-BR', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit' })
-      },
-      ata: existingAta || null,
-      presencas
-    })
-    setTimeout(() => {
-      window.print()
-      setPrintData(null)
-    }, 500)
+    
+    try {
+      const { gerarPdfAta } = await import('@/app/utils/gerarPdfAta')
+      const { fileName, doc } = await gerarPdfAta({
+        data: dt,
+        assunto: ast,
+        conteudo: existingAta?.conteudo || '',
+        anexoNome: existingAta?.anexoNome || undefined,
+        presencas: presencas.map(p => ({
+          tecnico: { nome: p.tecnico.nome },
+          presenca: p.presenca,
+          pontualidade: p.pontualidade,
+          motivo: p.motivo,
+          observacao: p.observacao
+        }))
+      })
+      doc.save(fileName)
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao gerar o PDF da ata.')
+    }
   }
 
   function handleAnexoChange(e: React.ChangeEvent<HTMLInputElement>) {
