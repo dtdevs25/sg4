@@ -539,7 +539,7 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
 
     const [dssFull, inspecoesFull, tecnicos] = await Promise.all([
       prisma.dssArkium.findMany({ 
-        select: { numeroDialogo: true, lider: true, nome: true, dataFechamento: true } 
+        select: { numeroDialogo: true, lider: true, nome: true, dataFechamento: true, assinado: true } 
       }),
       prisma.inspecoesArkium.findMany({ 
         select: { tecnico: { select: { nome: true } }, nomeAuditor: true, dataAbertura: true, dataFechamento: true } 
@@ -583,6 +583,11 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     const dss = dssFull.filter(d => {
       const parsed = parseDate(d.dataFechamento)
       if (!parsed) return false
+
+      const assinadoStr = (d.assinado || '').toLowerCase().trim()
+      const isAssinado = assinadoStr === 'sim' || assinadoStr === 'yes'
+      if (!isAssinado) return false
+
       return parsed >= startOfDay && parsed <= endOfDay
     })
 
