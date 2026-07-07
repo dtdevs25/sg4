@@ -104,7 +104,7 @@ export default function PlanejamentoPage() {
   const [transferDate, setTransferDate] = useState('')
 
   // Relatório Integration
-  const [showPromptRelatorio, setShowPromptRelatorio] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
+  const [showPromptRelatorio, setShowPromptRelatorio] = useState<{plan: any, itemId: string, itemText: string, jaSalvoAliado?: boolean} | null>(null)
   const [showFormRelatorio, setShowFormRelatorio] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
   const [formRelatorio, setFormRelatorio] = useState({ empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
   const [aiLoadingRel, setAiLoadingRel] = useState(false)
@@ -775,8 +775,15 @@ export default function PlanejamentoPage() {
     if (res.success) {
       // Marca o item como concluído no checklist
       confirmToggleItemChecklist(showDssForm.plan.id, showDssForm.itemId, true)
+      const tempShowDssForm = showDssForm
       setShowDssForm(null)
       setFormDssAliado({ tema: '', fotoBase64: '', fileName: '', contentType: '' })
+      setShowPromptRelatorio({
+        plan: tempShowDssForm.plan,
+        itemId: tempShowDssForm.itemId,
+        itemText: tempShowDssForm.itemText,
+        jaSalvoAliado: true
+      })
     } else {
       alert('Erro ao salvar DSS com Aliado: ' + res.error)
     }
@@ -1996,13 +2003,15 @@ export default function PlanejamentoPage() {
             
             <div style={{ display: 'flex', gap: 12 }}>
               <button type="button" onClick={() => {
-                // Cancela relatorio, mas marca como concluído no planejamento
-                confirmToggleItemChecklist(showPromptRelatorio.plan.id, showPromptRelatorio.itemId, true)
+                // Cancela relatorio, mas marca como concluído no planejamento se não tiver sido feito antes
+                if (!showPromptRelatorio.jaSalvoAliado) {
+                  confirmToggleItemChecklist(showPromptRelatorio.plan.id, showPromptRelatorio.itemId, true)
+                }
                 setShowPromptRelatorio(null)
               }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Não, apenas concluir</button>
               <button type="button" onClick={() => {
-                // Se a categoria do plano for GESTÃO DSS ou DSS, pergunta sobre DSS com Aliado
-                if (showPromptRelatorio.plan.categoria === 'GESTÃO DSS' || showPromptRelatorio.plan.categoria === 'DSS') {
+                // Se a categoria do plano for GESTÃO DSS ou DSS, pergunta sobre DSS com Aliado (a menos que já tenha vindo do fluxo de aliado)
+                if (!showPromptRelatorio.jaSalvoAliado && (showPromptRelatorio.plan.categoria === 'GESTÃO DSS' || showPromptRelatorio.plan.categoria === 'DSS')) {
                   setShowDssModal(showPromptRelatorio)
                   setShowPromptRelatorio(null)
                   return

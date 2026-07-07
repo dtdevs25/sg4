@@ -204,7 +204,7 @@ export default function DialogosPage() {
           base: '-',
           uf: '-',
           localidade: '-',
-          matricula: 'N/A',
+          matricula: a.tecnico?.matriculaArkium || 'N/A',
           tipo: 'Aliado',
           statusDSS: 'Realizado',
           justificativa: '',
@@ -219,7 +219,7 @@ export default function DialogosPage() {
       const newData = tecnicos.map((t: any) => {
         const tecAtv = atividades.filter((a: any) => a.tecnicoId === t.id)
         const tecArkium = arkiumList.filter((a: any) => {
-          if (t.matriculaArkium && a.matricula) {
+          if (t.matriculaArkium && a.matricula && a.matricula !== 'N/A') {
             return t.matriculaArkium.toUpperCase().trim() === a.matricula.toUpperCase().trim()
           }
           if (!a.nome || !t.nome) return false
@@ -282,7 +282,7 @@ export default function DialogosPage() {
       if (arkiumList.length > 0) {
         const fromDb: ArkiumDSSItem[] = arkiumList.map((r: any) => {
           const dbTecnico = newData.find((t: any) => {
-            if (t.matriculaArkium && r.matricula) {
+            if (t.matriculaArkium && r.matricula && r.matricula !== 'N/A') {
               return t.matriculaArkium.toUpperCase().trim() === r.matricula.toUpperCase().trim()
             }
             const nomeDb = normalize(t.nome)
