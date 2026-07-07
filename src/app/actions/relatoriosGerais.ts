@@ -553,9 +553,25 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
     function parseDate(d: string | null): Date | null {
       if (!d) return null
       const datePart = d.split(' ')[0]
-      const [dia, mes, ano] = datePart.split('/')
-      if (!dia || !mes || !ano) return null
-      return new Date(Number(ano), Number(mes) - 1, Number(dia))
+      if (datePart.includes('/')) {
+        const parts = datePart.split('/')
+        if (parts.length >= 3) {
+          let day = parseInt(parts[0], 10)
+          let month = parseInt(parts[1], 10)
+          let year = parseInt(parts[2], 10)
+          if (parts[2].length === 2) year += 2000
+          return new Date(year, month - 1, day)
+        }
+      } else if (datePart.includes('-')) {
+        const parts = datePart.split('-')
+        if (parts.length >= 3) {
+          let year = parseInt(parts[0], 10)
+          let month = parseInt(parts[1], 10)
+          let day = parseInt(parts[2], 10)
+          return new Date(year, month - 1, day)
+        }
+      }
+      return null
     }
 
     const dss = dssFull.filter(d => {
