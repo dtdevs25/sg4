@@ -570,6 +570,12 @@ export async function getRelatorioProdutividadeDssInspecoes(f: FiltrosRelatorio)
           let day = parseInt(parts[2], 10)
           return new Date(year, month - 1, day)
         }
+      } else {
+        const excelDateNum = Number(datePart)
+        if (!isNaN(excelDateNum) && excelDateNum > 20000) {
+          const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
+          return new Date(jsDate.getUTCFullYear(), jsDate.getUTCMonth(), jsDate.getUTCDate())
+        }
       }
       return null
     }
