@@ -4,7 +4,7 @@ import { getAnosComDados } from '@/app/actions/anos'
 import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   CalendarDays, CheckCircle2, Clock, XCircle,
-  PlusCircle, Search, Sparkles, X, Edit2, Trash2, Loader2, Save, FileText, Printer, FileEdit, FileCode2
+  PlusCircle, Search, Sparkles, X, Edit2, Trash2, Loader2, Save, FileText, Printer, FileEdit, FileCode2, Eye
 } from 'lucide-react'
 import { getReunioes, createReuniaoLote, deleteReuniaoLote, updatePresencasReuniao } from '@/app/actions/reunioes'
 import { getAtas, upsertAta, uploadAnexoReuniao, deleteAnexoAta } from '@/app/actions/atas'
@@ -148,7 +148,7 @@ export default function ReunioesPage() {
       if (l.presenca === 'PRESENTE') uniqueMeetingsMap.get(key)!.presences++
     }
   })
-  const uniqueMeetings = Array.from(uniqueMeetingsMap.values()).sort((a, b) => b.rawData.getTime() - a.rawData.getTime())
+  const uniqueMeetings = Array.from(uniqueMeetingsMap.values()).sort((a, b) => a.rawData.getTime() - b.rawData.getTime())
   
   const searchedMeetings = uniqueMeetings.filter(m => m.assunto.toLowerCase().includes(search.toLowerCase()))
 
@@ -306,32 +306,34 @@ export default function ReunioesPage() {
   return (
     <>
       <style>{`
+        #print-section { display: none; }
         @media print {
           body * { visibility: hidden; }
           #print-section, #print-section * { visibility: visible; }
-          #print-section { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+          #print-section { display: block !important; position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
           @page { margin: 1cm; }
         }
       `}</style>
 
       {/* --- ÁREA DE IMPRESSÃO --- */}
       {printData && (
-        <div id="print-section" style={{ display: 'none', fontFamily: 'Arial, sans-serif', color: '#000', background: '#fff' }}>
-          <div style={{ borderBottom: '2px solid #660099', paddingBottom: 20, marginBottom: 30, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div id="print-section" style={{ fontFamily: 'Arial, sans-serif', color: '#000', background: '#fff' }}>
+          <div style={{ background: '#660099', padding: '16px 24px', marginBottom: 30, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <img src="/logo.png" style={{ height: 48 }} alt="SG4" />
-                <div style={{ width: 2, height: 40, background: '#660099', opacity: 0.2 }} />
-                <img src="/logovivo.png" style={{ height: 28 }} alt="VIVO" />
+                <img src="/logo.png" style={{ height: 40, filter: 'brightness(0) invert(1)' }} alt="SG4" />
+                <div style={{ width: 1, height: 28, background: '#fff', opacity: 0.3 }} />
+                <img src="/logovivo.png" style={{ height: 24, filter: 'brightness(0) invert(1)' }} alt="VIVO" />
               </div>
+              <div style={{ width: 1, height: 28, background: '#fff', opacity: 0.3 }} />
               <div>
-                <h1 style={{ margin: 0, fontSize: 24, color: '#660099' }}>Ata de Reunião</h1>
-                <h2 style={{ margin: '5px 0 0 0', fontSize: 18, color: '#333' }}>{printData.dataObj.ast}</h2>
+                <h1 style={{ margin: 0, fontSize: 18, color: '#fff', fontWeight: 800 }}>Ata de Reunião</h1>
+                <h2 style={{ margin: '2px 0 0 0', fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>{printData.dataObj.ast}</h2>
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, fontWeight: 'bold', color: '#660099', textTransform: 'uppercase' }}>Data e Hora</div>
-              <div style={{ fontSize: 16, fontWeight: 'bold' }}>{printData.dataObj.dateFmt} às {printData.dataObj.timeFmt}</div>
+            <div style={{ textAlign: 'right', color: '#fff' }}>
+              <div style={{ fontSize: 10, fontWeight: 'bold', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>Data e Hora</div>
+              <div style={{ fontSize: 14, fontWeight: 'bold' }}>{printData.dataObj.dateFmt} às {printData.dataObj.timeFmt}</div>
             </div>
           </div>
 
@@ -357,11 +359,11 @@ export default function ReunioesPage() {
             <h3 style={{ fontSize: 16, color: '#660099', borderBottom: '1px solid #e2e8f0', paddingBottom: 8, marginBottom: 16 }}>Controle de Presença</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
-                <tr style={{ background: '#f8fafc' }}>
-                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>Técnico</th>
-                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'center', color: '#64748b' }}>Presença</th>
-                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'center', color: '#64748b' }}>Pontualidade</th>
-                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>Observação</th>
+                <tr style={{ background: '#660099', color: '#fff' }}>
+                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#fff', fontWeight: 'bold' }}>Técnico</th>
+                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Presença</th>
+                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'center', color: '#fff', fontWeight: 'bold' }}>Pontualidade</th>
+                  <th style={{ padding: '10px 12px', borderBottom: '2px solid #e2e8f0', textAlign: 'left', color: '#fff', fontWeight: 'bold' }}>Observação</th>
                 </tr>
               </thead>
               <tbody>
@@ -569,9 +571,9 @@ export default function ReunioesPage() {
                             onClick={() => openPrintPdf(m.data, m.assunto)}
                             disabled={pending}
                             style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: 'all 0.2s', opacity: pending ? 0.5 : 1 }}
-                            title="Gerar PDF"
+                            title="Visualizar Ata / PDF"
                           >
-                            <Printer size={16} />
+                            <Eye size={16} />
                           </button>
                           {isMasterOrAdmin && (
                             <>
