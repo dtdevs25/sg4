@@ -2141,15 +2141,11 @@ export default function PlanejamentoPage() {
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <button type="button" onClick={() => {
-              setFormRelatorio({
-                empresa: 'Telefônica Brasil S.A', projeto: 'VIVO',
-                local: showDssModal.plan.local === 'OUTROS' ? 'OUTROS' : showDssModal.plan.local || '',
-                outroLocal: showDssModal.plan.outroLocal || '',
-                cidadeUf: `${showDssModal.plan.cidade || ''} / ${showDssModal.plan.estado || ''}`.replace(/^ \/ | \/ $/g, ''),
-                descricao: showDssModal.itemText,
-                fotoBase64: '', fileName: '', contentType: ''
+              setShowPromptRelatorio({
+                plan: showDssModal.plan,
+                itemId: showDssModal.itemId,
+                itemText: showDssModal.itemText
               })
-              setShowFormRelatorio(showDssModal)
               setShowDssModal(null)
             }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Não, sem aliado</button>
             <button type="button" onClick={() => {
