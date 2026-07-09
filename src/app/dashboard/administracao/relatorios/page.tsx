@@ -46,6 +46,21 @@ function primeiroDiaMes() {
   const d = new Date(); d.setDate(1)
   return d.toISOString().split('T')[0]
 }
+function primeiroDiaMesAnterior() {
+  const d = new Date()
+  const dPrev = new Date(d.getFullYear(), d.getMonth() - 1, 1)
+  const y = dPrev.getFullYear()
+  const m = String(dPrev.getMonth() + 1).padStart(2, '0')
+  return `${y}-${m}-01`
+}
+function ultimoDiaMesAnterior() {
+  const d = new Date()
+  const dPrev = new Date(d.getFullYear(), d.getMonth(), 0)
+  const y = dPrev.getFullYear()
+  const m = String(dPrev.getMonth() + 1).padStart(2, '0')
+  const day = String(dPrev.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -72,6 +87,13 @@ export default function AdminRelatoriosPage() {
 
   async function abrirFiltros(id: string) {
     setTipoSel(id); setErro('')
+    if (id === 'produtividade') {
+      setDataInicio(primeiroDiaMesAnterior())
+      setDataFim(ultimoDiaMesAnterior())
+    } else {
+      setDataInicio(primeiroDiaMes())
+      setDataFim(hoje())
+    }
     if (tecnicos.length === 0) {
       setTecLoading(true)
       const t = await getTecnicosParaFiltro()
