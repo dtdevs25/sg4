@@ -104,7 +104,7 @@ export default function PlanejamentoPage() {
   const [transferDate, setTransferDate] = useState('')
 
   // Relatório Integration
-  const [showPromptRelatorio, setShowPromptRelatorio] = useState<{plan: any, itemId: string, itemText: string, jaSalvoAliado?: boolean} | null>(null)
+  const [showPromptRelatorio, setShowPromptRelatorio] = useState<{plan: any, itemId: string, itemText: string, jaSalvoAliado?: boolean, jaPerguntouDss?: boolean} | null>(null)
   const [showFormRelatorio, setShowFormRelatorio] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
   const [formRelatorio, setFormRelatorio] = useState({ empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
   const [aiLoadingRel, setAiLoadingRel] = useState(false)
@@ -116,6 +116,10 @@ export default function PlanejamentoPage() {
   const [aiLoadingDescEdit, setAiLoadingDescEdit] = useState(false)
 
   const [showEditPlanModal, setShowEditPlanModal] = useState(false)
+  const [alertModal, setAlertModal] = useState<{ title: string, message: string, type?: 'error' | 'warning' | 'info' } | null>(null)
+  function showAlert(message: any, title = 'Atenção', type: 'error' | 'warning' | 'info' = 'warning') {
+    setAlertModal({ title, message: String(message), type })
+  }
   const [editPlanForm, setEditPlanForm] = useState({
     id: '', tecnicoId: '', dataAtividade: '', hora: '08:00', titulo: '', 
     categoria: '', outraCategoria: '', local: '', outroLocal: '', 
@@ -403,14 +407,14 @@ export default function PlanejamentoPage() {
         setShowEditPlanModal(false)
         load()
       } else {
-        alert(res.error)
+        showAlert(res.error || 'Erro ao editar planejamento.', 'Erro', 'error')
       }
     })
   }
 
   function handleConfirmTransfer(e: React.FormEvent) {
     e.preventDefault()
-    if (!transferDate) return alert('Selecione a data para a nova atividade')
+    if (!transferDate) return showAlert('Selecione a data para a nova atividade', 'Campo Obrigatório', 'warning')
     startTransition(async () => {
       const { plan, completedItems, pendingItems } = showTransferPrompt
       const res = await concluirETransferirPendencias(
@@ -427,7 +431,7 @@ export default function PlanejamentoPage() {
         setShowExecModal(null)
         load()
       } else {
-        alert(res.error)
+        showAlert(res.error || 'Erro ao transferir.', 'Erro', 'error')
       }
     })
   }
@@ -504,7 +508,7 @@ export default function PlanejamentoPage() {
       
       startTransition(async () => {
         if (markAsDone) {
-          await concluirPlanejamento(planId, plan.descricaoExecutada || plan.descricaoOriginal, plan.observacoes)
+          await concluirPlanejamento(planId)
         } else {
           await reverterPlanejamento(planId)
         }
@@ -556,7 +560,7 @@ export default function PlanejamentoPage() {
     const file = e.target.files[0]
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert('A foto deve ter no máximo 10MB.')
+        showAlert('A foto deve ter no máximo 10MB.', 'Atenção', 'warning')
         return
       }
       const reader = new FileReader()
@@ -575,7 +579,7 @@ export default function PlanejamentoPage() {
     if (res.success && res.text) {
       setFormRelatorio(p => ({...p, descricao: res.text}))
     } else {
-      alert(res.error || 'Erro ao otimizar o texto.')
+      showAlert(res.error || 'Erro ao otimizar o texto.', 'Erro', 'error')
     }
   }
 
@@ -587,7 +591,7 @@ export default function PlanejamentoPage() {
     if (res.success && res.text) {
       setExecForm(p => ({...p, descricaoExecutada: res.text}))
     } else {
-      alert(res.error || 'Erro ao otimizar o texto.')
+      showAlert(res.error || 'Erro ao otimizar o texto.', 'Erro', 'error')
     }
   }
 
@@ -599,7 +603,7 @@ export default function PlanejamentoPage() {
     if (res.success && res.text) {
       setNewItemTitulo(res.text)
     } else {
-      alert(res.error || 'Erro ao otimizar o texto.')
+      showAlert(res.error || 'Erro ao otimizar o texto.', 'Erro', 'error')
     }
   }
 
@@ -611,7 +615,7 @@ export default function PlanejamentoPage() {
     if (res.success && res.text) {
       setEditPlanForm(p => ({...p, titulo: res.text.replace(/["']/g, '')}))
     } else {
-      alert(res.error || 'Erro ao otimizar o texto.')
+      showAlert(res.error || 'Erro ao otimizar o texto.', 'Erro', 'error')
     }
   }
 
@@ -623,7 +627,7 @@ export default function PlanejamentoPage() {
     if (res.success && res.text) {
       setEditPlanForm(p => ({...p, descricaoOriginal: res.text}))
     } else {
-      alert(res.error || 'Erro ao otimizar o texto.')
+      showAlert(res.error || 'Erro ao otimizar o texto.', 'Erro', 'error')
     }
   }
 
@@ -635,7 +639,7 @@ export default function PlanejamentoPage() {
     if (res.success && res.text) {
       setNewItemText(res.text)
     } else {
-      alert(res.error || 'Erro ao otimizar o texto.')
+      showAlert(res.error || 'Erro ao otimizar o texto.', 'Erro', 'error')
     }
   }
 
@@ -647,11 +651,11 @@ export default function PlanejamentoPage() {
     if (res.success && res.text) {
       setEditingChecklistText(res.text)
     } else {
-      alert(res.error || 'Erro ao otimizar o texto.')
+      showAlert(res.error || 'Erro ao otimizar o texto.', 'Erro', 'error')
     }
   }
 
-  function handleConcluirDireto(e: React.MouseEvent | null, plan: any) {
+  function handleConcluirDireto(e: React.SyntheticEvent | null, plan: any) {
     if (e) e.stopPropagation()
     const checklist = plan.checklist || []
     
@@ -724,7 +728,7 @@ export default function PlanejamentoPage() {
       if (uploadRes.success && uploadRes.url) {
         finalFotoUrl = uploadRes.url
       } else {
-        alert('Erro ao fazer upload da foto: ' + uploadRes.error)
+        showAlert('Erro ao fazer upload da foto: ' + uploadRes.error, 'Erro', 'error')
         return
       }
     }
@@ -748,7 +752,7 @@ export default function PlanejamentoPage() {
         confirmToggleItemChecklist(showFormRelatorio.plan.id, showFormRelatorio.itemId, true)
         setShowFormRelatorio(null)
       } else {
-        alert('Erro ao salvar relatório: ' + res.error)
+        showAlert('Erro ao salvar relatório: ' + res.error, 'Erro', 'error')
       }
     })
   }
@@ -757,7 +761,7 @@ export default function PlanejamentoPage() {
     e.preventDefault()
     if (!showDssForm) return
     if (!formDssAliado.tema.trim()) {
-      alert('Informe o tema do DSS.')
+      showAlert('Informe o tema do DSS.', 'Campo Obrigatório', 'warning')
       return
     }
     setDssLoading(true)
@@ -782,10 +786,11 @@ export default function PlanejamentoPage() {
         plan: tempShowDssForm.plan,
         itemId: tempShowDssForm.itemId,
         itemText: tempShowDssForm.itemText,
-        jaSalvoAliado: true
+        jaSalvoAliado: true,
+        jaPerguntouDss: true
       })
     } else {
-      alert('Erro ao salvar DSS com Aliado: ' + res.error)
+      showAlert('Erro ao salvar DSS com Aliado: ' + res.error, 'Erro', 'error')
     }
   }
 
@@ -1360,7 +1365,7 @@ export default function PlanejamentoPage() {
 
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>DESCRIÇÃO (Opcional)</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>DESCRIÇÃO</label>
                   <button 
                     type="button" 
                     onClick={handleOptimizeDescNew}
@@ -1387,7 +1392,7 @@ export default function PlanejamentoPage() {
                   Cancelar
                 </button>
                 <button type="button" onClick={() => {
-                  if (newItemText.trim() || newItemTitulo.trim()) {
+                  if (newItemText.trim() && newItemTitulo.trim()) {
                     const finalCat = newItemCategoria === 'OUTROS' && newItemOutraCategoria ? newItemOutraCategoria : newItemCategoria;
                     const parsedDate = newItemData ? new Date(`${newItemData}T12:00:00Z`) : undefined;
                     const finalLocal = newItemLocal === 'OUTROS' && newItemOutroLocal ? newItemOutroLocal : newItemLocal;
@@ -1434,7 +1439,7 @@ export default function PlanejamentoPage() {
                     setNewItemEstado('SP');
                     setShowAddItemModal(false);
                   } else {
-                    alert("Preencha o título ou a descrição.");
+                    showAlert("Preencha o título e a descrição.", 'Campos Obrigatórios', 'warning');
                   }
                 }} style={{ background: '#7e22ce', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 800, cursor: 'pointer', fontSize: 14 }}>
                   {editingDraftId ? 'Salvar Edição' : 'Adicionar na Lista'}
@@ -1630,7 +1635,7 @@ export default function PlanejamentoPage() {
                     {aiLoadingTituloEdit ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
                   </button>
                 </div>
-                <input type="text" placeholder="Ex: Inspeção de Extintores" value={editPlanForm.titulo} onChange={e => setEditPlanForm({...editPlanForm, titulo: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                <input required type="text" placeholder="Ex: Inspeção de Extintores" value={editPlanForm.titulo} onChange={e => setEditPlanForm({...editPlanForm, titulo: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -1662,7 +1667,7 @@ export default function PlanejamentoPage() {
 
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>DESCRIÇÃO (Opcional)</label>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>DESCRIÇÃO</label>
                   <button 
                     type="button" 
                     onClick={handleOptimizeDescEdit}
@@ -1677,6 +1682,7 @@ export default function PlanejamentoPage() {
                   </button>
                 </div>
                 <textarea 
+                  required
                   value={editPlanForm.descricaoOriginal} 
                   onChange={e => setEditPlanForm({...editPlanForm, descricaoOriginal: e.target.value})} 
                   placeholder="Detalhes adicionais da atividade..." 
@@ -2010,8 +2016,8 @@ export default function PlanejamentoPage() {
                 setShowPromptRelatorio(null)
               }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Não, apenas concluir</button>
               <button type="button" onClick={() => {
-                // Se a categoria do plano for GESTÃO DSS ou DSS, pergunta sobre DSS com Aliado (a menos que já tenha vindo do fluxo de aliado)
-                if (!showPromptRelatorio.jaSalvoAliado && (showPromptRelatorio.plan.categoria === 'GESTÃO DSS' || showPromptRelatorio.plan.categoria === 'DSS')) {
+                // Se a categoria do plano for GESTÃO DSS ou DSS, pergunta sobre DSS com Aliado (a menos que já tenha vindo do fluxo de aliado ou já tenha respondido)
+                if (!showPromptRelatorio.jaPerguntouDss && !showPromptRelatorio.jaSalvoAliado && (showPromptRelatorio.plan.categoria === 'GESTÃO DSS' || showPromptRelatorio.plan.categoria === 'DSS')) {
                   setShowDssModal(showPromptRelatorio)
                   setShowPromptRelatorio(null)
                   return
@@ -2144,7 +2150,8 @@ export default function PlanejamentoPage() {
               setShowPromptRelatorio({
                 plan: showDssModal.plan,
                 itemId: showDssModal.itemId,
-                itemText: showDssModal.itemText
+                itemText: showDssModal.itemText,
+                jaPerguntouDss: true
               })
               setShowDssModal(null)
             }} style={{ flex: 1, padding: '12px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Não, sem aliado</button>
@@ -2239,6 +2246,38 @@ export default function PlanejamentoPage() {
               {concluirLoading ? <><Loader2 size={16} className="animate-spin" /> Concluindo...</> : '✅ Sim, concluir!'}
             </button>
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* MODAL DE ALERTA PERSONALIZADO */}
+    {alertModal && (
+      <div style={{ position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 28, boxShadow: '0 20px 40px rgba(0,0,0,0.2)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ 
+            width: 64, 
+            height: 64, 
+            borderRadius: '50%', 
+            background: alertModal.type === 'error' ? '#fee2e2' : '#fef3c7', 
+            color: alertModal.type === 'error' ? '#ef4444' : '#d97706', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            marginBottom: 18 
+          }}>
+            <AlertTriangle size={32} />
+          </div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 10px 0' }}>{alertModal.title}</h3>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+            {alertModal.message}
+          </p>
+          <button 
+            type="button" 
+            onClick={() => setAlertModal(null)} 
+            style={{ width: '100%', padding: '12px 24px', borderRadius: 8, background: '#660099', color: '#fff', border: 'none', fontWeight: 800, cursor: 'pointer', fontSize: 14 }}
+          >
+            Entendido
+          </button>
         </div>
       </div>
     )}
