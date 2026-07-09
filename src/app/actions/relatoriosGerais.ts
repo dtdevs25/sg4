@@ -93,7 +93,7 @@ export async function getRelatorioDss(f: FiltrosRelatorio) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
-  // DSS Arkium – filtro por data de fechamento
+  // DSS Arkium – filtro por data de fechamento feito em memória
   const where: any = {}
   
   if (f.tecnicoId && f.tecnicoId !== 'ativos') {
@@ -103,22 +103,47 @@ export async function getRelatorioDss(f: FiltrosRelatorio) {
     }
   }
 
-  if (f.dataInicio && f.dataFim) {
-    // campo dataFechamento é string "dd/mm/yyyy" no banco
-    // busca por importadoEm como proxy
-    where.importadoEm = {
-      gte: new Date(f.dataInicio + 'T00:00:00Z'),
-      lte: new Date(f.dataFim   + 'T23:59:59Z'),
-    }
-  }
-
   const rows = await prisma.dssArkium.findMany({ where, orderBy: { importadoEm: 'desc' } })
 
+  function parseDate(d: string | null): Date | null {
+    if (!d) return null
+    const datePart = d.split(' ')[0]
+    if (datePart.includes('/')) {
+      const parts = datePart.split('/')
+      if (parts.length >= 3) {
+        let day = parseInt(parts[0], 10)
+        let month = parseInt(parts[1], 10)
+        let year = parseInt(parts[2], 10)
+        if (parts[2].length === 2) year += 2000
+        return new Date(year, month - 1, day)
+      }
+    } else if (datePart.includes('-')) {
+      const parts = datePart.split('-')
+      if (parts.length >= 3) {
+        let year = parseInt(parts[0], 10)
+        let month = parseInt(parts[1], 10)
+        let day = parseInt(parts[2], 10)
+        return new Date(year, month - 1, day)
+      }
+    }
+    return null
+  }
+
   let filteredRows = rows
+  if (f.dataInicio && f.dataFim) {
+    const start = new Date(f.dataInicio + 'T00:00:00')
+    const end = new Date(f.dataFim + 'T23:59:59')
+    filteredRows = rows.filter(r => {
+      const parsed = parseDate(r.dataFechamento)
+      if (!parsed) return false
+      return parsed >= start && parsed <= end
+    })
+  }
+
   if (f.tecnicoId === 'ativos') {
     const ativos = await prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true } })
     const nomesAtivos = new Set(ativos.map(a => a.nome.toLowerCase().trim()))
-    filteredRows = rows.filter(r => {
+    filteredRows = filteredRows.filter(r => {
       const lider = (r.lider || '').toLowerCase().trim()
       return Array.from(nomesAtivos).some(nome => lider.includes(nome) || nome.includes(lider))
     })
@@ -157,12 +182,6 @@ export async function getRelatorioInspecoes(f: FiltrosRelatorio) {
   } else if (f.tecnicoId) {
     where.tecnicoId = f.tecnicoId
   }
-  if (f.dataInicio && f.dataFim) {
-    where.importadoEm = {
-      gte: new Date(f.dataInicio + 'T00:00:00Z'),
-      lte: new Date(f.dataFim   + 'T23:59:59Z'),
-    }
-  }
 
   const rows = await prisma.inspecoesArkium.findMany({
     where,
@@ -170,8 +189,43 @@ export async function getRelatorioInspecoes(f: FiltrosRelatorio) {
     orderBy: { importadoEm: 'desc' }
   })
 
-  const byTecnico = new Map<string, typeof rows>()
-  for (const r of rows) {
+  function parseDate(d: string | null): Date | null {
+    if (!d) return null
+    const datePart = d.split(' ')[0]
+    if (datePart.includes('/')) {
+      const parts = datePart.split('/')
+      if (parts.length >= 3) {
+        let day = parseInt(parts[0], 10)
+        let month = parseInt(parts[1], 10)
+        let year = parseInt(parts[2], 10)
+        if (parts[2].length === 2) year += 2000
+        return new Date(year, month - 1, day)
+      }
+    } else if (datePart.includes('-')) {
+      const parts = datePart.split('-')
+      if (parts.length >= 3) {
+        let year = parseInt(parts[0], 10)
+        let month = parseInt(parts[1], 10)
+        let day = parseInt(parts[2], 10)
+        return new Date(year, month - 1, day)
+      }
+    }
+    return null
+  }
+
+  let filtered = rows
+  if (f.dataInicio && f.dataFim) {
+    const start = new Date(f.dataInicio + 'T00:00:00')
+    const end = new Date(f.dataFim + 'T23:59:59')
+    filtered = rows.filter(r => {
+      const parsed = parseDate(r.dataAbertura || r.dataFechamento)
+      if (!parsed) return false
+      return parsed >= start && parsed <= end
+    })
+  }
+
+  const byTecnico = new Map<string, typeof filtered>()
+  for (const r of filtered) {
     const key = r.tecnico?.nome ?? r.nomeAuditor ?? 'Não identificado'
     if (!byTecnico.has(key)) byTecnico.set(key, [])
     byTecnico.get(key)!.push(r)
@@ -179,7 +233,7 @@ export async function getRelatorioInspecoes(f: FiltrosRelatorio) {
 
   return {
     success: true,
-    data: rows,
+    data: filtered,
     resumo: Array.from(byTecnico.entries()).map(([tecnico, itens]) => ({
       tecnico,
       total:     itens.length,

@@ -90,6 +90,19 @@ function formatarQualquerData(val?: any) {
   }
   return str
 }
+function abreviarNome(completo?: string | null): string {
+  if (!completo) return '—'
+  const partes = completo.trim().split(/\s+/)
+  if (partes.length === 1) return partes[0]
+  const primeiro = partes[0]
+  const segundo = partes[1]
+  const conectores = ['de', 'da', 'do', 'dos', 'das', 'e']
+  if (conectores.includes(segundo.toLowerCase()) && partes.length > 2) {
+    const terceiro = partes[2]
+    return `${primeiro} ${terceiro[0].toUpperCase()}.`
+  }
+  return `${primeiro} ${segundo[0].toUpperCase()}.`
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -173,10 +186,10 @@ export default function AdminRelatoriosPage() {
           genOpts = { titulo: 'Planejamento', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} atividades planejadas`, headers: ['Técnico','Data','Categoria','Descrição','Status','Criado por','Criado em','Fechado por','Fechado em','Desc. Executada'], rows: d.data.map((r:any) => [r.tecnico, formatarDataBr(r.dataAtividade), r.categoria, r.descricaoOriginal?.slice(0,60), r.status, r.criadoPor, formatarDataHoraBr(r.criadoEm), r.fechadoPor, formatarDataHoraBr(r.fechadoEm), (r.descricaoExecutada||'—').slice(0,60)]) }
         } else if (tipoSel === 'dss') {
           const d = await getRelatorioDss(filtros)
-          genOpts = { titulo: 'DSS', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} diálogos registrados`, headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Estado','Data Fechamento'], rows: (d.data||[]).map((r:any) => [r.numeroDialogo, r.assunto??'—', r.lider??'—', r.base??'—', r.matricula, r.nome??'—', r.estado, formatarQualquerData(r.dataFechamento)]) }
+          genOpts = { titulo: 'DSS', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} diálogos registrados`, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: abreviarNome(r.lider), valor: `${r.total}`, pct: r.pct })), headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Estado','Data Fechamento'], rows: (d.data||[]).map((r:any) => [r.numeroDialogo, r.assunto??'—', r.lider??'—', r.base??'—', r.matricula, r.nome??'—', r.estado, formatarQualquerData(r.dataFechamento)]) }
         } else if (tipoSel === 'inspecoes') {
           const d = await getRelatorioInspecoes(filtros)
-          genOpts = { titulo: 'Inspeções', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} inspeções realizadas`, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: r.tecnico, valor: `${r.total}`, pct: r.pct })), headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário'], rows: (d.data||[]).map((r:any) => [r.numero, r.tecnico?.nome??r.nomeAuditor??'—', r.resultado??'—', formatarQualquerData(r.dataAbertura), formatarQualquerData(r.dataFechamento), r.localidadeObjeto??'—', r.nomeQuestionario??'—']) }
+          genOpts = { titulo: 'Inspeções', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} inspeções realizadas`, resumo: (d.resumo??[]).slice(0,8).map((r:any) => ({ label: abreviarNome(r.tecnico), valor: `${r.total}`, pct: r.pct })), headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário'], rows: (d.data||[]).map((r:any) => [r.numero, r.tecnico?.nome??r.nomeAuditor??'—', r.resultado??'—', formatarQualquerData(r.dataAbertura), formatarQualquerData(r.dataFechamento), r.localidadeObjeto??'—', r.nomeQuestionario??'—']) }
         } else if (tipoSel === 'nao-confor') {
           const d = await getRelatorioNaoConformes(filtros)
           genOpts = { titulo: 'Itens Não Conformes', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} apontamentos não conformes`, headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário','Observação'], rows: d.data.map((r:any) => [r.numero, r.tecnico, r.resultado, formatarQualquerData(r.dataAbertura), formatarQualquerData(r.dataFechamento), r.local, r.questionario, r.observacao]) }
