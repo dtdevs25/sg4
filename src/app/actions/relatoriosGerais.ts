@@ -279,18 +279,42 @@ export async function getRelatorioInspecoes(f: FiltrosRelatorio) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
-  const where: any = {}
-  if (f.tecnicoId === 'ativos') {
-    where.tecnico = { ativo: true }
-  } else if (f.tecnicoId) {
-    where.tecnicoId = f.tecnicoId
-  }
+  const tecnicos = await prisma.tecnico.findMany({
+    include: { baseFixa: true }
+  })
 
   const rows = await prisma.inspecoesArkium.findMany({
-    where,
-    include: { tecnico: { select: { nome: true } } },
     orderBy: { importadoEm: 'desc' }
   })
+
+  const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
+    if (!nomePlanilha || !nomeBd) return false
+    const nP = removeAccents(nomePlanilha.toLowerCase().trim())
+    const nB = removeAccents(nomeBd.toLowerCase().trim())
+    if (nP === nB) return true
+    const planTokens = nP.split(' ').filter(Boolean)
+    const dbTokens = nB.split(' ').filter(Boolean)
+    
+    if (planTokens.length === 0 || dbTokens.length === 0) return false
+    
+    if (planTokens[0] === dbTokens[0]) {
+       if (planTokens.length === 1 || dbTokens.length === 1) return true
+       
+       const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
+       const planSurnames = planTokens.slice(1).filter(t => !ignoreList.includes(t))
+       const dbSurnames = dbTokens.slice(1).filter(t => !ignoreList.includes(t))
+       
+       for (let i = 0; i < planSurnames.length; i++) {
+          for (let j = 0; j < dbSurnames.length; j++) {
+             if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
+                return true
+             }
+          }
+       }
+    }
+    return false
+  }
 
   function parseDate(d: string | null): Date | null {
     if (!d) return null
@@ -316,19 +340,35 @@ export async function getRelatorioInspecoes(f: FiltrosRelatorio) {
     return null
   }
 
-  let filtered = rows
+  let mapped = rows.map(r => {
+    let matchedTecnico = tecnicos.find(t => t.id === r.tecnicoId)
+    if (!matchedTecnico && r.nomeAuditor) {
+      matchedTecnico = tecnicos.find(t => matchTecnico(r.nomeAuditor, t.nome))
+    }
+    return {
+      ...r,
+      tecnico: matchedTecnico ?? null
+    }
+  })
+
   if (f.dataInicio && f.dataFim) {
     const start = new Date(f.dataInicio + 'T00:00:00')
     const end = new Date(f.dataFim + 'T23:59:59')
-    filtered = rows.filter(r => {
+    mapped = mapped.filter(r => {
       const parsed = parseDate(r.dataAbertura || r.dataFechamento)
       if (!parsed) return false
       return parsed >= start && parsed <= end
     })
   }
 
-  const byTecnico = new Map<string, typeof filtered>()
-  for (const r of filtered) {
+  if (f.tecnicoId === 'ativos') {
+    mapped = mapped.filter(r => r.tecnico && r.tecnico.ativo !== false)
+  } else if (f.tecnicoId) {
+    mapped = mapped.filter(r => r.tecnico?.id === f.tecnicoId)
+  }
+
+  const byTecnico = new Map<string, typeof mapped>()
+  for (const r of mapped) {
     const key = r.tecnico?.nome ?? r.nomeAuditor ?? 'Não identificado'
     if (!byTecnico.has(key)) byTecnico.set(key, [])
     byTecnico.get(key)!.push(r)
@@ -336,7 +376,7 @@ export async function getRelatorioInspecoes(f: FiltrosRelatorio) {
 
   return {
     success: true,
-    data: filtered,
+    data: mapped,
     resumo: Array.from(byTecnico.entries()).map(([tecnico, itens]) => ({
       tecnico,
       total:     itens.length,
@@ -353,30 +393,100 @@ export async function getRelatorioNaoConformes(f: FiltrosRelatorio) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
-  const where: any = {
-    resultado: { contains: 'NÃO', mode: 'insensitive' }
-  }
-  if (f.tecnicoId === 'ativos') {
-    where.tecnico = { ativo: true }
-  } else if (f.tecnicoId) {
-    where.tecnicoId = f.tecnicoId
-  }
-  if (f.dataInicio && f.dataFim) {
-    where.importadoEm = {
-      gte: new Date(f.dataInicio + 'T00:00:00Z'),
-      lte: new Date(f.dataFim   + 'T23:59:59Z'),
-    }
-  }
+  const tecnicos = await prisma.tecnico.findMany({
+    include: { baseFixa: true }
+  })
 
   const rows = await prisma.inspecoesArkium.findMany({
-    where,
-    include: { tecnico: { select: { nome: true } } },
+    where: {
+      resultado: { contains: 'NÃO', mode: 'insensitive' }
+    },
     orderBy: { importadoEm: 'desc' }
   })
 
+  const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
+    if (!nomePlanilha || !nomeBd) return false
+    const nP = removeAccents(nomePlanilha.toLowerCase().trim())
+    const nB = removeAccents(nomeBd.toLowerCase().trim())
+    if (nP === nB) return true
+    const planTokens = nP.split(' ').filter(Boolean)
+    const dbTokens = nB.split(' ').filter(Boolean)
+    
+    if (planTokens.length === 0 || dbTokens.length === 0) return false
+    
+    if (planTokens[0] === dbTokens[0]) {
+       if (planTokens.length === 1 || dbTokens.length === 1) return true
+       
+       const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
+       const planSurnames = planTokens.slice(1).filter(t => !ignoreList.includes(t))
+       const dbSurnames = dbTokens.slice(1).filter(t => !ignoreList.includes(t))
+       
+       for (let i = 0; i < planSurnames.length; i++) {
+          for (let j = 0; j < dbSurnames.length; j++) {
+             if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
+                return true
+             }
+          }
+       }
+    }
+    return false
+  }
+
+  function parseDate(d: string | null): Date | null {
+    if (!d) return null
+    const datePart = d.split(' ')[0]
+    if (datePart.includes('/')) {
+      const parts = datePart.split('/')
+      if (parts.length >= 3) {
+        let day = parseInt(parts[0], 10)
+        let month = parseInt(parts[1], 10)
+        let year = parseInt(parts[2], 10)
+        if (parts[2].length === 2) year += 2000
+        return new Date(year, month - 1, day)
+      }
+    } else if (datePart.includes('-')) {
+      const parts = datePart.split('-')
+      if (parts.length >= 3) {
+        let year = parseInt(parts[0], 10)
+        let month = parseInt(parts[1], 10)
+        let day = parseInt(parts[2], 10)
+        return new Date(year, month - 1, day)
+      }
+    }
+    return null
+  }
+
+  let mapped = rows.map(r => {
+    let matchedTecnico = tecnicos.find(t => t.id === r.tecnicoId)
+    if (!matchedTecnico && r.nomeAuditor) {
+      matchedTecnico = tecnicos.find(t => matchTecnico(r.nomeAuditor, t.nome))
+    }
+    return {
+      ...r,
+      tecnico: matchedTecnico ?? null
+    }
+  })
+
+  if (f.dataInicio && f.dataFim) {
+    const start = new Date(f.dataInicio + 'T00:00:00')
+    const end = new Date(f.dataFim + 'T23:59:59')
+    mapped = mapped.filter(r => {
+      const parsed = parseDate(r.dataAbertura || r.dataFechamento)
+      if (!parsed) return false
+      return parsed >= start && parsed <= end
+    })
+  }
+
+  if (f.tecnicoId === 'ativos') {
+    mapped = mapped.filter(r => r.tecnico && r.tecnico.ativo !== false)
+  } else if (f.tecnicoId) {
+    mapped = mapped.filter(r => r.tecnico?.id === f.tecnicoId)
+  }
+
   return {
     success: true,
-    data: rows.map(r => ({
+    data: mapped.map(r => ({
       numero:       r.numero,
       tecnico:      r.tecnico?.nome ?? r.nomeAuditor ?? '—',
       resultado:    r.resultado ?? '—',
@@ -395,22 +505,98 @@ export async function getRelatorioDssPendentes(f: FiltrosRelatorio) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
-  const where: any = { estado: 'ABERTO' }
-  if (f.dataInicio && f.dataFim) {
-    where.importadoEm = {
-      gte: new Date(f.dataInicio + 'T00:00:00Z'),
-      lte: new Date(f.dataFim   + 'T23:59:59Z'),
-    }
-  }
+  const tecnicos = await prisma.tecnico.findMany({
+    include: { baseFixa: true }
+  })
 
   const rows = await prisma.dssArkium.findMany({
-    where,
+    where: { estado: 'ABERTO' },
     orderBy: { importadoEm: 'desc' }
   })
 
+  const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
+    if (!nomePlanilha || !nomeBd) return false
+    const nP = removeAccents(nomePlanilha.toLowerCase().trim())
+    const nB = removeAccents(nomeBd.toLowerCase().trim())
+    if (nP === nB) return true
+    const planTokens = nP.split(' ').filter(Boolean)
+    const dbTokens = nB.split(' ').filter(Boolean)
+    
+    if (planTokens.length === 0 || dbTokens.length === 0) return false
+    
+    if (planTokens[0] === dbTokens[0]) {
+       if (planTokens.length === 1 || dbTokens.length === 1) return true
+       
+       const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
+       const planSurnames = planTokens.slice(1).filter(t => !ignoreList.includes(t))
+       const dbSurnames = dbTokens.slice(1).filter(t => !ignoreList.includes(t))
+       
+       for (let i = 0; i < planSurnames.length; i++) {
+          for (let j = 0; j < dbSurnames.length; j++) {
+             if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
+                return true
+             }
+          }
+       }
+    }
+    return false
+  }
+
+  function parseDate(d: string | null): Date | null {
+    if (!d) return null
+    const datePart = d.split(' ')[0]
+    if (datePart.includes('/')) {
+      const parts = datePart.split('/')
+      if (parts.length >= 3) {
+        let day = parseInt(parts[0], 10)
+        let month = parseInt(parts[1], 10)
+        let year = parseInt(parts[2], 10)
+        if (parts[2].length === 2) year += 2000
+        return new Date(year, month - 1, day)
+      }
+    } else if (datePart.includes('-')) {
+      const parts = datePart.split('-')
+      if (parts.length >= 3) {
+        let year = parseInt(parts[0], 10)
+        let month = parseInt(parts[1], 10)
+        let day = parseInt(parts[2], 10)
+        return new Date(year, month - 1, day)
+      }
+    }
+    return null
+  }
+
+  let mapped = rows.map(r => {
+    let matchedTecnico = tecnicos.find(t => t.id === r.tecnicoId)
+    if (!matchedTecnico && r.nome) {
+      matchedTecnico = tecnicos.find(t => matchTecnico(r.nome, t.nome))
+    }
+    return {
+      ...r,
+      tecnico: matchedTecnico ?? null
+    }
+  })
+
+  if (f.dataInicio && f.dataFim) {
+    const start = new Date(f.dataInicio + 'T00:00:00')
+    const end = new Date(f.dataFim + 'T23:59:59')
+    mapped = mapped.filter(r => {
+      const parsed = parseDate(r.dataFechamento)
+      const d = parsed || new Date(r.importadoEm)
+      return d >= start && d <= end
+    })
+  }
+
+  if (f.tecnicoId === 'ativos') {
+    mapped = mapped.filter(r => r.tecnico && r.tecnico.ativo !== false)
+  } else if (f.tecnicoId) {
+    mapped = mapped.filter(r => r.tecnico?.id === f.tecnicoId)
+  }
+
   return {
     success: true,
-    data: rows.map(r => ({
+    data: mapped.map(r => ({
       numeroDialogo: r.numeroDialogo,
       assunto:       r.assunto ?? '—',
       lider:         r.lider   ?? '—',
