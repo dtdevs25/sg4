@@ -20,7 +20,11 @@ export async function getRelatorioAgenda(f: FiltrosRelatorio) {
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
   const where: any = {}
-  if (f.tecnicoId) where.tecnicoId = f.tecnicoId
+  if (f.tecnicoId === 'ativos') {
+    where.tecnico = { ativo: true }
+  } else if (f.tecnicoId) {
+    where.tecnicoId = f.tecnicoId
+  }
   if (f.dataInicio && f.dataFim) {
     where.dataAtividade = {
       gte: new Date(f.dataInicio + 'T00:00:00Z'),
@@ -92,7 +96,7 @@ export async function getRelatorioDss(f: FiltrosRelatorio) {
   // DSS Arkium – filtro por data de fechamento
   const where: any = {}
   
-  if (f.tecnicoId) {
+  if (f.tecnicoId && f.tecnicoId !== 'ativos') {
     const t = await prisma.tecnico.findUnique({ where: { id: f.tecnicoId }, select: { nome: true } })
     if (t?.nome) {
       where.lider = { contains: t.nome, mode: 'insensitive' }
@@ -110,9 +114,19 @@ export async function getRelatorioDss(f: FiltrosRelatorio) {
 
   const rows = await prisma.dssArkium.findMany({ where, orderBy: { importadoEm: 'desc' } })
 
+  let filteredRows = rows
+  if (f.tecnicoId === 'ativos') {
+    const ativos = await prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true } })
+    const nomesAtivos = new Set(ativos.map(a => a.nome.toLowerCase().trim()))
+    filteredRows = rows.filter(r => {
+      const lider = (r.lider || '').toLowerCase().trim()
+      return Array.from(nomesAtivos).some(nome => lider.includes(nome) || nome.includes(lider))
+    })
+  }
+
   // agrupa por técnico (lider)
-  const byLider = new Map<string, typeof rows>()
-  for (const r of rows) {
+  const byLider = new Map<string, typeof filteredRows>()
+  for (const r of filteredRows) {
     const key = r.lider ?? 'Não identificado'
     if (!byLider.has(key)) byLider.set(key, [])
     byLider.get(key)!.push(r)
@@ -120,7 +134,7 @@ export async function getRelatorioDss(f: FiltrosRelatorio) {
 
   return {
     success: true,
-    data: rows,
+    data: filteredRows,
     resumo: Array.from(byLider.entries()).map(([lider, itens]) => ({
       lider,
       total:    itens.length,
@@ -138,7 +152,11 @@ export async function getRelatorioInspecoes(f: FiltrosRelatorio) {
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
   const where: any = {}
-  if (f.tecnicoId) where.tecnicoId = f.tecnicoId
+  if (f.tecnicoId === 'ativos') {
+    where.tecnico = { ativo: true }
+  } else if (f.tecnicoId) {
+    where.tecnicoId = f.tecnicoId
+  }
   if (f.dataInicio && f.dataFim) {
     where.importadoEm = {
       gte: new Date(f.dataInicio + 'T00:00:00Z'),
@@ -181,7 +199,11 @@ export async function getRelatorioNaoConformes(f: FiltrosRelatorio) {
   const where: any = {
     resultado: { contains: 'NÃO', mode: 'insensitive' }
   }
-  if (f.tecnicoId) where.tecnicoId = f.tecnicoId
+  if (f.tecnicoId === 'ativos') {
+    where.tecnico = { ativo: true }
+  } else if (f.tecnicoId) {
+    where.tecnicoId = f.tecnicoId
+  }
   if (f.dataInicio && f.dataFim) {
     where.importadoEm = {
       gte: new Date(f.dataInicio + 'T00:00:00Z'),
@@ -255,7 +277,11 @@ export async function getRelatorioPlanejamentosAtrasados(f: FiltrosRelatorio) {
     status: 'PENDENTE',
     dataAtividade: { lt: hoje }
   }
-  if (f.tecnicoId) where.tecnicoId = f.tecnicoId
+  if (f.tecnicoId === 'ativos') {
+    where.tecnico = { ativo: true }
+  } else if (f.tecnicoId) {
+    where.tecnicoId = f.tecnicoId
+  }
   if (f.dataInicio && f.dataFim) {
     where.dataAtividade = {
       gte: new Date(f.dataInicio + 'T00:00:00Z'),
@@ -290,7 +316,11 @@ export async function getRelatorioAusencias(f: FiltrosRelatorio) {
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
   const where: any = { presenca: 'AUSENTE' }
-  if (f.tecnicoId) where.tecnicoId = f.tecnicoId
+  if (f.tecnicoId === 'ativos') {
+    where.tecnico = { ativo: true }
+  } else if (f.tecnicoId) {
+    where.tecnicoId = f.tecnicoId
+  }
   if (f.dataInicio && f.dataFim) {
     where.data = {
       gte: new Date(f.dataInicio + 'T00:00:00Z'),
@@ -324,7 +354,11 @@ export async function getRelatorioReunioes(f: FiltrosRelatorio) {
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
   const where: any = {}
-  if (f.tecnicoId) where.tecnicoId = f.tecnicoId
+  if (f.tecnicoId === 'ativos') {
+    where.tecnico = { ativo: true }
+  } else if (f.tecnicoId) {
+    where.tecnicoId = f.tecnicoId
+  }
   if (f.dataInicio && f.dataFim) {
     where.data = {
       gte: new Date(f.dataInicio + 'T00:00:00Z'),
@@ -367,7 +401,11 @@ export async function getRelatorioKm(f: FiltrosRelatorio) {
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
   const where: any = {}
-  if (f.tecnicoId) where.tecnicoId = f.tecnicoId
+  if (f.tecnicoId === 'ativos') {
+    where.tecnico = { ativo: true }
+  } else if (f.tecnicoId) {
+    where.tecnicoId = f.tecnicoId
+  }
   if (f.dataInicio && f.dataFim) {
     where.dataInicial = {
       gte: new Date(f.dataInicio + 'T00:00:00Z'),
@@ -383,7 +421,7 @@ export async function getRelatorioKm(f: FiltrosRelatorio) {
     }),
     prisma.abastecimento.findMany({
       where: {
-        ...(f.tecnicoId ? { tecnicoId: f.tecnicoId } : {}),
+        ...(f.tecnicoId === 'ativos' ? { tecnico: { ativo: true } } : (f.tecnicoId ? { tecnicoId: f.tecnicoId } : {})),
         ...(f.dataInicio && f.dataFim ? {
           data: {
             gte: new Date(f.dataInicio + 'T00:00:00Z'),
@@ -428,7 +466,11 @@ export async function getRelatorioAtividadesCampo(f: FiltrosRelatorio) {
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
   const where: any = {}
-  if (f.tecnicoId) where.tecnicoId = f.tecnicoId
+  if (f.tecnicoId === 'ativos') {
+    where.tecnico = { ativo: true }
+  } else if (f.tecnicoId) {
+    where.tecnicoId = f.tecnicoId
+  }
   if (f.dataInicio && f.dataFim) {
     where.data = {
       gte: new Date(f.dataInicio + 'T00:00:00Z'),
