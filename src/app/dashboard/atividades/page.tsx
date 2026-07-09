@@ -108,6 +108,7 @@ export default function PlanejamentoPage() {
   const [showFormRelatorio, setShowFormRelatorio] = useState<{plan: any, itemId: string, itemText: string} | null>(null)
   const [formRelatorio, setFormRelatorio] = useState({ empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '' })
   const [aiLoadingRel, setAiLoadingRel] = useState(false)
+  const [savingRelatorio, setSavingRelatorio] = useState(false)
   const [aiLoadingExec, setAiLoadingExec] = useState(false)
   const [aiLoadingNewItem, setAiLoadingNewItem] = useState(false)
   const [aiLoadingTituloNew, setAiLoadingTituloNew] = useState(false)
@@ -735,45 +736,53 @@ export default function PlanejamentoPage() {
 
   async function handleAddRelatorio(e: React.FormEvent) {
     e.preventDefault()
-    if (!showFormRelatorio) return
+    if (!showFormRelatorio || savingRelatorio) return
 
-    let finalFotoUrl = ''
-    if (formRelatorio.fotoBase64 && formRelatorio.fileName && formRelatorio.contentType) {
-      const formData = new FormData();
-      formData.append('fileData', formRelatorio.fotoBase64);
-      formData.append('fileName', formRelatorio.fileName);
-      formData.append('contentType', formRelatorio.contentType);
-      const uploadRes = await uploadFotoRelatorio(formData)
-      if (uploadRes.success && uploadRes.url) {
-        finalFotoUrl = uploadRes.url
-      } else {
-        showAlert('Erro ao fazer upload da foto: ' + uploadRes.error, 'Erro', 'error')
-        return
+    setSavingRelatorio(true)
+    try {
+      let finalFotoUrl = ''
+      if (formRelatorio.fotoBase64 && formRelatorio.fileName && formRelatorio.contentType) {
+        const formData = new FormData();
+        formData.append('fileData', formRelatorio.fotoBase64);
+        formData.append('fileName', formRelatorio.fileName);
+        formData.append('contentType', formRelatorio.contentType);
+        const uploadRes = await uploadFotoRelatorio(formData)
+        if (uploadRes.success && uploadRes.url) {
+          finalFotoUrl = uploadRes.url
+        } else {
+          showAlert('Erro ao fazer upload da foto: ' + uploadRes.error, 'Erro', 'error')
+          setSavingRelatorio(false)
+          return
+        }
       }
-    }
 
-    startTransition(async () => {
-      // Usar a data do planejamento
-      const planDate = new Date(showFormRelatorio.plan.dataAtividade)
-      
-      const res = await addAtividade({
-        tecnicoId: showFormRelatorio.plan.tecnicoId,
-        data: planDate,
-        empresa: formRelatorio.empresa,
-        projeto: formRelatorio.projeto,
-        local: formRelatorio.local === 'OUTROS' ? formRelatorio.outroLocal : formRelatorio.local,
-        cidadeUf: formRelatorio.cidadeUf,
-        descricao: formRelatorio.descricao,
-        fotoUrl: finalFotoUrl
+      startTransition(async () => {
+        // Usar a data do planejamento
+        const planDate = new Date(showFormRelatorio.plan.dataAtividade)
+        
+        const res = await addAtividade({
+          tecnicoId: showFormRelatorio.plan.tecnicoId,
+          data: planDate,
+          empresa: formRelatorio.empresa,
+          projeto: formRelatorio.projeto,
+          local: formRelatorio.local === 'OUTROS' ? formRelatorio.outroLocal : formRelatorio.local,
+          cidadeUf: formRelatorio.cidadeUf,
+          descricao: formRelatorio.descricao,
+          fotoUrl: finalFotoUrl
+        })
+        
+        if (res.success) {
+          confirmToggleItemChecklist(showFormRelatorio.plan.id, showFormRelatorio.itemId, true)
+          setShowFormRelatorio(null)
+        } else {
+          showAlert('Erro ao salvar relatório: ' + res.error, 'Erro', 'error')
+        }
+        setSavingRelatorio(false)
       })
-      
-      if (res.success) {
-        confirmToggleItemChecklist(showFormRelatorio.plan.id, showFormRelatorio.itemId, true)
-        setShowFormRelatorio(null)
-      } else {
-        showAlert('Erro ao salvar relatório: ' + res.error, 'Erro', 'error')
-      }
-    })
+    } catch (err: any) {
+      showAlert('Erro ao salvar relatório: ' + err.message, 'Erro', 'error')
+      setSavingRelatorio(false)
+    }
   }
 
   async function handleSaveDssAliado(e: React.FormEvent) {
@@ -2142,8 +2151,8 @@ export default function PlanejamentoPage() {
 
               <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
                 <button type="button" onClick={() => setShowFormRelatorio(null)} style={{ flex: 1, padding: '12px', background: '#e2e8f0', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none' }}>Cancelar</button>
-                <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: pending ? 0.7 : 1 }}>
-                  {pending ? 'Salvando...' : 'Salvar e Concluir'}
+                <button type="submit" disabled={pending || savingRelatorio} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: (pending || savingRelatorio) ? 0.7 : 1 }}>
+                  {pending || savingRelatorio ? 'Salvando...' : 'Salvar e Concluir'}
                 </button>
               </div>
             </form>

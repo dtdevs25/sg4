@@ -45,6 +45,7 @@ export default function RelatoriosAtividadesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [pending, startTransition] = useTransition()
+  const [saving, setSaving] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -215,7 +216,9 @@ export default function RelatoriosAtividadesPage() {
 
   async function handleAddAtividade(e: React.FormEvent) {
     e.preventDefault()
-    startTransition(async () => {
+    if (saving) return
+    setSaving(true)
+    try {
       let fUrl = undefined
       if (formAtiv.fotoBase64) {
         const formData = new FormData();
@@ -224,51 +227,66 @@ export default function RelatoriosAtividadesPage() {
         formData.append('contentType', formAtiv.contentType);
         const up = await uploadFotoRelatorio(formData)
         if (up.success) fUrl = up.url
-        else return alert('Erro no upload da foto')
+        else {
+          alert('Erro no upload da foto')
+          setSaving(false)
+          return
+        }
       }
 
       const tId = role === 'TST' ? (session?.user as any).tecnicoId : formAtiv.tecnicoId
-      if (!tId) return alert('Selecione o técnico')
+      if (!tId) {
+        alert('Selecione o técnico')
+        setSaving(false)
+        return
+      }
 
       const finalLocal = formAtiv.local === 'OUTROS' && formAtiv.outroLocal ? formAtiv.outroLocal : formAtiv.local
 
-      const res = await addAtividade({
-        tecnicoId: tId,
-        data: new Date(formAtiv.data + 'T12:00:00Z'),
-        empresa: formAtiv.empresa,
-        projeto: formAtiv.projeto,
-        local: finalLocal,
-        cidadeUf: formAtiv.cidadeUf,
-        descricao: formAtiv.descricao,
-        fotoUrl: fUrl
-      })
+      startTransition(async () => {
+        const res = await addAtividade({
+          tecnicoId: tId,
+          data: new Date(formAtiv.data + 'T12:00:00Z'),
+          empresa: formAtiv.empresa,
+          projeto: formAtiv.projeto,
+          local: finalLocal,
+          cidadeUf: formAtiv.cidadeUf,
+          descricao: formAtiv.descricao,
+          fotoUrl: fUrl
+        })
 
-      if (res.success) {
-        // Se marcado como DSS com Aliado, salva também no DssAliado
-        if (formAtiv.isDssAliado && formAtiv.dssTema.trim()) {
-          await saveDssAliado({
-            tecnicoId: tId,
-            data: new Date(formAtiv.data + 'T12:00:00Z'),
-            tema: formAtiv.dssTema,
-            fotoBase64: formAtiv.dssFotoBase64 || undefined,
-            fileName: formAtiv.dssFotoFileName || undefined,
-            contentType: formAtiv.dssFotoContentType || undefined,
-          })
+        if (res.success) {
+          // Se marcado como DSS com Aliado, salva também no DssAliado
+          if (formAtiv.isDssAliado && formAtiv.dssTema.trim()) {
+            await saveDssAliado({
+              tecnicoId: tId,
+              data: new Date(formAtiv.data + 'T12:00:00Z'),
+              tema: formAtiv.dssTema,
+              fotoBase64: formAtiv.dssFotoBase64 || undefined,
+              fileName: formAtiv.dssFotoFileName || undefined,
+              contentType: formAtiv.dssFotoContentType || undefined,
+            })
+          }
+          setShowNovaAtividade(false)
+          setFormAtiv({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '', isDssAliado: false, dssTema: '', dssFotoBase64: '', dssFotoFileName: '', dssFotoContentType: '' })
+          loadData()
+        } else {
+          alert(res.error)
         }
-        setShowNovaAtividade(false)
-        setFormAtiv({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '', isDssAliado: false, dssTema: '', dssFotoBase64: '', dssFotoFileName: '', dssFotoContentType: '' })
-        loadData()
-      } else {
-        alert(res.error)
-      }
-    })
+        setSaving(false)
+      })
+    } catch (err: any) {
+      alert('Erro ao salvar relatório: ' + err.message)
+      setSaving(false)
+    }
   }
 
   async function handleEditAtividade(e: React.FormEvent) {
     e.preventDefault()
-    if (!showEditModal) return
+    if (!showEditModal || saving) return
 
-    startTransition(async () => {
+    setSaving(true)
+    try {
       let fUrl = undefined
       if (formEdit.fotoBase64) {
         const formData = new FormData();
@@ -277,28 +295,38 @@ export default function RelatoriosAtividadesPage() {
         formData.append('contentType', formEdit.contentType);
         const up = await uploadFotoRelatorio(formData)
         if (up.success) fUrl = up.url
-        else return alert('Erro no upload da nova foto')
+        else {
+          alert('Erro no upload da nova foto')
+          setSaving(false)
+          return
+        }
       }
 
       const finalLocal = formEdit.local === 'OUTROS' && formEdit.outroLocal ? formEdit.outroLocal : formEdit.local
 
-      const res = await updateAtividade(showEditModal.id, {
-        data: new Date(formEdit.data + 'T12:00:00Z'),
-        empresa: formEdit.empresa,
-        projeto: formEdit.projeto,
-        local: finalLocal,
-        cidadeUf: formEdit.cidadeUf,
-        descricao: formEdit.descricao,
-        fotoUrl: fUrl
-      })
+      startTransition(async () => {
+        const res = await updateAtividade(showEditModal.id, {
+          data: new Date(formEdit.data + 'T12:00:00Z'),
+          empresa: formEdit.empresa,
+          projeto: formEdit.projeto,
+          local: finalLocal,
+          cidadeUf: formEdit.cidadeUf,
+          descricao: formEdit.descricao,
+          fotoUrl: fUrl
+        })
 
-      if (res.success) {
-        setShowEditModal(null)
-        loadData()
-      } else {
-        alert(res.error)
-      }
-    })
+        if (res.success) {
+          setShowEditModal(null)
+          loadData()
+        } else {
+          alert(res.error)
+        }
+        setSaving(false)
+      })
+    } catch (err: any) {
+      alert('Erro ao editar atividade: ' + err.message)
+      setSaving(false)
+    }
   }
 
   async function handleDeleteConfirm() {
@@ -1042,8 +1070,8 @@ export default function RelatoriosAtividadesPage() {
 
                 <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
                   <button type="button" onClick={() => setShowNovaAtividade(false)} style={{ flex: 1, padding: '12px', background: '#e2e8f0', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none' }}>Cancelar</button>
-                  <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: pending ? 0.7 : 1 }}>
-                    {pending ? 'Salvando...' : 'Salvar Atividade'}
+                  <button type="submit" disabled={pending || saving} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: (pending || saving) ? 0.7 : 1 }}>
+                    {pending || saving ? 'Salvando...' : 'Salvar Atividade'}
                   </button>
                 </div>
               </form>
@@ -1227,9 +1255,9 @@ export default function RelatoriosAtividadesPage() {
               </div>
 
                 <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-                  <button type="button" disabled={pending} onClick={() => setShowEditModal(null)} style={{ flex: 1, padding: '12px', background: '#e2e8f0', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none' }}>Cancelar</button>
-                  <button type="submit" disabled={pending} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: pending ? 0.7 : 1 }}>
-                    {pending ? 'Salvando...' : 'Salvar Alterações'}
+                  <button type="button" disabled={pending || saving} onClick={() => setShowEditModal(null)} style={{ flex: 1, padding: '12px', background: '#e2e8f0', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none' }}>Cancelar</button>
+                  <button type="submit" disabled={pending || saving} style={{ flex: 1, padding: '12px', background: '#2563eb', color: '#fff', borderRadius: 8, fontWeight: 700, border: 'none', opacity: (pending || saving) ? 0.7 : 1 }}>
+                    {pending || saving ? 'Salvando...' : 'Salvar Alterações'}
                   </button>
                 </div>
               </form>
