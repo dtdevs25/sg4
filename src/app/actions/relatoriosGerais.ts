@@ -499,156 +499,124 @@ export async function getRelatorioNaoConformes(f: FiltrosRelatorio) {
   }
 }
 
-// ── 5. DSS Pendentes / Não Assinados ─────────────────────────────────────────
+// ── 5. Gerenciamento de Custos de Abastecimento Mês a Mês ─────────────────────
 
-export async function getRelatorioDssPendentes(f: FiltrosRelatorio) {
+export async function getRelatorioCustoAbastecimento(f: FiltrosRelatorio) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
   const tecnicos = await prisma.tecnico.findMany({
-    include: { baseFixa: true }
+    where: f.tecnicoId === 'ativos' ? { ativo: true } : f.tecnicoId ? { id: f.tecnicoId } : undefined,
+    orderBy: { nome: 'asc' }
   })
 
-  const rows = await prisma.dssArkium.findMany({
-    where: { estado: 'ABERTO' },
-    orderBy: { importadoEm: 'desc' }
-  })
+  const start = f.dataInicio ? new Date(f.dataInicio + 'T12:00:00') : new Date()
+  const end = f.dataFim ? new Date(f.dataFim + 'T12:00:00') : new Date()
 
-  const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
-    if (!nomePlanilha || !nomeBd) return false
-    const nP = removeAccents(nomePlanilha.toLowerCase().trim())
-    const nB = removeAccents(nomeBd.toLowerCase().trim())
-    if (nP === nB) return true
-    const planTokens = nP.split(' ').filter(Boolean)
-    const dbTokens = nB.split(' ').filter(Boolean)
-    
-    if (planTokens.length === 0 || dbTokens.length === 0) return false
-    
-    if (planTokens[0] === dbTokens[0]) {
-       if (planTokens.length === 1 || dbTokens.length === 1) return true
-       
-       const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
-       const planSurnames = planTokens.slice(1).filter(t => !ignoreList.includes(t))
-       const dbSurnames = dbTokens.slice(1).filter(t => !ignoreList.includes(t))
-       
-       for (let i = 0; i < planSurnames.length; i++) {
-          for (let j = 0; j < dbSurnames.length; j++) {
-             if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
-                return true
-             }
-          }
-       }
-    }
-    return false
+  const globalStart = new Date(2026, 6, 1) // Julho 2026 (mês 6)
+
+  let startYear = start.getFullYear()
+  let startMonth = start.getMonth()
+  if (new Date(startYear, startMonth, 1) < globalStart) {
+    startYear = 2026
+    startMonth = 6
   }
 
-  function parseDate(d: string | null): Date | null {
-    if (!d) return null
-    const datePart = d.split(' ')[0]
-    if (datePart.includes('/')) {
-      const parts = datePart.split('/')
-      if (parts.length >= 3) {
-        let day = parseInt(parts[0], 10)
-        let month = parseInt(parts[1], 10)
-        let year = parseInt(parts[2], 10)
-        if (parts[2].length === 2) year += 2000
-        return new Date(year, month - 1, day)
-      }
-    } else if (datePart.includes('-')) {
-      const parts = datePart.split('-')
-      if (parts.length >= 3) {
-        let year = parseInt(parts[0], 10)
-        let month = parseInt(parts[1], 10)
-        let day = parseInt(parts[2], 10)
-        return new Date(year, month - 1, day)
-      }
-    }
-    return null
-  }
+  const monthsList: { year: number, month: number }[] = []
+  let current = new Date(startYear, startMonth, 1)
+  const targetEnd = new Date(end.getFullYear(), end.getMonth(), 1)
 
-  let mapped = rows.map(r => {
-    let matchedTecnico = tecnicos.find(t => t.id === r.tecnicoId)
-    if (!matchedTecnico && r.nome) {
-      matchedTecnico = tecnicos.find(t => matchTecnico(r.nome, t.nome))
-    }
-    return {
-      ...r,
-      tecnico: matchedTecnico ?? null
-    }
-  })
-
-  if (f.dataInicio && f.dataFim) {
-    const start = new Date(f.dataInicio + 'T00:00:00')
-    const end = new Date(f.dataFim + 'T23:59:59')
-    mapped = mapped.filter(r => {
-      const parsed = parseDate(r.dataFechamento)
-      const d = parsed || new Date(r.importadoEm)
-      return d >= start && d <= end
+  while (current <= targetEnd) {
+    monthsList.push({
+      year: current.getFullYear(),
+      month: current.getMonth() + 1
     })
+    current.setMonth(current.getMonth() + 1)
   }
 
-  if (f.tecnicoId === 'ativos') {
-    mapped = mapped.filter(r => r.tecnico && r.tecnico.ativo !== false)
-  } else if (f.tecnicoId) {
-    mapped = mapped.filter(r => r.tecnico?.id === f.tecnicoId)
+  const result: any[] = []
+
+  const getValidMonthsCount = (admissao: Date, targetAno: number, targetMes: number) => {
+    let validMonths = 0
+    let currDate = new Date(2026, 6, 1)
+    const endDate = new Date(targetAno, targetMes - 1, 1)
+    const admissaoDate = new Date(admissao)
+    admissaoDate.setHours(0,0,0,0)
+
+    while (currDate <= endDate) {
+      const ano = currDate.getFullYear()
+      const mes = currDate.getMonth()
+      let firstBusinessDay = new Date(ano, mes, 1)
+      for(let i=1; i<=7; i++) {
+          let d = new Date(ano, mes, i)
+          if(d.getDay() !== 0 && d.getDay() !== 6) {
+             firstBusinessDay = d
+             break
+          }
+      }
+      if (admissaoDate <= firstBusinessDay) {
+          validMonths++
+      }
+      currDate.setMonth(currDate.getMonth() + 1)
+    }
+    return validMonths
   }
 
-  return {
-    success: true,
-    data: mapped.map(r => ({
-      numeroDialogo: r.numeroDialogo,
-      assunto:       r.assunto ?? '—',
-      lider:         r.lider   ?? '—',
-      base:          r.base    ?? '—',
-      matricula:     r.matricula,
-      nome:          r.nome    ?? '—',
-      dataFechamento: r.dataFechamento ?? '—',
-      estado:        r.estado,
-    }))
-  }
-}
+  for (const tec of tecnicos) {
+    for (const m of monthsList) {
+      const endOfMonth = new Date(m.year, m.month, 0, 23, 59, 59)
+      const startOfMonth = new Date(m.year, m.month - 1, 1)
 
-// ── 6. Planejamentos Não Executados (Atrasados) ──────────────────────────────
+      const recargasTotalAcumulado = await prisma.recargaAbastecimento.aggregate({
+        where: {
+          tecnicoId: tec.id,
+          data: { gte: globalStart, lte: endOfMonth }
+        },
+        _sum: { valor: true }
+      }).then(r => r._sum.valor || 0)
 
-export async function getRelatorioPlanejamentosAtrasados(f: FiltrosRelatorio) {
-  const session = await auth()
-  if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
+      const recargasMes = await prisma.recargaAbastecimento.aggregate({
+        where: {
+          tecnicoId: tec.id,
+          data: { gte: startOfMonth, lte: endOfMonth }
+        },
+        _sum: { valor: true }
+      }).then(r => r._sum.valor || 0)
 
-  const hoje = new Date()
-  const where: any = {
-    status: 'PENDENTE',
-    dataAtividade: { lt: hoje }
-  }
-  if (f.tecnicoId === 'ativos') {
-    where.tecnico = { ativo: true }
-  } else if (f.tecnicoId) {
-    where.tecnicoId = f.tecnicoId
-  }
-  if (f.dataInicio && f.dataFim) {
-    where.dataAtividade = {
-      gte: new Date(f.dataInicio + 'T00:00:00Z'),
-      lt: hoje
+      const gastoTotalAcumulado = await prisma.abastecimento.aggregate({
+        where: {
+          tecnicoId: tec.id,
+          data: { gte: globalStart, lte: endOfMonth }
+        },
+        _sum: { valor: true }
+      }).then(r => r._sum.valor || 0)
+
+      const gastoMes = await prisma.abastecimento.aggregate({
+        where: {
+          tecnicoId: tec.id,
+          data: { gte: startOfMonth, lte: endOfMonth }
+        },
+        _sum: { valor: true }
+      }).then(r => r._sum.valor || 0)
+
+      const mesesValidos = getValidMonthsCount(tec.admissao, m.year, m.month)
+      const orcamentoAcumulado = (tec.orcamentoAbastecimento * mesesValidos) + recargasTotalAcumulado
+      const saldoAcumulado = orcamentoAcumulado - gastoTotalAcumulado
+
+      result.push({
+        tecnico: tec.nome,
+        mesAno: `${String(m.month).padStart(2, '0')}/${m.year}`,
+        orcamentoBase: tec.orcamentoAbastecimento,
+        recargasMes,
+        gastoMes,
+        saldoAcumulado
+      })
     }
   }
 
-  const rows = await prisma.planejamento.findMany({
-    where,
-    include: { tecnico: { select: { nome: true } } },
-    orderBy: { dataAtividade: 'asc' }
-  })
-
   return {
     success: true,
-    data: rows.map(r => ({
-      tecnico:    r.tecnico.nome,
-      data:       r.dataAtividade.toISOString(),
-      categoria:  r.categoria,
-      descricao:  r.descricaoOriginal,
-      prioridade: r.prioridade,
-      local:      `${r.local ?? ''} ${r.cidade ? `- ${r.cidade}/${r.estado}` : ''}`.trim(),
-      diasAtraso: Math.floor((hoje.getTime() - r.dataAtividade.getTime()) / 86400000),
-    }))
+    data: result
   }
 }
 

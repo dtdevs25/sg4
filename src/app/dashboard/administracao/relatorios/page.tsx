@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import {
   getRelatorioAgenda, getRelatorioDss, getRelatorioInspecoes,
-  getRelatorioNaoConformes, getRelatorioDssPendentes, getRelatorioPlanejamentosAtrasados,
+  getRelatorioNaoConformes, getRelatorioCustoAbastecimento,
   getRelatorioAusencias, getRelatorioReunioes, getRelatorioKm,
   getRelatorioAtividadesCampo, getRelatorioRanking, getTecnicosParaFiltro,
   getRelatorioProdutividadeDssInspecoes,
@@ -27,12 +27,11 @@ const TIPOS = [
   { id: 'dss',         label: 'DSS',                          icon: FileText,       cor: '#0891b2', grupo: 'Operacionais',    desc: 'Diálogos de segurança realizados com meta e percentual' },
   { id: 'inspecoes',   label: 'Inspeções',                    icon: Search,         cor: '#16a34a', grupo: 'Operacionais',    desc: 'Inspeções realizadas com resultado e conformidade' },
   { id: 'nao-confor',  label: 'Itens Não Conformes',          icon: AlertTriangle,  cor: '#dc2626', grupo: 'Não Conformidades', desc: 'Inspeções com resultado negativo / não conforme' },
-  { id: 'dss-pend',    label: 'DSS Pendentes',                icon: Clock,          cor: '#d97706', grupo: 'Não Conformidades', desc: 'Diálogos ainda abertos / não assinados' },
-  { id: 'atrasados',   label: 'Planejamentos Não Executados', icon: AlertTriangle,  cor: '#dc2626', grupo: 'Não Conformidades', desc: 'Itens pendentes com data já vencida' },
   { id: 'ausencias',   label: 'Ausências em Reuniões',        icon: Users,          cor: '#d97706', grupo: 'Não Conformidades', desc: 'Técnicos ausentes com ou sem justificativa' },
   { id: 'reunioes',    label: 'Reuniões',                     icon: Users,          cor: '#7c3aed', grupo: 'Gerenciais',       desc: 'Presença e pontualidade por técnico e período' },
   { id: 'km',          label: 'Quilometragem',                icon: Car,            cor: '#0ea5e9', grupo: 'Gerenciais',       desc: 'KM rodados e abastecimentos por técnico' },
   { id: 'atividades',  label: 'Atividades de Campo',          icon: BarChart3,      cor: '#16a34a', grupo: 'Gerenciais',       desc: 'Atividades executadas com empresa, local e descrição' },
+  { id: 'custo-abastecimento', label: 'Custo de Abastecimento', icon: BarChart3, cor: '#0ea5e9', grupo: 'Gerenciais', desc: 'Saldo de abastecimento acumulado e gasto mês a mês por técnico' },
   { id: 'ranking',     label: 'Ranking de Desempenho',        icon: Trophy,         cor: '#d97706', grupo: 'Gerenciais',       desc: 'Score consolidado: DSS + Inspeções + Reuniões' },
   { id: 'produtividade',label: 'Produtividade', icon: CheckCircle,    cor: '#ec4899', grupo: 'Operacionais',    desc: 'Consolidado de DSS e Inspeções realizadas por técnico' },
 ]
@@ -193,12 +192,9 @@ export default function AdminRelatoriosPage() {
         } else if (tipoSel === 'nao-confor') {
           const d = await getRelatorioNaoConformes(filtros)
           genOpts = { titulo: 'Itens Não Conformes', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} apontamentos não conformes`, headers: ['Nº','Técnico','Resultado','Data Abertura','Data Fechamento','Local','Questionário','Observação'], rows: d.data.map((r:any) => [r.numero, r.tecnico, r.resultado, formatarQualquerData(r.dataAbertura), formatarQualquerData(r.dataFechamento), r.local, r.questionario, r.observacao]) }
-        } else if (tipoSel === 'dss-pend') {
-          const d = await getRelatorioDssPendentes(filtros)
-          genOpts = { titulo: 'DSS Pendentes', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} diálogos abertos`, headers: ['Nº Diálogo','Assunto','Líder','Base','Matrícula','Nome','Data Fechamento'], rows: d.data.map((r:any) => [r.numeroDialogo, r.assunto, r.lider, r.base, r.matricula, r.nome, formatarQualquerData(r.dataFechamento)]) }
-        } else if (tipoSel === 'atrasados') {
-          const d = await getRelatorioPlanejamentosAtrasados(filtros)
-          genOpts = { titulo: 'Planejamentos Não Executados', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} atividades atrasadas`, headers: ['Técnico','Data Prevista','Dias Atraso','Categoria','Prioridade','Local','Descrição'], rows: d.data.map((r:any) => [r.tecnico, formatarQualquerData(r.data), `${r.diasAtraso} dias`, r.categoria, r.prioridade, r.local, r.descricao?.slice(0,80)]) }
+        } else if (tipoSel === 'custo-abastecimento') {
+          const d = await getRelatorioCustoAbastecimento(filtros)
+          genOpts = { titulo: 'Custos de Abastecimento Mês a Mês', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} registros mensais`, headers: ['Técnico', 'Mês/Ano', 'Orçamento Base', 'Recargas no Mês', 'Gasto no Mês', 'Saldo Acumulado'], rows: d.data.map((r: any) => [r.tecnico, r.mesAno, `R$ ${r.orcamentoBase.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `R$ ${r.recargasMes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `R$ ${r.gastoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `R$ ${r.saldoAcumulado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]) }
         } else if (tipoSel === 'ausencias') {
           const d = await getRelatorioAusencias(filtros)
           genOpts = { titulo: 'Ausências em Reuniões', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} ausências registradas`, headers: ['Técnico','Data','Assunto','Justificada','Motivo','Observação'], rows: d.data.map((r:any) => [r.tecnico, formatarQualquerData(r.data), r.assunto, r.justificada, r.motivo, r.observacao]) }
