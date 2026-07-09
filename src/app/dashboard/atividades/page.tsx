@@ -353,6 +353,25 @@ export default function PlanejamentoPage() {
       return
     }
 
+    if (checklist.length === 0) {
+      const desc = execForm.descricaoExecutada.trim()
+      const obs = execForm.observacoes
+      
+      startTransition(async () => {
+        if (desc) {
+          await modificarExecucao(showExecModal.id, desc, obs)
+        }
+        setShowExecModal(null)
+        
+        if (showExecModal.categoria === 'DSS') {
+          setShowDssModal({ plan: showExecModal, itemId: showExecModal.id, itemText: desc || showExecModal.descricaoOriginal })
+        } else {
+          setShowPromptRelatorio({ plan: showExecModal, itemId: showExecModal.id, itemText: desc || showExecModal.descricaoOriginal })
+        }
+      })
+      return
+    }
+
     startTransition(async () => {
       // Se houver texto executado, consideramos "modificarExecucao", caso contrário só conclui
       if (execForm.descricaoExecutada.trim()) {
