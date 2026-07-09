@@ -93,17 +93,57 @@ export async function getRelatorioDss(f: FiltrosRelatorio) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
-  // DSS Arkium – filtro por data de fechamento feito em memória
-  const where: any = {}
-  
-  if (f.tecnicoId && f.tecnicoId !== 'ativos') {
-    const t = await prisma.tecnico.findUnique({ where: { id: f.tecnicoId }, select: { nome: true } })
-    if (t?.nome) {
-      where.lider = { contains: t.nome, mode: 'insensitive' }
+  // 1. Buscar todos os técnicos para fazer o batimento de nomes/IDs
+  const tecnicos = await prisma.tecnico.findMany({
+    include: { baseFixa: true }
+  })
+
+  // 2. Buscar diálogos do Arkium
+  const dssArkium = await prisma.dssArkium.findMany({
+    orderBy: { importadoEm: 'desc' }
+  })
+
+  // 3. Buscar diálogos de Aliados
+  const dssAliado = await prisma.dssAliado.findMany({
+    include: { tecnico: { include: { baseFixa: true } } },
+    orderBy: { data: 'desc' }
+  })
+
+  const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
+    if (!nomePlanilha || !nomeBd) return false
+    const nP = removeAccents(nomePlanilha.toLowerCase().trim())
+    const nB = removeAccents(nomeBd.toLowerCase().trim())
+    if (nP === nB) return true
+    const planTokens = nP.split(' ').filter(Boolean)
+    const dbTokens = nB.split(' ').filter(Boolean)
+    
+    if (planTokens.length === 0 || dbTokens.length === 0) return false
+    
+    if (planTokens[0] === dbTokens[0]) {
+       if (planTokens.length === 1 || dbTokens.length === 1) return true
+       
+       const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
+       const planSurnames = planTokens.slice(1).filter(t => !ignoreList.includes(t))
+       const dbSurnames = dbTokens.slice(1).filter(t => !ignoreList.includes(t))
+       
+       for (let i = 0; i < planSurnames.length; i++) {
+          for (let j = 0; j < dbSurnames.length; j++) {
+             if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
+                return true
+             }
+          }
+       }
     }
+    return false
   }
 
-  const rows = await prisma.dssArkium.findMany({ where, orderBy: { importadoEm: 'desc' } })
+  function isDssAssinado(assinadoStr?: string | null) {
+    if (!assinadoStr) return false
+    const s = assinadoStr.toLowerCase().trim()
+    if (s !== 'sim' && s !== 'yes' && !s.includes('sim')) return false
+    return true
+  }
 
   function parseDate(d: string | null): Date | null {
     if (!d) return null
@@ -129,44 +169,107 @@ export async function getRelatorioDss(f: FiltrosRelatorio) {
     return null
   }
 
-  let filteredRows = rows
+  // 4. Filtrar Arkium (Somente assinados e dentro da data selecionada)
+  let arkiumValidos = dssArkium.filter(r => isDssAssinado(r.assinado))
+
   if (f.dataInicio && f.dataFim) {
     const start = new Date(f.dataInicio + 'T00:00:00')
     const end = new Date(f.dataFim + 'T23:59:59')
-    filteredRows = rows.filter(r => {
+    arkiumValidos = arkiumValidos.filter(r => {
       const parsed = parseDate(r.dataFechamento)
       if (!parsed) return false
       return parsed >= start && parsed <= end
     })
   }
 
+  // Mapear cada registro do Arkium ao seu técnico SG4 correspondente
+  let mappedArkium = arkiumValidos.map(r => {
+    let matchedTecnico = tecnicos.find(t => t.id === r.tecnicoId)
+    if (!matchedTecnico && r.nome) {
+      matchedTecnico = tecnicos.find(t => matchTecnico(r.nome, t.nome))
+    }
+    return {
+      id: r.id,
+      numeroDialogo: r.numeroDialogo,
+      assunto: r.assunto ?? '—',
+      lider: r.lider ?? '—',
+      base: r.base ?? '—',
+      matricula: r.matricula,
+      nome: r.nome ?? '—',
+      estado: r.estado,
+      dataFechamento: r.dataFechamento ?? '—',
+      tecnico: matchedTecnico ?? null,
+      isAliado: false
+    }
+  })
+
+  // Filtrar técnicos ativos ou técnico específico para Arkium
   if (f.tecnicoId === 'ativos') {
-    const ativos = await prisma.tecnico.findMany({ where: { ativo: true }, select: { nome: true } })
-    const nomesAtivos = new Set(ativos.map(a => a.nome.toLowerCase().trim()))
-    filteredRows = filteredRows.filter(r => {
-      const lider = (r.lider || '').toLowerCase().trim()
-      return Array.from(nomesAtivos).some(nome => lider.includes(nome) || nome.includes(lider))
+    mappedArkium = mappedArkium.filter(r => r.tecnico && r.tecnico.ativo !== false)
+  } else if (f.tecnicoId) {
+    mappedArkium = mappedArkium.filter(r => r.tecnico?.id === f.tecnicoId)
+  }
+
+  // 5. Filtrar Aliados (Dentro da data selecionada)
+  let aliadoValidos = dssAliado
+  if (f.dataInicio && f.dataFim) {
+    const start = new Date(f.dataInicio + 'T00:00:00')
+    const end = new Date(f.dataFim + 'T23:59:59')
+    aliadoValidos = dssAliado.filter(r => {
+      const d = new Date(r.data)
+      return d >= start && d <= end
     })
   }
 
-  // agrupa por técnico (lider)
-  const byLider = new Map<string, typeof filteredRows>()
-  for (const r of filteredRows) {
-    const key = r.lider ?? 'Não identificado'
-    if (!byLider.has(key)) byLider.set(key, [])
-    byLider.get(key)!.push(r)
+  let mappedAliado = aliadoValidos.map(r => {
+    const jsDate = new Date(r.data)
+    const dateStr = `${jsDate.getUTCDate().toString().padStart(2, '0')}/${(jsDate.getUTCMonth()+1).toString().padStart(2, '0')}/${jsDate.getUTCFullYear()}`
+    
+    return {
+      id: r.id,
+      numeroDialogo: '—',
+      assunto: r.tema,
+      lider: '—',
+      base: r.tecnico?.baseFixa?.nome ?? '—',
+      matricula: r.tecnico?.matriculaArkium ?? '—',
+      nome: r.tecnico?.nome ?? '—',
+      estado: 'FECHADO',
+      dataFechamento: dateStr,
+      tecnico: r.tecnico ?? null,
+      isAliado: true
+    }
+  })
+
+  // Filtrar técnicos ativos ou técnico específico para Aliados
+  if (f.tecnicoId === 'ativos') {
+    mappedAliado = mappedAliado.filter(r => r.tecnico && r.tecnico.ativo !== false)
+  } else if (f.tecnicoId) {
+    mappedAliado = mappedAliado.filter(r => r.tecnico?.id === f.tecnicoId)
   }
+
+  // 6. Combinar listas
+  const combined = [...mappedArkium, ...mappedAliado]
+
+  // 7. Agrupar por nome do técnico para montar o resumo correto
+  const byTecnico = new Map<string, typeof combined>()
+  for (const r of combined) {
+    const key = r.tecnico?.nome ?? 'Não identificado'
+    if (!byTecnico.has(key)) byTecnico.set(key, [])
+    byTecnico.get(key)!.push(r)
+  }
+
+  const resumo = Array.from(byTecnico.entries()).map(([tecnicoNome, itens]) => ({
+    lider: tecnicoNome, // Nomeado "lider" para manter compatibilidade com front
+    total:    itens.length,
+    fechados: itens.filter(i => i.estado === 'FECHADO').length,
+    abertos:  itens.filter(i => i.estado === 'ABERTO').length,
+    pct:      Math.round((itens.filter(i => i.estado === 'FECHADO').length / itens.length) * 100),
+  })).sort((a, b) => b.total - a.total)
 
   return {
     success: true,
-    data: filteredRows,
-    resumo: Array.from(byLider.entries()).map(([lider, itens]) => ({
-      lider,
-      total:    itens.length,
-      fechados: itens.filter(i => i.estado === 'FECHADO').length,
-      abertos:  itens.filter(i => i.estado === 'ABERTO').length,
-      pct:      Math.round((itens.filter(i => i.estado === 'FECHADO').length / itens.length) * 100),
-    })).sort((a, b) => b.total - a.total)
+    data: combined,
+    resumo
   }
 }
 
