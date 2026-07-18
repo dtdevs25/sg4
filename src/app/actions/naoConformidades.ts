@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
 
 function normalize(str: string | null | undefined): string {
@@ -144,7 +144,9 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
       if (existing) {
         const currentStatus = existing.status
         let finalStatus = currentStatus
-        if (currentStatus !== 'EM_ANDAMENTO' && currentStatus !== 'RESOLVIDO') {
+        if (item.status === 'RESOLVIDO') {
+          finalStatus = 'RESOLVIDO'
+        } else if (currentStatus !== 'EM_ANDAMENTO' && currentStatus !== 'RESOLVIDO') {
           finalStatus = item.status || 'PENDENTE_NAO_VENCIDA'
         }
 
@@ -374,6 +376,27 @@ export async function deleteNaoConformidadeUpdate(id: string, updateDate: string
       currentUpdates = Array.isArray(item.updates) ? item.updates : []
     }
 
+    // 1. Delete image from MinIO if it exists
+    const updateToDelete = currentUpdates.find((up: any) => up.date === updateDate)
+    if (updateToDelete && updateToDelete.fotoUrl) {
+      try {
+        const bucket = 'sg4-ncvivo'
+        const bucketPart = `/${bucket}/`
+        const idx = updateToDelete.fotoUrl.indexOf(bucketPart)
+        if (idx !== -1) {
+          const key = updateToDelete.fotoUrl.substring(idx + bucketPart.length)
+          const command = new DeleteObjectCommand({
+            Bucket: bucket,
+            Key: key
+          })
+          await s3Client.send(command)
+        }
+      } catch (err) {
+        console.error('Erro ao deletar foto do MinIO:', err)
+      }
+    }
+
+    // 2. Remove from database
     const updatedUpdates = currentUpdates.filter((up: any) => up.date !== updateDate)
 
     const updated = await prisma.naoConformidade.update({
@@ -416,6 +439,27 @@ export async function replaceNaoConformidadeUpdateImage(id: string, updateDate: 
       currentUpdates = Array.isArray(item.updates) ? item.updates : []
     }
 
+    // 1. Delete old image from MinIO if it exists
+    const updateToReplace = currentUpdates.find((up: any) => up.date === updateDate)
+    if (updateToReplace && updateToReplace.fotoUrl) {
+      try {
+        const bucket = 'sg4-ncvivo'
+        const bucketPart = `/${bucket}/`
+        const idx = updateToReplace.fotoUrl.indexOf(bucketPart)
+        if (idx !== -1) {
+          const key = updateToReplace.fotoUrl.substring(idx + bucketPart.length)
+          const command = new DeleteObjectCommand({
+            Bucket: bucket,
+            Key: key
+          })
+          await s3Client.send(command)
+        }
+      } catch (err) {
+        console.error('Erro ao deletar foto antiga do MinIO:', err)
+      }
+    }
+
+    // 2. Update database
     const updatedUpdates = currentUpdates.map((up: any) => {
       if (up.date === updateDate) {
         return { ...up, fotoUrl: newFotoUrl }

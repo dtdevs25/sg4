@@ -112,6 +112,57 @@ function parseExcelDate(val: any): Date | null {
   return null
 }
 
+function normalizeArkiumStatus(val: string): string {
+  if (!val) return ''
+  return val.toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+}
+
+function mapArkiumStatus(val: string): 'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO' {
+  const sNorm = normalizeArkiumStatus(val)
+
+  // Categoria: resolvidos
+  if (
+    sNorm === 'RESOLVIDA ANTES VENCIMENTO' ||
+    sNorm === 'RESOLVIDA APOS VENCIMENTO' ||
+    sNorm === 'RESOLVIDA SEM DATA PREVISTA' ||
+    sNorm.startsWith('RESOLVIDA') ||
+    sNorm.startsWith('RESOLVIDO')
+  ) {
+    return 'RESOLVIDO'
+  }
+
+  // Categoria: PENDENTES EM PROCESSAMENTO
+  if (
+    sNorm === 'PENDENTE VENCIDA EM PROCESSAMENTO' ||
+    sNorm === 'PENDENTE SEM DATA PREVISTA EM PROCESSAMENTO' ||
+    sNorm === 'PENDENTE VENCIDA EM ENTREGA' ||
+    sNorm === 'PENDENTE NAO VENCIDA EM PROCESSAMENTO' ||
+    sNorm.includes('EM PROCESSAMENTO') ||
+    sNorm.includes('EM ENTREGA')
+  ) {
+    return 'EM_ANDAMENTO'
+  }
+
+  // Categoria: pendente não vencidos
+  if (
+    sNorm === 'PENDENTE NAO VENCIDA' ||
+    sNorm === 'PENDENTE SEM DATA PREVISTA'
+  ) {
+    return 'PENDENTE_NAO_VENCIDA'
+  }
+
+  // Categoria: pendente vencidos
+  if (sNorm === 'PENDENTE VENCIDA') {
+    return 'PENDENTE_VENCIDA'
+  }
+
+  // Fallback default
+  return 'PENDENTE_NAO_VENCIDA'
+}
+
 export default function NaoConformidadesPage() {
   const { data: session } = useSession()
   const userRole = (session?.user as any)?.role
@@ -168,6 +219,7 @@ export default function NaoConformidadesPage() {
   
   // State and ref for replacing existing update's image
   const [replacingUpdateDate, setReplacingUpdateDate] = useState<string | null>(null)
+  const [updateToDeleteDate, setUpdateToDeleteDate] = useState<string | null>(null)
   const replaceImageInputRef = useRef<HTMLInputElement>(null)
 
   // Upload States
@@ -476,7 +528,8 @@ export default function NaoConformidadesPage() {
           base: findMatch(['Base', 'Unidade']),
           questionario: findMatch(['Questionário', 'Questionario', 'Checklist']),
           compl1: findMatch(['Compl. 1', 'Compl1']),
-          rCompl1: findMatch(['R. Compl. 1', 'R. Compl1', 'R.Compl.1', 'RCompl1', 'Detalhamento'])
+          rCompl1: findMatch(['R. Compl. 1', 'R. Compl1', 'R.Compl.1', 'RCompl1', 'Detalhamento']),
+          situacao: findMatch(['Situação', 'Situacao', 'Status', 'Sit.'])
         }
 
         const dataAberturaKey = findMatch(['Data Abertura', 'DataAbertura', 'Abertura'])
@@ -499,6 +552,8 @@ export default function NaoConformidadesPage() {
             const localidade = String(row[matchedKeys.localidade || 'Localidade'] || '')
             const base = String(row[matchedKeys.base || 'Base'] || '')
             const questionario = String(row[matchedKeys.questionario || 'Questionário'] || '')
+            const rawSituacao = String(row[matchedKeys.situacao || 'Situação'] || '')
+            const mappedStatus = mapArkiumStatus(rawSituacao)
 
             const rawDate = dataAberturaKey ? row[dataAberturaKey] : null
             const parsedDate = parseExcelDate(rawDate)
@@ -515,7 +570,8 @@ export default function NaoConformidadesPage() {
               localidade,
               base,
               questionario,
-              dataAbertura: parsedDate ? parsedDate.toISOString() : null
+              dataAbertura: parsedDate ? parsedDate.toISOString() : null,
+              status: mappedStatus
             }
           })
 
@@ -614,7 +670,6 @@ export default function NaoConformidadesPage() {
 
   const handleDeleteUpdate = async (updateDate: string) => {
     if (!selectedItem) return
-    if (!confirm("Tem certeza que deseja excluir esta ação?")) return
 
     startTransition(async () => {
       const res = await deleteNaoConformidadeUpdate(selectedItem.id, updateDate)
@@ -1576,7 +1631,7 @@ export default function NaoConformidadesPage() {
                               <button
                                 type="button"
                                 title="Excluir Ação"
-                                onClick={() => handleDeleteUpdate(up.date)}
+                                onClick={() => setUpdateToDeleteDate(up.date)}
                                 style={{
                                   background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer',
                                   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4,
@@ -1807,6 +1862,64 @@ export default function NaoConformidadesPage() {
                 }}
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão de Ação */}
+      {updateToDeleteDate && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1100,
+          background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 16, width: '90%', maxWidth: 440,
+            padding: 24, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16
+          }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%', background: '#fee2e2',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444'
+            }}>
+              <AlertTriangle size={28} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px 0' }}>
+                Excluir Ação?
+              </h3>
+              <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.5, margin: 0 }}>
+                Esta ação é <strong>irreversível</strong> e também removerá permanentemente qualquer imagem de evidência associada do servidor. Tem certeza que deseja prosseguir?
+              </p>
+            </div>
+            <div style={{ display: 'flex', width: '100%', gap: 12, marginTop: 8 }}>
+              <button
+                onClick={() => setUpdateToDeleteDate(null)}
+                style={{
+                  flex: 1, padding: '10px 16px', background: '#f1f5f9', color: '#475569',
+                  border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
+                onMouseLeave={e => e.currentTarget.style.background = '#f1f5f9'}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  const dateToDel = updateToDeleteDate
+                  setUpdateToDeleteDate(null)
+                  await handleDeleteUpdate(dateToDel)
+                }}
+                style={{
+                  flex: 1, padding: '10px 16px', background: '#ef4444', color: '#fff',
+                  border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#dc2626'}
+                onMouseLeave={e => e.currentTarget.style.background = '#ef4444'}
+              >
+                Excluir
               </button>
             </div>
           </div>
