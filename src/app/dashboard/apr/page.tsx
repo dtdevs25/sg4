@@ -58,24 +58,62 @@ function parseDateToJsDate(dateStr: string | null | undefined): Date | null {
     return new Date(Math.round((num - 25569) * 86400 * 1000))
   }
   
+  // Try parsing DMY with optional time: "DD/MM/YYYY HH:MM" or "DD/MM/YYYY HH:MM:SS"
   const partsDmy = str.split('/')
   if (partsDmy.length === 3) {
     const day = parseInt(partsDmy[0], 10)
     const month = parseInt(partsDmy[1], 10) - 1
-    const year = parseInt(partsDmy[2].split(' ')[0], 10)
+    const yearPart = partsDmy[2].trim()
+    const spaceIdx = yearPart.indexOf(' ')
+    let yearStr = yearPart
+    let hour = 0
+    let minute = 0
+    let second = 0
+    if (spaceIdx !== -1) {
+      yearStr = yearPart.substring(0, spaceIdx)
+      const timePart = yearPart.substring(spaceIdx + 1).trim()
+      const timeParts = timePart.split(':')
+      if (timeParts.length >= 2) {
+        hour = parseInt(timeParts[0], 10)
+        minute = parseInt(timeParts[1], 10)
+        if (timeParts.length >= 3) {
+          second = parseInt(timeParts[2], 10)
+        }
+      }
+    }
+    const year = parseInt(yearStr, 10)
     const finalYear = year < 100 ? year + 2000 : year
-    if (!isNaN(day) && !isNaN(month) && !isNaN(finalYear)) {
-      return new Date(finalYear, month, day)
+    if (!isNaN(day) && !isNaN(month) && !isNaN(finalYear) && !isNaN(hour) && !isNaN(minute)) {
+      return new Date(finalYear, month, day, hour, minute, second)
     }
   }
 
+  // Try parsing YMD with optional time: "YYYY-MM-DD HH:MM:SS"
   const partsYmd = str.split('-')
   if (partsYmd.length >= 3) {
     const year = parseInt(partsYmd[0], 10)
     const month = parseInt(partsYmd[1], 10) - 1
-    const day = parseInt(partsYmd[2].substring(0, 2), 10)
-    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-      return new Date(year, month, day)
+    const dayPart = partsYmd[2].trim()
+    const spaceIdx = dayPart.indexOf(' ')
+    let dayStr = dayPart
+    let hour = 0
+    let minute = 0
+    let second = 0
+    if (spaceIdx !== -1) {
+      dayStr = dayPart.substring(0, spaceIdx)
+      const timePart = dayPart.substring(spaceIdx + 1).trim()
+      const timeParts = timePart.split(':')
+      if (timeParts.length >= 2) {
+        hour = parseInt(timeParts[0], 10)
+        minute = parseInt(timeParts[1], 10)
+        if (timeParts.length >= 3) {
+          second = parseInt(timeParts[2], 10)
+        }
+      }
+    }
+    const day = parseInt(dayStr, 10)
+    if (!isNaN(day) && !isNaN(month) && !isNaN(year) && !isNaN(hour) && !isNaN(minute)) {
+      return new Date(year, month, day, hour, minute, second)
     }
   }
 
@@ -84,13 +122,18 @@ function parseDateToJsDate(dateStr: string | null | undefined): Date | null {
   return null
 }
 
-function formatDelay(avgDays: number): string {
-  if (avgDays === 0) return '0 dias'
-  if (avgDays < 1) {
-    const hours = Math.round(avgDays * 24)
+function formatDelay(avgHours: number): string {
+  if (avgHours <= 0) return '0 min'
+  const totalMinutes = Math.round(avgHours * 60)
+  if (totalMinutes < 60) {
+    return `${totalMinutes} ${totalMinutes === 1 ? 'minuto' : 'minutos'}`
+  }
+  const hours = Math.floor(totalMinutes / 60)
+  const mins = totalMinutes % 60
+  if (mins === 0) {
     return `${hours} ${hours === 1 ? 'hora' : 'horas'}`
   }
-  return `${avgDays.toFixed(1)} ${avgDays === 1 ? 'dia' : 'dias'}`
+  return `${hours} ${hours === 1 ? 'hora' : 'horas'} e ${mins} min`
 }
 
 export default function APRPage() {
@@ -130,54 +173,7 @@ export default function APRPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
 
-  // Dynamic ViewBox for SVG map zooming
-  const mapViewBox = useMemo(() => {
-    if (selectedState) {
-      const stateBoxes: Record<string, string> = {
-        AC: '10 160 120 120',
-        AL: '380 200 70 70',
-        AP: '210 20 90 90',
-        AM: '10 60 200 180',
-        BA: '250 170 150 150',
-        CE: '320 100 90 90',
-        DF: '235 240 30 30',
-        ES: '340 270 70 70',
-        GO: '180 200 120 120',
-        MA: '250 80 120 120',
-        MT: '100 150 160 160',
-        MS: '120 260 120 120',
-        MG: '240 230 150 150',
-        PA: '160 50 180 180',
-        PB: '370 120 70 70',
-        PR: '170 320 100 100',
-        PE: '330 140 110 90',
-        PI: '270 110 100 100',
-        RJ: '300 290 80 80',
-        RN: '370 100 70 70',
-        RS: '130 370 120 100',
-        RO: '60 140 110 110',
-        RR: '90 10 110 110',
-        SC: '180 350 90 80',
-        SP: '190 280 120 110',
-        SE: '380 180 70 70',
-        TO: '210 130 100 120'
-      }
-      return stateBoxes[selectedState] || '0 0 450 460'
-    }
-    
-    if (selectedRegion) {
-      const regionBoxes: Record<string, string> = {
-        'Norte': '10 10 330 250',
-        'Nordeste': '210 60 230 210',
-        'Centro-Oeste': '90 140 210 210',
-        'Sudeste': '200 230 190 170',
-        'Sul': '120 320 160 140'
-      }
-      return regionBoxes[selectedRegion] || '0 0 450 460'
-    }
 
-    return '0 0 450 460'
-  }, [selectedRegion, selectedState])
 
   // Details Modal
   const [viewingItem, setViewingItem] = useState<any>(null)
@@ -376,9 +372,9 @@ export default function APRPage() {
       }
 
       const abert = parseDateToJsDate(apr.dataAbertura)
-      const check = parseDateToJsDate(apr.dataChecklist)
-      if (abert && check) {
-        const diffMs = abert.getTime() - check.getTime()
+      const fech = parseDateToJsDate(apr.dataFechamento)
+      if (abert && fech) {
+        const diffMs = fech.getTime() - abert.getTime()
         if (diffMs >= 0) {
           sumDelayMs += diffMs
           delayCount++
@@ -386,14 +382,14 @@ export default function APRPage() {
       }
     })
 
-    const avgDelayDays = delayCount > 0 ? (sumDelayMs / (1000 * 60 * 60 * 24)) : 0
+    const avgDelayHours = delayCount > 0 ? (sumDelayMs / (1000 * 60 * 60)) : 0
 
     return {
       resolvidos,
       pendenteProcessamento,
       pendenteNaoVencidos,
       pendenteVencidos,
-      avgDelayDays,
+      avgDelayHours,
       total: filteredAprs.length
     }
   }, [filteredAprs])
@@ -511,7 +507,7 @@ export default function APRPage() {
       { label: 'Pendentes em Processamento', valor: stats.pendenteProcessamento, pct: stats.total > 0 ? `${Math.round((stats.pendenteProcessamento/stats.total)*100)}%` : '0%' },
       { label: 'Pendente Não Vencidas', valor: stats.pendenteNaoVencidos, pct: stats.total > 0 ? `${Math.round((stats.pendenteNaoVencidos/stats.total)*100)}%` : '0%' },
       { label: 'Pendente Vencidas', valor: stats.pendenteVencidos, pct: stats.total > 0 ? `${Math.round((stats.pendenteVencidos/stats.total)*100)}%` : '0%' },
-      { label: 'Tempo Médio Abertura', valor: formatDelay(stats.avgDelayDays) }
+      { label: 'Tempo Médio Abertura', valor: formatDelay(stats.avgDelayHours) }
     ]
 
     await gerarExcelCentral({
@@ -947,26 +943,49 @@ export default function APRPage() {
               </div>
 
               {/* Months Row */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {MONTHS_LIST.map(m => {
-                  const isSelected = selectedMonths.includes(m.key as MesKey)
-                  return (
-                    <button
-                      key={m.key}
-                      onClick={() => handleMonthClick(m.key as MesKey)}
-                      style={{
-                        flex: 1, minWidth: 50, padding: '8px 0', borderRadius: 6,
-                        border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
-                        background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
-                        color: isSelected ? '#660099' : '#64748b',
-                        fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                        userSelect: 'none'
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                  )
-                })}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {MONTHS_LIST.slice(0, 6).map(m => {
+                    const isSelected = selectedMonths.includes(m.key as MesKey)
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        style={{
+                          flex: 1, padding: '8px 0', borderRadius: 6,
+                          border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                          background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                          color: isSelected ? '#660099' : '#64748b',
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {MONTHS_LIST.slice(6, 12).map(m => {
+                    const isSelected = selectedMonths.includes(m.key as MesKey)
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        style={{
+                          flex: 1, padding: '8px 0', borderRadius: 6,
+                          border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                          background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                          color: isSelected ? '#660099' : '#64748b',
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               {/* Geographic Filter Bar */}
@@ -987,33 +1006,35 @@ export default function APRPage() {
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Estado (UF)</label>
-                  <select
-                    value={selectedState}
-                    onChange={e => handleStateChange(e.target.value)}
-                    style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
-                  >
-                    <option value="">Todos os Estados</option>
-                    {BRAZIL_STATES.filter(s => {
-                      if (!selectedRegion) return true
-                      return REGIAO_MAP[selectedRegion]?.includes(s.uf)
-                    }).map(s => <option key={s.uf} value={s.uf}>{s.name} ({s.uf})</option>)}
-                  </select>
-                </div>
+                {selectedRegion && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Estado (UF)</label>
+                    <select
+                      value={selectedState}
+                      onChange={e => handleStateChange(e.target.value)}
+                      style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
+                    >
+                      <option value="">Todos os Estados</option>
+                      {BRAZIL_STATES.filter(s => {
+                        return REGIAO_MAP[selectedRegion]?.includes(s.uf)
+                      }).map(s => <option key={s.uf} value={s.uf}>{s.name} ({s.uf})</option>)}
+                    </select>
+                  </div>
+                )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Cidade</label>
-                  <select
-                    value={selectedCity}
-                    onChange={e => setSelectedCity(e.target.value)}
-                    style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
-                    disabled={!selectedState}
-                  >
-                    <option value="">{selectedState ? 'Todas as Cidades' : 'Selecione um Estado primeiro'}</option>
-                    {availableCities.map(c => <option key={c.name} value={c.name}>{c.name} ({c.count})</option>)}
-                  </select>
-                </div>
+                {selectedState && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Cidade</label>
+                    <select
+                      value={selectedCity}
+                      onChange={e => setSelectedCity(e.target.value)}
+                      style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
+                    >
+                      <option value="">Todas as Cidades</option>
+                      {availableCities.map(c => <option key={c.name} value={c.name}>{c.name} ({c.count})</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1056,7 +1077,7 @@ export default function APRPage() {
                   </div>
                   <div>
                     <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>T. Médio</span>
-                    <strong style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{formatDelay(stats.avgDelayDays)}</strong>
+                    <strong style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{formatDelay(stats.avgDelayHours)}</strong>
                   </div>
                 </div>
 
@@ -1140,7 +1161,7 @@ export default function APRPage() {
                   x="0px"
                   y="0px"
                   width="100%"
-                  viewBox={mapViewBox}
+                  viewBox="0 0 450 460"
                   style={{ maxWidth: 400, maxHeight: 420, height: 'auto', transition: 'all 0.4s ease-in-out' }}
                 >
                   <g>
