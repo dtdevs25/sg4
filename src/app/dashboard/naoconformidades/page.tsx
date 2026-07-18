@@ -5,7 +5,8 @@ import { useSession } from 'next-auth/react'
 import {
   AlertTriangle, Filter, Search, Eye, UploadCloud,
   Loader2, X, PlusCircle, CheckCircle, Clock, Trash2,
-  FileSpreadsheet, ListTodo, CheckCircle2, PlayCircle
+  FileSpreadsheet, ListTodo, CheckCircle2, PlayCircle,
+  Camera, Image as ImageIcon
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { getTecnicos } from '@/app/actions/tecnicos'
@@ -14,7 +15,8 @@ import {
   upsertNaoConformidadesBatch,
   addNaoConformidadeUpdate,
   updateNaoConformidadeStatus,
-  deleteNaoConformidade
+  deleteNaoConformidade,
+  uploadNaoConformidadeEvidencia
 } from '@/app/actions/naoConformidades'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
@@ -39,6 +41,8 @@ type UpdateItem = {
   date: string
   text: string
   author: string
+  actionDate?: string
+  fotoUrl?: string | null
 }
 
 type NaoConformidadeItem = {
@@ -145,6 +149,21 @@ export default function NaoConformidadesPage() {
   const [modalStatus, setModalStatus] = useState<'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO'>('PENDENTE_NAO_VENCIDA')
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
+  // Evidence upload & action date states
+  const [actionDate, setActionDate] = useState(new Date().toISOString().split('T')[0])
+  const [fotoBase64, setFotoBase64] = useState<string | null>(null)
+  const [fotoName, setFotoName] = useState<string | null>(null)
+  const [fotoType, setFotoType] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+
+  // Custom technician filter dropdown states
+  const [showTecnicoFilterDropdown, setShowTecnicoFilterDropdown] = useState(false)
+  const tecnicoFilterRef = useRef<HTMLDivElement>(null)
+
+  // Hidden file input refs for camera/gallery
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+
   // Upload States
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState('')
@@ -154,6 +173,17 @@ export default function NaoConformidadesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [pending, startTransition] = useTransition()
+
+  // Handle clicking outside the custom technician dropdown filter to close it
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (tecnicoFilterRef.current && !tecnicoFilterRef.current.contains(event.target as Node)) {
+        setShowTecnicoFilterDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Load Data
   useEffect(() => {
@@ -253,16 +283,38 @@ export default function NaoConformidadesPage() {
     })
   }, [data, selectedMonths, selectedYear, showInactive, isTst, userTecnicoId])
 
+  // Filtered dataset specifically for stats cards (reflects filters except status filter)
+  const filteredForStats = useMemo(() => {
+    return filteredArkiumRaw.filter(item => {
+      // Search
+      const query = arkiumSearch.toLowerCase()
+      const matchesSearch =
+        (item.originalId || '').toLowerCase().includes(query) ||
+        (item.executor || '').toLowerCase().includes(query) ||
+        (item.questionario || '').toLowerCase().includes(query) ||
+        (item.pergunta || '').toLowerCase().includes(query) ||
+        (item.rCompl1 || '').toLowerCase().includes(query)
+
+      // Classification
+      const matchesClass = classFilter === 'ALL' || item.classificacao === classFilter
+
+      // Technician
+      const matchesTecnico = tecnicoFilter === 'ALL' || item.tecnicoId === tecnicoFilter
+
+      return matchesSearch && matchesClass && matchesTecnico
+    })
+  }, [filteredArkiumRaw, arkiumSearch, classFilter, tecnicoFilter])
+
   // UI Stats for Arkium Tab
   const statsArkium = useMemo(() => {
-    const total = filteredArkiumRaw.length
-    const pendentesVencidas = filteredArkiumRaw.filter(i => i.status === 'PENDENTE_VENCIDA').length
-    const pendentesNaoVencidas = filteredArkiumRaw.filter(i => i.status === 'PENDENTE_NAO_VENCIDA').length
+    const total = filteredForStats.length
+    const pendentesVencidas = filteredForStats.filter(i => i.status === 'PENDENTE_VENCIDA').length
+    const pendentesNaoVencidas = filteredForStats.filter(i => i.status === 'PENDENTE_NAO_VENCIDA').length
     const pendentesV_NV = pendentesVencidas + pendentesNaoVencidas
-    const emProcessamento = filteredArkiumRaw.filter(i => i.status === 'EM_ANDAMENTO').length
-    const resolvidos = filteredArkiumRaw.filter(i => i.status === 'RESOLVIDO').length
+    const emProcessamento = filteredForStats.filter(i => i.status === 'EM_ANDAMENTO').length
+    const resolvidos = filteredForStats.filter(i => i.status === 'RESOLVIDO').length
     return { total, pendentesV_NV, pendentesVencidas, pendentesNaoVencidas, emProcessamento, resolvidos }
-  }, [filteredArkiumRaw])
+  }, [filteredForStats])
 
   // Final search and dropdown filters applied to Arkium list
   const filteredArkium = useMemo(() => {
@@ -493,16 +545,53 @@ export default function NaoConformidadesPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      alert("A imagem não deve exceder 5MB.")
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      setFotoBase64(evt.target?.result as string)
+      setFotoName(file.name)
+      setFotoType(file.type)
+    }
+    reader.readAsDataURL(file)
+  }
+
   // Handle updates modal
   const handleAddUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedItem || !newUpdateText.trim()) return
 
     startTransition(async () => {
-      const res = await addNaoConformidadeUpdate(selectedItem.id, newUpdateText, modalStatus)
+      let uploadedUrl = ''
+      if (fotoBase64) {
+        setIsUploading(true)
+        const formData = new FormData()
+        formData.append('fileData', fotoBase64)
+        formData.append('fileName', fotoName || 'foto.jpg')
+        formData.append('contentType', fotoType || 'image/jpeg')
+        const uploadRes = await uploadNaoConformidadeEvidencia(formData)
+        setIsUploading(false)
+        if (uploadRes.success && uploadRes.url) {
+          uploadedUrl = uploadRes.url
+        } else {
+          alert("Erro ao fazer upload da foto: " + uploadRes.error)
+          return
+        }
+      }
+
+      const res = await addNaoConformidadeUpdate(selectedItem.id, newUpdateText, modalStatus, actionDate, uploadedUrl)
       if (res.success && res.data) {
         setSelectedItem(res.data as any)
         setNewUpdateText('')
+        setFotoBase64(null)
+        setFotoName(null)
+        setFotoType(null)
+        setActionDate(new Date().toISOString().split('T')[0])
         await loadData()
       } else {
         alert("Erro ao salvar atualização: " + res.error)
@@ -510,7 +599,7 @@ export default function NaoConformidadesPage() {
     })
   }
 
-  const handleStatusChange = async (newStatus: 'ABERTO' | 'EM_ANDAMENTO' | 'RESOLVIDO') => {
+  const handleStatusChange = async (newStatus: 'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO') => {
     if (!selectedItem) return
     setModalStatus(newStatus)
     startTransition(async () => {
@@ -601,7 +690,7 @@ export default function NaoConformidadesPage() {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <AlertTriangle color={PURPLE} size={22} />
-            Não Conformidades Arkium
+            Não Conformidades
           </h1>
         </div>
 
@@ -1071,14 +1160,93 @@ export default function NaoConformidadesPage() {
 
                 {/* Técnico filter */}
                 {isMasterOrAdmin && (
-                  <select
-                    value={tecnicoFilter}
-                    onChange={e => { setTecnicoFilter(e.target.value); setCurrentPageArkium(1); }}
-                    style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#334155', outline: 'none', background: '#fff' }}
-                  >
-                    <option value="ALL">Todos os técnicos</option>
-                    {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                  </select>
+                  <div ref={tecnicoFilterRef} style={{ position: 'relative' }}>
+                    <div
+                      onClick={() => setShowTecnicoFilterDropdown(v => !v)}
+                      style={{
+                        padding: '8px 12px', borderRadius: 8, border: `1px solid ${showTecnicoFilterDropdown ? PURPLE : '#e2e8f0'}`,
+                        cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13,
+                        fontWeight: 600, color: '#334155', transition: 'all 0.2s', height: '100%', minHeight: 37,
+                        boxShadow: showTecnicoFilterDropdown ? `0 0 0 3px rgba(102,0,153,0.1)` : 'none'
+                      }}
+                    >
+                      {tecnicoFilter === 'ALL' ? (
+                        <>
+                          <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#64748b', flexShrink: 0 }}>👥</div>
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Todos os técnicos</span>
+                        </>
+                      ) : (() => {
+                        const t = tecnicos.find(x => x.id === tecnicoFilter)
+                        if (!t) return <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Todos os técnicos</span>
+                        return (
+                          <>
+                            {t.fotoUrl ? (
+                              <img src={t.fotoUrl} alt={t.nome} style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                                {t.nome.substring(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 140 }}>{t.nome}</span>
+                          </>
+                        )
+                      })()}
+                      <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 10, flexShrink: 0 }}>{showTecnicoFilterDropdown ? '▲' : '▼'}</span>
+                    </div>
+
+                    {showTecnicoFilterDropdown && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999,
+                        background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 240, overflowY: 'auto',
+                        minWidth: 240
+                      }}>
+                        {/* Option: Todos */}
+                        <div
+                          onClick={() => { setTecnicoFilter('ALL'); setCurrentPageArkium(1); setShowTecnicoFilterDropdown(false); }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer',
+                            borderBottom: '1px solid #f1f5f9', background: tecnicoFilter === 'ALL' ? 'rgba(102,0,153,0.06)' : '#fff',
+                            fontSize: 13, fontWeight: 600, color: '#334155'
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = tecnicoFilter === 'ALL' ? 'rgba(102,0,153,0.06)' : '#fff')}
+                        >
+                          <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0 }}>👥</div>
+                          <span>Todos os técnicos</span>
+                          {tecnicoFilter === 'ALL' && <span style={{ marginLeft: 'auto', color: PURPLE, fontWeight: 800 }}>✓</span>}
+                        </div>
+
+                        {/* List other technicians, filtered by active status if showInactive is false */}
+                        {tecnicos.filter(t => showInactive ? true : t.ativo !== false).map(t => (
+                          <div
+                            key={t.id}
+                            onClick={() => { setTecnicoFilter(t.id); setCurrentPageArkium(1); setShowTecnicoFilterDropdown(false); }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', cursor: 'pointer',
+                              borderBottom: '1px solid #f1f5f9', background: tecnicoFilter === t.id ? 'rgba(102,0,153,0.06)' : '#fff',
+                              fontSize: 13, fontWeight: 600, color: '#334155'
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = tecnicoFilter === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
+                          >
+                            {t.fotoUrl ? (
+                              <img src={t.fotoUrl} alt={t.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                                {t.nome.substring(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                              <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{t.nome}</span>
+                              {t.ativo === false && <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 700 }}>Inativo</span>}
+                            </div>
+                            {tecnicoFilter === t.id && <span style={{ marginLeft: 'auto', color: PURPLE, fontWeight: 800, flexShrink: 0 }}>✓</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -1342,8 +1510,29 @@ export default function NaoConformidadesPage() {
                         <div style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>
                           {up.text}
                         </div>
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                          Por <strong>{up.author}</strong> em {new Date(up.date).toLocaleString('pt-BR')}
+                        {up.fotoUrl && (
+                          <div style={{ marginTop: 8 }}>
+                            <img
+                              src={up.fotoUrl}
+                              alt="Evidência"
+                              style={{
+                                maxWidth: '100%',
+                                maxHeight: 180,
+                                borderRadius: 8,
+                                border: '1px solid #cbd5e1',
+                                objectFit: 'contain',
+                                cursor: 'pointer',
+                                display: 'block'
+                              }}
+                              onClick={() => window.open(up.fotoUrl!, '_blank')}
+                            />
+                          </div>
+                        )}
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                          <span>Por <strong>{up.author}</strong> em {new Date(up.date).toLocaleString('pt-BR')}</span>
+                          {up.actionDate && (
+                            <span>• Data da Ação: <strong>{new Date(up.actionDate + 'T12:00:00Z').toLocaleDateString('pt-BR')}</strong></span>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1387,18 +1576,96 @@ export default function NaoConformidadesPage() {
                     }}
                   />
 
+                  {/* Two column layout for Date and Photo upload */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                        Data da Ação
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={actionDate}
+                        onChange={e => setActionDate(e.target.value)}
+                        style={{
+                          width: '100%', padding: '8px 12px', borderRadius: 8,
+                          border: '1px solid #cbd5e1', fontSize: 13, outline: 'none'
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                        Anexar Foto de Evidência
+                      </label>
+                      
+                      <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+                      <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+
+                      {fotoBase64 ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, border: '1px solid #10b981', background: 'rgba(16,185,129,0.05)', height: 38 }}>
+                          <img src={fotoBase64} alt="Preview" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }} />
+                          <div style={{ flex: 1, overflow: 'hidden', fontSize: 11, color: '#065f46', fontWeight: 600, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {fotoName}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { setFotoBase64(null); setFotoName(null); setFotoType(null); }}
+                            style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button"
+                            onClick={() => cameraInputRef.current?.click()}
+                            style={{
+                              flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px dashed #cbd5e1',
+                              background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
+                            }}
+                          >
+                            <Camera size={14} /> Foto
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => galleryInputRef.current?.click()}
+                            style={{
+                              flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px dashed #cbd5e1',
+                              background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
+                            }}
+                          >
+                            <UploadCloud size={14} /> Galeria
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button
                       type="submit"
-                      disabled={pending}
+                      disabled={pending || isUploading}
                       style={{
                         padding: '8px 18px', background: PURPLE, color: '#fff', border: 'none',
-                        borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: 6
+                        borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: (pending || isUploading) ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 6, opacity: (pending || isUploading) ? 0.7 : 1
                       }}
                     >
-                      <PlusCircle size={14} />
-                      Adicionar Ação
+                      {(pending || isUploading) ? (
+                        <>
+                          <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                          {isUploading ? 'Enviando Imagem...' : 'Adicionando Ação...'}
+                        </>
+                      ) : (
+                        <>
+                          <PlusCircle size={14} />
+                          Adicionar Ação
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>

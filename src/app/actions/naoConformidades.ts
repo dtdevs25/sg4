@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { revalidatePath } from 'next/cache'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
+import s3Client from '@/lib/s3'
 
 function normalize(str: string | null | undefined): string {
   if (!str) return ''
@@ -202,7 +204,13 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
   }
 }
 
-export async function addNaoConformidadeUpdate(id: string, text: string, newStatus?: string) {
+export async function addNaoConformidadeUpdate(
+  id: string,
+  text: string,
+  newStatus?: string,
+  actionDate?: string,
+  fotoUrl?: string
+) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -224,7 +232,9 @@ export async function addNaoConformidadeUpdate(id: string, text: string, newStat
     const newUpdate = {
       date: new Date().toISOString(),
       text,
-      author
+      author,
+      actionDate: actionDate || new Date().toISOString().split('T')[0],
+      fotoUrl: fotoUrl || null
     }
 
     const updatedUpdates = [...currentUpdates, newUpdate]
@@ -243,7 +253,7 @@ export async function addNaoConformidadeUpdate(id: string, text: string, newStat
       action: 'ATUALIZAR_NAO_CONFORMIDADE',
       entity: 'NaoConformidade',
       entityId: id,
-      details: { text, status: updatedStatus }
+      details: { text, status: updatedStatus, actionDate, fotoUrl }
     })
 
     revalidatePath('/dashboard/naoconformidades')
@@ -251,6 +261,41 @@ export async function addNaoConformidadeUpdate(id: string, text: string, newStat
   } catch (error: any) {
     console.error('Erro ao adicionar atualização:', error)
     return { success: false, error: error.message }
+  }
+}
+
+export async function uploadNaoConformidadeEvidencia(formData: FormData) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const fileData = formData.get('fileData') as string;
+    const fileName = formData.get('fileName') as string;
+    const contentType = formData.get('contentType') as string;
+
+    if (!fileData || !fileName) return { success: false, error: 'Dados inválidos' }
+
+    const buffer = Buffer.from(fileData.split(',')[1], 'base64')
+    const ext = fileName.split('.').pop()
+    const key = `evidencias/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+    
+    const command = new PutObjectCommand({
+      Bucket: 'sg4-ncvivo',
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      ACL: 'public-read'
+    })
+
+    await s3Client.send(command)
+    
+    const baseUrl = (process.env.S3_ENDPOINT || 'https://storage-api.ehspro.com.br').replace(/\/$/, '')
+    const url = `${baseUrl}/sg4-ncvivo/${key}`
+    
+    return { success: true, url }
+  } catch (error) {
+    console.error('Erro ao fazer upload da evidência no MinIO:', error)
+    return { success: false, error: 'Erro ao fazer upload da evidência no MinIO' }
   }
 }
 
