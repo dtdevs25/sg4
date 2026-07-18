@@ -132,26 +132,72 @@ function parseDateToJsDate(dateStr: string | null | undefined): Date | null {
 }
 
 /**
- * Returns the distinct years that exist in the APR data, using the indexed
- * integer column `anoAbertura` — extremely fast even on 800 k rows.
+ * Returns the distinct years present in the APR data.
+ * Extracts the year from the string field `data_abertura` using PostgreSQL's SUBSTRING.
+ * Supports both DD/MM/YYYY and YYYY-MM-DD formats.
+ * Falls back to the indexed `ano_abertura` integer column when populated.
  */
 export async function getAprYears(): Promise<{ success: boolean; years?: number[]; error?: string }> {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
 
-    // Use raw SQL so we hit the index directly and avoid loading all rows
-    const rows = await prisma.$queryRaw<{ ano: number }[]>`
-      SELECT DISTINCT ano_abertura AS ano
+    // Try to get years from the string field first (always works, even before backfill)
+    const rows = await prisma.$queryRaw<{ ano: number | null }[]>`
+      SELECT DISTINCT
+        CASE
+          WHEN data_abertura ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}'
+            THEN CAST(SUBSTRING(data_abertura, 7, 4) AS INTEGER)
+          WHEN data_abertura ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+            THEN CAST(SUBSTRING(data_abertura, 1, 4) AS INTEGER)
+          ELSE NULL
+        END AS ano
       FROM arkium_aprs
-      WHERE ano_abertura IS NOT NULL
-      ORDER BY ano DESC
+      WHERE data_abertura IS NOT NULL
     `
-    const years = rows.map(r => Number(r.ano)).filter(n => !isNaN(n) && n > 2000)
-    return { success: true, years }
+    const years = rows
+      .map(r => r.ano != null ? Number(r.ano) : null)
+      .filter((n): n is number => n !== null && !isNaN(n) && n > 2000 && n <= new Date().getFullYear() + 1)
+      .sort((a, b) => b - a)
+
+    // Deduplicate
+    const uniqueYears = [...new Set(years)]
+    return { success: true, years: uniqueYears }
   } catch (error) {
     console.error('Erro ao buscar anos de APR:', error)
     return { success: false, error: 'Erro ao buscar anos' }
+  }
+}
+
+/**
+ * Backfills the `ano_abertura` integer column from the `data_abertura` string field.
+ * Run once after the new column was added — extremely fast (index-write only, no data loaded).
+ */
+export async function backfillAprAnoAbertura(): Promise<{ success: boolean; updated?: number; error?: string }> {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    // Update DD/MM/YYYY format
+    const r1 = await prisma.$executeRaw`
+      UPDATE arkium_aprs
+      SET ano_abertura = CAST(SUBSTRING(data_abertura, 7, 4) AS INTEGER)
+      WHERE data_abertura ~ '^[0-9]{2}/[0-9]{2}/[0-9]{4}'
+        AND ano_abertura IS NULL
+    `
+
+    // Update YYYY-MM-DD format
+    const r2 = await prisma.$executeRaw`
+      UPDATE arkium_aprs
+      SET ano_abertura = CAST(SUBSTRING(data_abertura, 1, 4) AS INTEGER)
+      WHERE data_abertura ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+        AND ano_abertura IS NULL
+    `
+
+    return { success: true, updated: r1 + r2 }
+  } catch (error) {
+    console.error('Erro no backfill de ano_abertura:', error)
+    return { success: false, error: 'Falha no backfill' }
   }
 }
 
@@ -186,9 +232,29 @@ export async function getAprs(filters?: {
     const where: any = {}
     const andConditions: any[] = []
 
-    // Year filter: use the indexed integer column `anoAbertura`
+    // Year filter — use the indexed integer column when available,
+    // AND fallback to string matching for records where ano_abertura is still NULL
     if (year !== 'ALL') {
-      andConditions.push({ anoAbertura: Number(year) })
+      const yr = Number(year)
+      const yrStr2 = `/${yr}/`   // DD/MM/YYYY pattern
+      const yrStr4 = `-${yr}-`   // rare ISO pattern
+      andConditions.push({
+        OR: [
+          { anoAbertura: yr },  // fast index path (after backfill)
+          // fallback: string matching for rows not yet backfilled
+          {
+            AND: [
+              { anoAbertura: null },
+              {
+                OR: [
+                  { dataAbertura: { contains: String(yr), mode: 'insensitive' } },
+                  { dataChecklist: { contains: String(yr), mode: 'insensitive' } }
+                ]
+              }
+            ]
+          }
+        ]
+      })
     }
 
     // Month filter: use raw SQL via prisma.$queryRaw is complex with Prisma where,

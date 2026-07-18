@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useSession } from 'next-auth/react'
-import { getAprs, getAprYears, upsertAprBatch, deleteAprItem } from '@/app/actions/apr'
+import { getAprs, getAprYears, backfillAprAnoAbertura, upsertAprBatch, deleteAprItem } from '@/app/actions/apr'
 import { getLastImportTime } from '@/app/actions/logs'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { gerarExcelCentral } from '@/app/utils/gerarExcelCentral'
@@ -221,25 +221,60 @@ export default function APRPage() {
     selectedTecnico, searchText, currentPage, itemsPerPage
   ])
 
-  // Load initial config on mount (years list + last import time — lightweight queries)
+  // Load initial config on mount: years + last import, then auto-load data
   useEffect(() => {
     async function loadInitial() {
       const [yearsRes, importTimeRes] = await Promise.all([
         getAprYears(),
         getLastImportTime('IMPORTAR_APR')
       ])
+
+      let defaultYear: number | 'ALL' = new Date().getFullYear()
+
       if (yearsRes.success && yearsRes.years && yearsRes.years.length > 0) {
         setAnosDisponiveis(['ALL', ...yearsRes.years])
-        // Default to most recent year
-        setSelectedYear(yearsRes.years[0])
+        defaultYear = yearsRes.years[0]  // most recent year
+        setSelectedYear(defaultYear)
       }
+
       if (importTimeRes?.success && importTimeRes?.data) {
         setLastImport(importTimeRes.data)
       } else {
         setLastImport(null)
       }
+
+      // Trigger backfill in the background (fire and forget) —
+      // populates ano_abertura for existing records so future queries use the index
+      backfillAprAnoAbertura().catch(() => {})
+
+      // Auto-load data with the resolved year
+      setIsDataLoading(true)
+      try {
+        const currentM = new Date().getMonth() + 1
+        const initialMonths = Array.from({ length: currentM }, (_, i) => i + 1)
+        const res = await getAprs({
+          year: defaultYear,
+          months: initialMonths.length === 12 ? [] : initialMonths,
+          page: 1,
+          pageSize: 20
+        })
+        if (res.success && res.data) {
+          setAprs(res.data.aprs)
+          setTotalCount(res.data.totalCount)
+          setStats(res.data.stats)
+          setRankingTecnicos(res.data.rankingTecnicos)
+          setRankingAtividades(res.data.rankingAtividades)
+          setAvailableCities(res.data.availableCities)
+          setHasLoadedOnce(true)
+        }
+      } catch (e) {
+        console.error('Erro no auto-load inicial:', e)
+      } finally {
+        setIsDataLoading(false)
+      }
     }
     loadInitial()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Only auto-reload when pagination changes (user clicked next page)
