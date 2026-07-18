@@ -211,7 +211,7 @@ export async function GET(request: Request) {
 
     // Busca emails de usuarios MASTER para enviar cópia (bcc)
     const masters = await prisma.user.findMany({
-      where: { role: 'MASTER', active: '1' },
+      where: { role: 'MASTER', active: true },
       select: { email: true }
     })
     const bccEmails = masters.map(m => m.email).filter(Boolean) as string[]

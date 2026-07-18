@@ -481,6 +481,15 @@ export default function NaoConformidadesPage() {
     return consolidadoData.slice((currentPageConsolidado - 1) * itemsPerPageConsolidado, currentPageConsolidado * itemsPerPageConsolidado)
   }, [consolidadoData, currentPageConsolidado])
 
+  useEffect(() => {
+    setCurrentPageConsolidado(1)
+  }, [consolidadoSearch, selectedMonths, selectedYear, showInactive])
+
+  useEffect(() => {
+    setCurrentPageArkium(1)
+  }, [arkiumSearch, statusFilter, classFilter, tecnicoFilter, selectedMonths, selectedYear, showInactive])
+
+
   const totalsTecnicos = useMemo(() => {
     return {
       ativos: tecnicos.filter(t => t.ativo !== false).length,

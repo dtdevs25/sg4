@@ -27,7 +27,7 @@ const NAV: NavItemType[] = [
   { href: '/dashboard/atividades',  label: 'Planejamento',icon: CalendarDays       },
   { href: '/dashboard/reunioes',    label: 'Reuniões',    icon: CalendarCheck    },
   { href: '/dashboard/quilometragem',label: 'Quilometragem',icon: Car              },
-  // { href: '/dashboard/apr',         label: 'APR',         icon: ShieldCheck      },
+  { href: '/dashboard/apr',         label: 'APR',         icon: ShieldCheck      },
   // { href: '/dashboard/epi',         label: 'EPI',         icon: HardHat          },
   { href: '/dashboard/relatorios',  label: 'Relatórios',  icon: FileText         },
   { 

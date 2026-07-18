@@ -109,7 +109,7 @@ export async function getLogEntities(): Promise<string[]> {
   }
 }
 
-export async function getLastImportTime(action: 'IMPORTAR_NAO_CONFORMIDADES' | 'IMPORTAR_INSPECOES' | 'IMPORTAR_DSS') {
+export async function getLastImportTime(action: 'IMPORTAR_NAO_CONFORMIDADES' | 'IMPORTAR_INSPECOES' | 'IMPORTAR_DSS' | 'IMPORTAR_APR') {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
