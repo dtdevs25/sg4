@@ -140,6 +140,12 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
       })
 
       if (existing) {
+        const currentStatus = existing.status
+        let finalStatus = currentStatus
+        if (currentStatus !== 'EM_ANDAMENTO' && currentStatus !== 'RESOLVIDO') {
+          finalStatus = item.status || 'PENDENTE_NAO_VENCIDA'
+        }
+
         await prisma.naoConformidade.update({
           where: { id: existing.id },
           data: {
@@ -153,7 +159,8 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
             localidade: item.localidade !== undefined ? item.localidade : existing.localidade,
             base: item.base !== undefined ? item.base : existing.base,
             questionario: item.questionario !== undefined ? item.questionario : existing.questionario,
-            dataAbertura: item.dataAbertura ? new Date(item.dataAbertura) : existing.dataAbertura
+            dataAbertura: item.dataAbertura ? new Date(item.dataAbertura) : existing.dataAbertura,
+            status: finalStatus
           }
         })
         atualizados++
@@ -172,7 +179,7 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
             base: item.base || '',
             questionario: item.questionario || '',
             dataAbertura: item.dataAbertura ? new Date(item.dataAbertura) : null,
-            status: 'ABERTO',
+            status: item.status || 'PENDENTE_NAO_VENCIDA',
             updates: []
           }
         })

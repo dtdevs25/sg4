@@ -55,7 +55,7 @@ type NaoConformidadeItem = {
   base: string
   questionario: string
   dataAbertura: string | null
-  status: 'ABERTO' | 'EM_ANDAMENTO' | 'RESOLVIDO'
+  status: 'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO'
   updates: UpdateItem[]
   importadoEm: string
   tecnico?: {
@@ -130,7 +130,7 @@ export default function NaoConformidadesPage() {
 
   // Arkium list state
   const [arkiumSearch, setArkiumSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ABERTO' | 'EM_ANDAMENTO' | 'RESOLVIDO'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDENTES_V_NV' | 'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO'>('ALL')
   const [classFilter, setClassFilter] = useState('ALL')
   const [tecnicoFilter, setTecnicoFilter] = useState('ALL')
   const [currentPageArkium, setCurrentPageArkium] = useState(1)
@@ -142,7 +142,7 @@ export default function NaoConformidadesPage() {
   // Modal / Detail States
   const [selectedItem, setSelectedItem] = useState<NaoConformidadeItem | null>(null)
   const [newUpdateText, setNewUpdateText] = useState('')
-  const [modalStatus, setModalStatus] = useState<'ABERTO' | 'EM_ANDAMENTO' | 'RESOLVIDO'>('ABERTO')
+  const [modalStatus, setModalStatus] = useState<'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO'>('PENDENTE_NAO_VENCIDA')
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
   // Upload States
@@ -256,10 +256,12 @@ export default function NaoConformidadesPage() {
   // UI Stats for Arkium Tab
   const statsArkium = useMemo(() => {
     const total = filteredArkiumRaw.length
-    const abertas = filteredArkiumRaw.filter(i => i.status === 'ABERTO').length
-    const andamento = filteredArkiumRaw.filter(i => i.status === 'EM_ANDAMENTO').length
-    const resolvidas = filteredArkiumRaw.filter(i => i.status === 'RESOLVIDO').length
-    return { total, abertas, andamento, resolvidas }
+    const pendentesVencidas = filteredArkiumRaw.filter(i => i.status === 'PENDENTE_VENCIDA').length
+    const pendentesNaoVencidas = filteredArkiumRaw.filter(i => i.status === 'PENDENTE_NAO_VENCIDA').length
+    const pendentesV_NV = pendentesVencidas + pendentesNaoVencidas
+    const emProcessamento = filteredArkiumRaw.filter(i => i.status === 'EM_ANDAMENTO').length
+    const resolvidos = filteredArkiumRaw.filter(i => i.status === 'RESOLVIDO').length
+    return { total, pendentesV_NV, pendentesVencidas, pendentesNaoVencidas, emProcessamento, resolvidos }
   }, [filteredArkiumRaw])
 
   // Final search and dropdown filters applied to Arkium list
@@ -275,7 +277,14 @@ export default function NaoConformidadesPage() {
         (item.rCompl1 || '').toLowerCase().includes(query)
 
       // Status
-      const matchesStatus = statusFilter === 'ALL' || item.status === statusFilter
+      let matchesStatus = false
+      if (statusFilter === 'ALL') {
+        matchesStatus = true
+      } else if (statusFilter === 'PENDENTES_V_NV') {
+        matchesStatus = item.status === 'PENDENTE_VENCIDA' || item.status === 'PENDENTE_NAO_VENCIDA'
+      } else {
+        matchesStatus = item.status === statusFilter
+      }
 
       // Classification
       const matchesClass = classFilter === 'ALL' || item.classificacao === classFilter
@@ -305,9 +314,11 @@ export default function NaoConformidadesPage() {
       // Find all NCs for this technician in the selected period
       const tNCs = data.filter(nc => nc.tecnicoId === t.id && isDateInPeriod(nc.dataAbertura))
       
-      const abertas = tNCs.filter(nc => nc.status === 'ABERTO').length
-      const andamento = tNCs.filter(nc => nc.status === 'EM_ANDAMENTO').length
-      const resolvidas = tNCs.filter(nc => nc.status === 'RESOLVIDO').length
+      const pendentesVencidas = tNCs.filter(nc => nc.status === 'PENDENTE_VENCIDA').length
+      const pendentesNaoVencidas = tNCs.filter(nc => nc.status === 'PENDENTE_NAO_VENCIDA').length
+      const pendentesV_NV = pendentesVencidas + pendentesNaoVencidas
+      const emProcessamento = tNCs.filter(nc => nc.status === 'EM_ANDAMENTO').length
+      const resolvidos = tNCs.filter(nc => nc.status === 'RESOLVIDO').length
       const total = tNCs.length
 
       return {
@@ -316,9 +327,11 @@ export default function NaoConformidadesPage() {
         fotoUrl: t.fotoUrl,
         ativo: t.ativo,
         admissao: t.admissao ? new Date(t.admissao).toLocaleDateString('pt-BR') : '-',
-        abertas,
-        andamento,
-        resolvidas,
+        pendentesVencidas,
+        pendentesNaoVencidas,
+        pendentesV_NV,
+        emProcessamento,
+        resolvidos,
         total
       }
     }).filter(t => {
@@ -332,19 +345,23 @@ export default function NaoConformidadesPage() {
 
   // Overall totals for Consolidado statistics
   const statsConsolidado = useMemo(() => {
-    let abertas = 0
-    let andamento = 0
-    let resolvidas = 0
+    let pendentesVencidas = 0
+    let pendentesNaoVencidas = 0
+    let pendentesV_NV = 0
+    let emProcessamento = 0
+    let resolvidos = 0
     let total = 0
 
     consolidadoData.forEach(t => {
-      abertas += t.abertas
-      andamento += t.andamento
-      resolvidas += t.resolvidas
+      pendentesVencidas += t.pendentesVencidas
+      pendentesNaoVencidas += t.pendentesNaoVencidas
+      pendentesV_NV += t.pendentesV_NV
+      emProcessamento += t.emProcessamento
+      resolvidos += t.resolvidos
       total += t.total
     })
 
-    return { abertas, andamento, resolvidas, total }
+    return { pendentesVencidas, pendentesNaoVencidas, pendentesV_NV, emProcessamento, resolvidos, total }
   }, [consolidadoData])
 
   // Pagination for Consolidado
@@ -686,22 +703,30 @@ export default function NaoConformidadesPage() {
                   {selectedMonths.length} MÊS(ES)
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Total Aberto</span>
-                  <span style={{ fontSize: 24, fontWeight: 800, color: '#ef4444' }}>{statsConsolidado.abertas}</span>
+                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Pendentes (V+NV)</span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: '#6366f1' }}>{statsConsolidado.pendentesV_NV}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Em Andamento</span>
-                  <span style={{ fontSize: 24, fontWeight: 800, color: '#d97706' }}>{statsConsolidado.andamento}</span>
+                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Pendentes Vencidas</span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: '#ef4444' }}>{statsConsolidado.pendentesVencidas}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Resolvidas</span>
-                  <span style={{ fontSize: 24, fontWeight: 800, color: '#10b981' }}>{statsConsolidado.resolvidas}</span>
+                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Pendentes N. Vencidas</span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: '#3b82f6' }}>{statsConsolidado.pendentesNaoVencidas}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Em Processamento</span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: '#f59e0b' }}>{statsConsolidado.emProcessamento}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Resolvidos</span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }}>{statsConsolidado.resolvidos}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Total Geral</span>
-                  <span style={{ fontSize: 24, fontWeight: 800, color: '#334155' }}>{statsConsolidado.total}</span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: '#334155' }}>{statsConsolidado.total}</span>
                 </div>
               </div>
             </div>
@@ -741,9 +766,11 @@ export default function NaoConformidadesPage() {
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Aberto</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Em Andamento</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Resolvido</th>
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Pendentes (V+NV)</th>
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Vencidas</th>
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Não Vencidas</th>
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Em Processamento</th>
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Resolvidos</th>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Total</th>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ações</th>
                     </tr>
@@ -751,13 +778,13 @@ export default function NaoConformidadesPage() {
                   <tbody>
                     {pending ? (
                       <tr>
-                        <td colSpan={6} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+                        <td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
                           <Loader2 size={24} color={PURPLE} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 10px' }} />
                           Carregando dados...
                         </td>
                       </tr>
                     ) : paginatedConsolidado.length === 0 ? (
-                      <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Nenhum técnico encontrado.</td></tr>
+                      <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Nenhum técnico encontrado.</td></tr>
                     ) : (
                       paginatedConsolidado.map(t => (
                         <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -781,14 +808,20 @@ export default function NaoConformidadesPage() {
                               </div>
                             </div>
                           </td>
-                          <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.abertas > 0 ? '#ef4444' : '#64748b' }}>
-                            {t.abertas}
+                          <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.pendentesV_NV > 0 ? '#6366f1' : '#64748b' }}>
+                            {t.pendentesV_NV}
                           </td>
-                          <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.andamento > 0 ? '#d97706' : '#64748b' }}>
-                            {t.andamento}
+                          <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.pendentesVencidas > 0 ? '#ef4444' : '#64748b' }}>
+                            {t.pendentesVencidas}
                           </td>
-                          <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.resolvidas > 0 ? '#10b981' : '#64748b' }}>
-                            {t.resolvidas}
+                          <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.pendentesNaoVencidas > 0 ? '#3b82f6' : '#64748b' }}>
+                            {t.pendentesNaoVencidas}
+                          </td>
+                          <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.emProcessamento > 0 ? '#f59e0b' : '#64748b' }}>
+                            {t.emProcessamento}
+                          </td>
+                          <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.resolvidos > 0 ? '#10b981' : '#64748b' }}>
+                            {t.resolvidos}
                           </td>
                           <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 800, color: '#334155' }}>
                             {t.total}
@@ -861,32 +894,46 @@ export default function NaoConformidadesPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* Stats Cards */}
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #64748b' }}>
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #64748b' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b' }}>
                 <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total</span>
               </div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{statsArkium.total}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{statsArkium.total}</div>
             </div>
 
-            <div style={{ flex: 1, background: '#fff', border: '1px solid #fee2e2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #ef4444' }}>
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #e0e7ff', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #6366f1' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#4f46e5' }}>
+                <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Pendentes (V+NV)</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#6366f1', lineHeight: 1 }}>{statsArkium.pendentesV_NV}</div>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #fee2e2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #ef4444' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b91c1c' }}>
-                <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Abertos</span>
+                <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Vencidas</span>
               </div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{statsArkium.abertas}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{statsArkium.pendentesVencidas}</div>
             </div>
 
-            <div style={{ flex: 1, background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #d97706' }}>
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #dbeafe', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #3b82f6' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#1d4ed8' }}>
+                <Clock size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Não Vencidas</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#3b82f6', lineHeight: 1 }}>{statsArkium.pendentesNaoVencidas}</div>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #f59e0b' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309' }}>
-                <Clock size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Em Andamento</span>
+                <PlayCircle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Processamento</span>
               </div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#d97706', lineHeight: 1 }}>{statsArkium.andamento}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{statsArkium.emProcessamento}</div>
             </div>
 
-            <div style={{ flex: 1, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #10b981' }}>
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #10b981' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857' }}>
                 <CheckCircle2 size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Resolvidos</span>
               </div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{statsArkium.resolvidas}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{statsArkium.resolvidos}</div>
             </div>
           </div>
 
@@ -1005,9 +1052,11 @@ export default function NaoConformidadesPage() {
                   style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#334155', outline: 'none', background: '#fff' }}
                 >
                   <option value="ALL">Todas as situações</option>
-                  <option value="ABERTO">Aberto</option>
-                  <option value="EM_ANDAMENTO">Em Andamento</option>
-                  <option value="RESOLVIDO">Resolvido</option>
+                  <option value="PENDENTES_V_NV">Pendentes (Vencidas + Não Vencidas)</option>
+                  <option value="PENDENTE_VENCIDA">Pendentes Vencidas</option>
+                  <option value="PENDENTE_NAO_VENCIDA">Pendentes Não Vencidas</option>
+                  <option value="EM_ANDAMENTO">Pendentes em Processamento</option>
+                  <option value="RESOLVIDO">Resolvidos</option>
                 </select>
 
                 {/* Gravidade selector */}
@@ -1073,15 +1122,23 @@ export default function NaoConformidadesPage() {
                           ? new Date(item.dataAbertura).toLocaleDateString('pt-BR')
                           : '-'
 
-                        let statusBadge = { bg: '#fee2e2', text: '#ef4444', label: 'Aberto' }
-                        if (item.status === 'EM_ANDAMENTO') {
-                          statusBadge = { bg: '#fef3c7', text: '#d97706', label: 'Em Andamento' }
+                        let statusBadge = { bg: '#dbeafe', text: '#1d4ed8', label: 'Pendente (N. Venc.)' }
+                        if (item.status === 'PENDENTE_VENCIDA') {
+                          statusBadge = { bg: '#fee2e2', text: '#ef4444', label: 'Pendente (Vencida)' }
+                        } else if (item.status === 'EM_ANDAMENTO') {
+                          statusBadge = { bg: '#fef3c7', text: '#d97706', label: 'Em Processamento' }
                         } else if (item.status === 'RESOLVIDO') {
                           statusBadge = { bg: '#d1fae5', text: '#10b981', label: 'Resolvido' }
                         }
 
+                        const rowBg = item.status === 'PENDENTE_VENCIDA'
+                          ? '#fff5f5'
+                          : item.status === 'EM_ANDAMENTO'
+                            ? '#fffbeb'
+                            : '#fff'
+
                         return (
-                          <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', background: item.status === 'ABERTO' ? '#fefce8' : '#fff' }}>
+                          <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', background: rowBg }}>
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
                               #{item.originalId}
                             </td>
@@ -1310,8 +1367,9 @@ export default function NaoConformidadesPage() {
                         onChange={e => handleStatusChange(e.target.value as any)}
                         style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', background: '#fff' }}
                       >
-                        <option value="ABERTO">Aberto</option>
-                        <option value="EM_ANDAMENTO">Em Andamento</option>
+                        <option value="PENDENTE_NAO_VENCIDA">Pendente Não Vencida</option>
+                        <option value="PENDENTE_VENCIDA">Pendente Vencida</option>
+                        <option value="EM_ANDAMENTO">Em Processamento</option>
                         <option value="RESOLVIDO">Resolvido</option>
                       </select>
                     </div>
