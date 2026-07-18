@@ -904,162 +904,196 @@ export default function APRPage() {
       ======================================================== */}
       {activeTab === 'dashboard' && (
         <>
-          {/* Filters Area */}
-          <div style={{
-            background: '#fff',
-            border: '1px solid #f1f5f9',
-            borderRadius: 12,
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16
-          }}>
-            {/* First Row: Year & Month Filter */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <select 
-                  value={selectedYear} 
-                  onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} 
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}
-                >
-                  <option value="ALL">Todos os Anos</option>
-                  {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
-                <input 
-                  type="text"
-                  placeholder="Filtrar Técnico..."
-                  value={selectedTecnico} 
-                  onChange={e => setSelectedTecnico(e.target.value)} 
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', width: 180 }}
-                />
-                <button 
-                  onClick={handleResetFilters}
-                  style={{ padding: '6px 12px', background: '#f1f5f9', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, color: '#64748b', cursor: 'pointer' }}
-                >
-                  Limpar Filtros
-                </button>
-              </div>
-            </div>
-
-            {/* Months Row */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {MONTHS_LIST.map(m => {
-                const isSelected = selectedMonths.includes(m.key as MesKey)
-                return (
-                  <button
-                    key={m.key}
-                    onClick={() => handleMonthClick(m.key as MesKey)}
-                    style={{
-                      flex: 1, minWidth: 50, padding: '8px 0', borderRadius: 6,
-                      border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
-                      background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
-                      color: isSelected ? '#660099' : '#64748b',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                      userSelect: 'none'
-                    }}
+          {/* Top Panel: Left (Filters) & Right (Stats Summary) */}
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'stretch' }}>
+            {/* Filters Card (Left) */}
+            <div style={{
+              background: '#fff',
+              border: '1px solid #f1f5f9',
+              borderRadius: 12,
+              padding: 20,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              flex: '2.2',
+              minWidth: 320
+            }}>
+              {/* First Row: Year & Month Filter */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select 
+                    value={selectedYear} 
+                    onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} 
+                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}
                   >
-                    {m.label}
+                    <option value="ALL">Todos os Anos</option>
+                    {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                  <input 
+                    type="text"
+                    placeholder="Filtrar Técnico..."
+                    value={selectedTecnico} 
+                    onChange={e => setSelectedTecnico(e.target.value)} 
+                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', width: 180 }}
+                  />
+                  <button 
+                    onClick={handleResetFilters}
+                    style={{ padding: '6px 12px', background: '#f1f5f9', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, color: '#64748b', cursor: 'pointer' }}
+                  >
+                    Limpar Filtros
                   </button>
-                )
-              })}
+                </div>
+              </div>
+
+              {/* Months Row */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {MONTHS_LIST.map(m => {
+                  const isSelected = selectedMonths.includes(m.key as MesKey)
+                  return (
+                    <button
+                      key={m.key}
+                      onClick={() => handleMonthClick(m.key as MesKey)}
+                      style={{
+                        flex: 1, minWidth: 50, padding: '8px 0', borderRadius: 6,
+                        border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                        background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                        color: isSelected ? '#660099' : '#64748b',
+                        fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                        userSelect: 'none'
+                      }}
+                    >
+                      {m.label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Geographic Filter Bar */}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Região</label>
+                  <select
+                    value={selectedRegion}
+                    onChange={e => handleRegionChange(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
+                  >
+                    <option value="">Todas as Regiões</option>
+                    <option value="Norte">Norte</option>
+                    <option value="Nordeste">Nordeste</option>
+                    <option value="Centro-Oeste">Centro-Oeste</option>
+                    <option value="Sudeste">Sudeste</option>
+                    <option value="Sul">Sul</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Estado (UF)</label>
+                  <select
+                    value={selectedState}
+                    onChange={e => handleStateChange(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
+                  >
+                    <option value="">Todos os Estados</option>
+                    {BRAZIL_STATES.filter(s => {
+                      if (!selectedRegion) return true
+                      return REGIAO_MAP[selectedRegion]?.includes(s.uf)
+                    }).map(s => <option key={s.uf} value={s.uf}>{s.name} ({s.uf})</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Cidade</label>
+                  <select
+                    value={selectedCity}
+                    onChange={e => setSelectedCity(e.target.value)}
+                    style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
+                    disabled={!selectedState}
+                  >
+                    <option value="">{selectedState ? 'Todas as Cidades' : 'Selecione um Estado primeiro'}</option>
+                    {availableCities.map(c => <option key={c.name} value={c.name}>{c.name} ({c.count})</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
 
-            {/* Geographic Filter Bar */}
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid #f1f5f9' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 150 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Região</label>
-                <select
-                  value={selectedRegion}
-                  onChange={e => handleRegionChange(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
-                >
-                  <option value="">Todas as Regiões</option>
-                  <option value="Norte">Norte</option>
-                  <option value="Nordeste">Nordeste</option>
-                  <option value="Centro-Oeste">Centro-Oeste</option>
-                  <option value="Sudeste">Sudeste</option>
-                  <option value="Sul">Sul</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 150 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Estado (UF)</label>
-                <select
-                  value={selectedState}
-                  onChange={e => handleStateChange(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
-                >
-                  <option value="">Todos os Estados</option>
-                  {BRAZIL_STATES.filter(s => {
-                    if (!selectedRegion) return true
-                    return REGIAO_MAP[selectedRegion]?.includes(s.uf)
-                  }).map(s => <option key={s.uf} value={s.uf}>{s.name} ({s.uf})</option>)}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 150 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Cidade</label>
-                <select
-                  value={selectedCity}
-                  onChange={e => setSelectedCity(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
-                  disabled={!selectedState}
-                >
-                  <option value="">{selectedState ? 'Todas as Cidades' : 'Selecione um Estado primeiro'}</option>
-                  {availableCities.map(c => <option key={c.name} value={c.name}>{c.name} ({c.count})</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* KPI Metrics Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
-            
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f1f5f9', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 10, background: 'rgba(102,0,153,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#660099' }}>
-                <FileSpreadsheet size={22} />
-              </div>
-              <div>
-                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Total de APRs</span>
-                <span style={{ fontSize: 24, fontWeight: 800, color: '#1e293b' }}>{stats.total}</span>
-              </div>
-            </div>
-
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f1f5f9', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 10, background: 'rgba(59,130,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
-                <Clock size={22} />
-              </div>
-              <div>
-                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Demora na Abertura</span>
-                <span style={{ fontSize: 20, fontWeight: 800, color: '#1e293b' }}>{formatDelay(stats.avgDelayDays)}</span>
-              </div>
-            </div>
-
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f1f5f9', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 10, background: 'rgba(16,185,129,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
-                <CheckCircle2 size={22} />
-              </div>
-              <div>
-                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Resolvidos</span>
-                <span style={{ fontSize: 24, fontWeight: 800, color: '#10b981' }}>
-                  {stats.resolvidos} <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>({stats.total > 0 ? Math.round((stats.resolvidos/stats.total)*100) : 0}%)</span>
+            {/* KPI Metrics Cards (Right) */}
+            <div style={{
+              background: '#fff',
+              border: '1px solid #f1f5f9',
+              borderRadius: 12,
+              padding: 20,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 12,
+              flex: '1',
+              minWidth: 280
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Resumo do Período</span>
+                <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
+                  {selectedMonths.length} MÊS(ES)
                 </span>
               </div>
-            </div>
 
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #f1f5f9', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 10, background: 'rgba(239,68,68,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>
-                <AlertCircle size={22} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {/* Total */}
+                <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 10, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ color: '#660099' }}>
+                    <FileSpreadsheet size={16} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Total</span>
+                    <strong style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{stats.total}</strong>
+                  </div>
+                </div>
+
+                {/* Delay */}
+                <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 10, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ color: '#3b82f6' }}>
+                    <Clock size={16} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>T. Médio</span>
+                    <strong style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{formatDelay(stats.avgDelayDays)}</strong>
+                  </div>
+                </div>
+
+                {/* Resolvidos */}
+                <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 10, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ color: '#10b981' }}>
+                    <CheckCircle2 size={16} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Resolvidas</span>
+                    <strong style={{ fontSize: 16, fontWeight: 800, color: '#10b981' }}>{stats.resolvidos}</strong>
+                  </div>
+                </div>
+
+                {/* Pendentes */}
+                <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 10, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ color: '#ef4444' }}>
+                    <AlertCircle size={16} />
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Pendentes</span>
+                    <strong style={{ fontSize: 16, fontWeight: 800, color: '#ef4444' }}>{stats.total - stats.resolvidos}</strong>
+                  </div>
+                </div>
               </div>
-              <div>
-                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Pendentes Totais</span>
-                <span style={{ fontSize: 24, fontWeight: 800, color: '#ef4444' }}>
-                  {stats.total - stats.resolvidos} <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>({stats.total > 0 ? Math.round(((stats.total - stats.resolvidos)/stats.total)*100) : 0}%)</span>
-                </span>
+
+              {/* Percentage Bar */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>
+                  <span>TAXA DE RESOLUÇÃO</span>
+                  <span style={{ color: '#10b981' }}>{stats.total > 0 ? Math.round((stats.resolvidos/stats.total)*100) : 0}%</span>
+                </div>
+                <div style={{ width: '100%', height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${stats.total > 0 ? Math.round((stats.resolvidos/stats.total)*100) : 0}%`, height: '100%', background: '#10b981', borderRadius: 3 }} />
+                </div>
               </div>
             </div>
-
           </div>
 
           {/* Interactive Map & Rankings Panel */}
