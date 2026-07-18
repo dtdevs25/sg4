@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useTransition, useMemo } from 'react'
+import { useState, useRef, useEffect, useTransition, useMemo, useCallback } from 'react'
 import {
   Search, UploadCloud, Loader2, X, PlayCircle, ShieldCheck, Filter,
   FileSpreadsheet, ListTodo, MapPin, BarChart3, Users, Clock, AlertCircle,
@@ -8,26 +8,20 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useSession } from 'next-auth/react'
-import { getAprs, upsertAprBatch, deleteAprItem } from '@/app/actions/apr'
+import { getAprs, getAprYears, upsertAprBatch, deleteAprItem } from '@/app/actions/apr'
 import { getLastImportTime } from '@/app/actions/logs'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { gerarExcelCentral } from '@/app/utils/gerarExcelCentral'
 import { BRAZIL_STATES, REGIAO_MAP, getRegionForState } from './BrazilMapData'
 
-type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
-
-const MES_MAP: Record<MesKey, string> = {
-  jan: 'JANEIRO', fev: 'FEVEREIRO', mar: 'MARCO', abr: 'ABRIL', mai: 'MAIO', jun: 'JUNHO',
-  jul: 'JULHO', ago: 'AGOSTO', set: 'SETEMBRO', out: 'OUTUBRO', nov: 'NOVEMBRO', dez: 'DEZEMBRO'
-}
-
+// Months stored as numbers 1-12 (matching the new server action)
 const MONTHS_LIST = [
-  { key: 'jan', label: 'Jan' }, { key: 'fev', label: 'Fev' },
-  { key: 'mar', label: 'Mar' }, { key: 'abr', label: 'Abr' },
-  { key: 'mai', label: 'Mai' }, { key: 'jun', label: 'Jun' },
-  { key: 'jul', label: 'Jul' }, { key: 'ago', label: 'Ago' },
-  { key: 'set', label: 'Set' }, { key: 'out', label: 'Out' },
-  { key: 'nov', label: 'Nov' }, { key: 'dez', label: 'Dez' }
+  { num: 1, label: 'Jan' }, { num: 2, label: 'Fev' },
+  { num: 3, label: 'Mar' }, { num: 4, label: 'Abr' },
+  { num: 5, label: 'Mai' }, { num: 6, label: 'Jun' },
+  { num: 7, label: 'Jul' }, { num: 8, label: 'Ago' },
+  { num: 9, label: 'Set' }, { num: 10, label: 'Out' },
+  { num: 11, label: 'Nov' }, { num: 12, label: 'Dez' }
 ]
 
 function parseLocalidade(localidade: string | null | undefined): { uf: string; cidade: string } {
@@ -142,18 +136,33 @@ export default function APRPage() {
   const isMasterOrAdmin = userRole === 'MASTER' || userRole === 'ADMIN'
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'consolidado'>('dashboard')
-  const [pending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
   // Data states
   const [aprs, setAprs] = useState<any[]>([])
-  const [tecnicos, setTecnicos] = useState<any[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [stats, setStats] = useState({
+    total: 0,
+    conforme: 0,
+    naoConforme: 0,
+    avgDelayHours: 0
+  })
+  const [rankingTecnicos, setRankingTecnicos] = useState<any[]>([])
+  const [rankingAtividades, setRankingAtividades] = useState<any[]>([])
+  const [availableCities, setAvailableCities] = useState<any[]>([])
   const [lastImport, setLastImport] = useState<{ createdAt: string; userName: string } | null>(null)
+  const [isDataLoading, setIsDataLoading] = useState(false)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
 
-  // Filters state
+  // Available years loaded dynamically
+  const [anosDisponiveis, setAnosDisponiveis] = useState<(number | 'ALL')[]>(['ALL'])
+
+  // Filters state — months stored as numbers 1-12
   const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
-  const [selectedMonths, setSelectedMonths] = useState<MesKey[]>([
-    'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'
-  ].slice(0, new Date().getMonth() + 1) as MesKey[])
+  const currentMonthNum = new Date().getMonth() + 1  // 1-indexed
+  const [selectedMonths, setSelectedMonths] = useState<number[]>(
+    Array.from({ length: currentMonthNum }, (_, i) => i + 1)
+  )
   const [selectedRegion, setSelectedRegion] = useState<string>('')
   const [selectedState, setSelectedState] = useState<string>('')
   const [selectedCity, setSelectedCity] = useState<string>('')
@@ -163,7 +172,7 @@ export default function APRPage() {
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [itemsPerPage, setItemsPerPage] = useState(20)
 
   // Excel import status
   const [isImporting, setIsImporting] = useState(false)
@@ -173,51 +182,83 @@ export default function APRPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
 
-
-
   // Details Modal
   const [viewingItem, setViewingItem] = useState<any>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const loadData = async () => {
-    startTransition(async () => {
-      const [aprsRes, tecnicosRes, importTimeRes] = await Promise.all([
-        getAprs(),
-        getTecnicos(),
+  const loadData = useCallback(async (isExport = false) => {
+    if (!isExport) setIsDataLoading(true)
+    try {
+      const months = selectedMonths.length === 12 ? [] : selectedMonths
+      const res = await getAprs({
+        year: selectedYear,
+        months,
+        region: selectedRegion,
+        state: selectedState,
+        city: selectedCity,
+        tecnico: selectedTecnico,
+        search: searchText,
+        page: currentPage,
+        pageSize: itemsPerPage
+      })
+
+      if (res.success && res.data) {
+        setAprs(res.data.aprs)
+        setTotalCount(res.data.totalCount)
+        setStats(res.data.stats)
+        setRankingTecnicos(res.data.rankingTecnicos)
+        setRankingAtividades(res.data.rankingAtividades)
+        setAvailableCities(res.data.availableCities)
+        setHasLoadedOnce(true)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      if (!isExport) setIsDataLoading(false)
+    }
+  }, [
+    selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity,
+    selectedTecnico, searchText, currentPage, itemsPerPage
+  ])
+
+  // Load initial config on mount (years list + last import time — lightweight queries)
+  useEffect(() => {
+    async function loadInitial() {
+      const [yearsRes, importTimeRes] = await Promise.all([
+        getAprYears(),
         getLastImportTime('IMPORTAR_APR')
       ])
-
-      if (aprsRes.success && aprsRes.data) {
-        setAprs(aprsRes.data)
+      if (yearsRes.success && yearsRes.years && yearsRes.years.length > 0) {
+        setAnosDisponiveis(['ALL', ...yearsRes.years])
+        // Default to most recent year
+        setSelectedYear(yearsRes.years[0])
       }
-      if (tecnicosRes && tecnicosRes.success && Array.isArray(tecnicosRes.data)) {
-        setTecnicos(tecnicosRes.data)
+      if (importTimeRes?.success && importTimeRes?.data) {
+        setLastImport(importTimeRes.data)
+      } else {
+        setLastImport(null)
       }
-      if (importTimeRes) {
-        setLastImport(importTimeRes)
-      }
-    })
-  }
-
-  useEffect(() => {
-    loadData()
+    }
+    loadInitial()
   }, [])
 
-  // Dynamic available years
-  const anosDisponiveis = useMemo(() => {
-    const years = new Set<number>()
-    years.add(new Date().getFullYear())
-    aprs.forEach(apr => {
-      const date = parseDateToJsDate(apr.dataAbertura)
-      if (date) {
-        years.add(date.getFullYear())
-      }
-    })
-    return Array.from(years).sort((a, b) => b - a)
-  }, [aprs])
+  // Only auto-reload when pagination changes (user clicked next page)
+  useEffect(() => {
+    if (hasLoadedOnce) {
+      loadData()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, itemsPerPage])
 
-  // Month handler
-  const handleMonthClick = (m: MesKey) => {
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchText, selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity, selectedTecnico])
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage)
+
+  // Month handler — click = toggle; double-click = select only that month
+  const handleMonthClick = (m: number) => {
     if (clickTimeout.current) {
       clearTimeout(clickTimeout.current)
       clickTimeout.current = null
@@ -227,15 +268,12 @@ export default function APRPage() {
         clickTimeout.current = null
         setSelectedMonths(prev => {
           if (prev.length === 1 && prev.includes(m)) {
-            return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+            return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
           }
           if (prev.includes(m)) {
             return prev.filter(x => x !== m)
           } else {
-            return [...prev, m].sort((a, b) => {
-              const order = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-              return order.indexOf(a) - order.indexOf(b)
-            })
+            return [...prev, m].sort((a, b) => a - b)
           }
         })
       }, 250)
@@ -276,248 +314,97 @@ export default function APRPage() {
 
   // Reset all dashboard filters
   const handleResetFilters = () => {
-    setSelectedYear(new Date().getFullYear())
-    setSelectedMonths(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'].slice(0, new Date().getMonth() + 1) as MesKey[])
+    const currentM = new Date().getMonth() + 1
+    setSelectedYear(anosDisponiveis.find(a => a !== 'ALL') as number ?? new Date().getFullYear())
+    setSelectedMonths(Array.from({ length: currentM }, (_, i) => i + 1))
     setSelectedRegion('')
     setSelectedState('')
     setSelectedCity('')
     setSelectedTecnico('')
     setSearchText('')
-    setStatusFilter('ALL')
   }
 
-  // 1. Period & User Filter
-  const filteredByPeriodAndUser = useMemo(() => {
-    return aprs.filter(apr => {
-      if (selectedTecnico.trim()) {
-        const query = selectedTecnico.toLowerCase().trim()
-        const tecName = (apr.tecnico?.nome || apr.nomeAuditor || '').toLowerCase()
-        if (!tecName.includes(query)) return false
-      }
-
-      const date = parseDateToJsDate(apr.dataAbertura)
-      if (!date) return true
-
-      const year = date.getFullYear()
-      const monthIdx = date.getMonth()
-      const MONTH_KEYS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-      const monthKey = MONTH_KEYS[monthIdx]
-
-      if (selectedYear !== 'ALL' && year !== selectedYear) return false
-      if (!selectedMonths.includes(monthKey as any)) return false
-
-      return true
-    })
-  }, [aprs, selectedYear, selectedMonths, selectedTecnico])
-
-  // 2. Full Geographical Filter
-  const filteredAprs = useMemo(() => {
-    return filteredByPeriodAndUser.filter(apr => {
-      const loc = parseLocalidade(apr.localidadeObjeto)
-
-      if (selectedRegion) {
-        const reg = getRegionForState(loc.uf)
-        if (reg !== selectedRegion) return false
-      }
-
-      if (selectedState && loc.uf !== selectedState) return false
-
-      if (selectedCity && loc.cidade.toLowerCase() !== selectedCity.toLowerCase()) return false
-
-      return true
-    })
-  }, [filteredByPeriodAndUser, selectedRegion, selectedState, selectedCity])
-
-  // Dynamic Cities list under state selection
-  const availableCities = useMemo(() => {
-    const cities: Record<string, number> = {}
-    filteredByPeriodAndUser.forEach(apr => {
-      const loc = parseLocalidade(apr.localidadeObjeto)
-      if (selectedRegion) {
-        const reg = getRegionForState(loc.uf)
-        if (reg !== selectedRegion) return
-      }
-      if (selectedState && loc.uf !== selectedState) return
-      
-      const city = loc.cidade
-      cities[city] = (cities[city] || 0) + 1
-    })
-
-    return Object.entries(cities)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-  }, [filteredByPeriodAndUser, selectedRegion, selectedState])
-
-  // Stats KPIs Calculations
-  const stats = useMemo(() => {
-    let sumDelayMs = 0
-    let delayCount = 0
-    
-    let resolvidos = 0
-    let pendenteProcessamento = 0
-    let pendenteNaoVencidos = 0
-    let pendenteVencidos = 0
-
-    filteredAprs.forEach(apr => {
-      const st = String(apr.status || '').toLowerCase()
-      if (st === 'resolvidos') resolvidos++
-      else if (st === 'pendentes em processamento') pendenteProcessamento++
-      else if (st === 'pendente não vencidos') pendenteNaoVencidos++
-      else if (st === 'pendente vencidos') pendenteVencidos++
-      else {
-        if (st.includes('resolv')) resolvidos++
-        else if (st.includes('process') || st.includes('entrega')) pendenteProcessamento++
-        else if (st.includes('vencida')) pendenteVencidos++
-        else pendenteNaoVencidos++
-      }
-
-      const abert = parseDateToJsDate(apr.dataAbertura)
-      const fech = parseDateToJsDate(apr.dataFechamento)
-      if (abert && fech) {
-        const diffMs = fech.getTime() - abert.getTime()
-        if (diffMs >= 0) {
-          sumDelayMs += diffMs
-          delayCount++
-        }
-      }
-    })
-
-    const avgDelayHours = delayCount > 0 ? (sumDelayMs / (1000 * 60 * 60)) : 0
-
-    return {
-      resolvidos,
-      pendenteProcessamento,
-      pendenteNaoVencidos,
-      pendenteVencidos,
-      avgDelayHours,
-      total: filteredAprs.length
-    }
-  }, [filteredAprs])
-
-  // Ranking Technicians
-  const rankingTecnicos = useMemo(() => {
-    const counts: Record<string, { count: number; active: boolean; fotoUrl?: string }> = {}
-    filteredAprs.forEach(apr => {
-      const name = apr.tecnico?.nome || apr.nomeAuditor || 'Não Identificado'
-      if (!counts[name]) {
-        counts[name] = { 
-          count: 0, 
-          active: apr.tecnico ? apr.tecnico.ativo !== false : true,
-          fotoUrl: apr.tecnico?.fotoUrl
-        }
-      }
-      counts[name].count++
-    })
-    return Object.entries(counts)
-      .map(([nome, data]) => ({ nome, ...data }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
-  }, [filteredAprs])
-
-  // Ranking Activities
-  const rankingAtividades = useMemo(() => {
-    const counts: Record<string, number> = {}
-    filteredAprs.forEach(apr => {
-      const quest = apr.nomeQuestionario || 'Outra Atividade'
-      counts[quest] = (counts[quest] || 0) + 1
-    })
-    return Object.entries(counts)
-      .map(([nome, count]) => ({ nome, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
-  }, [filteredAprs])
-
-  // Dynamic Max values for rankings rendering
   const maxTecnicoCount = rankingTecnicos[0]?.count || 1
   const maxAtividadeCount = rankingAtividades[0]?.count || 1
 
-  // Table Filtering (Search Text + Status dropdown)
-  const finalFilteredTable = useMemo(() => {
-    return filteredAprs.filter(apr => {
-      const matchSearch =
-        (apr.numero || '').toLowerCase().includes(searchText.toLowerCase()) ||
-        (apr.nomeAuditor || '').toLowerCase().includes(searchText.toLowerCase()) ||
-        (apr.localidadeObjeto || '').toLowerCase().includes(searchText.toLowerCase()) ||
-        (apr.nomeQuestionario || '').toLowerCase().includes(searchText.toLowerCase())
-
-      if (!matchSearch) return false
-
-      if (statusFilter !== 'ALL') {
-        const st = String(apr.status || '').toLowerCase()
-        if (statusFilter === 'RESOLVIDO' && st !== 'resolvidos') return false
-        if (statusFilter === 'PENDENTE_PROC' && st !== 'pendentes em processamento') return false
-        if (statusFilter === 'PENDENTE_NV' && st !== 'pendente não vencidos') return false
-        if (statusFilter === 'PENDENTE_V' && st !== 'pendente vencidos') return false
-      }
-
-      return true
-    })
-  }, [filteredAprs, searchText, statusFilter])
-
-  // Reset pagination on filter change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchText, statusFilter, selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity, selectedTecnico])
-
-  // Pagination bounds
-  const totalPages = Math.ceil(finalFilteredTable.length / itemsPerPage)
-  const paginatedTableData = useMemo(() => {
-    return finalFilteredTable.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-  }, [finalFilteredTable, currentPage, itemsPerPage])
-
   // Excel template generator wrapper
   const handleExportExcel = async () => {
-    const headers = [
-      'Número',
-      'Data Checklist',
-      'Data Abertura',
-      'Data Fechamento',
-      'Situação',
-      'Matrícula Auditor',
-      'Nome Auditor',
-      'Técnico Vinculado',
-      'Localidade Objeto',
-      'Cliente Objeto',
-      'Identificador Objeto',
-      'Questionário',
-      'Autocheck',
-      'Observação'
-    ]
+    setIsDataLoading(true)
+    try {
+      const months = selectedMonths.length === 12 ? [] : selectedMonths
+      const res = await getAprs({
+        year: selectedYear,
+        months,
+        region: selectedRegion,
+        state: selectedState,
+        city: selectedCity,
+        tecnico: selectedTecnico,
+        search: searchText,
+        exportAll: true
+      })
+      if (!res.success || !res.data) {
+        alert('Erro ao carregar dados para exportação')
+        return
+      }
 
-    const rows = filteredAprs.map(apr => [
-      apr.numero,
-      apr.dataChecklist || '',
-      apr.dataAbertura || '',
-      apr.dataFechamento || '',
-      apr.status || '',
-      apr.matriculaAuditor || '',
-      apr.nomeAuditor || '',
-      apr.tecnico?.nome || 'Não Vinculado',
-      apr.localidadeObjeto || '',
-      apr.clienteObjeto || '',
-      apr.identificadorObjeto || '',
-      apr.nomeQuestionario || '',
-      apr.autocheck || '',
-      apr.observacao || ''
-    ])
+      const allFiltered = res.data.aprs
+      const exportStats = res.data.stats
 
-    const resumo = [
-      { label: 'Total Geral', valor: stats.total },
-      { label: 'Resolvidas', valor: stats.resolvidos, pct: stats.total > 0 ? `${Math.round((stats.resolvidos/stats.total)*100)}%` : '0%' },
-      { label: 'Pendentes em Processamento', valor: stats.pendenteProcessamento, pct: stats.total > 0 ? `${Math.round((stats.pendenteProcessamento/stats.total)*100)}%` : '0%' },
-      { label: 'Pendente Não Vencidas', valor: stats.pendenteNaoVencidos, pct: stats.total > 0 ? `${Math.round((stats.pendenteNaoVencidos/stats.total)*100)}%` : '0%' },
-      { label: 'Pendente Vencidas', valor: stats.pendenteVencidos, pct: stats.total > 0 ? `${Math.round((stats.pendenteVencidos/stats.total)*100)}%` : '0%' },
-      { label: 'Tempo Médio Abertura', valor: formatDelay(stats.avgDelayHours) }
-    ]
+      const headers = [
+        'Número',
+        'Data Checklist',
+        'Data Abertura',
+        'Data Fechamento',
+        'Situação',
+        'Matrícula Auditor',
+        'Nome Auditor',
+        'Técnico Vinculado',
+        'Localidade Objeto',
+        'Cliente Objeto',
+        'Identificador Objeto',
+        'Questionário',
+        'Autocheck',
+        'Observação'
+      ]
 
-    await gerarExcelCentral({
-      titulo: 'SG4 - Relatório de Análise Preliminar de Risco (APR)',
-      subtitulo: `Filtros Aplicados: Ano ${selectedYear} | Estado: ${selectedState || 'Todos'} | Cidade: ${selectedCity || 'Todas'}`,
-      headers,
-      rows,
-      resumo,
-      fileName: `SG4_APR_${new Date().toISOString().substring(0,10)}.xlsx`
-    })
+      const rows = allFiltered.map(apr => [
+        apr.numero,
+        apr.dataChecklist || '',
+        apr.dataAbertura || '',
+        apr.dataFechamento || '',
+        apr.status || '',
+        apr.matriculaAuditor || '',
+        apr.nomeAuditor || '',
+        apr.tecnico?.nome || 'Não Vinculado',
+        apr.localidadeObjeto || '',
+        apr.clienteObjeto || '',
+        apr.identificadorObjeto || '',
+        apr.nomeQuestionario || '',
+        apr.autocheck || '',
+        apr.observacao || ''
+      ])
+
+      const resumo = [
+        { label: 'Total Geral', valor: exportStats.total },
+        { label: 'Resultado Conforme', valor: exportStats.conforme, pct: exportStats.total > 0 ? `${Math.round((exportStats.conforme/exportStats.total)*100)}%` : '0%' },
+        { label: 'Resultado Não Conforme', valor: exportStats.naoConforme, pct: exportStats.total > 0 ? `${Math.round((exportStats.naoConforme/exportStats.total)*100)}%` : '0%' },
+        { label: 'Tempo Médio Abertura', valor: formatDelay(exportStats.avgDelayHours) }
+      ]
+
+      await gerarExcelCentral({
+        titulo: 'SG4 - Relatório de Análise Preliminar de Risco (APR)',
+        subtitulo: `Filtros Aplicados: Ano ${selectedYear} | Estado: ${selectedState || 'Todos'} | Cidade: ${selectedCity || 'Todas'}`,
+        headers,
+        rows,
+        resumo,
+        fileName: `SG4_APR_${new Date().toISOString().substring(0,10)}.xlsx`
+      })
+    } catch (err) {
+      console.error(err)
+      alert('Falha ao exportar arquivo Excel')
+    } finally {
+      setIsDataLoading(false)
+    }
   }
 
   // Excel parsing and mapping helpers
@@ -946,11 +833,11 @@ export default function APRPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {MONTHS_LIST.slice(0, 6).map(m => {
-                    const isSelected = selectedMonths.includes(m.key as MesKey)
+                    const isSelected = selectedMonths.includes(m.num)
                     return (
                       <button
-                        key={m.key}
-                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        key={m.num}
+                        onClick={() => handleMonthClick(m.num)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
@@ -967,11 +854,11 @@ export default function APRPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {MONTHS_LIST.slice(6, 12).map(m => {
-                    const isSelected = selectedMonths.includes(m.key as MesKey)
+                    const isSelected = selectedMonths.includes(m.num)
                     return (
                       <button
-                        key={m.key}
-                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        key={m.num}
+                        onClick={() => handleMonthClick(m.num)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
@@ -986,6 +873,23 @@ export default function APRPage() {
                     )
                   })}
                 </div>
+                {/* Search Button */}
+                <button
+                  onClick={() => { setCurrentPage(1); loadData() }}
+                  disabled={isDataLoading}
+                  style={{
+                    padding: '10px 0', borderRadius: 8, border: 'none',
+                    background: isDataLoading ? '#a78bfa' : 'linear-gradient(135deg, #660099, #9333ea)',
+                    color: '#fff', fontSize: 13, fontWeight: 800, cursor: isDataLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'opacity 0.2s'
+                  }}
+                >
+                  {isDataLoading
+                    ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Carregando...</>
+                    : <><Search size={14} /> Buscar APRs</>
+                  }
+                </button>
               </div>
 
               {/* Geographic Filter Bar */}
@@ -1072,7 +976,7 @@ export default function APRPage() {
 
                 {/* Delay */}
                 <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 10, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ color: '#3b82f6' }}>
+                  <div style={{ color: '#f59e0b' }}>
                     <Clock size={16} />
                   </div>
                   <div>
@@ -1081,25 +985,25 @@ export default function APRPage() {
                   </div>
                 </div>
 
-                {/* Resolvidos */}
+                {/* Conforme */}
                 <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 10, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ color: '#10b981' }}>
                     <CheckCircle2 size={16} />
                   </div>
                   <div>
-                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Resolvidas</span>
-                    <strong style={{ fontSize: 16, fontWeight: 800, color: '#10b981' }}>{stats.resolvidos}</strong>
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Conforme</span>
+                    <strong style={{ fontSize: 16, fontWeight: 800, color: '#10b981' }}>{stats.conforme}</strong>
                   </div>
                 </div>
 
-                {/* Pendentes */}
+                {/* Não Conforme */}
                 <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 10, border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ color: '#ef4444' }}>
                     <AlertCircle size={16} />
                   </div>
                   <div>
-                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Pendentes</span>
-                    <strong style={{ fontSize: 16, fontWeight: 800, color: '#ef4444' }}>{stats.total - stats.resolvidos}</strong>
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, display: 'block', textTransform: 'uppercase' }}>Não Conforme</span>
+                    <strong style={{ fontSize: 16, fontWeight: 800, color: '#ef4444' }}>{stats.naoConforme}</strong>
                   </div>
                 </div>
               </div>
@@ -1107,11 +1011,11 @@ export default function APRPage() {
               {/* Percentage Bar */}
               <div style={{ marginTop: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 4 }}>
-                  <span>TAXA DE RESOLUÇÃO</span>
-                  <span style={{ color: '#10b981' }}>{stats.total > 0 ? Math.round((stats.resolvidos/stats.total)*100) : 0}%</span>
+                  <span>TAXA DE CONFORMIDADE</span>
+                  <span style={{ color: '#10b981' }}>{stats.total > 0 ? Math.round((stats.conforme/stats.total)*100) : 0}%</span>
                 </div>
                 <div style={{ width: '100%', height: 6, background: '#f1f5f9', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ width: `${stats.total > 0 ? Math.round((stats.resolvidos/stats.total)*100) : 0}%`, height: '100%', background: '#10b981', borderRadius: 3 }} />
+                  <div style={{ width: `${stats.total > 0 ? Math.round((stats.conforme/stats.total)*100) : 0}%`, height: '100%', background: '#10b981', borderRadius: 3 }} />
                 </div>
               </div>
             </div>
@@ -1316,32 +1220,25 @@ export default function APRPage() {
               <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{stats.total}</div>
             </div>
 
-            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #fee2e2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #ef4444' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b91c1c' }}>
-                <AlertCircle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Pendente Vencida</span>
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #10b981' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857' }}>
+                <CheckCircle2 size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Conforme</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{stats.pendenteVencidos}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{stats.conforme}</div>
             </div>
 
-            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #dbeafe', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #3b82f6' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#1d4ed8' }}>
-                <Clock size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Pendente N. Vencida</span>
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #fee2e2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #ef4444' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b91c1c' }}>
+                <AlertCircle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Não Conforme</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#3b82f6', lineHeight: 1 }}>{stats.pendenteNaoVencidos}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{stats.naoConforme}</div>
             </div>
 
             <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #f59e0b' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309' }}>
-                <PlayCircle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Processamento</span>
+                <Clock size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Tempo Médio</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{stats.pendenteProcessamento}</div>
-            </div>
-
-            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #10b981' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857' }}>
-                <CheckCircle2 size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Resolvidos</span>
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{stats.resolvidos}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{formatDelay(stats.avgDelayHours)}</div>
             </div>
           </div>
 
@@ -1360,11 +1257,11 @@ export default function APRPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {MONTHS_LIST.slice(0, 6).map(m => {
-                    const isSelected = selectedMonths.includes(m.key as MesKey)
+                    const isSelected = selectedMonths.includes(m.num)
                     return (
                       <button
-                        key={m.key}
-                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        key={m.num}
+                        onClick={() => handleMonthClick(m.num)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
@@ -1381,11 +1278,11 @@ export default function APRPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {MONTHS_LIST.slice(6, 12).map(m => {
-                    const isSelected = selectedMonths.includes(m.key as MesKey)
+                    const isSelected = selectedMonths.includes(m.num)
                     return (
                       <button
-                        key={m.key}
-                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        key={m.num}
+                        onClick={() => handleMonthClick(m.num)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
@@ -1481,15 +1378,15 @@ export default function APRPage() {
               {/* Export Button */}
               <button
                 onClick={handleExportExcel}
-                disabled={finalFilteredTable.length === 0}
+                disabled={totalCount === 0}
                 style={{
                   padding: '8px 16px', background: '#fff', color: '#1e293b',
                   border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  cursor: finalFilteredTable.length === 0 ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 8, opacity: finalFilteredTable.length === 0 ? 0.6 : 1
+                  cursor: totalCount === 0 ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 8, opacity: totalCount === 0 ? 0.6 : 1
                 }}
               >
-                <FileSpreadsheet size={16} color="#10b981" /> Exportar Filtrados ({finalFilteredTable.length})
+                <FileSpreadsheet size={16} color="#10b981" /> Exportar Filtrados ({totalCount})
               </button>
             </div>
 
@@ -1509,14 +1406,14 @@ export default function APRPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedTableData.length === 0 ? (
+                  {aprs.length === 0 ? (
                     <tr>
                       <td colSpan={8} style={{ padding: '40px 16px', textAlign: 'center', color: '#94a3b8', fontWeight: 500 }}>
                         Nenhum registro encontrado com os critérios de busca selecionados.
                       </td>
                     </tr>
                   ) : (
-                    paginatedTableData.map(apr => {
+                    aprs.map(apr => {
                       const loc = parseLocalidade(apr.localidadeObjeto)
                       const st = String(apr.status || '').toLowerCase()
                       
@@ -1602,7 +1499,7 @@ export default function APRPage() {
             </div>
 
             {/* Pagination Controls */}
-            {finalFilteredTable.length > 0 && (
+            {totalCount > 0 && (
               <div style={{
                 padding: '8px 4px',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1610,7 +1507,7 @@ export default function APRPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
-                    Mostrando de {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, finalFilteredTable.length)} de {finalFilteredTable.length} registros
+                    Mostrando de {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount} registros
                   </span>
                   <select
                     value={itemsPerPage}

@@ -13,50 +13,386 @@ function nameMatches(arkiumName: string, dbName: string): boolean {
   if (!arkiumName || !dbName) return false
   if (arkiumName === dbName) return true
   if (arkiumName.includes(dbName) || dbName.includes(arkiumName)) return true
-  
+
   const arkTokens = arkiumName.split(' ').filter(t => t.length > 2)
   const dbTokens = dbName.split(' ').filter(t => t.length > 2)
-  
+
   const firstDb = dbTokens[0]
   const firstArk = arkTokens[0]
   if (!firstDb || !firstArk) return false
-  
+
   const firstNameMatch = firstDb === firstArk || firstArk.includes(firstDb) || firstDb.includes(firstArk)
   if (!firstNameMatch) return false
-  
+
   if (dbTokens.length === 1 || arkTokens.length === 1) return true
-  
+
   for (let i = 1; i < dbTokens.length; i++) {
     if (arkTokens.includes(dbTokens[i])) return true
   }
-  
+
   return false
 }
 
-export async function getAprs() {
+const REGIAO_MAP: Record<string, string[]> = {
+  'Norte': ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
+  'Nordeste': ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
+  'Centro-Oeste': ['DF', 'GO', 'MT', 'MS'],
+  'Sudeste': ['ES', 'MG', 'RJ', 'SP'],
+  'Sul': ['PR', 'RS', 'SC']
+}
+
+function parseLocalidade(localidade: string | null | undefined): { uf: string; cidade: string } {
+  if (!localidade) return { uf: 'Outros', cidade: 'Outros' }
+  const trimmed = localidade.trim()
+  const spaceIdx = trimmed.indexOf(' ')
+  if (spaceIdx === -1) {
+    if (trimmed.length === 2) {
+      return { uf: trimmed.toUpperCase(), cidade: 'Outros' }
+    }
+    return { uf: 'Outros', cidade: trimmed }
+  }
+  const ufPart = trimmed.substring(0, spaceIdx).replace(/[^a-zA-Z]/g, '').toUpperCase()
+  const cityPart = trimmed.substring(spaceIdx + 1).replace(/^-\s*/, '').trim()
+  if (ufPart.length === 2) {
+    return { uf: ufPart, cidade: cityPart || 'Outros' }
+  }
+  return { uf: 'Outros', cidade: trimmed }
+}
+
+function parseDateToJsDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null
+  const str = String(dateStr).trim()
+  if (!str) return null
+
+  const num = Number(str)
+  if (!isNaN(num) && num > 20000) {
+    return new Date(Math.round((num - 25569) * 86400 * 1000))
+  }
+
+  const partsDmy = str.split('/')
+  if (partsDmy.length === 3) {
+    const day = parseInt(partsDmy[0], 10)
+    const month = parseInt(partsDmy[1], 10) - 1
+    const yearPart = partsDmy[2].trim()
+    const spaceIdx = yearPart.indexOf(' ')
+    let yearStr = yearPart
+    let hour = 0
+    let minute = 0
+    let second = 0
+    if (spaceIdx !== -1) {
+      yearStr = yearPart.substring(0, spaceIdx)
+      const timePart = yearPart.substring(spaceIdx + 1).trim()
+      const timeParts = timePart.split(':')
+      if (timeParts.length >= 2) {
+        hour = parseInt(timeParts[0], 10)
+        minute = parseInt(timeParts[1], 10)
+        if (timeParts.length >= 3) {
+          second = parseInt(timeParts[2], 10)
+        }
+      }
+    }
+    const year = parseInt(yearStr, 10)
+    const finalYear = year < 100 ? year + 2000 : year
+    if (!isNaN(day) && !isNaN(month) && !isNaN(finalYear) && !isNaN(hour) && !isNaN(minute)) {
+      return new Date(finalYear, month, day, hour, minute, second)
+    }
+  }
+
+  const partsYmd = str.split('-')
+  if (partsYmd.length >= 3) {
+    const year = parseInt(partsYmd[0], 10)
+    const month = parseInt(partsYmd[1], 10) - 1
+    const dayPart = partsYmd[2].trim()
+    const spaceIdx = dayPart.indexOf(' ')
+    let dayStr = dayPart
+    let hour = 0
+    let minute = 0
+    let second = 0
+    if (spaceIdx !== -1) {
+      dayStr = dayPart.substring(0, spaceIdx)
+      const timePart = dayPart.substring(spaceIdx + 1).trim()
+      const timeParts = timePart.split(':')
+      if (timeParts.length >= 2) {
+        hour = parseInt(timeParts[0], 10)
+        minute = parseInt(timeParts[1], 10)
+        if (timeParts.length >= 3) {
+          second = parseInt(timeParts[2], 10)
+        }
+      }
+    }
+    const day = parseInt(dayStr, 10)
+    if (!isNaN(day) && !isNaN(month) && !isNaN(year) && !isNaN(hour) && !isNaN(minute)) {
+      return new Date(year, month, day, hour, minute, second)
+    }
+  }
+
+  const d = new Date(str)
+  if (!isNaN(d.getTime())) return d
+  return null
+}
+
+/**
+ * Returns the distinct years that exist in the APR data, using the indexed
+ * integer column `anoAbertura` — extremely fast even on 800 k rows.
+ */
+export async function getAprYears(): Promise<{ success: boolean; years?: number[]; error?: string }> {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
 
-    // No role-based filtering for APRs, display all technicians' data as requested
-    const data = await prisma.aprArkium.findMany({
-      orderBy: { dataAbertura: 'desc' },
-      include: {
-        tecnico: {
-          select: {
-            id: true,
-            nome: true,
-            ativo: true,
-          }
-        }
-      }
-    })
+    // Use raw SQL so we hit the index directly and avoid loading all rows
+    const rows = await prisma.$queryRaw<{ ano: number }[]>`
+      SELECT DISTINCT ano_abertura AS ano
+      FROM arkium_aprs
+      WHERE ano_abertura IS NOT NULL
+      ORDER BY ano DESC
+    `
+    const years = rows.map(r => Number(r.ano)).filter(n => !isNaN(n) && n > 2000)
+    return { success: true, years }
+  } catch (error) {
+    console.error('Erro ao buscar anos de APR:', error)
+    return { success: false, error: 'Erro ao buscar anos' }
+  }
+}
 
-    return { success: true, data }
+export async function getAprs(filters?: {
+  year?: number | 'ALL'
+  months?: number[]   // 1..12 — use numbers instead of abbreviation strings
+  region?: string
+  state?: string
+  city?: string
+  tecnico?: string
+  search?: string
+  page?: number
+  pageSize?: number
+  exportAll?: boolean
+}) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const year = filters?.year ?? new Date().getFullYear()
+    const months = filters?.months ?? []  // empty = all months
+    const region = filters?.region || ''
+    const state = filters?.state || ''
+    const city = filters?.city || ''
+    const tecnico = filters?.tecnico || ''
+    const search = filters?.search || ''
+    const page = filters?.page ?? 1
+    const pageSize = filters?.pageSize ?? 20
+    const exportAll = filters?.exportAll ?? false
+
+    // Build WHERE clause — using indexed fields whenever possible
+    const where: any = {}
+    const andConditions: any[] = []
+
+    // Year filter: use the indexed integer column `anoAbertura`
+    if (year !== 'ALL') {
+      andConditions.push({ anoAbertura: Number(year) })
+    }
+
+    // Month filter: use raw SQL via prisma.$queryRaw is complex with Prisma where,
+    // so we build an OR on string patterns but ONLY when year is also filtered
+    // (year index reduces the working set to ~50k-100k rows first)
+    if (months.length > 0 && months.length < 12) {
+      const monthConditions: any[] = []
+      for (const m of months) {
+        const mm = String(m).padStart(2, '0')
+        monthConditions.push({ dataAbertura: { contains: `/${mm}/` } })
+        monthConditions.push({ dataAbertura: { contains: `-${mm}-` } })
+        monthConditions.push({ dataChecklist: { contains: `/${mm}/` } })
+        monthConditions.push({ dataChecklist: { contains: `-${mm}-` } })
+      }
+      andConditions.push({ OR: monthConditions })
+    }
+
+    if (tecnico.trim()) {
+      andConditions.push({ nomeAuditor: { contains: tecnico.trim(), mode: 'insensitive' } })
+    }
+
+    if (state.trim()) {
+      andConditions.push({ localidadeObjeto: { startsWith: state.trim(), mode: 'insensitive' } })
+    } else if (region.trim()) {
+      const regStates = REGIAO_MAP[region] || []
+      if (regStates.length > 0) {
+        andConditions.push({
+          OR: regStates.map(st => ({ localidadeObjeto: { startsWith: st, mode: 'insensitive' } }))
+        })
+      }
+    }
+
+    if (city.trim()) {
+      andConditions.push({ localidadeObjeto: { contains: city.trim(), mode: 'insensitive' } })
+    }
+
+    if (search.trim()) {
+      andConditions.push({
+        OR: [
+          { numero: { contains: search.trim(), mode: 'insensitive' } },
+          { nomeAuditor: { contains: search.trim(), mode: 'insensitive' } },
+          { localidadeObjeto: { contains: search.trim(), mode: 'insensitive' } },
+          { nomeQuestionario: { contains: search.trim(), mode: 'insensitive' } }
+        ]
+      })
+    }
+
+    if (andConditions.length > 0) {
+      where.AND = andConditions
+    }
+
+    const limit = exportAll ? 50000 : pageSize
+    const skip = exportAll ? 0 : (page - 1) * pageSize
+
+    // Run all queries in parallel; groupBy on `resultado` replaces 3 separate COUNTs
+    const [
+      resultadoGroups,
+      rawAbertFech,
+      rankingTecData,
+      rankingAtividadesData,
+      aprs
+    ] = await Promise.all([
+      prisma.aprArkium.groupBy({
+        by: ['resultado'],
+        where,
+        _count: { _all: true }
+      }),
+      // Sample only 200 rows for average delay (statistically sufficient)
+      prisma.aprArkium.findMany({
+        where: {
+          AND: [where, { dataAbertura: { not: null }, dataFechamento: { not: null } }]
+        },
+        select: { dataAbertura: true, dataFechamento: true },
+        take: 200
+      }),
+      prisma.aprArkium.groupBy({
+        by: ['nomeAuditor'],
+        where,
+        _count: { _all: true },
+        orderBy: { _count: { nomeAuditor: 'desc' } },
+        take: 10
+      }),
+      prisma.aprArkium.groupBy({
+        by: ['nomeQuestionario'],
+        where,
+        _count: { _all: true },
+        orderBy: { _count: { nomeQuestionario: 'desc' } },
+        take: 10
+      }),
+      prisma.aprArkium.findMany({
+        where,
+        orderBy: { dataAbertura: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          tecnico: { select: { id: true, nome: true, ativo: true } }
+        }
+      })
+    ])
+
+    // Compute totals from groupBy
+    let totalCount = 0
+    let conformeCount = 0
+    let naoConformeCount = 0
+    for (const g of resultadoGroups) {
+      const count = g._count?._all || 0
+      totalCount += count
+      const resText = (g.resultado || '').toUpperCase().trim()
+      const isNaoConforme = resText.includes('NÃO CONFORME') || resText.includes('NAO CONFORME')
+      const isConforme = resText.includes('CONFORME') && !isNaoConforme
+      if (isConforme) conformeCount += count
+      else if (isNaoConforme) naoConformeCount += count
+    }
+
+    // Average delay from sample
+    let sumDelayMs = 0
+    let delayCount = 0
+    for (const apr of rawAbertFech) {
+      const abert = parseDateToJsDate(apr.dataAbertura)
+      const fech = parseDateToJsDate(apr.dataFechamento)
+      if (abert && fech) {
+        const diffMs = fech.getTime() - abert.getTime()
+        if (diffMs >= 0) { sumDelayMs += diffMs; delayCount++ }
+      }
+    }
+    const avgDelayHours = delayCount > 0 ? sumDelayMs / (1000 * 60 * 60) : 0
+
+    // Rankings
+    const rankingTecnicos = rankingTecData
+      .filter(item => item.nomeAuditor)
+      .map(item => ({ nome: item.nomeAuditor!, count: item._count._all, active: true }))
+
+    const rankingAtividades = rankingAtividadesData.map(item => ({
+      nome: item.nomeQuestionario || 'Outra Atividade',
+      count: item._count._all
+    }))
+
+    // Cities: only when a state is selected (avoids full-table groupBy)
+    let availableCities: { name: string; count: number }[] = []
+    if (state.trim()) {
+      const groupLocalidades = await prisma.aprArkium.groupBy({
+        by: ['localidadeObjeto'],
+        where,
+        _count: { _all: true },
+        orderBy: { _count: { localidadeObjeto: 'desc' } },
+        take: 200
+      })
+      const citiesMap: Record<string, number> = {}
+      for (const loc of groupLocalidades) {
+        const { cidade } = parseLocalidade(loc.localidadeObjeto)
+        citiesMap[cidade] = (citiesMap[cidade] || 0) + loc._count._all
+      }
+      availableCities = Object.entries(citiesMap)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+    }
+
+    return {
+      success: true,
+      data: {
+        aprs,
+        totalCount,
+        stats: { total: totalCount, conforme: conformeCount, naoConforme: naoConformeCount, avgDelayHours },
+        rankingTecnicos,
+        rankingAtividades,
+        availableCities
+      }
+    }
   } catch (error) {
     console.error('Erro ao buscar APRs:', error)
     return { success: false, error: 'Erro ao buscar dados' }
   }
+}
+
+/**
+ * Extract the year from a date string like "DD/MM/YYYY HH:MM" or "YYYY-MM-DD".
+ * Returns null if parsing fails.
+ */
+function extractYear(dateStr: string | null | undefined): number | null {
+  if (!dateStr) return null
+  const str = String(dateStr).trim()
+
+  // Excel serial number
+  const num = Number(str)
+  if (!isNaN(num) && num > 20000) {
+    const d = new Date(Math.round((num - 25569) * 86400 * 1000))
+    return d.getUTCFullYear()
+  }
+
+  // DD/MM/YYYY
+  const dmy = str.split('/')
+  if (dmy.length >= 3) {
+    const y = parseInt(dmy[2], 10)
+    if (!isNaN(y) && y > 2000) return y
+  }
+
+  // YYYY-MM-DD
+  const ymd = str.split('-')
+  if (ymd.length >= 3 && ymd[0].length === 4) {
+    const y = parseInt(ymd[0], 10)
+    if (!isNaN(y) && y > 2000) return y
+  }
+
+  return null
 }
 
 export async function upsertAprBatch(items: any[]) {
@@ -76,32 +412,31 @@ export async function upsertAprBatch(items: any[]) {
     })
     const existingMap = new Map(existing.map(e => [e.numero, e]))
 
-    const creates = []
-    const updates = []
+    const creates: any[] = []
+    const updates: any[] = []
 
     for (const item of items) {
       if (!item.numero) continue
 
       let tecnicoId = null
-      
+
       if (item.matriculaAuditor) {
         const match = tecnicos.find(t => t.matriculaArkium && t.matriculaArkium.toUpperCase().trim() === item.matriculaAuditor.toUpperCase().trim())
-        if (match) {
-          tecnicoId = match.id
-        }
+        if (match) tecnicoId = match.id
       }
 
       if (!tecnicoId && item.nomeAuditor) {
         const itemNomeLimpo = normalize(item.nomeAuditor)
-
         for (const t of tecnicos) {
-          const tNomeLimpo = normalize(t.nome)
-          if (nameMatches(itemNomeLimpo, tNomeLimpo)) { 
+          if (nameMatches(itemNomeLimpo, normalize(t.nome))) {
             tecnicoId = t.id
-            break 
+            break
           }
         }
       }
+
+      // Populate the indexed integer year for fast filtering
+      const anoAbertura = extractYear(item.dataAbertura) ?? extractYear(item.dataChecklist) ?? null
 
       const existingRecord = existingMap.get(item.numero)
       const dataPayload = {
@@ -118,20 +453,15 @@ export async function upsertAprBatch(items: any[]) {
         autocheck: item.autocheck,
         observacao: item.observacao,
         status: item.status,
+        anoAbertura,
         tecnicoId: tecnicoId || (existingRecord ? existingRecord.tecnicoId : null),
         importadoPor: item.importadoPor
       }
 
       if (existingRecord) {
-        updates.push({
-          where: { id: existingRecord.id },
-          data: dataPayload
-        })
+        updates.push({ where: { id: existingRecord.id }, data: dataPayload })
       } else {
-        creates.push({
-          numero: item.numero,
-          ...dataPayload
-        })
+        creates.push({ numero: item.numero, ...dataPayload })
       }
     }
 
@@ -141,9 +471,7 @@ export async function upsertAprBatch(items: any[]) {
     }
 
     if (updates.length > 0) {
-      await prisma.$transaction(
-        updates.map(up => prisma.aprArkium.update(up))
-      )
+      await prisma.$transaction(updates.map(up => prisma.aprArkium.update(up)))
       atualizados += updates.length
     }
 

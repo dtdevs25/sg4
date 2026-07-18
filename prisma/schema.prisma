@@ -419,11 +419,18 @@ model AprArkium {
   atualizadoEm          DateTime  @default(now()) @updatedAt @map("atualizado_em")
   importadoPor          String?   @map("importado_por")
 
+  // Cached integer year for fast index lookups (filled on upsert)
+  anoAbertura           Int?      @map("ano_abertura")
+
   tecnico               Tecnico?  @relation(fields: [tecnicoId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([matriculaAuditor])
   @@index([tecnicoId])
+  @@index([anoAbertura])
+  @@index([resultado])
+  @@index([localidadeObjeto])
+  @@index([nomeAuditor])
   @@map("arkium_aprs")
 }
 
