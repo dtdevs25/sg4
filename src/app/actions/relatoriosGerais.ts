@@ -1141,4 +1141,78 @@ export async function definirRecebedorRelatorioProdutividade(tecnicoId: string) 
   }
 }
 
+export async function getRelatorioUnidadesTecnico(f: FiltrosRelatorio) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
+
+  const where: any = {}
+  if (f.tecnicoId === 'ativos') {
+    where.ativo = true
+  } else if (f.tecnicoId) {
+    where.id = f.tecnicoId
+  }
+
+  const tecnicos = await prisma.tecnico.findMany({
+    where,
+    include: {
+      baseFixa: true,
+      unidades: {
+        orderBy: { nome: 'asc' }
+      }
+    },
+    orderBy: { nome: 'asc' }
+  })
+
+  const rows: any[] = []
+
+  for (const tec of tecnicos) {
+    // 1. Base Fixa
+    if (tec.baseFixa) {
+      rows.push({
+        tecnico: tec.nome,
+        status: tec.ativo ? 'Ativo' : 'Inativo',
+        tipoVinculo: 'Base Fixa',
+        nomeUnidade: tec.baseFixa.nome,
+        responsavel: tec.baseFixa.responsavel ?? '—',
+        cidadeUf: `${tec.baseFixa.cidade ?? ''}${tec.baseFixa.cidade && tec.baseFixa.estado ? '/' : ''}${tec.baseFixa.estado ?? ''}`.trim() || '—',
+        endereco: tec.baseFixa.endereco ?? '—'
+      })
+    }
+
+    // 2. Unidades Atendidas
+    for (const uni of tec.unidades) {
+      if (tec.baseFixaId === uni.id) continue
+
+      rows.push({
+        tecnico: tec.nome,
+        status: tec.ativo ? 'Ativo' : 'Inativo',
+        tipoVinculo: 'Unidade Atendida',
+        nomeUnidade: uni.nome,
+        responsavel: uni.responsavel ?? '—',
+        cidadeUf: `${uni.cidade ?? ''}${uni.cidade && uni.estado ? '/' : ''}${uni.estado ?? ''}`.trim() || '—',
+        endereco: uni.endereco ?? '—'
+      })
+    }
+
+    // Sem Vínculo
+    if (!tec.baseFixa && tec.unidades.length === 0) {
+      rows.push({
+        tecnico: tec.nome,
+        status: tec.ativo ? 'Ativo' : 'Inativo',
+        tipoVinculo: 'Sem Vínculo',
+        nomeUnidade: '—',
+        responsavel: '—',
+        cidadeUf: '—',
+        endereco: '—'
+      })
+    }
+  }
+
+  return {
+    success: true,
+    data: rows
+  }
+}
+
+
 

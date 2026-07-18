@@ -14,6 +14,7 @@ import {
   getRelatorioAtividadesCampo, getRelatorioRanking, getTecnicosParaFiltro,
   getRelatorioProdutividadeDssInspecoes,
   definirRecebedorRelatorioProdutividade,
+  getRelatorioUnidadesTecnico,
   type FiltrosRelatorio
 } from '@/app/actions/relatoriosGerais'
 
@@ -32,6 +33,7 @@ const TIPOS = [
   { id: 'km',          label: 'Quilometragem',                icon: Car,            cor: '#0ea5e9', grupo: 'Gerenciais',       desc: 'KM rodados e abastecimentos por técnico' },
   { id: 'atividades',  label: 'Atividades de Campo',          icon: BarChart3,      cor: '#16a34a', grupo: 'Gerenciais',       desc: 'Atividades executadas com empresa, local e descrição' },
   { id: 'custo-abastecimento', label: 'Custo de Abastecimento', icon: BarChart3, cor: '#0ea5e9', grupo: 'Gerenciais', desc: 'Saldo de abastecimento acumulado e gasto mês a mês por técnico' },
+  { id: 'unidades-tecnico', label: 'Unidades por Técnico', icon: Users, cor: '#7c3aed', grupo: 'Gerenciais', desc: 'Vínculos de bases e unidades atendidas, responsáveis e endereços por técnico' },
   { id: 'ranking',     label: 'Ranking de Desempenho',        icon: Trophy,         cor: '#d97706', grupo: 'Gerenciais',       desc: 'Score consolidado: DSS + Inspeções + Reuniões' },
   { id: 'produtividade',label: 'Produtividade', icon: CheckCircle,    cor: '#ec4899', grupo: 'Operacionais',    desc: 'Consolidado de DSS e Inspeções realizadas por técnico' },
 ]
@@ -163,7 +165,9 @@ export default function AdminRelatoriosPage() {
       dataInicio, dataFim,
     }
     const tName = tecnicoId ? tecnicos.find(t => t.id === tecnicoId)?.nome : ''
-    const sub = `Período: ${new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}${tName ? ` · Técnico: ${tName}` : ' · Todos os Técnicos'}`
+    const sub = tipoSel === 'unidades-tecnico'
+      ? `${tName ? `Técnico: ${tName}` : 'Todos os Técnicos'}`
+      : `Período: ${new Date(dataInicio + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(dataFim + 'T12:00:00').toLocaleDateString('pt-BR')}${tName ? ` · Técnico: ${tName}` : ' · Todos os Técnicos'}`
     const baseOpts = { subtitulo: sub, geradoPor: nomeUsuario }
 
     setExportando(formato)
@@ -195,6 +199,9 @@ export default function AdminRelatoriosPage() {
         } else if (tipoSel === 'custo-abastecimento') {
           const d = await getRelatorioCustoAbastecimento(filtros)
           genOpts = { titulo: 'Custos de Abastecimento Mês a Mês', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} registros mensais`, headers: ['Técnico', 'Mês/Ano', 'Orçamento Base', 'Recargas no Mês', 'Gasto no Mês', 'Saldo Acumulado'], rows: d.data.map((r: any) => [r.tecnico, r.mesAno, `R$ ${r.orcamentoBase.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `R$ ${r.recargasMes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `R$ ${r.gastoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, `R$ ${r.saldoAcumulado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]) }
+        } else if (tipoSel === 'unidades-tecnico') {
+          const d = await getRelatorioUnidadesTecnico(filtros)
+          genOpts = { titulo: 'Unidades por Técnico', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} vínculos de unidade`, headers: ['Técnico', 'Status', 'Tipo de Vínculo', 'Unidade', 'Responsável', 'Cidade/UF', 'Endereço'], rows: d.data.map((r: any) => [r.tecnico, r.status, r.tipoVinculo, r.nomeUnidade, r.responsavel, r.cidadeUf, r.endereco]) }
         } else if (tipoSel === 'ausencias') {
           const d = await getRelatorioAusencias(filtros)
           genOpts = { titulo: 'Ausências em Reuniões', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} ausências registradas`, headers: ['Técnico','Data','Assunto','Justificada','Motivo','Observação'], rows: d.data.map((r:any) => [r.tecnico, formatarQualquerData(r.data), r.assunto, r.justificada, r.motivo, r.observacao]) }
@@ -357,21 +364,23 @@ export default function AdminRelatoriosPage() {
                   )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                  {/* Data Início */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Início</label>
-                    <input type='date' value={dataInicio} onChange={e => setDataInicio(e.target.value)}
-                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
+                {tipoSel !== 'unidades-tecnico' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                    {/* Data Início */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Início</label>
+                      <input type='date' value={dataInicio} onChange={e => setDataInicio(e.target.value)}
+                        style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
 
-                  {/* Data Fim */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Fim</label>
-                    <input type='date' value={dataFim} onChange={e => setDataFim(e.target.value)}
-                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+                    {/* Data Fim */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Fim</label>
+                      <input type='date' value={dataFim} onChange={e => setDataFim(e.target.value)}
+                        style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {erro && (

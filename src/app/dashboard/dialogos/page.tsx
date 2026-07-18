@@ -559,18 +559,11 @@ export default function DialogosPage() {
            
         setImportProgress(msg)
         
-        // Atualiza estado local simulando o Upsert
-        setArkiumData(prev => {
-           const next = [...prev]
-           imported.forEach(imp => {
-              const idx = next.findIndex(p => p.numeroDialogo === imp.numeroDialogo && p.matricula === imp.matricula)
-              if (idx >= 0) next[idx] = imp
-              else next.push(imp)
-           })
-           return next
-        })
         // Limpa inválidos logo após o upsert e antes de atualizar localmente
         await limparDssArkiumInvalidos()
+        
+        // Recarrega todos os dados do banco para garantir que temos os IDs reais gerados pelo PostgreSQL
+        await loadData()
         
         setImportResult(true)
       } catch (err: any) {
@@ -624,7 +617,16 @@ export default function DialogosPage() {
   }
 
   async function handleDeleteArkium(id: string) {
-    const res = await deleteDssArkium(id)
+    const item = arkiumData.find(a => a.id === id)
+    if (!item) return
+
+    let res
+    if (item.isAliado) {
+      res = await deleteDssAliado(id)
+    } else {
+      res = await deleteDssArkium(id)
+    }
+
     if (res.success) {
       setArkiumData(prev => prev.filter(a => a.id !== id))
     } else {

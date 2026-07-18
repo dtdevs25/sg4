@@ -69,7 +69,7 @@ export default function PlanejamentoPage() {
 
   // Form State
   const [form, setForm] = useState({
-    id: '', tecnicoId: '', dataAtividade: '', categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
+    id: '', tecnicoId: '', tecnicoIds: [] as string[], dataAtividade: '', categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
     descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
     prioridade: 'MEDIA', checklist: [] as any[]
   })
@@ -215,8 +215,9 @@ export default function PlanejamentoPage() {
   }
 
   function handleAdd(dateStr?: string) {
+    const initialTecnicoId = isTst ? (userTecnicoId || '') : (selectedTecnico !== 'TODOS' ? selectedTecnico : '')
     setForm({
-      id: '', tecnicoId: isTst ? (userTecnicoId || '') : (selectedTecnico !== 'TODOS' ? selectedTecnico : ''),
+      id: '', tecnicoId: initialTecnicoId, tecnicoIds: initialTecnicoId ? [initialTecnicoId] : [],
       dataAtividade: dateStr || formatStrDate(new Date()), categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
       descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
       prioridade: 'MEDIA', checklist: []
@@ -294,21 +295,27 @@ export default function PlanejamentoPage() {
   function handleSaveForm(e: React.FormEvent) {
     e.preventDefault()
     startTransition(async () => {
+      const targetIds = isTst ? [form.tecnicoId] : (form.tecnicoIds && form.tecnicoIds.length > 0 ? form.tecnicoIds : [form.tecnicoId])
+
+      if (!form.checklist || form.checklist.length === 0) {
+        alert('Por favor, adicione atividades na lista abaixo.');
+        return;
+      }
+      if (targetIds.length === 0 || !targetIds[0]) {
+        alert('Selecione pelo menos um técnico.');
+        return;
+      }
+      if (!form.dataAtividade) { alert('Selecione uma data.'); return; }
+
       const base = {
-        tecnicoId: form.tecnicoId,
+        tecnicoId: targetIds[0],
+        tecnicoIds: targetIds,
         dataAtividade: new Date(`${form.dataAtividade}T12:00:00Z`),
         equipe: form.equipe,
         local: form.local === 'OUTROS' && form.outroLocal ? form.outroLocal : form.local,
         cidade: form.cidade,
         estado: form.estado,
       }
-
-      if (!form.checklist || form.checklist.length === 0) {
-        alert('Por favor, adicione atividades na lista abaixo.');
-        return;
-      }
-      if (!form.tecnicoId) { alert('Selecione um técnico.'); return; }
-      if (!form.dataAtividade) { alert('Selecione uma data.'); return; }
 
       const items = form.checklist.map((c: any) => ({
         dataAtividade: c.dataAtividade ? new Date(c.dataAtividade) : undefined,
@@ -1068,37 +1075,59 @@ export default function PlanejamentoPage() {
 
               {!isTst ? (
                 <div style={{ position: 'relative' }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>TÉCNICO</label>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>TÉCNICOS</label>
                   <div
                     onClick={() => setShowTecnicoDropdown(v => !v)}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showTecnicoDropdown ? '#660099' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', gap: 10, transition: 'all 0.2s' }}
                   >
-                    {form.tecnicoId ? (() => {
-                      const t = tecnicos.find(x => x.id === form.tecnicoId)
-                      return t ? (<>{t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}<span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span></>) : null
-                    })() : (<span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico...</span>)}
+                    {form.tecnicoIds && form.tecnicoIds.length > 0 ? (
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                        {form.tecnicoIds.length === 1 ? (
+                          tecnicos.find(x => x.id === form.tecnicoIds[0])?.nome || '1 técnico selecionado'
+                        ) : (
+                          `${form.tecnicoIds.length} técnicos selecionados`
+                        )}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione os técnicos...</span>
+                    )}
                     <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>{showTecnicoDropdown ? '▲' : '▼'}</span>
                   </div>
                   {showTecnicoDropdown && (
                     <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
-                      {tecnicos.filter(t => t.ativo).map(t => (
-                        <div key={t.id} onClick={() => { 
-                          setForm(p => ({...p, tecnicoId: t.id, local: '', outroLocal: '', cidade: '', estado: 'SP'})); 
-                          setShowTecnicoDropdown(false) 
-                        }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: form.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = form.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
-                        >
-                          {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
-                          <div><div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div></div>
-                          {form.tecnicoId === t.id && <span style={{ marginLeft:'auto', color:'#660099', fontWeight:800 }}>✓</span>}
-                        </div>
-                      ))}
+                      {tecnicos.filter(t => t.ativo).map(t => {
+                        const isChecked = form.tecnicoIds?.includes(t.id) || false
+                        return (
+                          <div key={t.id} onClick={() => { 
+                            setForm(p => {
+                              const ids = p.tecnicoIds || []
+                              const newIds = ids.includes(t.id) ? ids.filter(id => id !== t.id) : [...ids, t.id]
+                              return {
+                                ...p,
+                                tecnicoIds: newIds,
+                                tecnicoId: newIds[0] || '',
+                                local: '',
+                                outroLocal: '',
+                                cidade: '',
+                                estado: 'SP'
+                              }
+                            }); 
+                          }}
+                            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: isChecked ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = isChecked ? 'rgba(102,0,153,0.06)' : '#fff')}
+                          >
+                            <input type="checkbox" checked={isChecked} readOnly style={{ cursor: 'pointer' }} />
+                            {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: '1px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                            <div><div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div></div>
+                            {isChecked && <span style={{ marginLeft:'auto', color:'#660099', fontWeight:800 }}>✓</span>}
+                          </div>
+                        )
+                      })}
                       {tecnicos.filter(t => t.ativo).length === 0 && (<div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhum técnico ativo encontrado.</div>)}
                     </div>
                   )}
-                  <input type="hidden" required value={form.tecnicoId} onChange={() => {}} />
+                  <input type="hidden" required value={form.tecnicoIds && form.tecnicoIds.length > 0 ? 'selecionado' : ''} onChange={() => {}} />
                 </div>
               ) : (() => {
                 // TST Role -> Show fixed card
