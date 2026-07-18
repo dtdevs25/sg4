@@ -380,7 +380,7 @@ export async function getAprs(filters?: {
         if (diffMs >= 0) { sumDelayMs += diffMs; delayCount++ }
       }
     }
-    const avgDelayHours = delayCount > 0 ? sumDelayMs / (1000 * 60 * 60) : 0
+    const avgDelayMs = delayCount > 0 ? sumDelayMs / delayCount : 0
 
     // Rankings
     const rankingTecnicos = rankingTecData
@@ -417,7 +417,7 @@ export async function getAprs(filters?: {
       data: {
         aprs,
         totalCount,
-        stats: { total: totalCount, conforme: conformeCount, naoConforme: naoConformeCount, avgDelayHours },
+        stats: { total: totalCount, conforme: conformeCount, naoConforme: naoConformeCount, avgDelayMs },
         rankingTecnicos,
         rankingAtividades,
         availableCities

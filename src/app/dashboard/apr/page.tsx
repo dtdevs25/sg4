@@ -116,18 +116,51 @@ function parseDateToJsDate(dateStr: string | null | undefined): Date | null {
   return null
 }
 
-function formatDelay(avgHours: number): string {
-  if (avgHours <= 0) return '0 min'
-  const totalMinutes = Math.round(avgHours * 60)
+function formatDelay(msVal: number) {
+  if (!msVal) return '0 min'
+  const totalSeconds = Math.round(msVal / 1000)
+  if (totalSeconds < 60) {
+    return `${totalSeconds} seg`
+  }
+  const totalMinutes = Math.floor(totalSeconds / 60)
+  const secs = totalSeconds % 60
   if (totalMinutes < 60) {
-    return `${totalMinutes} ${totalMinutes === 1 ? 'minuto' : 'minutos'}`
+    return `${totalMinutes} min ${secs > 0 ? `e ${secs} seg` : ''}`.trim()
   }
   const hours = Math.floor(totalMinutes / 60)
   const mins = totalMinutes % 60
-  if (mins === 0) {
-    return `${hours} ${hours === 1 ? 'hora' : 'horas'}`
+  return `${hours} ${hours === 1 ? 'hora' : 'horas'} ${mins > 0 ? `e ${mins} min` : ''}`.trim()
+}
+
+function calcTempoAberta(abertStr: string | undefined | null, fechStr: string | undefined | null) {
+  if (!abertStr || !fechStr) return '-'
+  const parseStr = (str: string) => {
+    const num = Number(str)
+    if (!isNaN(num) && num > 20000) return new Date(Math.round((num - 25569) * 86400 * 1000))
+    const partsDmy = str.split('/')
+    if (partsDmy.length === 3) {
+      const d = parseInt(partsDmy[0], 10)
+      const m = parseInt(partsDmy[1], 10) - 1
+      const yPart = partsDmy[2].trim()
+      const spaceIdx = yPart.indexOf(' ')
+      let y = parseInt(yPart, 10)
+      let h = 0, min = 0, s = 0
+      if (spaceIdx !== -1) {
+        y = parseInt(yPart.substring(0, spaceIdx), 10)
+        const tParts = yPart.substring(spaceIdx + 1).split(':')
+        if (tParts.length >= 2) { h = parseInt(tParts[0], 10); min = parseInt(tParts[1], 10) }
+        if (tParts.length >= 3) { s = parseInt(tParts[2], 10) }
+      }
+      return new Date(y < 100 ? y + 2000 : y, m, d, h, min, s)
+    }
+    return new Date(str)
   }
-  return `${hours} ${hours === 1 ? 'hora' : 'horas'} e ${mins} min`
+  const a = parseStr(abertStr)
+  const f = parseStr(fechStr)
+  if (!a || !f || isNaN(a.getTime()) || isNaN(f.getTime())) return '-'
+  const diffMs = f.getTime() - a.getTime()
+  if (diffMs < 0) return '-'
+  return formatDelay(diffMs)
 }
 
 export default function APRPage() {
@@ -145,7 +178,7 @@ export default function APRPage() {
     total: 0,
     conforme: 0,
     naoConforme: 0,
-    avgDelayHours: 0
+    avgDelayMs: 0
   })
   const [rankingTecnicos, setRankingTecnicos] = useState<any[]>([])
   const [rankingAtividades, setRankingAtividades] = useState<any[]>([])
@@ -861,6 +894,18 @@ export default function APRPage() {
                   >
                     Limpar Filtros
                   </button>
+                  <button
+                    onClick={handleExportExcel}
+                    disabled={totalCount === 0}
+                    style={{
+                      padding: '6px 16px', background: '#fff', color: '#10b981',
+                      border: '1px solid #10b981', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                      cursor: totalCount === 0 ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6, opacity: totalCount === 0 ? 0.6 : 1
+                    }}
+                  >
+                    <FileSpreadsheet size={14} /> Exportar ({totalCount})
+                  </button>
                 </div>
               </div>
 
@@ -1273,7 +1318,7 @@ export default function APRPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309' }}>
                 <Clock size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Tempo Médio</span>
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{formatDelay(stats.avgDelayHours)}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{formatDelay(stats.avgDelayMs)}</div>
             </div>
           </div>
 
@@ -1285,7 +1330,7 @@ export default function APRPage() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
                 <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
                   <option value="ALL">Todos os Anos</option>
-                  {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
+                  {anosDisponiveis.filter(a => a !== 'ALL').map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
 
@@ -1410,19 +1455,6 @@ export default function APRPage() {
                 </select>
               </div>
 
-              {/* Export Button */}
-              <button
-                onClick={handleExportExcel}
-                disabled={totalCount === 0}
-                style={{
-                  padding: '8px 16px', background: '#fff', color: '#1e293b',
-                  border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  cursor: totalCount === 0 ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 8, opacity: totalCount === 0 ? 0.6 : 1
-                }}
-              >
-                <FileSpreadsheet size={16} color="#10b981" /> Exportar Filtrados ({totalCount})
-              </button>
             </div>
 
             {/* Data Table */}
@@ -1633,6 +1665,16 @@ export default function APRPage() {
                 <div>
                   <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Data Abertura</label>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{viewingItem.dataAbertura || '-'}</span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Data Fechamento</label>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{viewingItem.dataFechamento || '-'}</span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', marginBottom: 2 }}>Tempo Aberta</label>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: '#b45309' }}>{calcTempoAberta(viewingItem.dataAbertura, viewingItem.dataFechamento)}</span>
                 </div>
 
                 <div>
