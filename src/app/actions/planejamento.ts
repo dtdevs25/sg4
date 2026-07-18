@@ -132,6 +132,7 @@ export async function savePlanejamentoBatch(base: {
 export async function savePlanejamento(data: {
   id?: string;
   tecnicoId: string;
+  tecnicoIds?: string[];
   dataAtividade: Date;
   hora?: string;
   titulo?: string;
@@ -149,46 +150,119 @@ export async function savePlanejamento(data: {
     if (!session?.user) return { success: false, error: 'Não autorizado' }
     const userId = (session.user as any).id
 
-    const { id, ...payload } = data
+    const { id, tecnicoIds, ...payload } = data
 
     if (id) {
-      await prisma.planejamento.update({ where: { id }, data: payload })
-      await audit({ userId, action: 'EDITAR_PLANEJAMENTO', entity: 'Planejamento', entityId: id, details: { categoria: data.categoria } })
-    } else {
-      const newPlan = await prisma.planejamento.create({
-        data: { ...payload, status: 'PENDENTE', alteradaOriginal: false },
-        include: { tecnico: true }
+      const targetIds = tecnicoIds && tecnicoIds.length > 0 ? tecnicoIds : [data.tecnicoId]
+      const mainTecnicoId = targetIds[0]
+
+      await prisma.planejamento.update({
+        where: { id },
+        data: {
+          ...payload,
+          tecnicoId: mainTecnicoId
+        }
       })
+      await audit({ userId, action: 'EDITAR_PLANEJAMENTO', entity: 'Planejamento', entityId: id, details: { categoria: data.categoria } })
 
-      await audit({ userId, action: 'CRIAR_PLANEJAMENTO', entity: 'Planejamento', entityId: newPlan.id, details: { categoria: data.categoria, tecnicoId: data.tecnicoId } })
-
+      const otherTecnicoIds = targetIds.slice(1)
       const creatorTecnicoId = (session.user as any).tecnicoId
-      if (newPlan.tecnico?.email && creatorTecnicoId !== newPlan.tecnicoId) {
-        const dataFormatada = newPlan.dataAtividade.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
-        const html = `
-          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-            <div style="background: #660099; padding: 20px; text-align: center;">
-              <h2 style="color: #fff; margin: 0;">Nova Atividade na Agenda</h2>
-            </div>
-            <div style="padding: 24px; color: #334155;">
-              <p>Olá <strong>${newPlan.tecnico.nome}</strong>,</p>
-              <p>Uma nova atividade foi incluída no seu planejamento de segurança pelo administrador.</p>
-              <div style="background: #f8fafc; padding: 16px; border-left: 4px solid #660099; border-radius: 4px; margin: 20px 0;">
-                <p style="margin: 0 0 8px 0;"><strong>Data:</strong> ${dataFormatada}</p>
-                <p style="margin: 0 0 8px 0;"><strong>Categoria:</strong> ${newPlan.categoria}</p>
-                <p style="margin: 0 0 8px 0;"><strong>Local:</strong> ${newPlan.local || 'Não informado'} ${newPlan.cidade ? '(' + newPlan.cidade + '-' + newPlan.estado + ')' : ''}</p>
-                <p style="margin: 0;"><strong>Atividade:</strong> ${newPlan.descricaoOriginal}</p>
+
+      for (const tId of otherTecnicoIds) {
+        const newPlan = await prisma.planejamento.create({
+          data: {
+            tecnicoId: tId,
+            dataAtividade: data.dataAtividade,
+            hora: data.hora,
+            titulo: data.titulo,
+            categoria: data.categoria,
+            descricaoOriginal: data.descricaoOriginal,
+            checklist: data.checklist || [],
+            equipe: data.equipe,
+            local: data.local,
+            cidade: data.cidade,
+            estado: data.estado,
+            prioridade: data.prioridade || 'MEDIA',
+            status: 'PENDENTE',
+            alteradaOriginal: false
+          },
+          include: { tecnico: true }
+        })
+
+        await audit({ userId, action: 'CRIAR_PLANEJAMENTO', entity: 'Planejamento', entityId: newPlan.id, details: { categoria: data.categoria, tecnicoId: tId } })
+
+        if (newPlan.tecnico?.email && creatorTecnicoId !== newPlan.tecnicoId) {
+          const dataFormatada = newPlan.dataAtividade.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+          const html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="background: #660099; padding: 20px; text-align: center;">
+                <h2 style="color: #fff; margin: 0;">Nova Atividade na Agenda</h2>
               </div>
-              <p>Por favor, acesse o sistema SG4 para visualizar os detalhes completos e realizar a execução da atividade.</p>
-              <br/>
-              <p style="margin: 0;">Atenciosamente,</p>
-              <p style="margin: 0; font-weight: bold;">Equipe SG4</p>
+              <div style="padding: 24px; color: #334155;">
+                <p>Olá <strong>${newPlan.tecnico.nome}</strong>,</p>
+                <p>Uma nova atividade foi incluída no seu planejamento de segurança pelo administrador.</p>
+                <div style="background: #f8fafc; padding: 16px; border-left: 4px solid #660099; border-radius: 4px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0;"><strong>Data:</strong> ${dataFormatada}</p>
+                  <p style="margin: 0 0 8px 0;"><strong>Categoria:</strong> ${newPlan.categoria}</p>
+                  <p style="margin: 0 0 8px 0;"><strong>Local:</strong> ${newPlan.local || 'Não informado'} ${newPlan.cidade ? '(' + newPlan.cidade + '-' + newPlan.estado + ')' : ''}</p>
+                  <p style="margin: 0;"><strong>Atividade:</strong> ${newPlan.descricaoOriginal}</p>
+                </div>
+                <p>Por favor, acesse o sistema SG4 para visualizar os detalhes completos e realizar a execução da atividade.</p>
+                <br/>
+                <p style="margin: 0;">Atenciosamente,</p>
+                <p style="margin: 0; font-weight: bold;">Equipe SG4</p>
+              </div>
             </div>
-          </div>
-        `
-        const cc = session.user.email || undefined;
-        sendMail({ to: newPlan.tecnico.email, cc, subject: 'SG4 - Nova Atividade Planejada', html })
-          .catch(err => console.error('Erro ao notificar TST:', err))
+          `
+          const cc = session.user.email || undefined;
+          sendMail({ to: newPlan.tecnico.email, cc, subject: 'SG4 - Nova Atividade Planejada', html })
+            .catch(err => console.error('Erro ao notificar TST:', err))
+        }
+      }
+    } else {
+      const targetIds = tecnicoIds && tecnicoIds.length > 0 ? tecnicoIds : [data.tecnicoId]
+
+      for (const tId of targetIds) {
+        const newPlan = await prisma.planejamento.create({
+          data: {
+            ...payload,
+            tecnicoId: tId,
+            status: 'PENDENTE',
+            alteradaOriginal: false
+          },
+          include: { tecnico: true }
+        })
+
+        await audit({ userId, action: 'CRIAR_PLANEJAMENTO', entity: 'Planejamento', entityId: newPlan.id, details: { categoria: data.categoria, tecnicoId: tId } })
+
+        const creatorTecnicoId = (session.user as any).tecnicoId
+        if (newPlan.tecnico?.email && creatorTecnicoId !== newPlan.tecnicoId) {
+          const dataFormatada = newPlan.dataAtividade.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+          const html = `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+              <div style="background: #660099; padding: 20px; text-align: center;">
+                <h2 style="color: #fff; margin: 0;">Nova Atividade na Agenda</h2>
+              </div>
+              <div style="padding: 24px; color: #334155;">
+                <p>Olá <strong>${newPlan.tecnico.nome}</strong>,</p>
+                <p>Uma nova atividade foi incluída no seu planejamento de segurança pelo administrador.</p>
+                <div style="background: #f8fafc; padding: 16px; border-left: 4px solid #660099; border-radius: 4px; margin: 20px 0;">
+                  <p style="margin: 0 0 8px 0;"><strong>Data:</strong> ${dataFormatada}</p>
+                  <p style="margin: 0 0 8px 0;"><strong>Categoria:</strong> ${newPlan.categoria}</p>
+                  <p style="margin: 0 0 8px 0;"><strong>Local:</strong> ${newPlan.local || 'Não informado'} ${newPlan.cidade ? '(' + newPlan.cidade + '-' + newPlan.estado + ')' : ''}</p>
+                  <p style="margin: 0;"><strong>Atividade:</strong> ${newPlan.descricaoOriginal}</p>
+                </div>
+                <p>Por favor, acesse o sistema SG4 para visualizar os detalhes completos e realizar a execução da atividade.</p>
+                <br/>
+                <p style="margin: 0;">Atenciosamente,</p>
+                <p style="margin: 0; font-weight: bold;">Equipe SG4</p>
+              </div>
+            </div>
+          `
+          const cc = session.user.email || undefined;
+          sendMail({ to: newPlan.tecnico.email, cc, subject: 'SG4 - Nova Atividade Planejada', html })
+            .catch(err => console.error('Erro ao notificar TST:', err))
+        }
       }
     }
 

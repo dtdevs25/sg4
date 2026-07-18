@@ -122,7 +122,7 @@ export default function PlanejamentoPage() {
     setAlertModal({ title, message: String(message), type })
   }
   const [editPlanForm, setEditPlanForm] = useState({
-    id: '', tecnicoId: '', dataAtividade: '', hora: '08:00', titulo: '', 
+    id: '', tecnicoId: '', tecnicoIds: [] as string[], dataAtividade: '', hora: '08:00', titulo: '', 
     categoria: '', outraCategoria: '', local: '', outroLocal: '', 
     cidade: '', estado: 'SP', prioridade: 'MEDIA', descricaoOriginal: ''
   })
@@ -398,6 +398,7 @@ export default function PlanejamentoPage() {
     setEditPlanForm({
       id: plan.id,
       tecnicoId: plan.tecnicoId,
+      tecnicoIds: [plan.tecnicoId],
       dataAtividade: formatStrDate(new Date(plan.dataAtividade)),
       hora: plan.hora || '08:00',
       titulo: plan.titulo || '',
@@ -420,6 +421,7 @@ export default function PlanejamentoPage() {
       const res = await savePlanejamento({
         id: editPlanForm.id || undefined,
         tecnicoId: editPlanForm.tecnicoId,
+        tecnicoIds: editPlanForm.tecnicoIds,
         dataAtividade: new Date(`${editPlanForm.dataAtividade}T12:00:00Z`),
         hora: editPlanForm.hora,
         titulo: editPlanForm.titulo,
@@ -1519,44 +1521,72 @@ export default function PlanejamentoPage() {
             </div>
             <form onSubmit={handleSaveEditPlan} style={{ padding: 20, maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>TÉCNICO</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>TÉCNICOS</label>
                 <div style={{ position: 'relative' }}>
                   <div
                     onClick={() => { if(!isTst) setShowTecnicoDropdown(v => !v) }}
                     style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showTecnicoDropdown ? '#660099' : '#cbd5e1'}`, cursor: isTst ? 'default' : 'pointer', background: isTst ? '#f8fafc' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                   >
-                    {editPlanForm.tecnicoId ? (() => {
-                      const t = tecnicos.find(x => x.id === editPlanForm.tecnicoId)
-                      return t ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {t.fotoUrl ? (
-                            <img src={t.fotoUrl} alt={t.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                    {isTst ? (
+                      (() => {
+                        const t = tecnicos.find(x => x.id === editPlanForm.tecnicoId)
+                        return t ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {t.fotoUrl ? (
+                              <img src={t.fotoUrl} alt={t.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff' }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                            )}
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span>
+                          </div>
+                        ) : null
+                      })()
+                    ) : (
+                      editPlanForm.tecnicoIds && editPlanForm.tecnicoIds.length > 0 ? (
+                        <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>
+                          {editPlanForm.tecnicoIds.length === 1 ? (
+                            tecnicos.find(x => x.id === editPlanForm.tecnicoIds[0])?.nome || '1 técnico selecionado'
                           ) : (
-                            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff' }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                            `${editPlanForm.tecnicoIds.length} técnicos selecionados`
                           )}
-                          <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span>
-                        </div>
-                      ) : <span style={{ color: '#94a3b8' }}>Selecione um técnico...</span>
-                    })() : <span style={{ color: '#94a3b8' }}>Selecione um técnico...</span>}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#94a3b8' }}>Selecione os técnicos...</span>
+                      )
+                    )}
                     {!isTst && <span style={{ color: '#94a3b8', fontSize: 12 }}>{showTecnicoDropdown ? '▲' : '▼'}</span>}
                   </div>
                   {!isTst && showTecnicoDropdown && (
                     <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 200, overflowY: 'auto' }}>
-                      {tecnicos.filter(t => t.ativo).map(t => (
-                        <div key={t.id} onClick={() => { setEditPlanForm(prev => ({...prev, tecnicoId: t.id})); setShowTecnicoDropdown(false) }}
-                          style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8, background: editPlanForm.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = editPlanForm.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
-                        >
-                          {t.fotoUrl ? (
-                            <img src={t.fotoUrl} alt={t.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
-                          ) : (
-                            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff' }}>{t.nome.substring(0,2).toUpperCase()}</div>
-                          )}
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</span>
-                          {editPlanForm.tecnicoId === t.id && <Check size={16} color="#660099" style={{ marginLeft: 'auto' }} />}
-                        </div>
-                      ))}
+                      {tecnicos.filter(t => t.ativo).map(t => {
+                        const isChecked = editPlanForm.tecnicoIds?.includes(t.id) || false
+                        return (
+                          <div key={t.id} onClick={() => {
+                            setEditPlanForm(prev => {
+                              const ids = prev.tecnicoIds || []
+                              const newIds = ids.includes(t.id) ? ids.filter(id => id !== t.id) : [...ids, t.id]
+                              return {
+                                ...prev,
+                                tecnicoIds: newIds,
+                                tecnicoId: newIds[0] || ''
+                              }
+                            })
+                          }}
+                            style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8, background: isChecked ? 'rgba(102,0,153,0.06)' : '#fff' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = isChecked ? 'rgba(102,0,153,0.06)' : '#fff')}
+                          >
+                            <input type="checkbox" checked={isChecked} readOnly style={{ cursor: 'pointer' }} />
+                            {t.fotoUrl ? (
+                              <img src={t.fotoUrl} alt={t.nome} style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#660099', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff' }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                            )}
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</span>
+                            {isChecked && <Check size={16} color="#660099" style={{ marginLeft: 'auto' }} />}
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
