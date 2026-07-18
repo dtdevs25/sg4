@@ -16,7 +16,9 @@ import {
   addNaoConformidadeUpdate,
   updateNaoConformidadeStatus,
   deleteNaoConformidade,
-  uploadNaoConformidadeEvidencia
+  uploadNaoConformidadeEvidencia,
+  deleteNaoConformidadeUpdate,
+  replaceNaoConformidadeUpdateImage
 } from '@/app/actions/naoConformidades'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
@@ -134,7 +136,7 @@ export default function NaoConformidadesPage() {
 
   // Arkium list state
   const [arkiumSearch, setArkiumSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDENTES_V_NV' | 'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO'>('ALL')
   const [classFilter, setClassFilter] = useState('ALL')
   const [tecnicoFilter, setTecnicoFilter] = useState('ALL')
   const [currentPageArkium, setCurrentPageArkium] = useState(1)
@@ -163,6 +165,10 @@ export default function NaoConformidadesPage() {
   // Hidden file input refs for camera/gallery
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
+  
+  // State and ref for replacing existing update's image
+  const [replacingUpdateDate, setReplacingUpdateDate] = useState<string | null>(null)
+  const replaceImageInputRef = useRef<HTMLInputElement>(null)
 
   // Upload States
   const [isImporting, setIsImporting] = useState(false)
@@ -310,10 +316,9 @@ export default function NaoConformidadesPage() {
     const total = filteredForStats.length
     const pendentesVencidas = filteredForStats.filter(i => i.status === 'PENDENTE_VENCIDA').length
     const pendentesNaoVencidas = filteredForStats.filter(i => i.status === 'PENDENTE_NAO_VENCIDA').length
-    const pendentesV_NV = pendentesVencidas + pendentesNaoVencidas
     const emProcessamento = filteredForStats.filter(i => i.status === 'EM_ANDAMENTO').length
     const resolvidos = filteredForStats.filter(i => i.status === 'RESOLVIDO').length
-    return { total, pendentesV_NV, pendentesVencidas, pendentesNaoVencidas, emProcessamento, resolvidos }
+    return { total, pendentesVencidas, pendentesNaoVencidas, emProcessamento, resolvidos }
   }, [filteredForStats])
 
   // Final search and dropdown filters applied to Arkium list
@@ -332,8 +337,6 @@ export default function NaoConformidadesPage() {
       let matchesStatus = false
       if (statusFilter === 'ALL') {
         matchesStatus = true
-      } else if (statusFilter === 'PENDENTES_V_NV') {
-        matchesStatus = item.status === 'PENDENTE_VENCIDA' || item.status === 'PENDENTE_NAO_VENCIDA'
       } else {
         matchesStatus = item.status === statusFilter
       }
@@ -368,7 +371,6 @@ export default function NaoConformidadesPage() {
       
       const pendentesVencidas = tNCs.filter(nc => nc.status === 'PENDENTE_VENCIDA').length
       const pendentesNaoVencidas = tNCs.filter(nc => nc.status === 'PENDENTE_NAO_VENCIDA').length
-      const pendentesV_NV = pendentesVencidas + pendentesNaoVencidas
       const emProcessamento = tNCs.filter(nc => nc.status === 'EM_ANDAMENTO').length
       const resolvidos = tNCs.filter(nc => nc.status === 'RESOLVIDO').length
       const total = tNCs.length
@@ -381,7 +383,6 @@ export default function NaoConformidadesPage() {
         admissao: t.admissao ? new Date(t.admissao).toLocaleDateString('pt-BR') : '-',
         pendentesVencidas,
         pendentesNaoVencidas,
-        pendentesV_NV,
         emProcessamento,
         resolvidos,
         total
@@ -399,7 +400,6 @@ export default function NaoConformidadesPage() {
   const statsConsolidado = useMemo(() => {
     let pendentesVencidas = 0
     let pendentesNaoVencidas = 0
-    let pendentesV_NV = 0
     let emProcessamento = 0
     let resolvidos = 0
     let total = 0
@@ -407,13 +407,12 @@ export default function NaoConformidadesPage() {
     consolidadoData.forEach(t => {
       pendentesVencidas += t.pendentesVencidas
       pendentesNaoVencidas += t.pendentesNaoVencidas
-      pendentesV_NV += t.pendentesV_NV
       emProcessamento += t.emProcessamento
       resolvidos += t.resolvidos
       total += t.total
     })
 
-    return { pendentesVencidas, pendentesNaoVencidas, pendentesV_NV, emProcessamento, resolvidos, total }
+    return { pendentesVencidas, pendentesNaoVencidas, emProcessamento, resolvidos, total }
   }, [consolidadoData])
 
   // Pagination for Consolidado
@@ -613,6 +612,62 @@ export default function NaoConformidadesPage() {
     })
   }
 
+  const handleDeleteUpdate = async (updateDate: string) => {
+    if (!selectedItem) return
+    if (!confirm("Tem certeza que deseja excluir esta ação?")) return
+
+    startTransition(async () => {
+      const res = await deleteNaoConformidadeUpdate(selectedItem.id, updateDate)
+      if (res.success && res.data) {
+        setSelectedItem(res.data as any)
+        await loadData()
+      } else {
+        alert("Erro ao excluir ação: " + res.error)
+      }
+    })
+  }
+
+  const handleReplaceImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedItem || !replacingUpdateDate) return
+    if (file.size > 5 * 1024 * 1024) {
+      alert("A imagem não deve exceder 5MB.")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = async (evt) => {
+      const base64 = evt.target?.result as string
+      
+      startTransition(async () => {
+        setIsUploading(true)
+        const formData = new FormData()
+        formData.append('fileData', base64)
+        formData.append('fileName', file.name)
+        formData.append('contentType', file.type)
+        
+        const uploadRes = await uploadNaoConformidadeEvidencia(formData)
+        setIsUploading(false)
+        
+        if (uploadRes.success && uploadRes.url) {
+          const res = await replaceNaoConformidadeUpdateImage(selectedItem.id, replacingUpdateDate, uploadRes.url)
+          if (res.success && res.data) {
+            setSelectedItem(res.data as any)
+            await loadData()
+          } else {
+            alert("Erro ao associar a nova foto: " + res.error)
+          }
+        } else {
+          alert("Erro ao fazer upload da nova foto: " + uploadRes.error)
+        }
+        
+        setReplacingUpdateDate(null)
+        if (replaceImageInputRef.current) replaceImageInputRef.current.value = ''
+      })
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleDeleteItem = (id: string) => {
     startTransition(async () => {
       const res = await deleteNaoConformidade(id)
@@ -792,11 +847,7 @@ export default function NaoConformidadesPage() {
                   {selectedMonths.length} MÊS(ES)
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Pendentes (V+NV)</span>
-                  <span style={{ fontSize: 22, fontWeight: 800, color: '#6366f1' }}>{statsConsolidado.pendentesV_NV}</span>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 12 }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Pendentes Vencidas</span>
                   <span style={{ fontSize: 22, fontWeight: 800, color: '#ef4444' }}>{statsConsolidado.pendentesVencidas}</span>
@@ -855,7 +906,6 @@ export default function NaoConformidadesPage() {
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico</th>
-                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Pendentes (V+NV)</th>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Vencidas</th>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Não Vencidas</th>
                       <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Em Processamento</th>
@@ -867,13 +917,13 @@ export default function NaoConformidadesPage() {
                   <tbody>
                     {pending ? (
                       <tr>
-                        <td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+                        <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
                           <Loader2 size={24} color={PURPLE} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 10px' }} />
                           Carregando dados...
                         </td>
                       </tr>
                     ) : paginatedConsolidado.length === 0 ? (
-                      <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Nenhum técnico encontrado.</td></tr>
+                      <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Nenhum técnico encontrado.</td></tr>
                     ) : (
                       paginatedConsolidado.map(t => (
                         <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -896,9 +946,6 @@ export default function NaoConformidadesPage() {
                                 <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Admissão: {t.admissao}</div>
                               </div>
                             </div>
-                          </td>
-                          <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.pendentesV_NV > 0 ? '#6366f1' : '#64748b' }}>
-                            {t.pendentesV_NV}
                           </td>
                           <td style={{ padding: '14px 20px', textAlign: 'center', fontSize: 14, fontWeight: 700, color: t.pendentesVencidas > 0 ? '#ef4444' : '#64748b' }}>
                             {t.pendentesVencidas}
@@ -988,13 +1035,6 @@ export default function NaoConformidadesPage() {
                 <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total</span>
               </div>
               <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{statsArkium.total}</div>
-            </div>
-
-            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #e0e7ff', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #6366f1' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#4f46e5' }}>
-                <AlertTriangle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Pendentes (V+NV)</span>
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: '#6366f1', lineHeight: 1 }}>{statsArkium.pendentesV_NV}</div>
             </div>
 
             <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #fee2e2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #ef4444' }}>
@@ -1141,7 +1181,6 @@ export default function NaoConformidadesPage() {
                   style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#334155', outline: 'none', background: '#fff' }}
                 >
                   <option value="ALL">Todas as situações</option>
-                  <option value="PENDENTES_V_NV">Pendentes (Vencidas + Não Vencidas)</option>
                   <option value="PENDENTE_VENCIDA">Pendentes Vencidas</option>
                   <option value="PENDENTE_NAO_VENCIDA">Pendentes Não Vencidas</option>
                   <option value="EM_ANDAMENTO">Pendentes em Processamento</option>
@@ -1502,14 +1541,56 @@ export default function NaoConformidadesPage() {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
                     {selectedItem.updates.map((up, idx) => (
-                      <div key={idx} style={{ position: 'relative', paddingLeft: 24, borderLeft: '2px solid #cbd5e1' }}>
+                      <div key={idx} style={{ position: 'relative', paddingLeft: 24, borderLeft: '2px solid #cbd5e1', paddingBottom: 8 }}>
                         <div style={{
                           position: 'absolute', left: -6, top: 4, width: 10, height: 10,
                           borderRadius: '50%', background: PURPLE
                         }} />
-                        <div style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>
-                          {up.text}
+                        
+                        {/* Upper content / Delete & Replace Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                          <div style={{ fontSize: 13, color: '#334155', fontWeight: 500, flex: 1 }}>
+                            {up.text}
+                          </div>
+                          
+                          {/* Admin/Master actions */}
+                          {isMasterOrAdmin && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                              <button
+                                type="button"
+                                title="Substituir Imagem"
+                                onClick={() => {
+                                  setReplacingUpdateDate(up.date)
+                                  replaceImageInputRef.current?.click()
+                                }}
+                                style={{
+                                  background: 'none', border: 'none', color: PURPLE, cursor: 'pointer',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4,
+                                  borderRadius: 4, transition: 'background 0.2s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(102,0,153,0.06)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                              >
+                                <Camera size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                title="Excluir Ação"
+                                onClick={() => handleDeleteUpdate(up.date)}
+                                style={{
+                                  background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4,
+                                  borderRadius: 4, transition: 'background 0.2s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.06)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          )}
                         </div>
+
                         {up.fotoUrl && (
                           <div style={{ marginTop: 8 }}>
                             <img
@@ -1536,6 +1617,15 @@ export default function NaoConformidadesPage() {
                         </div>
                       </div>
                     ))}
+                    
+                    {/* Hidden input for replacing image */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={replaceImageInputRef}
+                      onChange={handleReplaceImageChange}
+                      style={{ display: 'none' }}
+                    />
                   </div>
                 )}
 

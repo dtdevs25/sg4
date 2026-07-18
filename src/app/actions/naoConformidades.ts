@@ -356,3 +356,92 @@ export async function deleteNaoConformidade(id: string) {
     return { success: false, error: error.message }
   }
 }
+
+export async function deleteNaoConformidadeUpdate(id: string, updateDate: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
+
+    const item = await prisma.naoConformidade.findUnique({
+      where: { id }
+    })
+
+    if (!item) return { success: false, error: 'Não conformidade não encontrada' }
+
+    let currentUpdates: any[] = []
+    if (item.updates && typeof item.updates === 'object') {
+      currentUpdates = Array.isArray(item.updates) ? item.updates : []
+    }
+
+    const updatedUpdates = currentUpdates.filter((up: any) => up.date !== updateDate)
+
+    const updated = await prisma.naoConformidade.update({
+      where: { id },
+      data: {
+        updates: updatedUpdates
+      }
+    })
+
+    await audit({
+      userId,
+      action: 'EXCLUIR_ATUALIZACAO_NAO_CONFORMIDADE',
+      entity: 'NaoConformidade',
+      entityId: id,
+      details: { updateDate }
+    })
+
+    revalidatePath('/dashboard/naoconformidades')
+    return { success: true, data: updated }
+  } catch (error: any) {
+    console.error('Erro ao excluir atualização:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function replaceNaoConformidadeUpdateImage(id: string, updateDate: string, newFotoUrl: string | null) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session.user as any).id
+
+    const item = await prisma.naoConformidade.findUnique({
+      where: { id }
+    })
+
+    if (!item) return { success: false, error: 'Não conformidade não encontrada' }
+
+    let currentUpdates: any[] = []
+    if (item.updates && typeof item.updates === 'object') {
+      currentUpdates = Array.isArray(item.updates) ? item.updates : []
+    }
+
+    const updatedUpdates = currentUpdates.map((up: any) => {
+      if (up.date === updateDate) {
+        return { ...up, fotoUrl: newFotoUrl }
+      }
+      return up
+    })
+
+    const updated = await prisma.naoConformidade.update({
+      where: { id },
+      data: {
+        updates: updatedUpdates
+      }
+    })
+
+    await audit({
+      userId,
+      action: 'SUBSTITUIR_IMAGEM_ATUALIZACAO_NAO_CONFORMIDADE',
+      entity: 'NaoConformidade',
+      entityId: id,
+      details: { updateDate, newFotoUrl }
+    })
+
+    revalidatePath('/dashboard/naoconformidades')
+    return { success: true, data: updated }
+  } catch (error: any) {
+    console.error('Erro ao substituir imagem da atualização:', error)
+    return { success: false, error: error.message }
+  }
+}
