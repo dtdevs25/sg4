@@ -128,6 +128,7 @@ export default function APRPage() {
   const [importingFileName, setImportingFileName] = useState('')
   const [importResult, setImportResult] = useState<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
 
   // Details Modal
   const [viewingItem, setViewingItem] = useState<any>(null)
@@ -172,15 +173,27 @@ export default function APRPage() {
 
   // Month handler
   const handleMonthClick = (m: MesKey) => {
-    if (selectedMonths.includes(m)) {
-      if (selectedMonths.length > 1) {
-        setSelectedMonths(selectedMonths.filter(x => x !== m))
-      }
+    if (clickTimeout.current) {
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setSelectedMonths([m])
     } else {
-      setSelectedMonths([...selectedMonths, m].sort((a, b) => {
-        const order = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-        return order.indexOf(a) - order.indexOf(b)
-      }))
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+        setSelectedMonths(prev => {
+          if (prev.length === 1 && prev.includes(m)) {
+            return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+          }
+          if (prev.includes(m)) {
+            return prev.filter(x => x !== m)
+          } else {
+            return [...prev, m].sort((a, b) => {
+              const order = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+              return order.indexOf(a) - order.indexOf(b)
+            })
+          }
+        })
+      }, 250)
     }
   }
 
@@ -231,7 +244,11 @@ export default function APRPage() {
   // 1. Period & User Filter
   const filteredByPeriodAndUser = useMemo(() => {
     return aprs.filter(apr => {
-      if (selectedTecnico && apr.tecnicoId !== selectedTecnico) return false
+      if (selectedTecnico.trim()) {
+        const query = selectedTecnico.toLowerCase().trim()
+        const tecName = (apr.tecnico?.nome || apr.nomeAuditor || '').toLowerCase()
+        if (!tecName.includes(query)) return false
+      }
 
       const date = parseDateToJsDate(apr.dataAbertura)
       if (!date) return true
@@ -508,46 +525,124 @@ export default function APRPage() {
 
     setImportingFileName(file.name)
     setIsImporting(true)
-    setImportProgress('Lendo planilha Excel...')
+    setImportProgress('Processando arquivo...')
     setImportResult(null)
 
     const reader = new FileReader()
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result
-        const wb = XLSX.read(bstr, { type: 'binary' })
-        const sheetName = wb.SheetNames[0]
-        const ws = wb.Sheets[sheetName]
-        const jsonData: any[] = XLSX.utils.sheet_to_json(ws)
+        const buffer = evt.target?.result as ArrayBuffer
+        let parsed: any[] = []
 
-        setImportProgress(`Processando ${jsonData.length} linhas...`)
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          // Helper to split CSV row respecting double quotes
+          const parseCsvLine = (line: string, separator: string) => {
+            const result: string[] = []
+            let current = ''
+            let inQuotes = false
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i]
+              if (char === '"') {
+                inQuotes = !inQuotes
+              } else if (char === separator && !inQuotes) {
+                result.push(current.trim())
+                current = ''
+              } else {
+                current += char
+              }
+            }
+            result.push(current.trim())
+            return result
+          }
+
+          const decoder = new TextDecoder('windows-1252')
+          const csvText = decoder.decode(buffer)
+          const lines = csvText.split(/\r?\n/)
+          if (lines.length > 0) {
+            const separator = lines[0].includes(';') ? ';' : ','
+            const headers = parseCsvLine(lines[0], separator).map(h => h.replace(/^["']|["']$/g, '').trim())
+            
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim()
+              if (!line) continue
+              const values = parseCsvLine(line, separator)
+              const obj: any = {}
+              headers.forEach((h, idx) => {
+                let val = values[idx] !== undefined ? values[idx] : ''
+                if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1)
+                obj[h] = val
+              })
+              parsed.push(obj)
+            }
+          }
+        } else {
+          const wb = XLSX.read(buffer, { type: 'array' })
+          const wsname = wb.SheetNames[0]
+          if (!wsname) throw new Error("Planilha vazia ou não reconhecida")
+          const ws = wb.Sheets[wsname]
+          parsed = XLSX.utils.sheet_to_json(ws) as any[]
+        }
+
+        setImportProgress(`Processando ${parsed.length} linhas...`)
         
+        const firstRow = parsed[0]
+        const rowKeys = firstRow ? Object.keys(firstRow) : []
+        const findMatch = (keysList: string[]) => {
+          for (const k of keysList) {
+            const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, ''))
+            if (match) return match
+          }
+          return null
+        }
+
+        const matchedKeys = {
+          numero: findMatch(['Numero', 'Número', 'NUMERO DA AUDITORIA']),
+          resultado: findMatch(['Resultado', 'SITUAÇÃO/STATUS', 'SITUAÇO/STATUS', 'SITUACAO/STATUS', 'STATUS', 'SITUAÇÃO', 'SITUACAO']),
+          dataAbertura: findMatch(['Data Abertura', 'DataAbertura', 'Abertura']),
+          dataFechamento: findMatch(['Data Fechamento', 'DataFechamento', 'FECHAMENTO']),
+          dataChecklist: findMatch(['Data Checklist', 'DataChecklist', 'Checklist']),
+          matriculaAuditor: findMatch(['Matricula Auditor', 'MatriculaAuditor', 'Matrícula Auditor', 'MATRICULA']),
+          nomeAuditor: findMatch(['Nome Auditor', 'NomeAuditor', 'COLABORADOR']),
+          identificadorObjeto: findMatch(['Identificador Objeto', 'IdentificadorObjeto', 'Nome do Objeto']),
+          nomeQuestionario: findMatch(['Nome Questionario', 'NomeQuestionário', 'NomeQuestionario', 'TIPO DE OBJETO', 'Questionário', 'Questionario']),
+          clienteObjeto: findMatch(['Cliente Objeto', 'ClienteObjeto']),
+          localidadeObjeto: findMatch(['Localidade Objeto', 'LocalidadeObjeto', 'LOCALIDADE']),
+          autocheck: findMatch(['Autocheck']),
+          observacao: findMatch(['Observação', 'Observacao', 'Observao'])
+        }
+
         const validRows: any[] = []
         let discardedCount = 0
 
-        for (const row of jsonData) {
-          const quest = String(row['Questionário'] || row['Questionario'] || row['Nome Questionário'] || '').toUpperCase()
+        for (const row of parsed) {
+          const matchedQuestKey = matchedKeys.nomeQuestionario
+          const quest = matchedQuestKey && row[matchedQuestKey] ? String(row[matchedQuestKey]).toUpperCase() : ''
           
           if (!quest.includes('APR')) {
             discardedCount++
             continue
           }
 
+          const getVal = (keyName: keyof typeof matchedKeys) => {
+            const matchedKey = matchedKeys[keyName]
+            return (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) ? row[matchedKey] : ''
+          }
+
           const mappedRow = {
-            numero: String(row['Número'] || row['Numero'] || '').trim(),
-            resultado: row['Resultado'] ? String(row['Resultado']).trim() : null,
-            dataAbertura: parseExcelDate(row['Data Abertura'] || row['Abertura']),
-            dataFechamento: parseExcelDate(row['Data Fechamento'] || row['Fechamento']),
-            dataChecklist: parseExcelDate(row['Data Checklist'] || row['Checklist']),
-            matriculaAuditor: row['Matrícula Auditor'] || row['Matricula Auditor'] ? String(row['Matrícula Auditor'] || row['Matricula Auditor']).trim() : null,
-            nomeAuditor: row['Nome Auditor'] ? String(row['Nome Auditor']).trim() : null,
-            identificadorObjeto: row['Identificador Objeto'] ? String(row['Identificador Objeto']).trim() : null,
-            nomeQuestionario: row['Questionário'] || row['Questionario'] || row['Nome Questionário'] ? String(row['Questionário'] || row['Questionario'] || row['Nome Questionário']).trim() : null,
-            clienteObjeto: row['Cliente Objeto'] ? String(row['Cliente Objeto']).trim() : null,
-            localidadeObjeto: row['Localidade Objeto'] ? String(row['Localidade Objeto']).trim() : null,
-            autocheck: row['Autocheck'] ? String(row['Autocheck']).trim() : null,
-            observacao: row['Observação'] || row['Observacao'] ? String(row['Observação'] || row['Observacao']).trim() : null,
-            status: getCategorizedStatus(row['Situação'] || row['Situacao'] || row['Status']),
+            numero: String(getVal('numero')).trim(),
+            resultado: getVal('resultado') ? String(getVal('resultado')).trim() : null,
+            dataAbertura: parseExcelDate(getVal('dataAbertura')),
+            dataFechamento: parseExcelDate(getVal('dataFechamento')),
+            dataChecklist: parseExcelDate(getVal('dataChecklist')),
+            matriculaAuditor: getVal('matriculaAuditor') ? String(getVal('matriculaAuditor')).trim() : null,
+            nomeAuditor: getVal('nomeAuditor') ? String(getVal('nomeAuditor')).trim() : null,
+            identificadorObjeto: getVal('identificadorObjeto') ? String(getVal('identificadorObjeto')).trim() : null,
+            nomeQuestionario: getVal('nomeQuestionario') ? String(getVal('nomeQuestionario')).trim() : null,
+            clienteObjeto: getVal('clienteObjeto') ? String(getVal('clienteObjeto')).trim() : null,
+            localidadeObjeto: getVal('localidadeObjeto') ? String(getVal('localidadeObjeto')).trim() : null,
+            autocheck: getVal('autocheck') ? String(getVal('autocheck')).trim() : null,
+            observacao: getVal('observacao') ? String(getVal('observacao')).trim() : null,
+            status: getCategorizedStatus(getVal('resultado')),
             importadoPor: session?.user?.name || 'Administrador'
           }
 
@@ -565,26 +660,43 @@ export default function APRPage() {
           return
         }
 
-        setImportProgress(`Sincronizando banco de dados (${validRows.length} itens)...`)
+        setImportProgress(`Preparando banco de dados (${validRows.length} itens)...`)
 
-        const res = await upsertAprBatch(validRows)
-        
-        if (res.success) {
+        const batchSize = 1000
+        let totalInseridos = 0
+        let totalAtualizados = 0
+        let success = true
+
+        for (let i = 0; i < validRows.length; i += batchSize) {
+          const chunk = validRows.slice(i, i + batchSize)
+          const pct = Math.round((i / validRows.length) * 100)
+          setImportProgress(`Sincronizando lote ${Math.floor(i / batchSize) + 1} de ${Math.ceil(validRows.length / batchSize)} (${pct}%)...`)
+          const res = await upsertAprBatch(chunk)
+          
+          if (res.success) {
+            totalInseridos += res.inseridos ?? 0
+            totalAtualizados += res.atualizados ?? 0
+          } else {
+            success = false
+            setImportProgress('Falha na importação.')
+            setImportResult({
+              success: false,
+              error: res.error || 'Erro desconhecido'
+            })
+            break
+          }
+        }
+
+        if (success) {
           setImportResult({
             success: true,
-            total: jsonData.length,
-            inseridos: res.inseridos,
-            atualizados: res.atualizados,
+            total: parsed.length,
+            inseridos: totalInseridos,
+            atualizados: totalAtualizados,
             descartados: discardedCount
           })
           setImportProgress('Importação concluída!')
           loadData()
-        } else {
-          setImportProgress('Falha na importação.')
-          setImportResult({
-            success: false,
-            error: res.error || 'Erro desconhecido'
-          })
         }
       } catch (err: any) {
         console.error(err)
@@ -595,7 +707,7 @@ export default function APRPage() {
         })
       }
     }
-    reader.readAsBinaryString(file)
+    reader.readAsArrayBuffer(file)
   }
 
   // Delete Action handler
@@ -765,14 +877,13 @@ export default function APRPage() {
                   <option value="ALL">Todos os Anos</option>
                   {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
-                <select 
+                <input 
+                  type="text"
+                  placeholder="Filtrar Técnico..."
                   value={selectedTecnico} 
                   onChange={e => setSelectedTecnico(e.target.value)} 
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', maxWidth: 220 }}
-                >
-                  <option value="">Todos os Técnicos</option>
-                  {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                </select>
+                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', width: 180 }}
+                />
                 <button 
                   onClick={handleResetFilters}
                   style={{ padding: '6px 12px', background: '#f1f5f9', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, color: '#64748b', cursor: 'pointer' }}

@@ -69,7 +69,19 @@ export async function upsertAprBatch(items: any[]) {
 
     const tecnicos = await prisma.tecnico.findMany({ select: { id: true, nome: true, matriculaArkium: true } })
 
+    const batchNumeros = items.map(item => String(item.numero)).filter(Boolean)
+    const existing = await prisma.aprArkium.findMany({
+      where: { numero: { in: batchNumeros } },
+      select: { id: true, numero: true, tecnicoId: true }
+    })
+    const existingMap = new Map(existing.map(e => [e.numero, e]))
+
+    const creates = []
+    const updates = []
+
     for (const item of items) {
+      if (!item.numero) continue
+
       let tecnicoId = null
       
       if (item.matriculaAuditor) {
@@ -91,53 +103,48 @@ export async function upsertAprBatch(items: any[]) {
         }
       }
 
-      const existing = await prisma.aprArkium.findFirst({ where: { numero: item.numero } })
-
-      if (existing) {
-        await prisma.aprArkium.update({
-          where: { id: existing.id },
-          data: {
-            resultado: item.resultado,
-            dataAbertura: item.dataAbertura,
-            dataFechamento: item.dataFechamento,
-            dataChecklist: item.dataChecklist,
-            matriculaAuditor: item.matriculaAuditor,
-            nomeAuditor: item.nomeAuditor,
-            identificadorObjeto: item.identificadorObjeto,
-            nomeQuestionario: item.nomeQuestionario,
-            clienteObjeto: item.clienteObjeto,
-            localidadeObjeto: item.localidadeObjeto,
-            autocheck: item.autocheck,
-            observacao: item.observacao,
-            status: item.status,
-            tecnicoId: tecnicoId || existing.tecnicoId,
-            importadoPor: item.importadoPor
-          }
-        })
-        atualizados++
-      } else {
-        await prisma.aprArkium.create({
-          data: {
-            numero: item.numero,
-            resultado: item.resultado,
-            dataAbertura: item.dataAbertura,
-            dataFechamento: item.dataFechamento,
-            dataChecklist: item.dataChecklist,
-            matriculaAuditor: item.matriculaAuditor,
-            nomeAuditor: item.nomeAuditor,
-            identificadorObjeto: item.identificadorObjeto,
-            nomeQuestionario: item.nomeQuestionario,
-            clienteObjeto: item.clienteObjeto,
-            localidadeObjeto: item.localidadeObjeto,
-            autocheck: item.autocheck,
-            observacao: item.observacao,
-            status: item.status,
-            tecnicoId: tecnicoId,
-            importadoPor: item.importadoPor
-          }
-        })
-        inseridos++
+      const existingRecord = existingMap.get(item.numero)
+      const dataPayload = {
+        resultado: item.resultado,
+        dataAbertura: item.dataAbertura,
+        dataFechamento: item.dataFechamento,
+        dataChecklist: item.dataChecklist,
+        matriculaAuditor: item.matriculaAuditor,
+        nomeAuditor: item.nomeAuditor,
+        identificadorObjeto: item.identificadorObjeto,
+        nomeQuestionario: item.nomeQuestionario,
+        clienteObjeto: item.clienteObjeto,
+        localidadeObjeto: item.localidadeObjeto,
+        autocheck: item.autocheck,
+        observacao: item.observacao,
+        status: item.status,
+        tecnicoId: tecnicoId || (existingRecord ? existingRecord.tecnicoId : null),
+        importadoPor: item.importadoPor
       }
+
+      if (existingRecord) {
+        updates.push({
+          where: { id: existingRecord.id },
+          data: dataPayload
+        })
+      } else {
+        creates.push({
+          numero: item.numero,
+          ...dataPayload
+        })
+      }
+    }
+
+    if (creates.length > 0) {
+      await prisma.aprArkium.createMany({ data: creates, skipDuplicates: true })
+      inseridos += creates.length
+    }
+
+    if (updates.length > 0) {
+      await prisma.$transaction(
+        updates.map(up => prisma.aprArkium.update(up))
+      )
+      atualizados += updates.length
     }
 
     await audit({ userId, action: 'IMPORTAR_APR', entity: 'APR Arkium', details: { inseridos, atualizados, total: items.length } })
