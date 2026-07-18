@@ -110,6 +110,7 @@ model Tecnico {
 
   alertasAbastecimento AlertaAbastecimento[]
   recargasAbastecimento RecargaAbastecimento[]
+  naoConformidades NaoConformidade[]
 
   @@map("tecnicos")
 }
@@ -526,6 +527,32 @@ model RecargaAbastecimento {
 
   @@index([tecnicoId])
   @@map("recargas_abastecimento")
+}
+
+model NaoConformidade {
+  id                  String    @id @default(cuid())
+  originalId          String?   @unique @map("original_id")
+  executor            String?
+  tecnicoId           String?   @map("tecnico_id")
+  pergunta            String?
+  resposta            String?
+  classificacao       String?
+  compl1              String?   @map("compl_1")
+  rCompl1             String?   @map("r_compl_1")
+  localidade          String?
+  base                String?
+  questionario        String?
+  dataAbertura        DateTime? @map("data_abertura")
+  status              String    @default("ABERTO")
+  updates             Json?     // Array of updates: [{ date: string, text: string, author: string }]
+  importadoEm         DateTime  @default(now()) @map("importado_em")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  tecnico             Tecnico?  @relation(fields: [tecnicoId], references: [id], onDelete: SetNull)
+
+  @@index([tecnicoId])
+  @@index([status])
+  @@map("nao_conformidades")
 }
 
 
