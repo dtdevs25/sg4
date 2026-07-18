@@ -13,6 +13,7 @@ import { getTecnicos } from '@/app/actions/tecnicos'
 import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
 import { getDssArkium, upsertDssArkiumBatch, updateEstadoDssArkium, limparDssArkiumInvalidos, deleteDssArkium } from '@/app/actions/dssArkium'
 import { getDssAliados, deleteDssAliado } from '@/app/actions/dssAliado'
+import { getLastImportTime } from '@/app/actions/logs'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
 
@@ -59,26 +60,32 @@ function normalize(str: string | null | undefined): string {
 
 function nameMatches(arkiumName: string, dbName: string): boolean {
   if (!arkiumName || !dbName) return false
-  if (arkiumName === dbName) return true
-  if (arkiumName.includes(dbName) || dbName.includes(arkiumName)) return true
   
-  const arkTokens = arkiumName.split(' ').filter(t => t.length > 2)
-  const dbTokens = dbName.split(' ').filter(t => t.length > 2)
+  const prepositions = ['de', 'da', 'do', 'das', 'dos', 'e']
   
-  const firstDb = dbTokens[0]
+  const arkTokens = arkiumName.toLowerCase()
+    .split(' ')
+    .filter(t => t.length > 2 && !prepositions.includes(t))
+    
+  const dbTokens = dbName.toLowerCase()
+    .split(' ')
+    .filter(t => t.length > 2 && !prepositions.includes(t))
+  
   const firstArk = arkTokens[0]
-  if (!firstDb || !firstArk) return false
+  const firstDb = dbTokens[0]
+  if (!firstArk || !firstDb) return false
   
-  const firstNameMatch = firstDb === firstArk || firstArk.includes(firstDb) || firstDb.includes(firstArk)
-  if (!firstNameMatch) return false
+  // First name must match exactly
+  if (firstArk !== firstDb) return false
   
-  if (dbTokens.length === 1 || arkTokens.length === 1) return true
+  // If one name has only one token, allow it
+  if (arkTokens.length === 1 || dbTokens.length === 1) return true
   
-  for (let i = 1; i < dbTokens.length; i++) {
-    if (arkTokens.includes(dbTokens[i])) return true
-  }
+  // Check if they share at least one surname
+  const arkSurnames = arkTokens.slice(1)
+  const dbSurnames = dbTokens.slice(1)
   
-  return false
+  return dbSurnames.some(s => arkSurnames.includes(s))
 }
 
 export default function DialogosPage() {
@@ -175,14 +182,21 @@ export default function DialogosPage() {
   }, [])
 
   async function loadData() {
-    const [anos, tecRes, atvRes, arkRes, aliadoRes] = await Promise.all([
+    const [anos, tecRes, atvRes, arkRes, aliadoRes, importTimeRes] = await Promise.all([
       getAnosComDados(),
       getTecnicos(),
       getAtividades('DSS'),
       getDssArkium(),
-      getDssAliados()
+      getDssAliados(),
+      getLastImportTime('IMPORTAR_DSS')
     ])
     setAnosDisponiveis(anos)
+
+    if (importTimeRes?.success && importTimeRes?.data) {
+      setLastImport(importTimeRes.data)
+    } else if (importTimeRes?.success && !importTimeRes?.data) {
+      setLastImport(null)
+    }
 
     if (tecRes.success && tecRes.data) {
       const tecnicos = tecRes.data
@@ -408,6 +422,7 @@ export default function DialogosPage() {
   const [deleteArkiumConfirmId, setDeleteArkiumConfirmId] = useState<string | null>(null)
   const [showArkiumPie, setShowArkiumPie] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [lastImport, setLastImport] = useState<{ createdAt: string; userName: string } | null>(null)
 
   // loadArkium unificado dentro do loadData() para evitar requests duplicados
 
@@ -1177,6 +1192,12 @@ export default function DialogosPage() {
                       <UploadCloud size={16} />
                       Selecionar Arquivo
                     </button>
+                    {lastImport && (
+                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <span>Último upload: <strong>{new Date(lastImport.createdAt).toLocaleString('pt-BR')}</strong></span>
+                        <span>Por: <strong>{lastImport.userName}</strong></span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

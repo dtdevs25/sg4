@@ -108,3 +108,30 @@ export async function getLogEntities(): Promise<string[]> {
     return []
   }
 }
+
+export async function getLastImportTime(action: 'IMPORTAR_NAO_CONFORMIDADES' | 'IMPORTAR_INSPECOES' | 'IMPORTAR_DSS') {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const lastLog = await prisma.auditLog.findFirst({
+      where: { action },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, user: { select: { name: true } } }
+    })
+
+    if (!lastLog) return { success: true, data: null }
+
+    return {
+      success: true,
+      data: {
+        createdAt: lastLog.createdAt.toISOString(),
+        userName: lastLog.user?.name || 'Sistema'
+      }
+    }
+  } catch (error: any) {
+    console.error(`Erro ao buscar último log de ${action}:`, error)
+    return { success: false, error: error.message }
+  }
+}
+

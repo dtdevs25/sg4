@@ -20,6 +20,7 @@ import {
   deleteNaoConformidadeUpdate,
   replaceNaoConformidadeUpdateImage
 } from '@/app/actions/naoConformidades'
+import { getLastImportTime } from '@/app/actions/logs'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
 
@@ -229,6 +230,7 @@ export default function NaoConformidadesPage() {
   const [importResultMsg, setImportResultMsg] = useState('')
   const [isDoneImporting, setIsDoneImporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [lastImport, setLastImport] = useState<{ createdAt: string; userName: string } | null>(null)
 
   const [pending, startTransition] = useTransition()
 
@@ -250,9 +252,10 @@ export default function NaoConformidadesPage() {
 
   async function loadData() {
     startTransition(async () => {
-      const [ncRes, tecRes] = await Promise.all([
+      const [ncRes, tecRes, importTimeRes] = await Promise.all([
         getNaoConformidades(),
-        getTecnicos()
+        getTecnicos(),
+        getLastImportTime('IMPORTAR_NAO_CONFORMIDADES')
       ])
 
       if (ncRes.success && ncRes.data) {
@@ -260,6 +263,11 @@ export default function NaoConformidadesPage() {
       }
       if (tecRes.success && tecRes.data) {
         setTecnicos(tecRes.data)
+      }
+      if (importTimeRes.success && importTimeRes.data) {
+        setLastImport(importTimeRes.data)
+      } else if (importTimeRes.success && !importTimeRes.data) {
+        setLastImport(null)
       }
     })
   }
@@ -1205,6 +1213,12 @@ export default function NaoConformidadesPage() {
                   <UploadCloud size={14} />
                   Selecionar Arquivo
                 </button>
+                {lastImport && (
+                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <span>Último upload: <strong>{new Date(lastImport.createdAt).toLocaleString('pt-BR')}</strong></span>
+                    <span>Por: <strong>{lastImport.userName}</strong></span>
+                  </div>
+                )}
               </div>
             )}
           </div>
