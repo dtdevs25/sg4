@@ -277,13 +277,13 @@ export default function APRPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Only auto-reload when pagination changes (user clicked next page)
+  // Auto-reload when discrete filters or pagination changes
   useEffect(() => {
     if (hasLoadedOnce) {
       loadData()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, itemsPerPage])
+  }, [currentPage, itemsPerPage, selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity])
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -846,7 +846,7 @@ export default function APRPage() {
                     style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}
                   >
                     <option value="ALL">Todos os Anos</option>
-                    {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
+                    {anosDisponiveis.filter(a => a !== 'ALL').map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
                   <input 
                     type="text"
