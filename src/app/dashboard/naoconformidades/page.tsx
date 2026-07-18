@@ -184,7 +184,7 @@ export default function NaoConformidadesPage() {
   // Consolidado state
   const [consolidadoSearch, setConsolidadoSearch] = useState('')
   const [currentPageConsolidado, setCurrentPageConsolidado] = useState(1)
-  const itemsPerPageConsolidado = 10
+  const [itemsPerPageConsolidado, setItemsPerPageConsolidado] = useState(10)
 
   // Arkium list state
   const [arkiumSearch, setArkiumSearch] = useState('')
@@ -192,7 +192,7 @@ export default function NaoConformidadesPage() {
   const [classFilter, setClassFilter] = useState('ALL')
   const [tecnicoFilter, setTecnicoFilter] = useState('ALL')
   const [currentPageArkium, setCurrentPageArkium] = useState(1)
-  const itemsPerPageArkium = 10
+  const [itemsPerPageArkium, setItemsPerPageArkium] = useState(10)
 
   // Global states
   const [showInactive, setShowInactive] = useState(false)
@@ -1048,38 +1048,48 @@ export default function NaoConformidadesPage() {
             </div>
 
             {/* Pagination Consolidado */}
-            {totalPagesConsolidado > 1 && (
+            {consolidadoData.length > 0 && (
               <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#fff', borderRadius: 10
+                padding: '16px 20px', background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between'
               }}>
-                <span style={{ fontSize: 13, color: '#64748b' }}>
-                  Mostrando página {currentPageConsolidado} de {totalPagesConsolidado} ({consolidadoData.length} técnicos)
-                </span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    disabled={currentPageConsolidado === 1}
-                    onClick={() => setCurrentPageConsolidado(prev => Math.max(prev - 1, 1))}
-                    style={{
-                      padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6,
-                      background: '#fff', fontSize: 13, cursor: currentPageConsolidado === 1 ? 'not-allowed' : 'pointer',
-                      opacity: currentPageConsolidado === 1 ? 0.5 : 1
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                    Mostrando de {(currentPageConsolidado - 1) * itemsPerPageConsolidado + 1} a {Math.min(currentPageConsolidado * itemsPerPageConsolidado, consolidadoData.length)} de {consolidadoData.length} técnicos
+                  </span>
+                  <select
+                    value={itemsPerPageConsolidado}
+                    onChange={(e) => {
+                      setItemsPerPageConsolidado(Number(e.target.value))
+                      setCurrentPageConsolidado(1)
                     }}
+                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', cursor: 'pointer' }}
                   >
-                    Anterior
-                  </button>
-                  <button
-                    disabled={currentPageConsolidado === totalPagesConsolidado}
-                    onClick={() => setCurrentPageConsolidado(prev => Math.min(prev + 1, totalPagesConsolidado))}
-                    style={{
-                      padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6,
-                      background: '#fff', fontSize: 13, cursor: currentPageConsolidado === totalPagesConsolidado ? 'not-allowed' : 'pointer',
-                      opacity: currentPageConsolidado === totalPagesConsolidado ? 0.5 : 1
-                    }}
-                  >
-                    Próxima
-                  </button>
+                    <option value={10}>10 por página</option>
+                    <option value={20}>20 por página</option>
+                    <option value={50}>50 por página</option>
+                    <option value={100}>100 por página</option>
+                  </select>
                 </div>
+                
+                {totalPagesConsolidado > 1 && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => setCurrentPageConsolidado(p => Math.max(1, p - 1))}
+                      disabled={currentPageConsolidado === 1}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageConsolidado === 1 ? '#f1f5f9' : '#fff', color: currentPageConsolidado === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageConsolidado === 1 ? 'not-allowed' : 'pointer' }}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      onClick={() => setCurrentPageConsolidado(p => Math.min(totalPagesConsolidado, p + 1))}
+                      disabled={currentPageConsolidado === totalPagesConsolidado}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageConsolidado === totalPagesConsolidado ? '#f1f5f9' : '#fff', color: currentPageConsolidado === totalPagesConsolidado ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageConsolidado === totalPagesConsolidado ? 'not-allowed' : 'pointer' }}
+                    >
+                      Próxima
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1476,38 +1486,48 @@ export default function NaoConformidadesPage() {
             </div>
 
             {/* Pagination Arkium */}
-            {totalPagesArkium > 1 && (
+            {filteredArkium.length > 0 && (
               <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#fff', borderRadius: 10
+                padding: '16px 20px', background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between'
               }}>
-                <span style={{ fontSize: 13, color: '#64748b' }}>
-                  Mostrando página {currentPageArkium} de {totalPagesArkium} ({filteredArkium.length} itens)
-                </span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    disabled={currentPageArkium === 1}
-                    onClick={() => setCurrentPageArkium(prev => Math.max(prev - 1, 1))}
-                    style={{
-                      padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6,
-                      background: '#fff', fontSize: 13, cursor: currentPageArkium === 1 ? 'not-allowed' : 'pointer',
-                      opacity: currentPageArkium === 1 ? 0.5 : 1
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                    Mostrando de {(currentPageArkium - 1) * itemsPerPageArkium + 1} a {Math.min(currentPageArkium * itemsPerPageArkium, filteredArkium.length)} de {filteredArkium.length} registros
+                  </span>
+                  <select
+                    value={itemsPerPageArkium}
+                    onChange={(e) => {
+                      setItemsPerPageArkium(Number(e.target.value))
+                      setCurrentPageArkium(1)
                     }}
+                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', cursor: 'pointer' }}
                   >
-                    Anterior
-                  </button>
-                  <button
-                    disabled={currentPageArkium === totalPagesArkium}
-                    onClick={() => setCurrentPageArkium(prev => Math.min(prev + 1, totalPagesArkium))}
-                    style={{
-                      padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6,
-                      background: '#fff', fontSize: 13, cursor: currentPageArkium === totalPagesArkium ? 'not-allowed' : 'pointer',
-                      opacity: currentPageArkium === totalPagesArkium ? 0.5 : 1
-                    }}
-                  >
-                    Próxima
-                  </button>
+                    <option value={10}>10 por página</option>
+                    <option value={20}>20 por página</option>
+                    <option value={50}>50 por página</option>
+                    <option value={100}>100 por página</option>
+                  </select>
                 </div>
+                
+                {totalPagesArkium > 1 && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => setCurrentPageArkium(p => Math.max(1, p - 1))}
+                      disabled={currentPageArkium === 1}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageArkium === 1 ? '#f1f5f9' : '#fff', color: currentPageArkium === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageArkium === 1 ? 'not-allowed' : 'pointer' }}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      onClick={() => setCurrentPageArkium(p => Math.min(totalPagesArkium, p + 1))}
+                      disabled={currentPageArkium === totalPagesArkium}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageArkium === totalPagesArkium ? '#f1f5f9' : '#fff', color: currentPageArkium === totalPagesArkium ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageArkium === totalPagesArkium ? 'not-allowed' : 'pointer' }}
+                    >
+                      Próxima
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
