@@ -14,26 +14,32 @@ function normalize(str: string | null | undefined): string {
 
 function nameMatches(arkiumName: string, dbName: string): boolean {
   if (!arkiumName || !dbName) return false
-  if (arkiumName === dbName) return true
-  if (arkiumName.includes(dbName) || dbName.includes(arkiumName)) return true
   
-  const arkTokens = arkiumName.split(' ').filter(t => t.length > 2)
-  const dbTokens = dbName.split(' ').filter(t => t.length > 2)
+  const prepositions = ['de', 'da', 'do', 'das', 'dos', 'e']
   
-  const firstDb = dbTokens[0]
+  const arkTokens = arkiumName.toLowerCase()
+    .split(' ')
+    .filter(t => t.length > 2 && !prepositions.includes(t))
+    
+  const dbTokens = dbName.toLowerCase()
+    .split(' ')
+    .filter(t => t.length > 2 && !prepositions.includes(t))
+  
   const firstArk = arkTokens[0]
-  if (!firstDb || !firstArk) return false
+  const firstDb = dbTokens[0]
+  if (!firstArk || !firstDb) return false
   
-  const firstNameMatch = firstDb === firstArk || firstArk.includes(firstDb) || firstDb.includes(firstArk)
-  if (!firstNameMatch) return false
+  // First name must match exactly
+  if (firstArk !== firstDb) return false
   
-  if (dbTokens.length === 1 || arkTokens.length === 1) return true
+  // If one name has only one token, allow it
+  if (arkTokens.length === 1 || dbTokens.length === 1) return true
   
-  for (let i = 1; i < dbTokens.length; i++) {
-    if (arkTokens.includes(dbTokens[i])) return true
-  }
+  // Check if they share at least one surname
+  const arkSurnames = arkTokens.slice(1)
+  const dbSurnames = dbTokens.slice(1)
   
-  return false
+  return dbSurnames.some(s => arkSurnames.includes(s))
 }
 
 function cleanName(nameStr: string): string {
