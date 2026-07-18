@@ -894,7 +894,7 @@ export default function APRPage() {
               boxShadow: activeTab === 'consolidado' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
             }}
           >
-            Base de Dados & Importação
+            Importação APR Arkium
           </button>
         </div>
       </div>
@@ -1281,60 +1281,141 @@ export default function APRPage() {
       )}
 
       {/* ========================================================
-          TAB: BASE DE DADOS & IMPORTAÇÃO
+          TAB: IMPORTAÇÃO APR ARKIUM
       ======================================================== */}
       {activeTab === 'consolidado' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           
-          {/* Sincronização & Upload Area */}
-          <div style={{
-            background: '#fff',
-            border: '1px solid #f1f5f9',
-            borderRadius: 12,
-            padding: 24,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 20
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <UploadCloud size={20} color="#660099" /> Upload de Registros do Arkium
-              </h3>
-              <p style={{ margin: 0, fontSize: 12, color: '#64748b', maxWidth: 450, lineHeight: 1.4 }}>
-                Faça o upload do relatório Excel extraído do Arkium. O sistema filtrará apenas os questionários contendo &quot;APR&quot; e mapeará os status conforme as regras de vencimento.
-              </p>
-              
-              {lastImport && (
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, display: 'flex', gap: 8 }}>
-                  <span>Último upload: <strong>{new Date(lastImport.createdAt).toLocaleString('pt-BR')}</strong></span>
-                  <span>|</span>
-                  <span>Por: <strong>{lastImport.userName}</strong></span>
-                </div>
-              )}
+          {/* Stats Cards */}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #64748b' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b' }}>
+                <ListTodo size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Total</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{stats.total}</div>
             </div>
 
-            <div style={{ display: 'flex', gap: 12 }}>
-              <input
-                type="file"
-                accept=".xls,.xlsx"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                style={{ display: 'none' }}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  padding: '10px 20px', background: '#660099', color: '#fff',
-                  border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
-                  boxShadow: '0 4px 6px -1px rgba(102,0,153,0.2)'
-                }}
-              >
-                <UploadCloud size={16} /> Selecionar Planilha
-              </button>
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #fee2e2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #ef4444' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b91c1c' }}>
+                <AlertCircle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Pendente Vencida</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{stats.pendenteVencidos}</div>
             </div>
+
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #dbeafe', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #3b82f6' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#1d4ed8' }}>
+                <Clock size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Pendente N. Vencida</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#3b82f6', lineHeight: 1 }}>{stats.pendenteNaoVencidos}</div>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #fef3c7', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #f59e0b' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#b45309' }}>
+                <PlayCircle size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Processamento</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#f59e0b', lineHeight: 1 }}>{stats.pendenteProcessamento}</div>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 150, background: '#fff', border: '1px solid #d1fae5', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 6, borderLeft: '4px solid #10b981' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#047857' }}>
+                <CheckCircle2 size={16} /> <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Resolvidos</span>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: '#10b981', lineHeight: 1 }}>{stats.resolvidos}</div>
+            </div>
+          </div>
+
+          {/* Grid de Filtros e Upload Card */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+            {/* Period selector */}
+            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+                  <option value="ALL">Todos os Anos</option>
+                  {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {MONTHS_LIST.slice(0, 6).map(m => {
+                    const isSelected = selectedMonths.includes(m.key as MesKey)
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        style={{
+                          flex: 1, padding: '8px 0', borderRadius: 6,
+                          border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                          background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                          color: isSelected ? '#660099' : '#64748b',
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {MONTHS_LIST.slice(6, 12).map(m => {
+                    const isSelected = selectedMonths.includes(m.key as MesKey)
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        style={{
+                          flex: 1, padding: '8px 0', borderRadius: 6,
+                          border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                          background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                          color: isSelected ? '#660099' : '#64748b',
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Uploader Card */}
+            {isMasterOrAdmin && (
+              <div style={{
+                background: '#fff', border: '1px dashed #cbd5e1', borderRadius: 10,
+                padding: '16px', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 12
+              }}>
+                <div style={{ width: 44, height: 44, background: 'rgba(102,0,153,0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <FileSpreadsheet color="#660099" size={22} />
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>Importar APR Arkium</div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Excel (.xls ou .xlsx)</div>
+                </div>
+                <input type="file" ref={fileInputRef} accept=".xlsx, .xls" onChange={handleFileUpload} style={{ display: 'none' }} />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    background: '#660099', color: '#fff', border: 'none', padding: '8px 24px',
+                    borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 6, marginTop: 2
+                  }}
+                >
+                  <UploadCloud size={14} />
+                  Selecionar Arquivo
+                </button>
+                {lastImport && (
+                  <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <span>Último upload: <strong>{new Date(lastImport.createdAt).toLocaleString('pt-BR')}</strong></span>
+                    <span>Por: <strong>{lastImport.userName}</strong></span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Table Filters & Actions */}
