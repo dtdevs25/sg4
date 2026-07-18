@@ -130,6 +130,55 @@ export default function APRPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
 
+  // Dynamic ViewBox for SVG map zooming
+  const mapViewBox = useMemo(() => {
+    if (selectedState) {
+      const stateBoxes: Record<string, string> = {
+        AC: '10 160 120 120',
+        AL: '380 200 70 70',
+        AP: '210 20 90 90',
+        AM: '10 60 200 180',
+        BA: '250 170 150 150',
+        CE: '320 100 90 90',
+        DF: '235 240 30 30',
+        ES: '340 270 70 70',
+        GO: '180 200 120 120',
+        MA: '250 80 120 120',
+        MT: '100 150 160 160',
+        MS: '120 260 120 120',
+        MG: '240 230 150 150',
+        PA: '160 50 180 180',
+        PB: '370 120 70 70',
+        PR: '170 320 100 100',
+        PE: '330 140 110 90',
+        PI: '270 110 100 100',
+        RJ: '300 290 80 80',
+        RN: '370 100 70 70',
+        RS: '130 370 120 100',
+        RO: '60 140 110 110',
+        RR: '90 10 110 110',
+        SC: '180 350 90 80',
+        SP: '190 280 120 110',
+        SE: '380 180 70 70',
+        TO: '210 130 100 120'
+      }
+      return stateBoxes[selectedState] || '0 0 450 460'
+    }
+    
+    if (selectedRegion) {
+      const regionBoxes: Record<string, string> = {
+        'Norte': '10 10 330 250',
+        'Nordeste': '210 60 230 210',
+        'Centro-Oeste': '90 140 210 210',
+        'Sudeste': '200 230 190 170',
+        'Sul': '120 320 160 140'
+      }
+      return regionBoxes[selectedRegion] || '0 0 450 460'
+    }
+
+    return '0 0 450 460'
+  }, [selectedRegion, selectedState])
+
   // Details Modal
   const [viewingItem, setViewingItem] = useState<any>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -942,7 +991,10 @@ export default function APRPage() {
                   style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
                 >
                   <option value="">Todos os Estados</option>
-                  {BRAZIL_STATES.map(s => <option key={s.uf} value={s.uf}>{s.name} ({s.uf})</option>)}
+                  {BRAZIL_STATES.filter(s => {
+                    if (!selectedRegion) return true
+                    return REGIAO_MAP[selectedRegion]?.includes(s.uf)
+                  }).map(s => <option key={s.uf} value={s.uf}>{s.name} ({s.uf})</option>)}
                 </select>
               </div>
 
@@ -1054,8 +1106,8 @@ export default function APRPage() {
                   x="0px"
                   y="0px"
                   width="100%"
-                  viewBox="0 0 450 460"
-                  style={{ maxWidth: 400, maxHeight: 420, height: 'auto' }}
+                  viewBox={mapViewBox}
+                  style={{ maxWidth: 400, maxHeight: 420, height: 'auto', transition: 'all 0.4s ease-in-out' }}
                 >
                   <g>
                     {BRAZIL_STATES.map((state) => {
