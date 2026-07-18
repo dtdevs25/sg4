@@ -132,6 +132,9 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
         }
       }
 
+      // Se não corresponde a nenhum técnico da nossa base, ignora o registro
+      if (!tecnicoId) continue
+
       const existing = await prisma.naoConformidade.findUnique({
         where: { originalId: String(item.originalId) }
       })
