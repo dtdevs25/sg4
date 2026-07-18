@@ -144,8 +144,8 @@ export default function APRPage() {
       if (aprsRes.success && aprsRes.data) {
         setAprs(aprsRes.data)
       }
-      if (tecnicosRes) {
-        setTecnicos(tecnicosRes)
+      if (tecnicosRes && tecnicosRes.success && Array.isArray(tecnicosRes.data)) {
+        setTecnicos(tecnicosRes.data)
       }
       if (importTimeRes) {
         setLastImport(importTimeRes)
@@ -943,9 +943,8 @@ export default function APRPage() {
                   x="0px"
                   y="0px"
                   width="100%"
-                  height="auto"
                   viewBox="0 0 450 460"
-                  style={{ maxWidth: 400, maxHeight: 420 }}
+                  style={{ maxWidth: 400, maxHeight: 420, height: 'auto' }}
                 >
                   <g>
                     {BRAZIL_STATES.map((state) => {
