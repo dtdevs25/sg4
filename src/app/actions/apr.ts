@@ -382,7 +382,11 @@ export async function getAprs(filters?: {
       const fech = parseDateToJsDate(apr.dataFechamento)
       if (abert && fech) {
         const diffMs = fech.getTime() - abert.getTime()
-        if (diffMs >= 0) { sumDelayMs += diffMs; delayCount++ }
+        // Ignora outliers (mais de 24 horas = 86400000 ms)
+        if (diffMs >= 0 && diffMs <= 86400000) { 
+          sumDelayMs += diffMs; 
+          delayCount++ 
+        }
       }
     }
     const avgDelayMs = delayCount > 0 ? sumDelayMs / delayCount : 0

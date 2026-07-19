@@ -468,34 +468,56 @@ export default function DashboardPage() {
     : relatoriosAno
   const totalRelatorios = relatoriosFiltrados.length
 
-  // Dados de Não Conformidades
-  const ncAno = ano ? ncDb.filter(n => {
-    const d = new Date(n.dataAbertura || n.importadoEm || new Date());
-    return !isNaN(d.getTime()) && d.getFullYear().toString() === ano;
-  }) : ncDb;
-  const ncFiltradas = meses.length > 0
-    ? ncAno.filter(n => {
-        const d = new Date(n.dataAbertura || n.importadoEm || new Date());
-        return !isNaN(d.getTime()) && meses.includes(MESES[d.getUTCMonth()]);
-    })
-    : ncAno;
-  const ncFiltradasParaDisplay = isConectadoTst ? ncFiltradas.filter(n => n.tecnicoId === tecnicoConectado?.id) : ncFiltradas;
-  const ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
+  // Dados de Não Conformidades (COM DEFESA CONTRA ERROS NO RENDER)
+  let ncAno = ncDb || [];
+  try {
+    if (ano) {
+      ncAno = ncAno.filter(n => {
+        try {
+          const d = new Date(n?.dataAbertura || n?.importadoEm || new Date());
+          return !isNaN(d.getTime()) && d.getFullYear().toString() === ano;
+        } catch(e) { return false; }
+      });
+    }
+  } catch(e) { console.error('Erro filtrando ncAno', e); }
 
-  const tecnicosStats = tecnicosDb.filter(t => t.ativo).map(t => {
-    const dss = dssFiltrados.filter(a => matchTecnico(a.nome, t.nome)).length
-    const insp = inspFiltradas.filter(a => matchTecnico(a.nomeAuditor, t.nome) || a.tecnicoId === t.id).length
-    const relTec = relatoriosFiltrados.filter(r => r.tecnicoId === t.id)
-    const rel = relTec.length
-    
-    // Abreviação do nome: "PrimeiroNome InicialSegundoNome."
-    const parts = t.nome.trim().split(' ')
-    const nomeAbrev = parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : parts[0]
+  let ncFiltradas = ncAno;
+  try {
+    if (meses.length > 0) {
+      ncFiltradas = ncAno.filter(n => {
+        try {
+          const d = new Date(n?.dataAbertura || n?.importadoEm || new Date());
+          return !isNaN(d.getTime()) && meses.includes(MESES[d.getUTCMonth()]);
+        } catch(e) { return false; }
+      });
+    }
+  } catch(e) { console.error('Erro filtrando ncFiltradas', e); }
+
+  let ncFiltradasParaDisplay = ncFiltradas;
+  let ncAbertasTotal = 0;
+  try {
+    ncFiltradasParaDisplay = isConectadoTst ? ncFiltradas.filter(n => n?.tecnicoId === tecnicoConectado?.id) : ncFiltradas;
+    ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n?.status && n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
+  } catch(e) { console.error('Erro calculando ncAbertasTotal', e); }
+
+  const tecnicosStats = (tecnicosDb || []).filter(t => t?.ativo).map(t => {
+    let dss = 0, insp = 0, rel = 0, nomeAbrev = t?.nome || '';
+    try {
+      dss = dssFiltrados.filter(a => matchTecnico(a?.nome, t?.nome)).length
+      insp = inspFiltradas.filter(a => matchTecnico(a?.nomeAuditor, t?.nome) || a?.tecnicoId === t?.id).length
+      const relTec = relatoriosFiltrados.filter(r => r?.tecnicoId === t?.id)
+      rel = relTec.length
+      
+      // Abreviação do nome segura
+      const safeNome = t?.nome || '';
+      const parts = safeNome.trim().split(' ').filter(Boolean)
+      nomeAbrev = parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : (parts[0] || '')
+    } catch (e) { console.error('Erro map tecnico', e); }
 
     return {
-      nome: t.nome,
+      nome: t?.nome || '',
       nomeAbrev,
-      fotoUrl: t.fotoUrl,
+      fotoUrl: t?.fotoUrl,
       dss,
       insp,
       rel
