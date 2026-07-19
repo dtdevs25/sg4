@@ -483,6 +483,8 @@ function extractYear(dateStr: string | null | undefined): number | null {
 export async function upsertAprBatch(items: any[]) {
   try {
     const session = await auth()
+    const role = (session?.user as any)?.role
+    if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Sem permissão' }
     const userId = (session?.user as any)?.id ?? null
 
     let inseridos = 0
