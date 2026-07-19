@@ -521,12 +521,13 @@ export default function DashboardPage() {
   } catch(e) { console.error('Erro calculando ncAbertasTotal: ' + String(e)); }
 
   const tecnicosStats = (tecnicosDb || []).filter(t => t?.ativo).map(t => {
-    let dss = 0, insp = 0, rel = 0, nomeAbrev = t?.nome || '';
+    let dss = 0, insp = 0, rel = 0, nc = 0, nomeAbrev = t?.nome || '';
     try {
       dss = dssFiltrados.filter(a => matchTecnico(a?.nome, t?.nome)).length
       insp = inspFiltradas.filter(a => matchTecnico(a?.nomeAuditor, t?.nome) || a?.tecnicoId === t?.id).length
       const relTec = relatoriosFiltrados.filter(r => r?.tecnicoId === t?.id)
       rel = relTec.length
+      nc = ncFiltradasParaDisplay.filter(n => matchTecnico(n?.nomeAuditor, t?.nome) || n?.tecnicoId === t?.id).length
       
       // Abreviação do nome segura
       const safeNome = t?.nome || '';
@@ -540,7 +541,8 @@ export default function DashboardPage() {
       fotoUrl: t?.fotoUrl,
       dss,
       insp,
-      rel
+      rel,
+      nc
     }
   })
 
@@ -709,7 +711,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
                 <div style={{ background: '#f0f9ff', padding: 16, borderRadius: 12, border: '1px solid #bae6fd' }}>
                   <p style={{ fontSize: 11, color: '#0369a1', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>DSS</p>
                   <p style={{ fontSize: 28, fontWeight: 900, color: '#0284c7', margin: 0 }}>{modalData.dss}</p>
@@ -724,6 +726,11 @@ export default function DashboardPage() {
                   <p style={{ fontSize: 11, color: '#7e22ce', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>Relatórios</p>
                   <p style={{ fontSize: 28, fontWeight: 900, color: '#9333ea', margin: 0 }}>{modalData.rel}</p>
                   <p style={{ fontSize: 10, color: '#a855f7', fontWeight: 600, marginTop: 4 }}>Atividades</p>
+                </div>
+                <div style={{ background: '#fef2f2', padding: 16, borderRadius: 12, border: '1px solid #fecaca' }}>
+                  <p style={{ fontSize: 11, color: '#b91c1c', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>NCs</p>
+                  <p style={{ fontSize: 28, fontWeight: 900, color: '#ef4444', margin: 0 }}>{modalData.nc}</p>
+                  <p style={{ fontSize: 10, color: '#f87171', fontWeight: 600, marginTop: 4 }}>Ocorrências</p>
                 </div>
               </div>
             </div>
@@ -1010,8 +1017,8 @@ export default function DashboardPage() {
 
                 <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('dss')} />
                 <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('insp')} />
-                {legendaAtiva.includes('dss') && <ReferenceLine y={baseTargetPerTecDss} stroke="#660099" strokeDasharray="3 3" label={{ position: 'top', value: 'Meta DSS', fill: '#660099', fontSize: 11, fontWeight: 'bold' }} />}
-                {legendaAtiva.includes('insp') && <ReferenceLine y={baseTargetPerTecInsp} stroke="#8e44ad" strokeDasharray="3 3" label={{ position: 'top', value: 'Meta Insp.', fill: '#8e44ad', fontSize: 11, fontWeight: 'bold' }} />}
+                {legendaAtiva.includes('dss') && <ReferenceLine y={baseTargetPerTecDss} stroke="#3b82f6" strokeDasharray="3 3" label={{ position: 'top', value: `Meta DSS: ${baseTargetPerTecDss}`, fill: '#3b82f6', fontSize: 11, fontWeight: 'bold' }} />}
+                {legendaAtiva.includes('insp') && <ReferenceLine y={baseTargetPerTecInsp} stroke="#3b82f6" strokeDasharray="3 3" label={{ position: 'top', value: `Meta Insp.: ${baseTargetPerTecInsp}`, fill: '#3b82f6', fontSize: 11, fontWeight: 'bold' }} />}
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
