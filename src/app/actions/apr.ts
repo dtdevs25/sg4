@@ -208,6 +208,7 @@ export async function getAprs(filters?: {
   state?: string
   city?: string
   tecnico?: string
+  atividade?: string
   search?: string
   page?: number
   pageSize?: number
@@ -223,6 +224,7 @@ export async function getAprs(filters?: {
     const state = filters?.state || ''
     const city = filters?.city || ''
     const tecnico = filters?.tecnico || ''
+    const atividade = filters?.atividade || ''
     const search = filters?.search || ''
     const page = filters?.page ?? 1
     const pageSize = filters?.pageSize ?? 20
@@ -274,6 +276,10 @@ export async function getAprs(filters?: {
 
     if (tecnico.trim()) {
       andConditions.push({ nomeAuditor: { contains: tecnico.trim(), mode: 'insensitive' } })
+    }
+
+    if (atividade.trim()) {
+      andConditions.push({ nomeQuestionario: { contains: atividade.trim(), mode: 'insensitive' } })
     }
 
     if (state.trim()) {
@@ -396,10 +402,14 @@ export async function getAprs(filters?: {
       .filter(item => item.nomeAuditor)
       .map(item => ({ nome: item.nomeAuditor!, count: item._count._all, active: true }))
 
-    const rankingAtividades = rankingAtividadesData.map(item => ({
-      nome: item.nomeQuestionario || 'Outra Atividade',
-      count: item._count._all
-    }))
+    const rankingAtividades = rankingAtividadesData.map(item => {
+      let n = item.nomeQuestionario || 'Outra Atividade'
+      n = n.replace(/APR\s*-\s*Analise preliminar de Risco\s*-\s*/i, 'APR - ')
+      return {
+        nome: n,
+        count: item._count._all
+      }
+    })
 
     // Cities: only when a state is selected (avoids full-table groupBy)
     let availableCities: { name: string; count: number }[] = []

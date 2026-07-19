@@ -200,6 +200,7 @@ export default function APRPage() {
   const [selectedState, setSelectedState] = useState<string>('')
   const [selectedCity, setSelectedCity] = useState<string>('')
   const [selectedTecnico, setSelectedTecnico] = useState<string>('')
+  const [selectedAtividade, setSelectedAtividade] = useState<string>('')
 
   // Search & Pagination in Data Table tab
   const [searchText, setSearchText] = useState('')
@@ -230,6 +231,7 @@ export default function APRPage() {
         state: selectedState,
         city: selectedCity,
         tecnico: selectedTecnico,
+        atividade: selectedAtividade,
         search: searchText,
         page: currentPage,
         pageSize: itemsPerPage
@@ -251,7 +253,7 @@ export default function APRPage() {
     }
   }, [
     selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity,
-    selectedTecnico, searchText, currentPage, itemsPerPage
+    selectedTecnico, selectedAtividade, searchText, currentPage, itemsPerPage
   ])
 
   // Load initial config on mount: years + last import, then auto-load data
@@ -316,12 +318,12 @@ export default function APRPage() {
       loadData()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, itemsPerPage, selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity])
+  }, [currentPage, itemsPerPage, selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity, selectedTecnico, selectedAtividade])
 
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity, selectedTecnico])
+  }, [searchText, selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity, selectedTecnico, selectedAtividade])
 
   const totalPages = Math.ceil(totalCount / itemsPerPage)
 
@@ -389,6 +391,7 @@ export default function APRPage() {
     setSelectedState('')
     setSelectedCity('')
     setSelectedTecnico('')
+    setSelectedAtividade('')
     setSearchText('')
   }
 
@@ -407,6 +410,7 @@ export default function APRPage() {
         state: selectedState,
         city: selectedCity,
         tecnico: selectedTecnico,
+        atividade: selectedAtividade,
         search: searchText,
         exportAll: true
       })
@@ -892,7 +896,14 @@ export default function APRPage() {
                     placeholder="Filtrar Técnico..."
                     value={selectedTecnico} 
                     onChange={e => setSelectedTecnico(e.target.value)} 
-                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', width: 180 }}
+                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', width: 140 }}
+                  />
+                  <input 
+                    type="text"
+                    placeholder="Filtrar Atividade..."
+                    value={selectedAtividade} 
+                    onChange={e => setSelectedAtividade(e.target.value)} 
+                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', width: 140 }}
                   />
                   <button 
                     onClick={handleResetFilters}
@@ -1233,7 +1244,7 @@ export default function APRPage() {
                     {rankingAtividades.map((item, idx) => {
                       const pct = Math.round((item.count / maxAtividadeCount) * 100)
                       return (
-                        <div key={item.nome} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div key={item.nome} onClick={() => setSelectedAtividade(item.nome)} style={{ display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                             <span style={{ fontWeight: 700, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>
                               {idx + 1}. {item.nome}
@@ -1263,7 +1274,7 @@ export default function APRPage() {
                     {rankingTecnicos.map((item, idx) => {
                       const pct = Math.round((item.count / maxTecnicoCount) * 100)
                       return (
-                        <div key={item.nome} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div key={item.nome} onClick={() => setSelectedTecnico(item.nome)} style={{ display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: '80%' }}>
                               <span style={{ fontWeight: 700, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
