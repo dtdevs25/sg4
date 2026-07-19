@@ -469,9 +469,15 @@ export default function DashboardPage() {
   const totalRelatorios = relatoriosFiltrados.length
 
   // Dados de Não Conformidades
-  const ncAno = ano ? ncDb.filter(n => new Date(n.dataAbertura || n.createdAt || new Date()).getFullYear().toString() === ano) : ncDb;
+  const ncAno = ano ? ncDb.filter(n => {
+    const d = new Date(n.dataAbertura || n.importadoEm || new Date());
+    return !isNaN(d.getTime()) && d.getFullYear().toString() === ano;
+  }) : ncDb;
   const ncFiltradas = meses.length > 0
-    ? ncAno.filter(n => meses.includes(MESES[new Date(n.dataAbertura || n.createdAt || new Date()).getUTCMonth()]))
+    ? ncAno.filter(n => {
+        const d = new Date(n.dataAbertura || n.importadoEm || new Date());
+        return !isNaN(d.getTime()) && meses.includes(MESES[d.getUTCMonth()]);
+    })
     : ncAno;
   const ncFiltradasParaDisplay = isConectadoTst ? ncFiltradas.filter(n => n.tecnicoId === tecnicoConectado?.id) : ncFiltradas;
   const ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
