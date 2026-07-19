@@ -404,7 +404,7 @@ export async function getAprs(filters?: {
 
     const rankingAtividades = rankingAtividadesData.map(item => {
       let n = item.nomeQuestionario || 'Outra Atividade'
-      n = n.replace(/APR\s*-\s*Analise preliminar de Risco\s*-\s*/i, 'APR - ')
+      n = n.replace(/APR\s*[|\-]\s*An[aá]lise preliminar de Riscos?\s*[|\-]\s*/i, 'APR | ')
       return {
         nome: n,
         count: item._count._all
