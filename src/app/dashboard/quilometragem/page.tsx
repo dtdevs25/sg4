@@ -84,11 +84,11 @@ export default function QuilometragemPage() {
   // Forms
   const [formStart, setFormStart] = useState({ tecnicoId: '', dataInicial: new Date().toISOString().split('T')[0], kmInicial: '', fotoBase64: '', fileName: '', contentType: '' })
   const [formEnd, setFormEnd] = useState({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
-  const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: new Date().toISOString().split('T')[0], valor: '', fotoBase64: '', fileName: '', contentType: '' })
+  const [formAbs, setFormAbs] = useState({ tecnicoId: '', data: new Date().toISOString().split('T')[0], valor: '', tipo: 'ABASTECIMENTO', fotoBase64: '', fileName: '', contentType: '' })
   const [formMaint, setFormMaint] = useState({ tecnicoId: '', dataManutencao: new Date().toISOString().split('T')[0], kmManutencao: '', fotoBase64: '', fileName: '', contentType: '' })
   
   const [formEditKm, setFormEditKm] = useState({ dataInicial: '', diaSemana: '', kmInicial: '', fotoInicialBase64: '', dataFinal: '', kmFinal: '', fotoFinalBase64: '' })
-  const [formEditAbs, setFormEditAbs] = useState({ data: '', valor: '', fotoCupomBase64: '' })
+  const [formEditAbs, setFormEditAbs] = useState({ data: '', valor: '', tipo: 'ABASTECIMENTO', fotoCupomBase64: '' })
 
   const fileInputRefStartCam = useRef<HTMLInputElement>(null)
   const fileInputRefStartGal = useRef<HTMLInputElement>(null)
@@ -249,12 +249,13 @@ export default function QuilometragemPage() {
         tecnicoId: formAbs.tecnicoId,
         data: new Date(formAbs.data + 'T12:00:00Z'),
         valor: parseFormattedNumber(formAbs.valor),
-        fotoCupom: fotoUrl
+        fotoCupom: fotoUrl,
+        tipo: formAbs.tipo
       })
 
       if (res.success) {
         setShowAbsModal(false)
-        setFormAbs(p => ({ ...p, data: new Date().toISOString().split('T')[0], valor: '', fotoBase64: '', fileName: '', contentType: '' }))
+        setFormAbs(p => ({ ...p, data: new Date().toISOString().split('T')[0], valor: '', tipo: 'ABASTECIMENTO', fotoBase64: '', fileName: '', contentType: '' }))
         loadData()
       } else {
         alert(res.error)
@@ -330,7 +331,8 @@ export default function QuilometragemPage() {
       const res = await updateAbastecimento(showEditAbsModal.id, {
         data: dt,
         valor: formEditAbs.valor ? parseFormattedNumber(formEditAbs.valor) : undefined,
-        fotoCupom: fotoUrl
+        fotoCupom: fotoUrl,
+        tipo: formEditAbs.tipo
       })
 
       if (res.success) {
@@ -745,7 +747,12 @@ export default function QuilometragemPage() {
                       </div>
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 15, fontWeight: 800, color: '#ef4444' }}>R$ {a.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 4, background: a.tipo === 'LAVAGEM' ? '#e0f2fe' : '#fef3c7', color: a.tipo === 'LAVAGEM' ? '#0369a1' : '#b45309' }}>
+                          {a.tipo === 'LAVAGEM' ? '💦 LAVAGEM' : '⛽ ABASTEC.'}
+                        </span>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#ef4444' }}>R$ {a.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                       {a.fotoCupom ? (
@@ -761,6 +768,7 @@ export default function QuilometragemPage() {
                             setFormEditAbs({
                               data: new Date(a.data).toISOString().split('T')[0],
                               valor: a.valor.toString(),
+                              tipo: a.tipo || 'ABASTECIMENTO',
                               fotoCupomBase64: ''
                             })
                             setShowEditAbsModal(a)
@@ -1103,6 +1111,19 @@ export default function QuilometragemPage() {
                   )}
                 </div>
               </div>
+              <div style={{ padding: '12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#475569' }}>Tipo de Gasto</label>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input type="radio" name="tipoAbs" value="ABASTECIMENTO" checked={formAbs.tipo === 'ABASTECIMENTO'} onChange={(e) => setFormAbs(p => ({...p, tipo: e.target.value}))} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>⛽ Abastecimento</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input type="radio" name="tipoAbs" value="LAVAGEM" checked={formAbs.tipo === 'LAVAGEM'} onChange={(e) => setFormAbs(p => ({...p, tipo: e.target.value}))} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>💦 Lavagem</span>
+                  </label>
+                </div>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Data</label>
@@ -1247,6 +1268,19 @@ export default function QuilometragemPage() {
             </div>
             <div style={{ padding: 24, maxHeight: '80vh', overflowY: 'auto' }}>
               <form onSubmit={handleEditAbs} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ padding: '12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 8, color: '#475569' }}>Tipo de Gasto</label>
+                <div style={{ display: 'flex', gap: 16 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input type="radio" name="tipoEditAbs" value="ABASTECIMENTO" checked={formEditAbs.tipo === 'ABASTECIMENTO'} onChange={(e) => setFormEditAbs(p => ({...p, tipo: e.target.value}))} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>⛽ Abastecimento</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <input type="radio" name="tipoEditAbs" value="LAVAGEM" checked={formEditAbs.tipo === 'LAVAGEM'} onChange={(e) => setFormEditAbs(p => ({...p, tipo: e.target.value}))} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>💦 Lavagem</span>
+                  </label>
+                </div>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 4 }}>Data</label>

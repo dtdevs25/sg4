@@ -241,6 +241,7 @@ export async function createAbastecimento(data: {
   data: Date
   valor: number
   fotoCupom?: string
+  tipo?: string
 }) {
   try {
     const session = await auth()
@@ -252,7 +253,8 @@ export async function createAbastecimento(data: {
         tecnicoId: data.tecnicoId,
         data: data.data,
         valor: data.valor,
-        fotoCupom: data.fotoCupom
+        fotoCupom: data.fotoCupom,
+        tipo: data.tipo || 'ABASTECIMENTO'
       }
     })
     await audit({ userId, action: 'CRIAR_ABASTECIMENTO', entity: 'Abastecimento', entityId: item.id, details: { valor: data.valor, tecnicoId: data.tecnicoId } })
@@ -271,6 +273,7 @@ export async function updateAbastecimento(id: string, data: {
   data?: Date
   valor?: number
   fotoCupom?: string
+  tipo?: string
 }) {
   try {
     const session = await auth()
@@ -282,7 +285,8 @@ export async function updateAbastecimento(id: string, data: {
       data: {
         ...(data.data && { data: data.data }),
         ...(data.valor !== undefined && { valor: data.valor }),
-        ...(data.fotoCupom !== undefined && { fotoCupom: data.fotoCupom })
+        ...(data.fotoCupom !== undefined && { fotoCupom: data.fotoCupom }),
+        ...(data.tipo !== undefined && { tipo: data.tipo })
       }
     })
     await audit({ userId, action: 'EDITAR_ABASTECIMENTO', entity: 'Abastecimento', entityId: id, details: { valor: data.valor } })
