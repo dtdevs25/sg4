@@ -495,10 +495,10 @@ export default function DashboardPage() {
         try {
           const d = new Date(n?.dataAbertura || n?.importadoEm || new Date());
           return !isNaN(d.getTime()) && d.getFullYear().toString() === ano;
-        } catch(e) { addDebug('Erro filtrando ncAno: ' + String(e)); return false; }
+        } catch(e) { console.error('Erro filtrando ncAno: ' + String(e)); return false; }
       });
     }
-  } catch(e) { addDebug('Erro filtrando ncAno Bloco: ' + String(e)); }
+  } catch(e) { console.error('Erro filtrando ncAno Bloco: ' + String(e)); }
 
   let ncFiltradas = ncAno;
   try {
@@ -507,17 +507,17 @@ export default function DashboardPage() {
         try {
           const d = new Date(n?.dataAbertura || n?.importadoEm || new Date());
           return !isNaN(d.getTime()) && meses.includes(MESES[d.getUTCMonth()]);
-        } catch(e) { addDebug('Erro filtrando ncFiltradas: ' + String(e)); return false; }
+        } catch(e) { console.error('Erro filtrando ncFiltradas: ' + String(e)); return false; }
       });
     }
-  } catch(e) { addDebug('Erro filtrando ncFiltradas Bloco: ' + String(e)); }
+  } catch(e) { console.error('Erro filtrando ncFiltradas Bloco: ' + String(e)); }
 
   let ncFiltradasParaDisplay = ncFiltradas;
   let ncAbertasTotal = 0;
   try {
     ncFiltradasParaDisplay = isConectadoTst ? ncFiltradas.filter(n => n?.tecnicoId === tecnicoConectado?.id) : ncFiltradas;
     ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n?.status && n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
-  } catch(e) { addDebug('Erro calculando ncAbertasTotal: ' + String(e)); }
+  } catch(e) { console.error('Erro calculando ncAbertasTotal: ' + String(e)); }
 
   const tecnicosStats = (tecnicosDb || []).filter(t => t?.ativo).map(t => {
     let dss = 0, insp = 0, rel = 0, nomeAbrev = t?.nome || '';
@@ -531,7 +531,7 @@ export default function DashboardPage() {
       const safeNome = t?.nome || '';
       const parts = safeNome.trim().split(' ').filter(Boolean)
       nomeAbrev = parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : (parts[0] || '')
-    } catch (e) { addDebug('Erro map tecnico: ' + String(e)); }
+    } catch (e) { console.error('Erro map tecnico: ' + String(e)); }
 
     return {
       nome: t?.nome || '',
