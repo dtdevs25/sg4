@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend
+  Tooltip, ResponsiveContainer, Legend, ReferenceLine
 } from 'recharts'
 import {
   ClipboardCheck, Clock, FileText, Award, ChevronDown, X, Target, TrendingUp, Loader2
@@ -353,7 +353,7 @@ export default function DashboardPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const [legendaAtiva, setLegendaAtiva] = useState<string[]>(['dss', 'insp', 'rel']) // filtro de legenda
+  const [legendaAtiva, setLegendaAtiva] = useState<string[]>(['dss', 'insp']) // filtro de legenda
   const [modalData, setModalData] = useState<any>(null)
 
   const [atividadesDb, setAtividadesDb] = useState<any[]>([])
@@ -604,6 +604,8 @@ export default function DashboardPage() {
   
   const numYears = ano ? 1 : (ANOS.length || 1)
   const numMeses = meses.length > 0 ? meses.length : 12
+  const baseTargetPerTecDss = numMeses * numYears * META_DSS_POR_TEC;
+  const baseTargetPerTecInsp = numMeses * numYears * META_INSP_POR_TEC;
 
   const totalMesesMeta = activeTecnicos.reduce((sum, t) => sum + getActiveMonthsForMetaDashboard(t, meses, ano || ''), 0);
   const metaDssTotal = totalMesesMeta * META_DSS_POR_TEC;
@@ -993,7 +995,7 @@ export default function DashboardPage() {
                     const key = e.dataKey as string
                     setLegendaAtiva(prev =>
                       prev.includes(key)
-                        ? prev.length === 1 ? ['dss', 'insp', 'rel'] : prev.filter(k => k !== key)
+                        ? prev.length === 1 ? ['dss', 'insp'] : prev.filter(k => k !== key)
                         : [...prev, key]
                     )
                   }}
@@ -1008,7 +1010,8 @@ export default function DashboardPage() {
 
                 <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('dss')} />
                 <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('insp')} />
-                <Bar dataKey="rel" name="Relatórios" fill="#9c27b0" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('rel')} />
+                {legendaAtiva.includes('dss') && <ReferenceLine y={baseTargetPerTecDss} stroke="#660099" strokeDasharray="3 3" label={{ position: 'top', value: 'Meta DSS', fill: '#660099', fontSize: 11, fontWeight: 'bold' }} />}
+                {legendaAtiva.includes('insp') && <ReferenceLine y={baseTargetPerTecInsp} stroke="#8e44ad" strokeDasharray="3 3" label={{ position: 'top', value: 'Meta Insp.', fill: '#8e44ad', fontSize: 11, fontWeight: 'bold' }} />}
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
