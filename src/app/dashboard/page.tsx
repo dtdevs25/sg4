@@ -18,6 +18,7 @@ import { getAtividadesRelatorio } from '@/app/actions/relatorios'
 import { getDssArkium } from '@/app/actions/dssArkium'
 import { getInspecoesArkium } from '@/app/actions/inspecoesArkium'
 import { getDssAliados } from '@/app/actions/dssAliado'
+import { getNaoConformidades } from '@/app/actions/naoConformidades'
 
 /* ── Constantes Visuais ── */
 const RED   = '#660099'
@@ -361,6 +362,7 @@ export default function DashboardPage() {
   const [relatoriosDb, setRelatoriosDb] = useState<any[]>([])
   const [dssArkiumDb, setDssArkiumDb] = useState<any[]>([])
   const [inspecoesArkiumDb, setInspecoesArkiumDb] = useState<any[]>([])
+  const [ncDb, setNcDb] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   // Fetch real data (once)
@@ -369,14 +371,15 @@ export default function DashboardPage() {
       if (!role) return
       setLoading(true)
       try {
-        const [ativRes, tecRes, kmRes, dssRes, inspRes, relRes, aliadoRes] = await Promise.all([
+        const [ativRes, tecRes, kmRes, dssRes, inspRes, relRes, aliadoRes, ncRes] = await Promise.all([
           getAtividades(),
           getTecnicos(),
           getQuilometragens(),
           getDssArkium(),
           getInspecoesArkium(),
           getAtividadesRelatorio(),
-          getDssAliados()
+          getDssAliados(),
+          getNaoConformidades()
         ])
         if (ativRes.success) setAtividadesDb(ativRes.data || [])
         if (tecRes.success) setTecnicosDb(tecRes.data || [])
@@ -393,6 +396,7 @@ export default function DashboardPage() {
         }
         if (inspRes.success) setInspecoesArkiumDb(inspRes.data || [])
         setRelatoriosDb(Array.isArray(relRes) ? relRes : [])
+        if (ncRes?.success) setNcDb(ncRes.data || [])
       } catch (err) {
         console.error(err)
       } finally {
@@ -463,6 +467,14 @@ export default function DashboardPage() {
     ? relatoriosAno.filter(r => meses.includes(MESES[new Date(r.data).getUTCMonth()]))
     : relatoriosAno
   const totalRelatorios = relatoriosFiltrados.length
+
+  // Dados de Não Conformidades
+  const ncAno = ano ? ncDb.filter(n => new Date(n.dataAbertura || n.createdAt || new Date()).getFullYear().toString() === ano) : ncDb;
+  const ncFiltradas = meses.length > 0
+    ? ncAno.filter(n => meses.includes(MESES[new Date(n.dataAbertura || n.createdAt || new Date()).getUTCMonth()]))
+    : ncAno;
+  const ncFiltradasParaDisplay = isConectadoTst ? ncFiltradas.filter(n => n.tecnicoId === tecnicoConectado?.id) : ncFiltradas;
+  const ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
 
   const tecnicosStats = tecnicosDb.filter(t => t.ativo).map(t => {
     const dss = dssFiltrados.filter(a => matchTecnico(a.nome, t.nome)).length
@@ -868,7 +880,7 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#660099" bgDark="#4a0072" />
         <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#8e44ad" bgDark="#732d91" />
-        <StatCard onClick={() => router.push('/dashboard/relatorios')} icon={FileText} label="Relatórios" value={totalRelatoriosDisplay} subtitle="Atividades Registradas" bg="#9c27b0" bgDark="#7b1fa2" />
+        <StatCard onClick={() => router.push('/dashboard/naoconformidades')} icon={Target} label="Não Conform." value={ncAbertasTotal} subtitle="Em aberto da equipe" bg="#9c27b0" bgDark="#7b1fa2" />
         <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#673ab7" bgDark="#512da8" />
       </div>
 
