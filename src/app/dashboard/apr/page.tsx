@@ -510,6 +510,12 @@ export default function APRPage() {
       const day = jsDate.getUTCDate().toString().padStart(2, '0')
       const month = (jsDate.getUTCMonth() + 1).toString().padStart(2, '0')
       const year = jsDate.getUTCFullYear()
+      const hours = jsDate.getUTCHours()
+      const mins = jsDate.getUTCMinutes()
+      const secs = jsDate.getUTCSeconds()
+      if (hours > 0 || mins > 0 || secs > 0) {
+        return `${day}/${month}/${year} ${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      }
       return `${day}/${month}/${year}`
     }
     const str = String(val).trim()
@@ -1441,18 +1447,6 @@ export default function APRPage() {
                   />
                 </div>
 
-                {/* Status selector */}
-                <select
-                  value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
-                  style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#475569', outline: 'none' }}
-                >
-                  <option value="ALL">Todos os Status</option>
-                  <option value="RESOLVIDO">Resolvidos</option>
-                  <option value="PENDENTE_PROC">Pendente em Processamento</option>
-                  <option value="PENDENTE_NV">Pendente Não Vencidos</option>
-                  <option value="PENDENTE_V">Pendente Vencidos</option>
-                </select>
               </div>
 
             </div>
@@ -1607,21 +1601,16 @@ export default function APRPage() {
                     >
                       Próxima
                     </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal de Visualização Detalhada ── */}
+                    {/* ── Modal de Visualização Detalhada ── */}
       {viewingItem && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.6)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 520, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ShieldCheck color="#660099" size={18} />
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Eye color="#64748b" size={16} />
+                </div>
                 Detalhes da APR #{viewingItem.numero}
               </h3>
               <button onClick={() => setViewingItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
@@ -1629,84 +1618,87 @@ export default function APRPage() {
               </button>
             </div>
             
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
               
-              {/* Technician Profile Card */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(102,0,153,0.1)', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800 }}>
-                  {(viewingItem.tecnico?.nome || viewingItem.nomeAuditor || 'U').split(' ').map((n: string) => n[0]).slice(0,2).join('').toUpperCase()}
-                </div>
+              {/* Header card with main info */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'linear-gradient(145deg, #f8fafc, #f1f5f9)', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                {viewingItem.tecnico?.fotoUrl ? (
+                  <img src={viewingItem.tecnico.fotoUrl} alt={viewingItem.nomeAuditor} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }} />
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#fff', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, border: '2px solid #e2e8f0' }}>
+                    {(viewingItem.tecnico?.nome || viewingItem.nomeAuditor || 'U').split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()}
+                  </div>
+                )}
                 <div style={{ flex: 1 }}>
-                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-                    {viewingItem.tecnico?.nome || viewingItem.nomeAuditor || 'Não Identificado'}
-                  </h4>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>Matrícula: {viewingItem.matriculaAuditor || '-'}</span>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{viewingItem.tecnico?.nome || viewingItem.nomeAuditor || 'Não Identificado'}</h4>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Matrícula: <span style={{ fontWeight: 600, color: '#334155' }}>{viewingItem.matriculaAuditor || '--'}</span></div>
                 </div>
+                
+                {viewingItem.resultado?.toLowerCase().includes('não') || viewingItem.resultado?.toLowerCase().includes('nao') ? (
+                  <span style={{ padding: '4px 10px', background: '#fef2f2', color: '#ef4444', borderRadius: 20, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12}/> NÃO CONFORME</span>
+                ) : (
+                  <span style={{ padding: '4px 10px', background: '#d1fae5', color: '#047857', borderRadius: 20, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={12}/> CONFORME</span>
+                )}
               </div>
 
               {/* Grid data fields */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Questionário</label>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{viewingItem.nomeQuestionario || '-'}</span>
+                <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                  <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Questionário</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', title: viewingItem.nomeQuestionario }}>{viewingItem.nomeQuestionario || '--'}</span>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Status</label>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#660099' }}>{viewingItem.status || '-'}</span>
+                <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                  <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Status</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#660099' }}>{viewingItem.status || '--'}</span>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Data Checklist</label>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{viewingItem.dataChecklist || '-'}</span>
+                <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                  <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Data Checklist</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{viewingItem.dataChecklist || '--'}</span>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Data Abertura</label>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{viewingItem.dataAbertura || '-'}</span>
+                <div style={{ background: '#fef3c7', padding: '8px 12px', borderRadius: 6, border: '1px solid #fde68a' }}>
+                  <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#d97706', textTransform: 'uppercase', marginBottom: 2 }}>Tempo Aberta</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: '#b45309' }}>{calcTempoAberta(viewingItem.dataAbertura, viewingItem.dataFechamento)}</span>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Data Fechamento</label>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{viewingItem.dataFechamento || '-'}</span>
+                <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9', gridColumn: 'span 2' }}>
+                  <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Abertura / Fechamento</span>
+                  <div style={{ display: 'flex', gap: 24, fontSize: 12, fontWeight: 600, color: '#334155' }}>
+                    <span><strong style={{color:'#64748b'}}>Abe:</strong> {viewingItem.dataAbertura || '--'}</span>
+                    <span><strong style={{color:'#64748b'}}>Fec:</strong> {viewingItem.dataFechamento || '--'}</span>
+                  </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', marginBottom: 2 }}>Tempo Aberta</label>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: '#b45309' }}>{calcTempoAberta(viewingItem.dataAbertura, viewingItem.dataFechamento)}</span>
+                <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                  <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Localidade Objeto</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', title: viewingItem.localidadeObjeto }}>{viewingItem.localidadeObjeto || '--'}</span>
                 </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Localidade Objeto</label>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{viewingItem.localidadeObjeto || '-'}</span>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Cliente Objeto</label>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{viewingItem.clienteObjeto || '-'}</span>
+                
+                <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                  <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Cliente Objeto</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', title: viewingItem.clienteObjeto }}>{viewingItem.clienteObjeto || '--'}</span>
                 </div>
 
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Resultado</label>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{viewingItem.resultado || '-'}</span>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Observação</label>
-                <span style={{ fontSize: 12, color: '#475569', display: 'block', background: '#f8fafc', padding: 8, borderRadius: 6, border: '1px solid #f1f5f9', minHeight: 48 }}>
-                  {viewingItem.observacao || 'Nenhuma observação informada.'}
-                </span>
-              </div>
+              {viewingItem.observacao && (
+                <div style={{ background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: 8, padding: 12 }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: 12, fontWeight: 800, color: '#1e293b' }}>Observação</h4>
+                  <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5 }}>
+                    {viewingItem.observacao}
+                  </div>
+                </div>
+              )}
 
             </div>
             
             <div style={{ padding: '12px 20px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', background: '#f8fafc', borderRadius: '0 0 12px 12px' }}>
               <button 
                 onClick={() => setViewingItem(null)} 
-                style={{ padding: '8px 16px', background: '#660099', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer', fontSize: 12 }}
+                style={{ padding: '8px 16px', background: '#fff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: 6, fontWeight: 700, cursor: 'pointer', fontSize: 12 }}
               >
                 Fechar
               </button>
