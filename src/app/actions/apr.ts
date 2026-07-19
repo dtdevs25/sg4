@@ -322,13 +322,14 @@ export async function getAprs(filters?: {
         where,
         _count: { _all: true }
       }),
-      // Sample only 200 rows for average delay (statistically sufficient)
+      // Sample only 500 rows for average delay (statistically sufficient)
       prisma.aprArkium.findMany({
         where: {
           AND: [where, { dataAbertura: { not: null }, dataFechamento: { not: null } }]
         },
         select: { dataAbertura: true, dataFechamento: true },
-        take: 200
+        orderBy: { importadoEm: 'desc' },
+        take: 500
       }),
       prisma.aprArkium.groupBy({
         by: ['nomeAuditor'],
