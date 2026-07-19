@@ -1601,7 +1601,15 @@ export default function APRPage() {
                     >
                       Próxima
                     </button>
-                    {/* ── Modal de Visualização Detalhada ── */}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Visualização Detalhada ── */}
       {viewingItem && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 20 }}>
           <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
