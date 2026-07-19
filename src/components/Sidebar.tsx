@@ -23,11 +23,11 @@ const NAV: NavItemType[] = [
   { href: '/dashboard',             label: 'Dashboard',   icon: LayoutDashboard },
   { href: '/dashboard/inspecoes',   label: 'Inspeções',   icon: ClipboardCheck   },
   { href: '/dashboard/dialogos',    label: 'DSS',         icon: MessageSquare    },
+  { href: '/dashboard/apr',         label: 'APR',         icon: ShieldCheck      },
   { href: '/dashboard/naoconformidades', label: 'Não Conformidades', icon: AlertTriangle },
   { href: '/dashboard/atividades',  label: 'Planejamento',icon: CalendarDays       },
   { href: '/dashboard/reunioes',    label: 'Reuniões',    icon: CalendarCheck    },
   { href: '/dashboard/quilometragem',label: 'Quilometragem',icon: Car              },
-  { href: '/dashboard/apr',         label: 'APR',         icon: ShieldCheck      },
   // { href: '/dashboard/epi',         label: 'EPI',         icon: HardHat          },
   { href: '/dashboard/relatorios',  label: 'Relatórios',  icon: FileText         },
   { 
