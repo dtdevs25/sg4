@@ -364,6 +364,12 @@ export default function DashboardPage() {
   const [inspecoesArkiumDb, setInspecoesArkiumDb] = useState<any[]>([])
   const [ncDb, setNcDb] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [debugMsgs, setDebugMsgs] = useState<string[]>([])
+
+  const addDebug = (msg: string) => {
+    setDebugMsgs(prev => [...prev, msg]);
+    console.error(msg);
+  }
 
   // Fetch real data (once)
   useEffect(() => {
@@ -372,18 +378,25 @@ export default function DashboardPage() {
       setLoading(true)
       try {
         const [ativRes, tecRes, kmRes, dssRes, inspRes, relRes, aliadoRes, ncRes] = await Promise.all([
-          getAtividades(),
-          getTecnicos(),
-          getQuilometragens(),
-          getDssArkium(),
-          getInspecoesArkium(),
-          getAtividadesRelatorio(),
-          getDssAliados(),
-          getNaoConformidades()
+          getAtividades().catch(e => { addDebug('Erro Atividades: ' + String(e)); return { success: false, data: [] }; }),
+          getTecnicos().catch(e => { addDebug('Erro Tecnicos: ' + String(e)); return { success: false, data: [] }; }),
+          getQuilometragens().catch(e => { addDebug('Erro Quilometragens: ' + String(e)); return { success: false, data: [] }; }),
+          getDssArkium().catch(e => { addDebug('Erro DssArkium: ' + String(e)); return { success: false, data: [] }; }),
+          getInspecoesArkium().catch(e => { addDebug('Erro InspecoesArkium: ' + String(e)); return { success: false, data: [] }; }),
+          getAtividadesRelatorio().catch(e => { addDebug('Erro AtividadesRelatorio: ' + String(e)); return []; }),
+          getDssAliados().catch(e => { addDebug('Erro DssAliados: ' + String(e)); return []; }),
+          getNaoConformidades().catch(e => { addDebug('Erro NaoConformidades: ' + String(e)); return { success: false, data: [] }; })
         ])
+        
         if (ativRes.success) setAtividadesDb(ativRes.data || [])
+        else if (ativRes.error) addDebug('API Atividades retornou erro: ' + ativRes.error)
+        
         if (tecRes.success) setTecnicosDb(tecRes.data || [])
+        else if (tecRes.error) addDebug('API Tecnicos retornou erro: ' + tecRes.error)
+        
         if (kmRes.success) setKmDb(kmRes.data || [])
+        else if (kmRes.error) addDebug('API Quilometragens retornou erro: ' + kmRes.error)
+        
         if (dssRes.success) {
           const arkList = dssRes.data || [];
           const aliList = aliadoRes || [];
@@ -393,12 +406,18 @@ export default function DashboardPage() {
             return { id: a.id, nome: a.tecnico?.nome, assinado: 'SIM', dataFechamento: dateStr, matricula: a.tecnico?.matriculaArkium || 'N/A', tecnico: a.tecnico, isAliado: true };
           });
           setDssArkiumDb([...arkList, ...aliMapped]);
-        }
+        } else if (dssRes.error) addDebug('API DssArkium retornou erro: ' + dssRes.error)
+        
         if (inspRes.success) setInspecoesArkiumDb(inspRes.data || [])
+        else if (inspRes.error) addDebug('API InspecoesArkium retornou erro: ' + inspRes.error)
+        
         setRelatoriosDb(Array.isArray(relRes) ? relRes : [])
+        
         if (ncRes?.success) setNcDb(ncRes.data || [])
+        else if (ncRes?.error) addDebug('API NaoConformidades retornou erro: ' + ncRes.error)
+        
       } catch (err) {
-        console.error(err)
+        addDebug('Erro Fatal no Promise.all: ' + String(err))
       } finally {
         setLoading(false)
       }
@@ -476,10 +495,10 @@ export default function DashboardPage() {
         try {
           const d = new Date(n?.dataAbertura || n?.importadoEm || new Date());
           return !isNaN(d.getTime()) && d.getFullYear().toString() === ano;
-        } catch(e) { return false; }
+        } catch(e) { addDebug('Erro filtrando ncAno: ' + String(e)); return false; }
       });
     }
-  } catch(e) { console.error('Erro filtrando ncAno', e); }
+  } catch(e) { addDebug('Erro filtrando ncAno Bloco: ' + String(e)); }
 
   let ncFiltradas = ncAno;
   try {
@@ -488,17 +507,17 @@ export default function DashboardPage() {
         try {
           const d = new Date(n?.dataAbertura || n?.importadoEm || new Date());
           return !isNaN(d.getTime()) && meses.includes(MESES[d.getUTCMonth()]);
-        } catch(e) { return false; }
+        } catch(e) { addDebug('Erro filtrando ncFiltradas: ' + String(e)); return false; }
       });
     }
-  } catch(e) { console.error('Erro filtrando ncFiltradas', e); }
+  } catch(e) { addDebug('Erro filtrando ncFiltradas Bloco: ' + String(e)); }
 
   let ncFiltradasParaDisplay = ncFiltradas;
   let ncAbertasTotal = 0;
   try {
     ncFiltradasParaDisplay = isConectadoTst ? ncFiltradas.filter(n => n?.tecnicoId === tecnicoConectado?.id) : ncFiltradas;
     ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n?.status && n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
-  } catch(e) { console.error('Erro calculando ncAbertasTotal', e); }
+  } catch(e) { addDebug('Erro calculando ncAbertasTotal: ' + String(e)); }
 
   const tecnicosStats = (tecnicosDb || []).filter(t => t?.ativo).map(t => {
     let dss = 0, insp = 0, rel = 0, nomeAbrev = t?.nome || '';
@@ -512,7 +531,7 @@ export default function DashboardPage() {
       const safeNome = t?.nome || '';
       const parts = safeNome.trim().split(' ').filter(Boolean)
       nomeAbrev = parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : (parts[0] || '')
-    } catch (e) { console.error('Erro map tecnico', e); }
+    } catch (e) { addDebug('Erro map tecnico: ' + String(e)); }
 
     return {
       nome: t?.nome || '',
@@ -653,6 +672,12 @@ export default function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+      {debugMsgs.length > 0 && (
+        <div style={{ padding: 10, margin: 20, backgroundColor: 'red', color: 'white', borderRadius: 8, whiteSpace: 'pre-wrap', zIndex: 9999 }}>
+          <strong>Erros Detectados (Debug):</strong><br/>
+          {debugMsgs.map((m, i) => <div key={i}>{m}</div>)}
+        </div>
+      )}
 
       {/* ── Modal de Detalhes ── */}
       {modalData && (
