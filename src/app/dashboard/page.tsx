@@ -425,6 +425,7 @@ export default function DashboardPage() {
     loadData()
   }, [role])
 
+  const isConectadoTst = isTst;
   const tecnicoConectado = isTst && userTecnicoId ? tecnicosDb.find(t => t.id === userTecnicoId) : null
 
   const anosSet = new Set<string>()
@@ -544,7 +545,7 @@ export default function DashboardPage() {
   })
 
   // Lógica de Metas
-  const isConectadoTst = isTst;
+
   const tstStat = isConectadoTst && tecnicoConectado ? tecnicosStats.find(t => t.nome === tecnicoConectado.nome) : null;
 
   function getActiveMonthsForMetaDashboard(t: any, selMesesObj: string[], selYear: string): number {
