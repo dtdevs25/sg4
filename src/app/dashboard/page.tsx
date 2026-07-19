@@ -1017,8 +1017,8 @@ export default function DashboardPage() {
 
                 <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('dss')} />
                 <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('insp')} />
-                {legendaAtiva.includes('dss') && <ReferenceLine y={baseTargetPerTecDss} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'top', value: `Meta DSS: ${baseTargetPerTecDss}`, fill: '#ef4444', fontSize: 11, fontWeight: 'bold' }} />}
-                {legendaAtiva.includes('insp') && <ReferenceLine y={baseTargetPerTecInsp} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'top', value: `Meta Insp.: ${baseTargetPerTecInsp}`, fill: '#ef4444', fontSize: 11, fontWeight: 'bold' }} />}
+                {legendaAtiva.includes('dss') && <ReferenceLine y={baseTargetPerTecDss} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: `Meta DSS: ${baseTargetPerTecDss}`, fill: '#ef4444', fontSize: 11, fontWeight: 'bold', stroke: '#fff', strokeWidth: 3, paintOrder: 'stroke' }} />}
+                {legendaAtiva.includes('insp') && <ReferenceLine y={baseTargetPerTecInsp} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: `Meta Insp.: ${baseTargetPerTecInsp}`, fill: '#ef4444', fontSize: 11, fontWeight: 'bold', stroke: '#fff', strokeWidth: 3, paintOrder: 'stroke' }} />}
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
