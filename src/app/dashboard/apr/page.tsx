@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useTransition, useMemo, useCallback } from 'react'
 import {
-  Search, UploadCloud, Loader2, X, PlayCircle, ShieldCheck, Filter,
+  Search, UploadCloud, Loader2, X, PlayCircle, ShieldCheck, Filter, FilterX,
   FileSpreadsheet, ListTodo, MapPin, BarChart3, Users, Clock, AlertCircle,
   CheckCircle2, ChevronRight, RefreshCw, Trash2, Eye, Award
 } from 'lucide-react'
@@ -907,21 +907,23 @@ export default function APRPage() {
                   />
                   <button 
                     onClick={handleResetFilters}
-                    style={{ padding: '6px 12px', background: '#f1f5f9', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, color: '#64748b', cursor: 'pointer' }}
+                    title="Limpar Filtros"
+                    style={{ padding: '6px 12px', background: '#f1f5f9', border: 'none', borderRadius: 8, color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    Limpar Filtros
+                    <FilterX size={16} />
                   </button>
                   <button
                     onClick={handleExportExcel}
                     disabled={totalCount === 0}
+                    title="Exportar para Excel"
                     style={{
-                      padding: '6px 16px', background: '#fff', color: '#10b981',
+                      padding: '6px 12px', background: '#fff', color: '#10b981',
                       border: '1px solid #10b981', borderRadius: 8, fontSize: 13, fontWeight: 700,
                       cursor: totalCount === 0 ? 'not-allowed' : 'pointer',
                       display: 'flex', alignItems: 'center', gap: 6, opacity: totalCount === 0 ? 0.6 : 1
                     }}
                   >
-                    <FileSpreadsheet size={14} /> Exportar ({totalCount})
+                    <FileSpreadsheet size={16} /> {totalCount}
                   </button>
                 </div>
               </div>
