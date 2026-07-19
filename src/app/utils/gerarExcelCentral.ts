@@ -36,8 +36,7 @@ export async function gerarExcelCentral(opts: {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Detalhado')
 
-  const sg4B64 = await loadLogoBase64('/logo.png', true)
-  const vivoB64 = await loadLogoBase64('/logovivo.png', true)
+
 
   const totalCols = Math.max(8, opts.headers.length)
 
@@ -53,41 +52,18 @@ export async function gerarExcelCentral(opts: {
 
   // Fundo totalmente roxo já aplicado (não precisamos do bloco branco)
   
-  // Adiciona a linha branca separadora no canto direito da coluna A
-  ws.mergeCells(1, 1, 4, 1) // A
-  ws.mergeCells(1, 2, 4, 2) // B
-  
-  const borderCell = ws.getCell(1, 1)
-  borderCell.border = { right: { style: 'medium', color: { argb: 'FFFFFFFF' } } }
-
-  // Textos do Cabeçalho (a partir da coluna C)
-  ws.mergeCells(1, 3, 2, totalCols)
-  const titleCell = ws.getCell(1, 3)
+  // Textos do Cabeçalho (a partir da coluna A)
+  ws.mergeCells(1, 1, 2, totalCols)
+  const titleCell = ws.getCell(1, 1)
   titleCell.value = '   ' + opts.titulo.toUpperCase()
   titleCell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 14, name: 'Arial' }
   titleCell.alignment = { vertical: 'middle', horizontal: 'left' }
 
-  ws.mergeCells(3, 3, 4, totalCols)
-  const subCell = ws.getCell(3, 3)
+  ws.mergeCells(3, 1, 4, totalCols)
+  const subCell = ws.getCell(3, 1)
   subCell.value = '   ' + opts.subtitulo
   subCell.font = { color: { argb: 'FFFFFFFF' }, size: 10, name: 'Arial' }
   subCell.alignment = { vertical: 'middle', horizontal: 'left' }
-
-  // Imagens (Centralizadas nas colunas A e B que terão largura min de 18)
-  if (sg4B64) {
-    const imgId1 = wb.addImage({ base64: sg4B64, extension: 'png' })
-    ws.addImage(imgId1, {
-      tl: { col: 0.25, row: 0.5 },
-      ext: { width: 55, height: 55 }
-    })
-  }
-  if (vivoB64) {
-    const imgId2 = wb.addImage({ base64: vivoB64, extension: 'png' })
-    ws.addImage(imgId2, {
-      tl: { col: 1.25, row: 1.0 },
-      ext: { width: 55, height: 28 }
-    })
-  }
 
   // Tabela de Dados
   const startRow = 6
