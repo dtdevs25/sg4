@@ -1265,7 +1265,7 @@ export default function PlanejamentoPage() {
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
                 <button type="button" onClick={() => setShowAddModal(false)} style={{ padding: '10px 20px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
-                <button type="submit" disabled={pending} style={{ padding: '10px 20px', borderRadius: 8, background: '#660099', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>Salvar Planejamento</button>
+                <button type="submit" disabled={pending || !form.checklist || form.checklist.length === 0} style={{ padding: '10px 20px', borderRadius: 8, background: '#660099', color: '#fff', border: 'none', fontWeight: 700, cursor: (pending || !form.checklist || form.checklist.length === 0) ? 'not-allowed' : 'pointer', opacity: (pending || !form.checklist || form.checklist.length === 0) ? 0.5 : 1 }}>Salvar Planejamento</button>
               </div>
             </form>
             </div>
