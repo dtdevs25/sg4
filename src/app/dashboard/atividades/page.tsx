@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import {
   CalendarDays, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
   Plus, Edit2, CheckCircle2, AlertTriangle, User, MapPin, Search, FileText, 
-  X, Check, AlertCircle, Trash2, RotateCcw, Camera, UploadCloud, Loader2, Circle, Clock
+  X, Check, AlertCircle, Trash2, RotateCcw, Camera, UploadCloud, Loader2, Circle, Clock, Copy
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getTecnicos } from '@/app/actions/tecnicos'
