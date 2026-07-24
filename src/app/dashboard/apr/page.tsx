@@ -1246,7 +1246,7 @@ export default function APRPage() {
                     {rankingAtividades.map((item, idx) => {
                       const pct = Math.round((item.count / maxAtividadeCount) * 100)
                       return (
-                        <div key={item.nome} onClick={() => setSelectedAtividade(item.nome)} style={{ display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer' }}>
+                        <div key={item.nome} onClick={() => setSelectedAtividade(item.originalNome || item.nome)} style={{ display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                             <span style={{ fontWeight: 700, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%' }}>
                               {idx + 1}. {item.nome}
