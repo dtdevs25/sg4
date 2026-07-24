@@ -126,7 +126,10 @@ export async function gerarExcelCentral(opts: {
     const col = ws.getColumn(i + 1)
     let maxLen = h.length
     if (opts.rows.length > 0) {
-      maxLen = Math.max(h.length, ...opts.rows.map(r => String(r[i] ?? '').length))
+      maxLen = Math.max(h.length, ...opts.rows.map(r => {
+        if (r[i] instanceof Date) return 10;
+        return String(r[i] ?? '').length;
+      }))
     }
     const minW = (i === 0 || i === 1) ? 18 : 12
     col.width = Math.min(Math.max(maxLen + 2, minW), 60)
