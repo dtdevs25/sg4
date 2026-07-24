@@ -425,8 +425,11 @@ export default function APRPage() {
       const headers = [
         'Número',
         'Data Checklist',
-        'Data Abertura',
-        'Data Fechamento',
+        'Data Início',
+        'Hora Início',
+        'Data Fim',
+        'Hora Fim',
+        'Tempo Total (Horas)',
         'Situação',
         'Matrícula Auditor',
         'Nome Auditor',
@@ -439,22 +442,68 @@ export default function APRPage() {
         'Observação'
       ]
 
-      const rows = allFiltered.map(apr => [
-        apr.numero,
-        apr.dataChecklist || '',
-        apr.dataAbertura || '',
-        apr.dataFechamento || '',
-        apr.status || '',
-        apr.matriculaAuditor || '',
-        apr.nomeAuditor || '',
-        apr.tecnico?.nome || 'Não Vinculado',
-        apr.localidadeObjeto || '',
-        apr.clienteObjeto || '',
-        apr.identificadorObjeto || '',
-        apr.nomeQuestionario || '',
-        apr.autocheck || '',
-        apr.observacao || ''
-      ])
+      const formatDateTime = (val: any) => {
+        if (!val) return { date: '', time: '', dObj: null }
+        try {
+          let d: Date;
+          if (typeof val === 'string') {
+            if (val.includes('/')) {
+              const [datePart, timePart] = val.split(' ')
+              const [day, month, year] = datePart.split('/')
+              if (timePart) {
+                 d = new Date(`${year}-${month}-${day}T${timePart}Z`)
+              } else {
+                 d = new Date(`${year}-${month}-${day}T00:00:00Z`)
+              }
+            } else {
+              d = new Date(val)
+            }
+          } else {
+            d = new Date(val)
+          }
+
+          if (isNaN(d.getTime())) return { date: typeof val === 'string' ? val : '', time: '', dObj: null }
+          
+          const dateStr = d.toLocaleDateString('pt-BR', { timeZone: 'UTC' }) 
+          const timeStr = d.toLocaleTimeString('pt-BR', { timeZone: 'UTC' })
+          
+          return { date: dateStr, time: timeStr, dObj: d }
+        } catch {
+          return { date: typeof val === 'string' ? val : '', time: '', dObj: null }
+        }
+      }
+
+      const rows = allFiltered.map(apr => {
+        const inicio = formatDateTime(apr.dataAbertura)
+        const fim = formatDateTime(apr.dataFechamento)
+        
+        let tempoTotal = ''
+        if (inicio.dObj && fim.dObj && fim.dObj >= inicio.dObj) {
+          const diffMs = fim.dObj.getTime() - inicio.dObj.getTime()
+          const hours = (diffMs / (1000 * 60 * 60)).toFixed(2)
+          tempoTotal = hours.replace('.', ',')
+        }
+
+        return [
+          apr.numero,
+          formatDateTime(apr.dataChecklist).date || apr.dataChecklist || '',
+          inicio.date,
+          inicio.time,
+          fim.date,
+          fim.time,
+          tempoTotal,
+          apr.status || '',
+          apr.matriculaAuditor || '',
+          apr.nomeAuditor || '',
+          apr.tecnico?.nome || 'Não Vinculado',
+          apr.localidadeObjeto || '',
+          apr.clienteObjeto || '',
+          apr.identificadorObjeto || '',
+          apr.nomeQuestionario || '',
+          apr.autocheck || '',
+          apr.observacao || ''
+        ]
+      })
 
       const resumo = [
         { label: 'Total Geral', valor: exportStats.total },

@@ -83,6 +83,12 @@ export async function gerarExcelCentral(opts: {
     }
   })
 
+  // Adicionar auto-filtro na linha de cabeçalho
+  ws.autoFilter = {
+    from: { row: startRow, column: 1 },
+    to: { row: startRow + Math.max(1, opts.rows.length), column: opts.headers.length }
+  }
+
   if (opts.rows.length === 0) {
     const emptyRow = ws.getRow(startRow + 1)
     ws.mergeCells(startRow + 1, 1, startRow + 1, opts.headers.length)
