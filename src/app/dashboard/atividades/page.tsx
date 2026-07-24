@@ -97,7 +97,7 @@ export default function PlanejamentoPage() {
   const [form, setForm] = useState({
     id: '', tecnicoId: '', tecnicoIds: [] as string[], dataAtividade: '', categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
     descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
-    prioridade: 'MEDIA', checklist: [] as any[]
+    prioridade: 'MEDIA', checklist: [] as any[], frequencia: 'UNICA', dataFim: ''
   })
   const [newItemHora, setNewItemHora] = useState('08:00')
   const [showAddItemModal, setShowAddItemModal] = useState(false)
@@ -333,10 +333,31 @@ export default function PlanejamentoPage() {
       }
       if (!form.dataAtividade) { alert('Selecione uma data.'); return; }
 
+      const dataInicial = new Date(`${form.dataAtividade}T12:00:00Z`);
+      let datasAtividade: Date[] = [dataInicial];
+      
+      if (form.frequencia !== 'UNICA' && form.dataFim) {
+        const dataFim = new Date(`${form.dataFim}T12:00:00Z`);
+        let curr = new Date(dataInicial);
+        datasAtividade = [];
+        
+        while (curr <= dataFim) {
+          datasAtividade.push(new Date(curr));
+          if (form.frequencia === 'DIARIA') curr.setDate(curr.getDate() + 1);
+          else if (form.frequencia === 'SEMANAL') curr.setDate(curr.getDate() + 7);
+          else if (form.frequencia === 'QUINZENAL') curr.setDate(curr.getDate() + 15);
+          else if (form.frequencia === 'MENSAL') curr.setMonth(curr.getMonth() + 1);
+          else if (form.frequencia === 'BIMESTRAL') curr.setMonth(curr.getMonth() + 2);
+          else if (form.frequencia === 'TRIMESTRAL') curr.setMonth(curr.getMonth() + 3);
+          else break;
+        }
+      }
+
       const base = {
         tecnicoId: targetIds[0],
         tecnicoIds: targetIds,
-        dataAtividade: new Date(`${form.dataAtividade}T12:00:00Z`),
+        dataAtividade: dataInicial,
+        datasAtividade: datasAtividade,
         equipe: form.equipe,
         local: form.local === 'OUTROS' && form.outroLocal ? form.outroLocal : form.local,
         cidade: form.cidade,
@@ -416,6 +437,35 @@ export default function PlanejamentoPage() {
       setShowExecModal(null)
       load()
     })
+  }
+
+  function handleDuplicatePlan(plan: any) {
+    const catBase = CATEGORIES.includes(plan.categoria)
+    const locBase = unidades.find(u => u.nome === plan.local)
+    setForm({
+      id: '',
+      tecnicoId: plan.tecnicoId,
+      tecnicoIds: [plan.tecnicoId],
+      dataAtividade: '', 
+      categoria: catBase ? plan.categoria : 'OUTROS',
+      outraCategoria: catBase ? '' : plan.categoria,
+      descricaoOriginal: plan.descricaoOriginal,
+      equipe: plan.equipe || 'Não se aplica',
+      local: locBase ? plan.local : 'OUTROS',
+      outroLocal: locBase ? '' : plan.local,
+      cidade: plan.cidade || '',
+      estado: plan.estado || 'SP',
+      prioridade: plan.prioridade || 'MEDIA',
+      checklist: (plan.checklist || []).map((c: any) => ({
+        ...c,
+        id: Math.random().toString(36).substr(2, 9),
+        concluido: false
+      })),
+      frequencia: 'UNICA',
+      dataFim: ''
+    })
+    setShowExecModal(null)
+    setShowAddModal(true)
   }
 
   function handleEditRootPlan(plan: any) {
@@ -1097,7 +1147,28 @@ export default function PlanejamentoPage() {
                   <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>DATA</label>
                   <input type="date" required value={form.dataAtividade} onChange={e => setForm({...form, dataAtividade: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
                 </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><CalendarIcon size={12}/> FREQUÊNCIA</label>
+                  <select value={form.frequencia} onChange={e => setForm({...form, frequencia: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
+                    <option value="UNICA">Única (Sem repetição)</option>
+                    <option value="DIARIA">Diária</option>
+                    <option value="SEMANAL">Semanal</option>
+                    <option value="QUINZENAL">Quinzenal</option>
+                    <option value="MENSAL">Mensal</option>
+                    <option value="BIMESTRAL">Bimestral (a cada 2 meses)</option>
+                    <option value="TRIMESTRAL">Trimestral (a cada 3 meses)</option>
+                  </select>
+                </div>
               </div>
+              {form.frequencia !== 'UNICA' && (
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }} />
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>DATA FIM (Até quando?)</label>
+                    <input type="date" required={form.frequencia !== 'UNICA'} min={form.dataAtividade} value={form.dataFim} onChange={e => setForm({...form, dataFim: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+              )}
 
 
 
@@ -1855,19 +1926,31 @@ export default function PlanejamentoPage() {
                     )}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  title="Adicionar ao Google Calendar"
-                  onClick={() => {
-                    const url = getGoogleCalendarUrl(showExecModal)
-                    window.open(url, '_blank')
-                  }}
-                  style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: '#334155', fontWeight: 700, fontSize: 12, flexShrink: 0, transition: 'all 0.2s' }}
-                  onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
-                  onMouseOut={e => e.currentTarget.style.background = '#f8fafc'}
-                >
-                  <CalendarIcon size={16} color="#2563eb" /> Agenda
-                </button>
+                <div style={{ display: 'flex', gap: 8, flexDirection: 'column', alignItems: 'flex-end', minWidth: 120 }}>
+                  <button
+                    type="button"
+                    title="Adicionar ao Google Calendar"
+                    onClick={() => {
+                      const url = getGoogleCalendarUrl(showExecModal)
+                      window.open(url, '_blank')
+                    }}
+                    style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: '#334155', fontWeight: 700, fontSize: 12, flexShrink: 0, transition: 'all 0.2s', width: '100%', justifyContent: 'center' }}
+                    onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
+                    onMouseOut={e => e.currentTarget.style.background = '#f8fafc'}
+                  >
+                    <CalendarIcon size={16} color="#2563eb" /> Agenda
+                  </button>
+                  <button
+                    type="button"
+                    title="Copiar / Duplicar Atividade"
+                    onClick={() => handleDuplicatePlan(showExecModal)}
+                    style={{ background: '#e0e7ff', border: '1px solid #c7d2fe', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: '#4338ca', fontWeight: 700, fontSize: 12, flexShrink: 0, transition: 'all 0.2s', width: '100%', justifyContent: 'center' }}
+                    onMouseOver={e => e.currentTarget.style.background = '#c7d2fe'}
+                    onMouseOut={e => e.currentTarget.style.background = '#e0e7ff'}
+                  >
+                    <Copy size={16} /> Copiar
+                  </button>
+                </div>
               </div>
 
               <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 20 }}>
