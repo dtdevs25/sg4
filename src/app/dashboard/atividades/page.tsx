@@ -102,6 +102,8 @@ export default function PlanejamentoPage() {
   const [newItemHora, setNewItemHora] = useState('08:00')
   const [showAddItemModal, setShowAddItemModal] = useState(false)
   const [newItemData, setNewItemData] = useState('')
+  const [newItemFrequencia, setNewItemFrequencia] = useState('UNICA')
+  const [newItemDataFim, setNewItemDataFim] = useState('')
   const [newItemTitulo, setNewItemTitulo] = useState('')
   const [newItemText, setNewItemText] = useState('')
   const [newItemCategoria, setNewItemCategoria] = useState(CATEGORIES[0])
@@ -331,50 +333,58 @@ export default function PlanejamentoPage() {
         alert('Selecione pelo menos um técnico.');
         return;
       }
-      if (!form.dataAtividade) { alert('Selecione uma data.'); return; }
 
-      const dataInicial = new Date(`${form.dataAtividade}T12:00:00Z`);
-      let datasAtividade: Date[] = [dataInicial];
-      
-      if (form.frequencia !== 'UNICA' && form.dataFim) {
-        const dataFim = new Date(`${form.dataFim}T12:00:00Z`);
-        let curr = new Date(dataInicial);
-        datasAtividade = [];
+      const items: any[] = [];
+      for (const c of form.checklist) {
+        if (!c.dataAtividade) continue;
+        const dataInicial = new Date(c.dataAtividade);
+        let datasAtividade: Date[] = [dataInicial];
         
-        while (curr <= dataFim) {
-          datasAtividade.push(new Date(curr));
-          if (form.frequencia === 'DIARIA') curr.setDate(curr.getDate() + 1);
-          else if (form.frequencia === 'SEMANAL') curr.setDate(curr.getDate() + 7);
-          else if (form.frequencia === 'QUINZENAL') curr.setDate(curr.getDate() + 15);
-          else if (form.frequencia === 'MENSAL') curr.setMonth(curr.getMonth() + 1);
-          else if (form.frequencia === 'BIMESTRAL') curr.setMonth(curr.getMonth() + 2);
-          else if (form.frequencia === 'TRIMESTRAL') curr.setMonth(curr.getMonth() + 3);
-          else break;
+        if (c.frequencia && c.frequencia !== 'UNICA' && c.dataFim) {
+          const dataFim = new Date(`${c.dataFim}T12:00:00Z`);
+          let curr = new Date(dataInicial);
+          datasAtividade = [];
+          
+          while (curr <= dataFim) {
+            datasAtividade.push(new Date(curr));
+            if (c.frequencia === 'DIARIA') curr.setDate(curr.getDate() + 1);
+            else if (c.frequencia === 'SEMANAL') curr.setDate(curr.getDate() + 7);
+            else if (c.frequencia === 'QUINZENAL') curr.setDate(curr.getDate() + 15);
+            else if (c.frequencia === 'MENSAL') curr.setMonth(curr.getMonth() + 1);
+            else if (c.frequencia === 'BIMESTRAL') curr.setMonth(curr.getMonth() + 2);
+            else if (c.frequencia === 'TRIMESTRAL') curr.setMonth(curr.getMonth() + 3);
+            else break;
+          }
         }
+        
+        for (const d of datasAtividade) {
+          items.push({
+            dataAtividade: d,
+            hora: c.hora || '12:00',
+            titulo: c.titulo || 'Atividade Planejada',
+            categoria: c.categoria || 'OUTROS',
+            descricaoOriginal: c.texto || '',
+            prioridade: (c.prioridade || 'MEDIA') as any,
+            local: c.local,
+            cidade: c.cidade,
+            estado: c.estado
+          })
+        }
+      }
+
+      if (items.length === 0) {
+        alert('Nenhuma atividade válida com data foi encontrada. Verifique as datas preenchidas.');
+        return;
       }
 
       const base = {
         tecnicoId: targetIds[0],
         tecnicoIds: targetIds,
-        dataAtividade: dataInicial,
-        datasAtividade: datasAtividade,
         equipe: form.equipe,
         local: form.local === 'OUTROS' && form.outroLocal ? form.outroLocal : form.local,
         cidade: form.cidade,
         estado: form.estado,
       }
-
-      const items = form.checklist.map((c: any) => ({
-        dataAtividade: c.dataAtividade ? new Date(c.dataAtividade) : undefined,
-        hora: c.hora || '12:00',
-        titulo: c.titulo || 'Atividade Planejada',
-        categoria: c.categoria || 'OUTROS',
-        descricaoOriginal: c.texto || '',
-        prioridade: (c.prioridade || 'MEDIA') as any,
-        local: c.local,
-        cidade: c.cidade,
-        estado: c.estado
-      }))
       
       const res = await savePlanejamentoBatch(base, items)
       if (res.success) {
@@ -1142,35 +1152,6 @@ export default function PlanejamentoPage() {
 
             <div style={{ padding: 24, overflowY: 'auto' }}>
             <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>DATA</label>
-                  <input type="date" required value={form.dataAtividade} onChange={e => setForm({...form, dataAtividade: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><CalendarIcon size={12}/> FREQUÊNCIA</label>
-                  <select value={form.frequencia} onChange={e => setForm({...form, frequencia: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }}>
-                    <option value="UNICA">Única (Sem repetição)</option>
-                    <option value="DIARIA">Diária</option>
-                    <option value="SEMANAL">Semanal</option>
-                    <option value="QUINZENAL">Quinzenal</option>
-                    <option value="MENSAL">Mensal</option>
-                    <option value="BIMESTRAL">Bimestral (a cada 2 meses)</option>
-                    <option value="TRIMESTRAL">Trimestral (a cada 3 meses)</option>
-                  </select>
-                </div>
-              </div>
-              {form.frequencia !== 'UNICA' && (
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <div style={{ flex: 1 }} />
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>DATA FIM (Até quando?)</label>
-                    <input type="date" required={form.frequencia !== 'UNICA'} min={form.dataAtividade} value={form.dataFim} onChange={e => setForm({...form, dataFim: e.target.value})} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }} />
-                  </div>
-                </div>
-              )}
-
-
 
               {!isTst ? (
                 <div style={{ position: 'relative' }}>
@@ -1473,6 +1454,27 @@ export default function PlanejamentoPage() {
                 </div>
               </div>
 
+              <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+                <div style={{ flex: newItemFrequencia === 'UNICA' ? 1 : 0.5 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>FREQUÊNCIA</label>
+                  <select value={newItemFrequencia} onChange={e => setNewItemFrequencia(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}>
+                    <option value="UNICA">Única (Sem repetição)</option>
+                    <option value="DIARIA">Diária</option>
+                    <option value="SEMANAL">Semanal</option>
+                    <option value="QUINZENAL">Quinzenal</option>
+                    <option value="MENSAL">Mensal</option>
+                    <option value="BIMESTRAL">Bimestral (a cada 2 meses)</option>
+                    <option value="TRIMESTRAL">Trimestral (a cada 3 meses)</option>
+                  </select>
+                </div>
+                {newItemFrequencia !== 'UNICA' && (
+                  <div style={{ flex: 0.5 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>DATA FIM (Até quando?)</label>
+                    <input type="date" min={newItemData} value={newItemDataFim} onChange={e => setNewItemDataFim(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                )}
+              </div>
+
               <div style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', display: 'block' }}>TÍTULO DA ATIVIDADE</label>
@@ -1560,6 +1562,8 @@ export default function PlanejamentoPage() {
                           ...c,
                           dataAtividade: parsedDate, 
                           hora: newItemHora, 
+                          frequencia: newItemFrequencia,
+                          dataFim: newItemDataFim,
                           titulo: newItemTitulo.trim(), 
                           texto: newItemText.trim(), 
                           categoria: finalCat, 
@@ -1575,6 +1579,8 @@ export default function PlanejamentoPage() {
                         id: Math.random().toString(36).substr(2, 9), 
                         dataAtividade: parsedDate, 
                         hora: newItemHora, 
+                        frequencia: newItemFrequencia,
+                        dataFim: newItemDataFim,
                         titulo: newItemTitulo.trim(), 
                         texto: newItemText.trim(), 
                         categoria: finalCat, 

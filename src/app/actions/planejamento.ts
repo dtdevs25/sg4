@@ -122,14 +122,12 @@ async function notifyTecnicoPlan(
 export async function savePlanejamentoBatch(base: {
   tecnicoId: string;
   tecnicoIds?: string[];
-  dataAtividade: Date;
-  datasAtividade?: Date[];
   equipe?: string;
   local?: string;
   cidade?: string;
   estado?: string;
 }, items: Array<{
-  dataAtividade?: Date;
+  dataAtividade: Date;
   hora: string;
   titulo: string;
   categoria: string;
@@ -146,35 +144,32 @@ export async function savePlanejamentoBatch(base: {
     const creatorTecnicoId = (session.user as any).tecnicoId
 
     const targetTecnicoIds = base.tecnicoIds && base.tecnicoIds.length > 0 ? base.tecnicoIds : [base.tecnicoId]
-    const datas = base.datasAtividade && base.datasAtividade.length > 0 ? base.datasAtividade : [base.dataAtividade]
 
     for (const tId of targetTecnicoIds) {
-      for (const d of datas) {
-        for (const item of items) {
-          const newPlan = await prisma.planejamento.create({
-            data: {
-              tecnicoId: tId,
-              dataAtividade: item.dataAtividade || d,
-              equipe: base.equipe,
-              local: item.local || base.local,
-              cidade: item.cidade || base.cidade,
-              estado: item.estado || base.estado,
-              hora: item.hora,
-              titulo: item.titulo,
-              categoria: item.categoria,
-              descricaoOriginal: item.descricaoOriginal,
-              prioridade: item.prioridade,
-              status: 'PENDENTE',
-              alteradaOriginal: false,
-              checklist: []
-            },
-            include: { tecnico: true }
-          })
+      for (const item of items) {
+        const newPlan = await prisma.planejamento.create({
+          data: {
+            tecnicoId: tId,
+            dataAtividade: item.dataAtividade,
+            equipe: base.equipe,
+            local: item.local || base.local,
+            cidade: item.cidade || base.cidade,
+            estado: item.estado || base.estado,
+            hora: item.hora,
+            titulo: item.titulo,
+            categoria: item.categoria,
+            descricaoOriginal: item.descricaoOriginal,
+            prioridade: item.prioridade,
+            status: 'PENDENTE',
+            alteradaOriginal: false,
+            checklist: []
+          },
+          include: { tecnico: true }
+        })
 
-          await audit({ userId, action: 'CRIAR_PLANEJAMENTO', entity: 'Planejamento', entityId: newPlan.id, details: { categoria: item.categoria, tecnicoId: tId } })
+        await audit({ userId, action: 'CRIAR_PLANEJAMENTO', entity: 'Planejamento', entityId: newPlan.id, details: { categoria: item.categoria, tecnicoId: tId } })
 
-          await notifyTecnicoPlan(newPlan, creatorTecnicoId, session.user.email || undefined)
-        }
+        await notifyTecnicoPlan(newPlan, creatorTecnicoId, session.user.email || undefined)
       }
     }
 
