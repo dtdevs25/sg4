@@ -40,6 +40,32 @@ const CATEGORIES = [
   'TREINAMENTO',
   'OUTROS'
 ]
+function getGoogleCalendarUrl(plan: any) {
+  if (!plan.dataAtividade) return '#'
+  const d = typeof plan.dataAtividade === 'string' ? new Date(plan.dataAtividade) : plan.dataAtividade
+  const dateStr = d.toISOString().split('T')[0].replace(/-/g, '') // YYYYMMDD
+  let startHour = plan.hora || '08:00'
+  if (startHour.length === 5) {
+    startHour = startHour.replace(':', '') + '00' // HHMMSS
+  } else if (startHour.length === 8) {
+    startHour = startHour.replace(/:/g, '') // HHMMSS
+  } else {
+    startHour = '080000'
+  }
+  
+  let endHour = String(parseInt(startHour.substring(0, 2)) + 1).padStart(2, '0') + startHour.substring(2)
+  if (parseInt(endHour.substring(0, 2)) >= 24) {
+    endHour = '235900'
+  }
+
+  const dateParam = `${dateStr}T${startHour}/${dateStr}T${endHour}`
+  
+  const text = plan.titulo || plan.categoria
+  const details = `${plan.categoria} - ${plan.descricaoOriginal}\n\nGerado automaticamente via SG4.`
+  const location = `${plan.local || ''} ${plan.cidade ? '(' + plan.cidade + '-' + plan.estado + ')' : ''}`.trim()
+  
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(text)}&dates=${dateParam}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}`
+}
 
 export default function PlanejamentoPage() {
   const { data: session } = useSession()
@@ -1829,6 +1855,19 @@ export default function PlanejamentoPage() {
                     )}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  title="Adicionar ao Google Calendar"
+                  onClick={() => {
+                    const url = getGoogleCalendarUrl(showExecModal)
+                    window.open(url, '_blank')
+                  }}
+                  style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: '#334155', fontWeight: 700, fontSize: 12, flexShrink: 0, transition: 'all 0.2s' }}
+                  onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
+                  onMouseOut={e => e.currentTarget.style.background = '#f8fafc'}
+                >
+                  <CalendarIcon size={16} color="#2563eb" /> Agenda
+                </button>
               </div>
 
               <div style={{ background: '#f8fafc', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 20 }}>
