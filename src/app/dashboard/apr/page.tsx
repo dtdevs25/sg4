@@ -429,7 +429,7 @@ export default function APRPage() {
         'Hora Início',
         'Data Fim',
         'Hora Fim',
-        'Tempo Total (Horas)',
+        'Duração',
         'Situação',
         'Matrícula Auditor',
         'Nome Auditor',
@@ -451,9 +451,9 @@ export default function APRPage() {
               const [datePart, timePart] = val.split(' ')
               const [day, month, year] = datePart.split('/')
               if (timePart) {
-                 d = new Date(`${year}-${month}-${day}T${timePart}Z`)
+                 d = new Date(`${year}-${month}-${day}T${timePart}`)
               } else {
-                 d = new Date(`${year}-${month}-${day}T00:00:00Z`)
+                 d = new Date(Number(year), Number(month) - 1, Number(day))
               }
             } else {
               d = new Date(val)
@@ -464,8 +464,8 @@ export default function APRPage() {
 
           if (isNaN(d.getTime())) return { date: typeof val === 'string' ? val : '', time: '', dObj: null }
           
-          const dateStr = d.toLocaleDateString('pt-BR', { timeZone: 'UTC' }) 
-          const timeStr = d.toLocaleTimeString('pt-BR', { timeZone: 'UTC' })
+          const dateStr = d.toLocaleDateString('pt-BR') 
+          const timeStr = d.toLocaleTimeString('pt-BR')
           
           return { date: dateStr, time: timeStr, dObj: d }
         } catch {
@@ -480,16 +480,19 @@ export default function APRPage() {
         let tempoTotal = ''
         if (inicio.dObj && fim.dObj && fim.dObj >= inicio.dObj) {
           const diffMs = fim.dObj.getTime() - inicio.dObj.getTime()
-          const hours = (diffMs / (1000 * 60 * 60)).toFixed(2)
-          tempoTotal = hours.replace('.', ',')
+          const totalSeconds = Math.floor(diffMs / 1000)
+          const h = Math.floor(totalSeconds / 3600)
+          const m = Math.floor((totalSeconds % 3600) / 60)
+          const s = totalSeconds % 60
+          tempoTotal = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
         }
 
         return [
           apr.numero,
-          formatDateTime(apr.dataChecklist).date || apr.dataChecklist || '',
-          inicio.date,
+          formatDateTime(apr.dataChecklist).dObj || apr.dataChecklist || '',
+          inicio.dObj || inicio.date,
           inicio.time,
-          fim.date,
+          fim.dObj || fim.date,
           fim.time,
           tempoTotal,
           apr.status || '',
@@ -940,20 +943,18 @@ export default function APRPage() {
                     <option value="ALL">Todos os Anos</option>
                     {anosDisponiveis.filter(a => a !== 'ALL').map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
-                  <input 
-                    type="text"
-                    placeholder="Filtrar Técnico..."
-                    value={selectedTecnico} 
-                    onChange={e => setSelectedTecnico(e.target.value)} 
-                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', width: 140 }}
-                  />
-                  <input 
-                    type="text"
-                    placeholder="Filtrar Atividade..."
-                    value={selectedAtividade} 
-                    onChange={e => setSelectedAtividade(e.target.value)} 
-                    style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', width: 140 }}
-                  />
+                  {selectedTecnico && (
+                    <div style={{ padding: '6px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', fontSize: 13, fontWeight: 700, color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      Técnico: {selectedTecnico}
+                      <X size={14} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={() => setSelectedTecnico('')} />
+                    </div>
+                  )}
+                  {selectedAtividade && (
+                    <div style={{ padding: '6px 12px', borderRadius: 8, background: '#fdf4ff', border: '1px solid #f5d0fe', fontSize: 13, fontWeight: 700, color: '#86198f', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      Atividade: {selectedAtividade}
+                      <X size={14} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={() => setSelectedAtividade('')} />
+                    </div>
+                  )}
                   <button 
                     onClick={handleResetFilters}
                     title="Limpar Filtros"

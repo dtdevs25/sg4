@@ -103,6 +103,9 @@ export async function gerarExcelCentral(opts: {
       r.forEach((val, colIdx) => {
         const cell = row.getCell(colIdx + 1)
         cell.value = val
+        if (val instanceof Date) {
+          cell.numFmt = 'dd/mm/yyyy'
+        }
         cell.font = { size: 10, name: 'Arial', color: { argb: 'FF333333' } }
         if (isEven) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }
