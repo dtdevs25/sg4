@@ -452,30 +452,52 @@ export default function PlanejamentoPage() {
   function handleDuplicatePlan(plan: any) {
     const catBase = CATEGORIES.includes(plan.categoria)
     const locBase = unidades.find(u => u.nome === plan.local)
+    const newItemId = Math.random().toString(36).substr(2, 9);
+    
     setForm({
       id: '',
       tecnicoId: plan.tecnicoId,
       tecnicoIds: [plan.tecnicoId],
-      dataAtividade: '', 
-      categoria: catBase ? plan.categoria : 'OUTROS',
-      outraCategoria: catBase ? '' : plan.categoria,
-      descricaoOriginal: plan.descricaoOriginal,
       equipe: plan.equipe || 'Não se aplica',
       local: locBase ? plan.local : 'OUTROS',
       outroLocal: locBase ? '' : plan.local,
       cidade: plan.cidade || '',
       estado: plan.estado || 'SP',
-      prioridade: plan.prioridade || 'MEDIA',
-      checklist: (plan.checklist || []).map((c: any) => ({
-        ...c,
-        id: Math.random().toString(36).substr(2, 9),
+      checklist: [{
+        id: newItemId,
+        dataAtividade: undefined,
+        hora: plan.hora || '08:00',
+        titulo: plan.titulo || '',
+        texto: plan.descricaoOriginal || '',
+        categoria: catBase ? plan.categoria : 'OUTROS',
+        prioridade: plan.prioridade || 'MEDIA',
+        local: locBase ? plan.local : 'OUTROS',
+        cidade: plan.cidade || '',
+        estado: plan.estado || 'SP',
+        frequencia: 'UNICA',
+        dataFim: '',
         concluido: false
-      })),
-      frequencia: 'UNICA',
-      dataFim: ''
+      }]
     })
+
+    setNewItemData('')
+    setNewItemHora(plan.hora || '08:00')
+    setNewItemTitulo(plan.titulo || '')
+    setNewItemText(plan.descricaoOriginal || '')
+    setNewItemCategoria(catBase ? plan.categoria : CATEGORIES[0])
+    setNewItemOutraCategoria(catBase ? '' : plan.categoria)
+    setNewItemPrioridade(plan.prioridade || 'MEDIA')
+    setNewItemLocal(locBase ? plan.local : 'OUTROS')
+    setNewItemOutroLocal(locBase ? '' : plan.local)
+    setNewItemCidade(plan.cidade || '')
+    setNewItemEstado(plan.estado || 'SP')
+    setNewItemFrequencia('UNICA')
+    setNewItemDataFim('')
+
+    setEditingDraftId(newItemId)
     setShowExecModal(null)
     setShowAddModal(true)
+    setShowAddItemModal(true)
   }
 
   function handleEditRootPlan(plan: any) {
