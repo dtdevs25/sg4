@@ -335,6 +335,12 @@ export default function DashboardPage() {
   const userTecnicoId = (session?.user as any)?.tecnicoId
   const isTst = role === 'TST'
 
+  useEffect(() => {
+    if (role === 'CLIENTE_APR') {
+      router.replace('/dashboard/apr')
+    }
+  }, [role, router])
+
   const currentYear = new Date().getFullYear().toString()
   const [ano, setAno] = useState<string>(currentYear)
   const [meses, setMeses] = useState<string[]>(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].slice(0, new Date().getMonth() + 1)) // multi-select de meses

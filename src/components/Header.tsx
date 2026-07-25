@@ -3,7 +3,7 @@
 import { signOut } from 'next-auth/react'
 import { LogOut, Menu } from 'lucide-react'
 
-export function Header() {
+export function Header({ role }: { role?: string }) {
   return (
     <header style={{
       position: 'fixed',
@@ -20,17 +20,19 @@ export function Header() {
     }}>
       {/* Logos */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('toggleSidebar'))}
-          className="mobile-menu-btn"
-          style={{
-            background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: 8, padding: 8, cursor: 'pointer', color: '#fff',
-            marginRight: 8,
-          }}
-        >
-          <Menu size={22} />
-        </button>
+        {role !== 'CLIENTE_APR' && (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('toggleSidebar'))}
+            className="mobile-menu-btn"
+            style={{
+              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 8, padding: 8, cursor: 'pointer', color: '#fff',
+              marginRight: 8,
+            }}
+          >
+            <Menu size={22} />
+          </button>
+        )}
         <style>{`
           .mobile-menu-btn { display: none; }
           .header-vivo-logo { height: 40px; }

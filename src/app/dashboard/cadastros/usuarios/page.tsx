@@ -196,8 +196,8 @@ export default function UsuariosPage() {
                     </div>
                   </td>
                   <td style={{ padding: '14px 20px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, background: u.role === 'MASTER' ? 'rgba(139, 92, 246, 0.1)' : u.role === 'ADMIN' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: u.role === 'MASTER' ? '#8b5cf6' : u.role === 'ADMIN' ? '#3b82f6' : '#f59e0b' }}>
-                      <Shield size={12} /> {u.role}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 4, fontSize: 10, fontWeight: 800, background: u.role === 'MASTER' ? 'rgba(139, 92, 246, 0.1)' : u.role === 'ADMIN' ? 'rgba(59, 130, 246, 0.1)' : u.role === 'CLIENTE_APR' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: u.role === 'MASTER' ? '#8b5cf6' : u.role === 'ADMIN' ? '#3b82f6' : u.role === 'CLIENTE_APR' ? '#10b981' : '#f59e0b' }}>
+                      <Shield size={12} /> {u.role === 'CLIENTE_APR' ? 'CLIENTE APR' : u.role}
                     </span>
                   </td>
                   <td style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#64748b' }}>
@@ -261,6 +261,7 @@ export default function UsuariosPage() {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Perfil</label>
                   <select value={form.role} onChange={(e) => setForm(p => ({ ...p, role: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
                     <option value="TST">TST (Somente Leitura/Criação)</option>
+                    <option value="CLIENTE_APR">CLIENTE APR (Acesso Externo Restrito)</option>
                     <option value="ADMIN">ADMIN (Pode gerenciar menos logs/Master)</option>
                     {role === 'MASTER' && <option value="MASTER">MASTER (Controle Total)</option>}
                   </select>
