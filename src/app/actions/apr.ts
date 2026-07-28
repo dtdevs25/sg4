@@ -207,7 +207,7 @@ export async function getAprs(filters?: {
   region?: string
   state?: string
   city?: string
-  tecnico?: string
+  tecnico?: string[]
   atividade?: string
   search?: string
   page?: number
@@ -223,7 +223,7 @@ export async function getAprs(filters?: {
     const region = filters?.region || ''
     const state = filters?.state || ''
     const city = filters?.city || ''
-    const tecnico = filters?.tecnico || ''
+    const tecnicos = filters?.tecnico || []
     const atividade = filters?.atividade || ''
     const search = filters?.search || ''
     const page = filters?.page ?? 1
@@ -274,8 +274,10 @@ export async function getAprs(filters?: {
       andConditions.push({ OR: monthConditions })
     }
 
-    if (tecnico.trim()) {
-      andConditions.push({ nomeAuditor: { contains: tecnico.trim(), mode: 'insensitive' } })
+    if (tecnicos.length > 0) {
+      andConditions.push({
+        OR: tecnicos.map(t => ({ nomeAuditor: { contains: t.trim(), mode: 'insensitive' } }))
+      })
     }
 
     if (atividade.trim()) {

@@ -199,7 +199,7 @@ export default function APRPage() {
   const [selectedRegion, setSelectedRegion] = useState<string>('')
   const [selectedState, setSelectedState] = useState<string>('')
   const [selectedCity, setSelectedCity] = useState<string>('')
-  const [selectedTecnico, setSelectedTecnico] = useState<string>('')
+  const [selectedTecnico, setSelectedTecnico] = useState<string[]>([])
   const [selectedAtividade, setSelectedAtividade] = useState<string>('')
 
   // Search & Pagination in Data Table tab
@@ -390,7 +390,7 @@ export default function APRPage() {
     setSelectedRegion('')
     setSelectedState('')
     setSelectedCity('')
-    setSelectedTecnico('')
+    setSelectedTecnico([])
     setSelectedAtividade('')
     setSearchText('')
   }
@@ -933,7 +933,14 @@ export default function APRPage() {
             }}>
               {/* First Row: Year & Month Filter */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                  {lastImport && (
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>
+                      Última atualização: {new Date(lastImport.createdAt).toLocaleString('pt-BR')}
+                    </span>
+                  )}
+                </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <select 
                     value={selectedYear} 
@@ -943,12 +950,12 @@ export default function APRPage() {
                     <option value="ALL">Todos os Anos</option>
                     {anosDisponiveis.filter(a => a !== 'ALL').map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
-                  {selectedTecnico && (
-                    <div style={{ padding: '6px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', fontSize: 13, fontWeight: 700, color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      Técnico: {selectedTecnico}
-                      <X size={14} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={() => setSelectedTecnico('')} />
+                  {selectedTecnico.map(tec => (
+                    <div key={tec} style={{ padding: '6px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', fontSize: 13, fontWeight: 700, color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      Técnico: {tec}
+                      <X size={14} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={() => setSelectedTecnico(prev => prev.filter(t => t !== tec))} />
                     </div>
-                  )}
+                  ))}
                   {selectedAtividade && (
                     <div style={{ padding: '6px 12px', borderRadius: 8, background: '#fdf4ff', border: '1px solid #f5d0fe', fontSize: 13, fontWeight: 700, color: '#86198f', display: 'flex', alignItems: 'center', gap: 6 }}>
                       Atividade: {selectedAtividade}
@@ -1325,21 +1332,32 @@ export default function APRPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {rankingTecnicos.map((item, idx) => {
                       const pct = Math.round((item.count / maxTecnicoCount) * 100)
+                      const isSelected = selectedTecnico.includes(item.nome)
                       return (
-                        <div key={item.nome} onClick={() => setSelectedTecnico(item.nome)} style={{ display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer' }}>
+                        <div 
+                          key={item.nome} 
+                          onClick={() => setSelectedTecnico(prev => isSelected ? prev.filter(t => t !== item.nome) : [...prev, item.nome])} 
+                          style={{ 
+                            display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer',
+                            padding: '6px 8px', borderRadius: 8,
+                            background: isSelected ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                            border: isSelected ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid transparent',
+                            transition: 'all 0.2s'
+                          }}
+                        >
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: '80%' }}>
-                              <span style={{ fontWeight: 700, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <span style={{ fontWeight: isSelected ? 800 : 700, color: isSelected ? '#1d4ed8' : '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {idx + 1}. {item.nome}
                               </span>
                               {!item.active && (
                                 <span style={{ padding: '1px 5px', fontSize: 8, background: '#fee2e2', color: '#ef4444', borderRadius: 4, fontWeight: 800 }}>INATIVO</span>
                               )}
                             </div>
-                            <strong style={{ color: '#1e293b' }}>{item.count}</strong>
+                            <strong style={{ color: isSelected ? '#1d4ed8' : '#1e293b' }}>{item.count}</strong>
                           </div>
-                          <div style={{ width: '100%', background: '#f1f5f9', height: 6, borderRadius: 3, overflow: 'hidden' }}>
-                            <div style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #3b82f6, #60a5fa)', height: '100%', borderRadius: 3 }} />
+                          <div style={{ width: '100%', background: isSelected ? 'rgba(59, 130, 246, 0.2)' : '#f1f5f9', height: 6, borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ width: `${pct}%`, background: isSelected ? '#2563eb' : 'linear-gradient(90deg, #3b82f6, #60a5fa)', height: '100%', borderRadius: 3 }} />
                           </div>
                         </div>
                       )
