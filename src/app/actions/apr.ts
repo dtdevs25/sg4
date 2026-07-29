@@ -590,3 +590,34 @@ export async function deleteAprItem(id: string) {
     return { success: false, error: 'Falha ao excluir' }
   }
 }
+
+export async function getAllAprTecnicos() {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const grouped = await prisma.aprArkium.groupBy({
+      by: ['nomeAuditor'],
+      where: { nomeAuditor: { not: null, not: '' } }
+    })
+
+    // Remove duplicates due to whitespace/casing variations
+    const uniqueMap = new Map<string, string>()
+    for (const item of grouped) {
+      if (!item.nomeAuditor) continue
+      const cleaned = item.nomeAuditor.trim().toUpperCase()
+      if (!uniqueMap.has(cleaned)) {
+        uniqueMap.set(cleaned, item.nomeAuditor.trim())
+      }
+    }
+
+    const tecnicos = Array.from(uniqueMap.values())
+      .map(nome => ({ nome, ativo: true }))
+      .sort((a, b) => a.nome.localeCompare(b.nome))
+
+    return { success: true, data: tecnicos }
+  } catch (error) {
+    console.error('Erro ao buscar técnicos da APR:', error)
+    return { success: false, error: 'Falha ao buscar técnicos' }
+  }
+}

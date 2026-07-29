@@ -8,9 +8,8 @@ import {
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useSession } from 'next-auth/react'
-import { getAprs, getAprYears, backfillAprAnoAbertura, upsertAprBatch, deleteAprItem } from '@/app/actions/apr'
+import { getAprs, getAprYears, backfillAprAnoAbertura, upsertAprBatch, deleteAprItem, getAllAprTecnicos } from '@/app/actions/apr'
 import { getLastImportTime } from '@/app/actions/logs'
-import { getTecnicos } from '@/app/actions/tecnicos'
 import { gerarExcelCentral } from '@/app/utils/gerarExcelCentral'
 import { BRAZIL_STATES, REGIAO_MAP, getRegionForState } from './BrazilMapData'
 
@@ -278,7 +277,7 @@ export default function APRPage() {
       const [yearsRes, importTimeRes, tecsRes] = await Promise.all([
         getAprYears(),
         getLastImportTime('IMPORTAR_APR'),
-        getTecnicos()
+        getAllAprTecnicos()
       ])
 
       if (tecsRes.success && tecsRes.data) {
@@ -962,7 +961,7 @@ export default function APRPage() {
                     </span>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                   <select 
                     value={selectedYear} 
                     onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} 
@@ -984,27 +983,26 @@ export default function APRPage() {
                       style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#334155', outline: 'none', width: 200 }}
                     />
                     {showTecnicoDropdown && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, width: '100%', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 50, maxHeight: 200, overflowY: 'auto' }}>
+                      <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, width: '100%', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 50, maxHeight: 250, overflowY: 'auto' }}>
                         {allTecnicos
                           .filter(t => t.nome.toLowerCase().includes(searchTecnicoText.toLowerCase()))
                           .map(t => {
                             const isSelected = selectedTecnico.includes(t.nome)
                             return (
                               <div 
-                                key={t.id} 
-                                onClick={() => {
+                                key={t.nome} 
+                                onClick={(e) => {
+                                  e.stopPropagation()
                                   if (!isSelected) {
                                     setSelectedTecnico(prev => [...prev, t.nome])
                                   } else {
                                     setSelectedTecnico(prev => prev.filter(x => x !== t.nome))
                                   }
-                                  setSearchTecnicoText('')
-                                  setShowTecnicoDropdown(false)
                                 }}
-                                style={{ padding: '8px 12px', fontSize: 12, cursor: 'pointer', background: isSelected ? '#eff6ff' : 'transparent', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', background: isSelected ? '#eff6ff' : 'transparent', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}
                               >
-                                <span>{t.nome}</span>
-                                {!t.ativo && <span style={{ padding: '2px 6px', fontSize: 9, background: '#fee2e2', color: '#ef4444', borderRadius: 4, fontWeight: 700 }}>Inativo</span>}
+                                <input type="checkbox" checked={isSelected} readOnly style={{ cursor: 'pointer' }} />
+                                <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isSelected ? 700 : 500, color: isSelected ? '#1e3a8a' : '#334155' }}>{t.nome}</span>
                               </div>
                             )
                           })
@@ -1015,12 +1013,12 @@ export default function APRPage() {
                       </div>
                     )}
                   </div>
-                  {selectedTecnico.map(tec => (
-                    <div key={tec} style={{ padding: '6px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', fontSize: 13, fontWeight: 700, color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      Técnico: {tec}
-                      <X size={14} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={() => setSelectedTecnico(prev => prev.filter(t => t !== tec))} />
+                  {selectedTecnico.length > 0 && (
+                    <div style={{ padding: '6px 12px', borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', fontSize: 13, fontWeight: 700, color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {selectedTecnico.length === 1 ? '1 Técnico selecionado' : `${selectedTecnico.length} Técnicos selecionados`}
+                      <X size={14} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={() => setSelectedTecnico([])} />
                     </div>
-                  ))}
+                  )}
                   {selectedAtividade && (
                     <div style={{ padding: '6px 12px', borderRadius: 8, background: '#fdf4ff', border: '1px solid #f5d0fe', fontSize: 13, fontWeight: 700, color: '#86198f', display: 'flex', alignItems: 'center', gap: 6 }}>
                       Atividade: {selectedAtividade}
