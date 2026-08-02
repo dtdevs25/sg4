@@ -1,121 +1,48 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-// ─── EXIF Helpers ────────────────────────────────────────────────────────────
-function readUint16(bytes: Uint8Array, offset: number, le: boolean): number {
-  return le
-    ? bytes[offset] | (bytes[offset + 1] << 8)
-    : (bytes[offset] << 8) | bytes[offset + 1]
-}
-
-function readUint32(bytes: Uint8Array, offset: number, le: boolean): number {
-  const b = bytes
-  return le
-    ? b[offset] | (b[offset + 1] << 8) | (b[offset + 2] << 16) | (b[offset + 3] << 24)
-    : (b[offset] << 24) | (b[offset + 1] << 16) | (b[offset + 2] << 8) | b[offset + 3]
-}
-
 /**
- * Lê a tag de orientação EXIF de um buffer JPEG.
- * Retorna um valor de 1 a 8, ou 1 (padrão) se não encontrar.
- */
-function getExifOrientation(bytes: Uint8Array): number {
-  if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) return 1 // Não é JPEG
-
-  let i = 2
-  while (i < bytes.length - 3) {
-    if (bytes[i] !== 0xFF) break
-    const marker = bytes[i + 1]
-
-    // Marcador APP1 (0xFFE1) contém EXIF
-    if (marker === 0xE1) {
-      const segLen = (bytes[i + 2] << 8) | bytes[i + 3]
-      // Verifica header "Exif\0\0"
-      if (
-        bytes[i + 4] === 0x45 && bytes[i + 5] === 0x78 &&
-        bytes[i + 6] === 0x69 && bytes[i + 7] === 0x66
-      ) {
-        const tiffStart = i + 10
-        const le = bytes[tiffStart] === 0x49 // 'II' = little-endian
-        const ifdOffset = readUint32(bytes, tiffStart + 4, le)
-        const ifdStart = tiffStart + ifdOffset
-        const numEntries = readUint16(bytes, ifdStart, le)
-
-        for (let e = 0; e < numEntries; e++) {
-          const entryOffset = ifdStart + 2 + e * 12
-          const tag = readUint16(bytes, entryOffset, le)
-          if (tag === 0x0112) { // Tag de orientação
-            return readUint16(bytes, entryOffset + 8, le)
-          }
-        }
-      }
-      i += 2 + segLen
-    } else {
-      const segLen = (bytes[i + 2] << 8) | bytes[i + 3]
-      i += 2 + segLen
-    }
-  }
-  return 1
-}
-
-/**
- * Corrige a orientação EXIF de uma imagem base64, redesenhando num canvas.
- * Retorna a imagem corrigida como base64.
+ * Normaliza a orientação de uma imagem base64 usando o canvas do browser.
  *
- * FIX #1: Imagens de ponta cabeça — lê o metadado EXIF de orientação e
- * aplica a rotação/espelhamento correto antes de inserir no PDF.
+ * POR QUÊ ISSO FUNCIONA:
+ *   O backend converte a foto do MinIO para base64 preservando os bytes JPEG
+ *   originais, incluindo o metadado EXIF de orientação. Quando carregamos esse
+ *   base64 em um <img>, o browser (Chrome 81+, Firefox, Safari) lê o EXIF e
+ *   renderiza a imagem já corrigida. Ao redesenhar no canvas com ctx.drawImage()
+ *   capturamos os pixels já na orientação correta e exportamos um novo JPEG sem
+ *   EXIF — que o jsPDF pode embutir no PDF sem distorções.
+ *
+ * FIX #1: Imagens de cabeça para baixo.
  */
-async function correctImageOrientation(base64: string): Promise<string> {
+async function normalizeImageOrientation(base64: string): Promise<string> {
   return new Promise((resolve) => {
-    try {
-      // Extrai os bytes para leitura de EXIF
-      const dataStr = base64.includes(',') ? base64.split(',')[1] : base64
-      const binary = atob(dataStr)
-      const bytes = new Uint8Array(binary.length)
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    const img = new Image()
 
-      const orientation = getExifOrientation(bytes)
-
-      // Se orientação for 1 (normal), não precisa corrigir
-      if (orientation === 1) {
-        resolve(base64)
-        return
-      }
-
-      const img = new Image()
-      img.onload = () => {
+    img.onload = () => {
+      try {
         const canvas = document.createElement('canvas')
+        // naturalWidth/naturalHeight refletem as dimensões APÓS o browser
+        // aplicar a rotação EXIF (ex: foto tirada em portrait fica w<h).
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+
         const ctx = canvas.getContext('2d')
         if (!ctx) { resolve(base64); return }
 
-        // Orientações 5-8 trocam largura/altura (rotação 90° ou 270°)
-        if (orientation >= 5) {
-          canvas.width = img.height
-          canvas.height = img.width
-        } else {
-          canvas.width = img.width
-          canvas.height = img.height
-        }
-
-        // Aplica a transformação correta para cada valor de orientação EXIF
-        switch (orientation) {
-          case 2: ctx.transform(-1, 0, 0, 1, img.width, 0); break
-          case 3: ctx.transform(-1, 0, 0, -1, img.width, img.height); break
-          case 4: ctx.transform(1, 0, 0, -1, 0, img.height); break
-          case 5: ctx.transform(0, 1, 1, 0, 0, 0); break
-          case 6: ctx.transform(0, 1, -1, 0, img.height, 0); break
-          case 7: ctx.transform(0, -1, -1, 0, img.height, img.width); break
-          case 8: ctx.transform(0, -1, 1, 0, 0, img.width); break
-        }
-
         ctx.drawImage(img, 0, 0)
+
+        // Exporta como JPEG sem EXIF, pixels já corretamente orientados.
         resolve(canvas.toDataURL('image/jpeg', 0.92))
+      } catch {
+        resolve(base64)
       }
-      img.onerror = () => resolve(base64)
-      img.src = base64
-    } catch {
-      resolve(base64)
     }
+
+    img.onerror = () => resolve(base64)
+
+    // Atribui DEPOIS de definir os handlers para garantir que o evento
+    // onload dispara mesmo se a imagem estiver em cache.
+    img.src = base64
   })
 }
 
@@ -125,11 +52,12 @@ export async function gerarPdfRelatorio(
   atividades: any[],
   filtros: { mes: number, ano: number, empresa: string, elaborador: string }
 ) {
-  // FIX #1: Corrige orientação EXIF de todas as fotos antes de gerar o PDF
+  // FIX #1: Normaliza a orientação EXIF de todas as fotos em paralelo
+  // antes de qualquer geração de PDF.
   const atividadesCorrigidas = await Promise.all(
     atividades.map(async (a) => {
       if (!a.fotoBase64) return a
-      const fotoCorrigida = await correctImageOrientation(a.fotoBase64)
+      const fotoCorrigida = await normalizeImageOrientation(a.fotoBase64)
       return { ...a, fotoBase64: fotoCorrigida }
     })
   )
@@ -153,7 +81,6 @@ export async function gerarPdfRelatorio(
   const doc = new jsPDF('p', 'pt', 'a4')
 
   const mesAno = new Date(filtros.ano, filtros.mes - 1).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
-  const projeto = atividadesCorrigidas.length > 0 ? atividadesCorrigidas[0].projeto : '-'
 
   // Função auxiliar para desenhar a grade de Informações Gerais
   const drawInfoRow = (y: number, items: { wTitle: number, title: string, wValue: number, value: string, offsetX: number }[]) => {
@@ -180,8 +107,8 @@ export async function gerarPdfRelatorio(
 
   /**
    * Desenha a imagem mantendo proporção dentro do quadro (maxW × maxH).
-   * FIX #2: centraliza dentro do espaço disponível para que todas as
-   * imagens — incluindo a da última linha — fiquem do mesmo tamanho.
+   * FIX #2: Centraliza dentro do espaço disponível para que todas as
+   * imagens — incluindo a da última linha — fiquem do mesmo tamanho visual.
    */
   const drawImageProp = (base64: string, x: number, y: number, maxW: number, maxH: number) => {
     try {
@@ -198,7 +125,7 @@ export async function gerarPdfRelatorio(
       }
       const finalX = x + (maxW - finalW) / 2
       const finalY = y + (maxH - finalH) / 2
-      doc.addImage(base64, props.fileType || 'JPEG', finalX, finalY, finalW, finalH, undefined, 'FAST')
+      doc.addImage(base64, 'JPEG', finalX, finalY, finalW, finalH, undefined, 'FAST')
     } catch (e) {
       console.error('Erro ao processar imagem:', e)
     }
@@ -214,6 +141,7 @@ export async function gerarPdfRelatorio(
   // Largura utilizável: 595 (A4) - 80 (margens) = 515pt
   // Colunas fixas: 55 + 70 + 70 + 140 = 335pt → descrição = 180pt
   const COL_DESCRICAO_W = 180
+  const FOTO_CELL_HEIGHT = 90
 
   const tableData = atividadesCorrigidas.map(a => [
     new Date(a.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }),
@@ -227,16 +155,12 @@ export async function gerarPdfRelatorio(
     tableData.push(['-', '-', '-', '-', 'Nenhuma atividade registrada no período.'])
   }
 
-  // Altura fixa da célula de foto — mesma para TODAS as linhas
-  const FOTO_CELL_HEIGHT = 90
-
   autoTable(doc, {
     startY: 205,
     head: [['DATA', 'LOCAL', 'CIDADE/UF', 'REGISTRO (FOTO)', 'ATIVIDADE']],
     body: tableData,
     theme: 'grid',
-    // FIX #2: rowPageBreak 'avoid' garante que a última linha de uma página
-    // nunca seja cortada pela metade, evitando alturas inconsistentes.
+    // FIX #2: evita que linhas sejam cortadas no meio de uma página
     rowPageBreak: 'avoid',
     margin: { top: 185, bottom: 130, left: 40, right: 40 },
     styles: {
@@ -261,11 +185,11 @@ export async function gerarPdfRelatorio(
       1: { cellWidth: 70, halign: 'center', overflow: 'linebreak' },
       2: { cellWidth: 70, halign: 'center', overflow: 'linebreak' },
       3: { cellWidth: 140, halign: 'center' },
-      // FIX #3: Largura explícita na coluna de descrição + quebra de linha
+      // FIX #3: largura explícita + quebra de linha na coluna de descrição
       4: { cellWidth: COL_DESCRICAO_W, overflow: 'linebreak', halign: 'left' },
     },
     didParseCell: function(data) {
-      // FIX #2: altura mínima uniforme para todas as células de foto
+      // FIX #2: altura mínima uniforme para células de foto
       if (data.section === 'body' && data.column.index === 3) {
         const rowData = atividadesCorrigidas[data.row.index]
         if (rowData && rowData.fotoBase64) {
@@ -277,7 +201,6 @@ export async function gerarPdfRelatorio(
       if (data.section === 'body' && data.column.index === 3) {
         const rowData = atividadesCorrigidas[data.row.index]
         if (rowData && rowData.fotoBase64) {
-          // FIX #2: usa a altura real da célula, mas com padding uniforme
           const padding = 4
           drawImageProp(
             rowData.fotoBase64,
