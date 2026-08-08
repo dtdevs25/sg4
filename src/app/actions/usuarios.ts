@@ -202,6 +202,44 @@ export async function resendInvitation(id: string) {
   }
 }
 
+export async function updateUsuario(id: string, data: { name: string, role: any, tecnicoId?: string }) {
+  try {
+    const session = await auth()
+    const currentRole = (session?.user as any)?.role
+    const currentUserId = session?.user?.id
+
+    if (currentRole !== 'MASTER' && currentRole !== 'ADMIN') {
+      return { success: false, error: 'Acesso negado' }
+    }
+
+    const targetUser = await prisma.user.findUnique({ where: { id } })
+    if (!targetUser) return { success: false, error: 'Usuário não encontrado' }
+
+    if (currentRole === 'ADMIN' && (targetUser.role === 'MASTER' || data.role === 'MASTER')) {
+      return { success: false, error: 'Administradores não podem editar usuários MASTER nem promover para MASTER.' }
+    }
+
+    await prisma.user.update({
+      where: { id },
+      data: { name: data.name, role: data.role }
+    })
+
+    // Desvincular técnico anterior deste usuário
+    await prisma.tecnico.updateMany({ where: { userId: id }, data: { userId: null } })
+
+    // Vincular novo técnico, se selecionado
+    if (data.tecnicoId) {
+      await prisma.tecnico.update({ where: { id: data.tecnicoId }, data: { userId: id } })
+    }
+
+    await audit({ userId: currentUserId, action: 'EDITAR_USUARIO', entity: 'Usuário', entityId: id, details: { nome: data.name, role: data.role } })
+    return { success: true }
+  } catch (error) {
+    console.error('Erro ao editar usuário:', error)
+    return { success: false, error: 'Erro ao editar usuário' }
+  }
+}
+
 export async function deleteUsuario(id: string) {
   try {
     const session = await auth()

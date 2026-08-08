@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Users, Plus, Search, Shield, Trash2, Power, X, Sparkles, AlertCircle, Mail } from 'lucide-react'
-import { getUsuarios, toggleUserStatus, createUsuario, deleteUsuario, resendInvitation } from '@/app/actions/usuarios'
+import { Users, Plus, Search, Shield, Trash2, Power, X, Sparkles, AlertCircle, Mail, Pencil } from 'lucide-react'
+import { getUsuarios, toggleUserStatus, createUsuario, deleteUsuario, resendInvitation, updateUsuario } from '@/app/actions/usuarios'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { useSession } from 'next-auth/react'
 
@@ -19,6 +19,10 @@ export default function UsuariosPage() {
   const [showResendModal, setShowResendModal] = useState(false)
   const [resendingId, setResendingId] = useState<string | null>(null)
   const [isResending, setIsResending] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingUser, setEditingUser] = useState<any | null>(null)
+  const [editForm, setEditForm] = useState({ name: '', role: 'TST', tecnicoId: '' })
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const [form, setForm] = useState({
@@ -70,6 +74,31 @@ export default function UsuariosPage() {
       setUsuarios(prev => prev.filter(u => u.id !== deletingId))
       setShowDeleteModal(false)
       setDeletingId(null)
+    } else {
+      alert(res.error)
+    }
+  }
+
+  function handleOpenEdit(u: any) {
+    setEditingUser(u)
+    setEditForm({
+      name: u.name,
+      role: u.role,
+      tecnicoId: u.tecnico?.id || ''
+    })
+    setShowEditModal(true)
+  }
+
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingUser) return
+    setIsSavingEdit(true)
+    const res = await updateUsuario(editingUser.id, editForm)
+    setIsSavingEdit(false)
+    if (res.success) {
+      setShowEditModal(false)
+      setEditingUser(null)
+      fetchData()
     } else {
       alert(res.error)
     }
@@ -210,6 +239,9 @@ export default function UsuariosPage() {
                   </td>
                   <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                      <button onClick={() => handleOpenEdit(u)} style={{ background: 'transparent', border: 'none', color: '#660099', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Editar Usuário">
+                        <Pencil size={18} />
+                      </button>
                       <button onClick={() => handleToggle(u.id)} style={{ background: 'transparent', border: 'none', color: u.active ? '#f59e0b' : '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title={u.active ? 'Bloquear' : 'Ativar'}>
                         <Power size={18} />
                       </button>
@@ -228,9 +260,64 @@ export default function UsuariosPage() {
         </div>
       </div>
 
+      {/* Edit Modal */}
+      {showEditModal && editingUser && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '16px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 480, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', overflowY: 'auto', maxHeight: '95vh' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Pencil color="#660099" size={20} /> Editar Usuário
+              </h2>
+              <button onClick={() => setShowEditModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Nome Completo</label>
+                <input type="text" required value={editForm.name} onChange={(e) => setEditForm(p => ({ ...p, name: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>E-mail</label>
+                <input type="email" disabled value={editingUser.email} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#f8fafc', color: '#94a3b8', boxSizing: 'border-box' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Perfil</label>
+                  <select value={editForm.role} onChange={(e) => setEditForm(p => ({ ...p, role: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                    <option value="TST">TST</option>
+                    <option value="CLIENTE_APR">CLIENTE APR</option>
+                    <option value="ADMIN">ADMIN</option>
+                    {role === 'MASTER' && <option value="MASTER">MASTER</option>}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Técnico Associado</label>
+                  <select value={editForm.tecnicoId} onChange={(e) => setEditForm(p => ({ ...p, tecnicoId: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none', background: '#fff' }}>
+                    <option value="">Nenhum</option>
+                    {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                <button type="button" onClick={() => setShowEditModal(false)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={isSavingEdit} style={{ flex: 1, padding: '12px', background: '#660099', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: isSavingEdit ? 0.7 : 1 }}>
+                  {isSavingEdit ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 480, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '16px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 480, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', overflowY: 'auto', maxHeight: '95vh' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Sparkles color="#660099" size={20} /> Cadastrar Usuário
@@ -291,8 +378,8 @@ export default function UsuariosPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 400, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '16px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
             <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <AlertCircle color="#ef4444" size={24} />
             </div>
@@ -316,8 +403,8 @@ export default function UsuariosPage() {
 
       {/* Resend Confirmation Modal */}
       {showResendModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 400, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: '16px' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 24, boxShadow: '0 10px 40px rgba(0,0,0,0.2)', textAlign: 'center' }}>
             <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
               <Mail color="#6366f1" size={24} />
             </div>

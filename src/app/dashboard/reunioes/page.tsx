@@ -309,6 +309,14 @@ export default function ReunioesPage() {
 
   return (
     <>
+      <style>{`
+        .reuniao-ata-body { display: flex; flex: 1; overflow: hidden; }
+        .reuniao-ata-panel { width: 450px; padding: 0; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; }
+        @media (max-width: 768px) {
+          .reuniao-ata-body { flex-direction: column; overflow: visible; }
+          .reuniao-ata-panel { width: 100%; border-left: none; border-top: 1px solid #e2e8f0; max-height: 60vh; overflow-y: auto; }
+        }
+      `}</style>
 
 
 
@@ -579,7 +587,7 @@ export default function ReunioesPage() {
               <button onClick={() => setEditingAta(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
             </div>
 
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+            <div className="reuniao-ata-body">
               
               {/* LADO ESQUERDO: REDIGIR ATA */}
               <div style={{ flex: 1, padding: 24, overflowY: 'auto', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -640,7 +648,7 @@ export default function ReunioesPage() {
               </div>
 
               {/* LADO DIREITO: LISTA DE PRESENÇA */}
-              <div style={{ width: 450, padding: 0, overflowY: 'auto', background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+              <div className="reuniao-ata-panel">
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff', position: 'sticky', top: 0, zIndex: 10 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 800, color: '#334155', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle2 size={16} /> Lançar Presenças</h3>
                   <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#64748b' }}>Configure quem participou e as observações. Esses dados serão consolidados no final.</p>

@@ -1,1078 +1,855 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { getAnosComDados } from '@/app/actions/anos'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend, ReferenceLine
-} from 'recharts'
-import {
-  ClipboardCheck, Clock, FileText, Award, ChevronDown, X, Target, TrendingUp, Loader2
+  CalendarDays, CheckCircle2, Clock, XCircle,
+  PlusCircle, Search, Sparkles, X, Edit2, Trash2, Loader2, Save, FileText, Printer, FileEdit, FileCode2, Eye
 } from 'lucide-react'
+import { getReunioes, createReuniaoLote, deleteReuniaoLote, updatePresencasReuniao } from '@/app/actions/reunioes'
+import { getAtas, upsertAta, uploadAnexoReuniao, deleteAnexoAta } from '@/app/actions/atas'
+import { useSession } from 'next-auth/react'
 
-import { getAtividades } from '@/app/actions/atividades'
-import { getTecnicos } from '@/app/actions/tecnicos'
-import { getQuilometragens } from '@/app/actions/quilometragem'
-import { getAtividadesRelatorio } from '@/app/actions/relatorios'
-import { getDssArkium } from '@/app/actions/dssArkium'
-import { getInspecoesArkium } from '@/app/actions/inspecoesArkium'
-import { getDssAliados } from '@/app/actions/dssAliado'
-import { getNaoConformidades } from '@/app/actions/naoConformidades'
-
-/* ── Constantes Visuais ── */
-const RED   = '#660099'
-const RED2  = '#4a0072'
-const COLORS = {
-  dss: '#660099',    // Vermelho
-  insp: '#8e44ad',   // Roxo
-}
-
-/* ── Constantes Dinâmicas ── */
-const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-const MESES_MAP: Record<string, string> = {
-  JANEIRO: 'Jan', FEVEREIRO: 'Fev', MARCO: 'Mar', ABRIL: 'Abr',
-  MAIO: 'Mai', JUNHO: 'Jun', JULHO: 'Jul', AGOSTO: 'Ago',
-  SETEMBRO: 'Set', OUTUBRO: 'Out', NOVEMBRO: 'Nov', DEZEMBRO: 'Dez'
-}
-
-const META_DSS_POR_TEC = 8
-const META_INSP_POR_TEC = 20
-
-function getInitials(name?: string | null) {
-  if (!name) return '?'
-  const parts = name.trim().split(' ')
-  return parts.length >= 2
-    ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-    : name.slice(0, 2).toUpperCase()
-}
-
-function getArkiumMonthYear(dateStr?: string | null): { month: number, year: number } {
-  if (!dateStr) return { month: 0, year: 0 }
-  let month = 0, year = 0
-  if (dateStr.includes('/')) {
-    const parts = dateStr.split('/')
-    if (parts.length >= 3) { month = parseInt(parts[1], 10); year = parseInt(parts[2], 10); if (parts[2].length === 2) year += 2000 }
-  } else if (dateStr.includes('-')) {
-    const parts = dateStr.split('-')
-    if (parts.length >= 3) { year = parseInt(parts[0], 10); month = parseInt(parts[1], 10) }
-  } else {
-    const excelDateNum = Number(dateStr)
-    if (!isNaN(excelDateNum) && excelDateNum > 20000) {
-      const jsDate = new Date(Math.round((excelDateNum - 25569) * 86400 * 1000))
-      month = jsDate.getUTCMonth() + 1; year = jsDate.getUTCFullYear()
-    }
+type ReuniaoData = {
+  id: string
+  tecnicoId: string
+  data: Date | string
+  assunto: string | null
+  presenca: 'PRESENTE' | 'AUSENTE'
+  pontualidade: 'PONTUAL' | 'ATRASADO' | 'NAO_SE_APLICA'
+  justificada: 'SIM' | 'NAO' | 'NAO_SE_APLICA'
+  motivo: string | null
+  observacao: string | null
+  tecnico: {
+    nome: string
+    fotoUrl: string | null
   }
-  return { month, year }
 }
 
-const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-function matchTecnico(nomePlanilha: string | null | undefined, nomeBd: string) {
-  if (!nomePlanilha || !nomeBd) return false
-  const nP = removeAccents(nomePlanilha.toLowerCase().trim())
-  const nB = removeAccents(nomeBd.toLowerCase().trim())
-  if (nP === nB) return true
-  const planTokens = nP.split(' ').filter(Boolean)
-  const dbTokens = nB.split(' ').filter(Boolean)
-  
-  if (planTokens.length === 0 || dbTokens.length === 0) return false
-  
-  if (planTokens[0] === dbTokens[0]) {
-     if (planTokens.length === 1 || dbTokens.length === 1) return true
-     
-     const ignoreList = ['de', 'da', 'do', 'dos', 'das', 'e']
-     const planSurnames = planTokens.slice(1).filter(t => !ignoreList.includes(t))
-     const dbSurnames = dbTokens.slice(1).filter(t => !ignoreList.includes(t))
-     
-     for (let i = 0; i < planSurnames.length; i++) {
-        for (let j = 0; j < dbSurnames.length; j++) {
-           if (planSurnames[i] === dbSurnames[j] || (planSurnames[i] === 'jr' && dbSurnames[j] === 'junior') || (planSurnames[i] === 'junior' && dbSurnames[j] === 'jr')) {
-              return true
-           }
-        }
-     }
-  }
-  return false
+type AtaData = {
+  id: string
+  data: Date | string
+  assunto: string
+  conteudo: string
+  anexoUrl?: string | null
+  anexoNome?: string | null
 }
 
-function isDssAssinado(assinadoStr?: string | null) {
-  if (!assinadoStr) return false
-  const s = assinadoStr.toLowerCase().trim()
-  if (s !== 'sim' && s !== 'yes' && !s.includes('sim')) return false
-  return true
-}
-
-/* ── Tick personalizado do gráfico com foto ── */
-function CustomXAxisTick({ x, y, payload, width }: any) {
-  const tickData = typeof window !== 'undefined' ? (window as any).__barDataMap?.[payload.value] : null
-  const fotoUrl = tickData?.fotoUrl
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
-  const size = isMobile ? 24 : 36
-  const clipId = `clip-${payload.value.replace(/\s/g, '-').replace(/\./g, '')}`
-  const mostrarFotos = typeof window !== 'undefined' ? (window as any).__mostrarFotosGrafico !== false : true
-
-  return (
-    <g transform={`translate(${x},${y + 4})`}>
-      {mostrarFotos ? (
-        <>
-          <defs>
-            <clipPath id={clipId}>
-              <circle cx={0} cy={size / 2 + 2} r={size / 2} />
-            </clipPath>
-          </defs>
-          {/* borda/anel ao redor da foto */}
-          <circle cx={0} cy={size / 2 + 2} r={size / 2 + 2} fill="#ede9f6" />
-          {fotoUrl ? (
-            <image
-              href={fotoUrl}
-              x={-size / 2}
-              y={2}
-              width={size}
-              height={size}
-              clipPath={`url(#${clipId})`}
-              preserveAspectRatio="xMidYMid slice"
-            />
-          ) : (
-            <>
-              <circle cx={0} cy={size / 2 + 2} r={size / 2} fill="#8e44ad" />
-              <text x={0} y={size / 2 + 7} textAnchor="middle" fill="#fff" fontSize={11} fontWeight={700}>
-                {payload.value.slice(0, 2).toUpperCase()}
-              </text>
-            </>
-          )}
-          <text
-            x={0}
-            y={size + 16}
-            textAnchor="middle"
-            fill="#475569"
-            fontSize={10}
-            fontWeight={700}
-          >
-            {payload.value}
-          </text>
-        </>
-      ) : (
-        <text
-          x={0}
-          y={14}
-          textAnchor="middle"
-          fill="#475569"
-          fontSize={11}
-          fontWeight={700}
-        >
-          {payload.value}
-        </text>
-      )}
-
-    </g>
-  )
-}
-
-/* ── Separador vertical entre grupos de barras ── */
-function GroupDivider(props: any) {
-  const { x, y, width, height } = props
-  return (
-    <line
-      x1={x + width + 3}
-      y1={y}
-      x2={x + width + 3}
-      y2={y + height}
-      stroke="#e2e8f0"
-      strokeWidth={1.5}
-      strokeDasharray="4 3"
-    />
-  )
-}
-
-/* ── Componentes de UI ── */
-function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark, onClick }: any) {
-  return (
-    <div 
-      onClick={onClick}
-      style={{
-        background: bg, borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-        overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform .15s', display: 'flex', flexDirection: 'column',
-        justifyContent: 'space-between', flex: 1, minWidth: 260
-      }}
-      onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
-      onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
-    >
-      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, paddingRight: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(4px, 1.5vw, 8px)', marginBottom: 8 }}>
-            <p style={{ color: '#fff', fontSize: 'clamp(13px, 1.8vw, 15px)', fontWeight: 700, margin: 0, letterSpacing: 0.3, whiteSpace: 'nowrap' }}>{label}</p>
-            {subtitle && (
-              <>
-                <div style={{ width: 2, height: 14, background: 'rgba(255,255,255,0.4)' }} />
-                <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'clamp(10px, 1.5vw, 13px)', fontWeight: 600, whiteSpace: 'nowrap' }}>Meta: {subtitle}</span>
-              </>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(6px, 1.5vw, 12px)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <h3 style={{ color: '#fff', fontSize: 'clamp(20px, 3vw, 28px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(9px, 1.2vw, 11px)', fontWeight: 700, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>Realizados</span>
-            </div>
-            <div style={{ width: 2, height: 'clamp(22px, 3.5vw, 30px)', background: 'rgba(255,255,255,0.3)' }} />
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ color: '#fff', fontSize: 'clamp(20px, 3vw, 28px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(9px, 1.2vw, 11px)', fontWeight: 700, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>Concluído</span>
-            </div>
-          </div>
-        </div>
-        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', zIndex: 0, pointerEvents: 'none' }} />
-      </div>
-      <div style={{ height: 10, background: bgDark }} />
-    </div>
-  )
-}
-
-function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: any) {
-  return (
-    <div 
-      onClick={onClick}
-      style={{
-        background: bg,
-        borderRadius: 10,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-        overflow: 'hidden',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform .15s',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        flex: 1, minWidth: 200
-      }}
-      onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
-      onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
-    >
-      <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
-        <div style={{ position: 'relative', zIndex: 1, paddingRight: 32 }}>
-          <p style={{ color: '#fff', fontSize: 'clamp(13px, 1.8vw, 15px)', fontWeight: 700, marginBottom: 4, letterSpacing: 0.3, whiteSpace: 'nowrap' }}>{label}</p>
-          <h3 style={{ color: '#fff', fontSize: 'clamp(20px, 3vw, 28px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
-          {subtitle && <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(9px, 1.2vw, 11px)', fontWeight: 600, marginTop: 6, background: 'rgba(0,0,0,0.1)', padding: '4px 8px', borderRadius: 6, display: 'inline-block', whiteSpace: 'nowrap' }}>{subtitle}</div>}
-        </div>
-        <Icon size={72} strokeWidth={1.2} style={{ color: 'rgba(255,255,255,0.25)', position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', zIndex: 0, pointerEvents: 'none' }} />
-      </div>
-      <div style={{ height: 10, background: bgDark }} />
-    </div>
-  )
-}
-
-function ChartCard({ icon: Icon, title, children, style, headerAction }: any) {
-  return (
-    <div style={{
-      background: '#fff',
-      borderRadius: 10,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      ...style,
-    }}>
-      <div style={{
-        background: RED,
-        padding: '14px 18px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        color: '#fff',
-        fontWeight: 700,
-        fontSize: 15,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Icon size={18} />
-          <span>{title}</span>
-        </div>
-        {headerAction}
-      </div>
-      <div style={{ flex: 1, padding: 20, overflow: 'hidden' }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function CustomTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 14px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
-      <p style={{ fontWeight: 700, color: '#334155', marginBottom: 4, fontSize: 12 }}>{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.fill }} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{p.value} {p.name}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/* ── Helper: abreviar nome ── */
-function abbreviateName(fullName: string): string {
-  const parts = fullName.trim().split(' ').filter(Boolean)
-  if (parts.length <= 1) return fullName
-  const firstName = parts[0]
-  const lastInitial = parts[parts.length - 1][0].toUpperCase()
-  return `${firstName} ${lastInitial}.`
-}
-
-/* ── Helper de Medalha ── */
-function getMedal(index: number) {
-  if (index === 0) return { bg: 'linear-gradient(135deg, #FDE047 0%, #EAB308 100%)', color: '#713F12', border: '2px solid #CA8A04', label: '1' }
-  if (index === 1) return { bg: 'linear-gradient(135deg, #F1F5F9 0%, #CBD5E1 100%)', color: '#334155', border: '2px solid #94A3B8', label: '2' }
-  if (index === 2) return { bg: 'linear-gradient(135deg, #FED7AA 0%, #F97316 100%)', color: '#7C2D12', border: '2px solid #EA580C', label: '3' }
-  return { bg: '#f8fafc', color: '#94a3b8', border: '2px solid transparent', label: (index + 1).toString() }
-}
-
-/* ── Página ── */
-export default function DashboardPage() {
-  const router = useRouter()
+export default function ReunioesPage() {
   const { data: session } = useSession()
-  const firstName = session?.user?.name?.split(' ')[0] || 'Gestor'
-  const role = (session?.user as any)?.role
-  const userTecnicoId = (session?.user as any)?.tecnicoId
-  const isTst = role === 'TST'
+  const isMasterOrAdmin = (session?.user as any)?.role === 'MASTER' || (session?.user as any)?.role === 'ADMIN'
 
-  useEffect(() => {
-    if (role === 'CLIENTE_APR') {
-      router.replace('/dashboard/apr')
-    }
-  }, [role, router])
-
-  const currentYear = new Date().getFullYear().toString()
-  const [ano, setAno] = useState<string>(currentYear)
-  const [meses, setMeses] = useState<string[]>(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].slice(0, new Date().getMonth() + 1)) // multi-select de meses
-  const [mostrarFotosGrafico, setMostrarFotosGrafico] = useState<boolean>(true)
-  const [mostrarInativos, setMostrarInativos] = useState<boolean>(false)
-  const [dropdownAberto, setDropdownAberto] = useState<boolean>(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownAberto(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  const [legendaAtiva, setLegendaAtiva] = useState<string[]>(['dss', 'insp']) // filtro de legenda
-  const [modalData, setModalData] = useState<any>(null)
-
-  const [atividadesDb, setAtividadesDb] = useState<any[]>([])
-  const [tecnicosDb, setTecnicosDb] = useState<any[]>([])
-  const [kmDb, setKmDb] = useState<any[]>([])
-  const [relatoriosDb, setRelatoriosDb] = useState<any[]>([])
-  const [dssArkiumDb, setDssArkiumDb] = useState<any[]>([])
-  const [inspecoesArkiumDb, setInspecoesArkiumDb] = useState<any[]>([])
-  const [ncDb, setNcDb] = useState<any[]>([])
+  const [logs, setLogs] = useState<ReuniaoData[]>([])
+  const [atas, setAtas] = useState<AtaData[]>([])
   const [loading, setLoading] = useState(true)
-  const [debugMsgs, setDebugMsgs] = useState<string[]>([])
+  const [pending, startTransition] = useTransition()
+  
+  const [search, setSearch] = useState('')
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].slice(0, new Date().getMonth() + 1))
+  const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([new Date().getFullYear()])
+  const [selectedYear, setSelectedYear] = useState<number | 'ALL'>(new Date().getFullYear())
+  
+  // Modais de Presença
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [meetingDate, setMeetingDate] = useState('')
+  const [meetingTime, setMeetingTime] = useState('')
+  const [meetingTimeFim, setMeetingTimeFim] = useState('')
+  const [meetingAssunto, setMeetingAssunto] = useState('')
+  const [meetingRecorrencia, setMeetingRecorrencia] = useState('none')
+  const [meetingDataFim, setMeetingDataFim] = useState('')
+  
+  const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{data: string, assunto: string} | null>(null)
 
-  const addDebug = (msg: string) => {
-    setDebugMsgs(prev => [...prev, msg]);
-    console.error(msg);
+  // Editor de Atas
+  const [editingAta, setEditingAta] = useState<{data: string, assunto: string} | null>(null)
+  const [ataContent, setAtaContent] = useState('')
+  const [ataAnexoNome, setAtaAnexoNome] = useState('')
+  const [ataAnexoUrl, setAtaAnexoUrl] = useState('')
+  const [ataAnexoBase64, setAtaAnexoBase64] = useState('')
+  const [ataAnexoContentType, setAtaAnexoContentType] = useState('')
+  // Lista de presença temporária (no modal)
+  const [tempPresencas, setTempPresencas] = useState<ReuniaoData[]>([])
+
+  const MONTHS_LIST = [
+    { key: 1, label: 'Jan' }, { key: 2, label: 'Fev' },
+    { key: 3, label: 'Mar' }, { key: 4, label: 'Abr' },
+    { key: 5, label: 'Mai' }, { key: 6, label: 'Jun' },
+    { key: 7, label: 'Jul' }, { key: 8, label: 'Ago' },
+    { key: 9, label: 'Set' }, { key: 10, label: 'Out' },
+    { key: 11, label: 'Nov' }, { key: 12, label: 'Dez' }
+  ]
+
+  useEffect(() => {
+    loadData()
+  }, [selectedYear])
+
+  async function loadData() {
+    setLoading(true)
+    const [anos, resReunioes, resAtas] = await Promise.all([
+      getAnosComDados(),
+      getReunioes(selectedYear === 'ALL' ? undefined : selectedYear),
+      getAtas(selectedYear === 'ALL' ? undefined : selectedYear)
+    ])
+    setAnosDisponiveis(anos)
+    
+    if (resReunioes.success && resReunioes.data) {
+      setLogs(resReunioes.data)
+    }
+    if (resAtas.success && resAtas.data) {
+      setAtas(resAtas.data)
+    }
+    setLoading(false)
   }
 
-  // Fetch real data (once)
-  useEffect(() => {
-    async function loadData() {
-      if (!role) return
-      setLoading(true)
-      try {
-        const [ativRes, tecRes, kmRes, dssRes, inspRes, relRes, aliadoRes, ncRes] = await Promise.all([
-          getAtividades().catch(e => { addDebug('Erro Atividades: ' + String(e)); return { success: false, data: [] }; }),
-          getTecnicos().catch(e => { addDebug('Erro Tecnicos: ' + String(e)); return { success: false, data: [] }; }),
-          getQuilometragens().catch(e => { addDebug('Erro Quilometragens: ' + String(e)); return { success: false, data: [] }; }),
-          getDssArkium().catch(e => { addDebug('Erro DssArkium: ' + String(e)); return { success: false, data: [] }; }),
-          getInspecoesArkium().catch(e => { addDebug('Erro InspecoesArkium: ' + String(e)); return { success: false, data: [] }; }),
-          getAtividadesRelatorio().catch(e => { addDebug('Erro AtividadesRelatorio: ' + String(e)); return []; }),
-          getDssAliados().catch(e => { addDebug('Erro DssAliados: ' + String(e)); return []; }),
-          getNaoConformidades().catch(e => { addDebug('Erro NaoConformidades: ' + String(e)); return { success: false, data: [] }; })
-        ])
-        
-        if (ativRes.success) setAtividadesDb(ativRes.data || [])
-        else if (ativRes.error) addDebug('API Atividades retornou erro: ' + ativRes.error)
-        
-        if (tecRes.success) setTecnicosDb(tecRes.data || [])
-        else if (tecRes.error) addDebug('API Tecnicos retornou erro: ' + tecRes.error)
-        
-        if (kmRes.success) setKmDb(kmRes.data || [])
-        else if (kmRes.error) addDebug('API Quilometragens retornou erro: ' + kmRes.error)
-        
-        if (dssRes.success) {
-          const arkList = dssRes.data || [];
-          const aliList = aliadoRes || [];
-          const aliMapped = aliList.map((a: any) => {
-            const jsDate = new Date(a.data);
-            const dateStr = `${jsDate.getUTCDate().toString().padStart(2, '0')}/${(jsDate.getUTCMonth()+1).toString().padStart(2, '0')}/${jsDate.getUTCFullYear()}`;
-            return { id: a.id, nome: a.tecnico?.nome, assinado: 'SIM', dataFechamento: dateStr, matricula: a.tecnico?.matriculaArkium || 'N/A', tecnico: a.tecnico, isAliado: true };
-          });
-          setDssArkiumDb([...arkList, ...aliMapped]);
-        } else if (dssRes.error) addDebug('API DssArkium retornou erro: ' + dssRes.error)
-        
-        if (inspRes.success) setInspecoesArkiumDb(inspRes.data || [])
-        else if (inspRes.error) addDebug('API InspecoesArkium retornou erro: ' + inspRes.error)
-        
-        setRelatoriosDb(Array.isArray(relRes) ? relRes : [])
-        
-        if (ncRes?.success) setNcDb(ncRes.data || [])
-        else if (ncRes?.error) addDebug('API NaoConformidades retornou erro: ' + ncRes.error)
-        
-      } catch (err) {
-        addDebug('Erro Fatal no Promise.all: ' + String(err))
-      } finally {
-        setLoading(false)
-      }
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  function handleMonthClick(m: number) {
+    if (clickTimeout.current) {
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setSelectedMonths([m])
+    } else {
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+        setSelectedMonths(prev => {
+          if (prev.length === 1 && prev.includes(m)) {
+            return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+          }
+          if (prev.includes(m)) {
+            return prev.filter(x => x !== m)
+          } else {
+            return [...prev, m]
+          }
+        })
+      }, 250)
     }
-    loadData()
-  }, [role])
+  }
 
-  const isConectadoTst = isTst;
-  const tecnicoConectado = isTst && userTecnicoId ? tecnicosDb.find(t => t.id === userTecnicoId) : null
+  // Filtragem
+  const filteredLogs = logs.filter(l => {
+    const jsDate = new Date(l.data)
+    const m = jsDate.getUTCMonth() + 1
+    const matchMonth = selectedMonths.includes(m)
+    return matchMonth
+  })
 
-  const anosSet = new Set<string>()
-  dssArkiumDb.forEach(a => { const { year } = getArkiumMonthYear(a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
-  inspecoesArkiumDb.forEach(a => { const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); if (year > 2000) anosSet.add(year.toString()) })
-  relatoriosDb.forEach(a => { const year = new Date(a.data).getFullYear(); if (year > 2000) anosSet.add(year.toString()) })
+  // Agrupamento de Reuniões Únicas (Data + Assunto)
+  const uniqueMeetingsMap = new Map<string, {data: string, assunto: string, rawData: Date, count: number, presences: number}>()
+  filteredLogs.forEach(l => {
+    const dt = new Date(l.data).toISOString()
+    const ast = l.assunto || 'Reunião'
+    const key = dt + '|' + ast
+    if (!uniqueMeetingsMap.has(key)) {
+      uniqueMeetingsMap.set(key, { data: dt, assunto: ast, rawData: new Date(l.data), count: 1, presences: l.presenca === 'PRESENTE' ? 1 : 0 })
+    } else {
+      uniqueMeetingsMap.get(key)!.count++
+      if (l.presenca === 'PRESENTE') uniqueMeetingsMap.get(key)!.presences++
+    }
+  })
+  const uniqueMeetings = Array.from(uniqueMeetingsMap.values()).sort((a, b) => a.rawData.getTime() - b.rawData.getTime())
   
-  const ANOS = Array.from(anosSet).sort().reverse()
-  if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
+  const searchedMeetings = uniqueMeetings.filter(m => m.assunto.toLowerCase().includes(search.toLowerCase()))
 
-  const activeTecnicosAll = tecnicosDb.filter(t => mostrarInativos ? true : t.ativo !== false)
-  const isByActiveTecnico = (nome: string) => activeTecnicosAll.some(t => matchTecnico(nome, t.nome))
+  // Estatísticas Presença
+  const totalMeetings = uniqueMeetings.length
+  const totalPresences = filteredLogs.filter(l => l.presenca === 'PRESENTE').length
+  const totalPunctual = filteredLogs.filter(l => l.pontualidade === 'PONTUAL').length
+  const totalAtrasados = filteredLogs.filter(l => l.pontualidade === 'ATRASADO').length
+  const totalAusentes = filteredLogs.filter(l => l.presenca === 'AUSENTE').length
+  const totalRegistrations = filteredLogs.length
 
-  const dssArkiumValidos = dssArkiumDb.filter(a => isDssAssinado(a.assinado) && isByActiveTecnico(a.nome))
+  const presenceRate = totalRegistrations > 0 ? Math.round((totalPresences / totalRegistrations) * 100) : 0
+  const punctualityRate = totalPresences > 0 ? Math.round((totalPunctual / totalPresences) * 100) : 0
 
-  const dssAno = ano ? dssArkiumValidos.filter(a => {
-    const { year } = getArkiumMonthYear(a.dataFechamento)
-    return year.toString() === ano
-  }) : dssArkiumValidos
+  // ─── ACTIONS ───
 
-  const inspAtivas = inspecoesArkiumDb.filter(a => isByActiveTecnico(a.nomeAuditor) || activeTecnicosAll.some(t => t.id === a.tecnicoId))
-  const inspAno = ano ? inspAtivas.filter(a => {
-    const { year } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
-    return year.toString() === ano
-  }) : inspAtivas
-
-  const relatoriosAno = ano ? relatoriosDb.filter(r => new Date(r.data).getFullYear().toString() === ano) : relatoriosDb
-  const kmAno = ano ? kmDb.filter(k => new Date(k.dataInicial).getFullYear().toString() === ano) : kmDb
-  
-  const dadosMensais = MESES.reduce((acc, m) => {
-    acc[m] = { dss: 0, insp: 0 }
-    return acc
-  }, {} as Record<string, { dss: number; insp: number }>)
-
-  dssAno.forEach(a => {
-    const { month } = getArkiumMonthYear(a.dataFechamento)
-    if (month >= 1 && month <= 12) {
-      dadosMensais[MESES[month - 1]].dss += 1
-    }
-  })
-
-  inspAno.forEach(a => {
-    const { month } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento)
-    if (month >= 1 && month <= 12) {
-      dadosMensais[MESES[month - 1]].insp += 1
-    }
-  })
-
-  const dssFiltrados = meses.length > 0
-    ? dssAno.filter(a => { const { month } = getArkiumMonthYear(a.dataFechamento); return month >= 1 && month <= 12 && meses.includes(MESES[month - 1]) })
-    : dssAno
-
-  const inspFiltradas = meses.length > 0
-    ? inspAno.filter(a => { const { month } = getArkiumMonthYear(a.dataAbertura || a.dataFechamento); return month >= 1 && month <= 12 && meses.includes(MESES[month - 1]) })
-    : inspAno
-
-  // Dados de Relatório de Atividades
-  const relatoriosFiltrados = meses.length > 0
-    ? relatoriosAno.filter(r => meses.includes(MESES[new Date(r.data).getUTCMonth()]))
-    : relatoriosAno
-  const totalRelatorios = relatoriosFiltrados.length
-
-  // Dados de Não Conformidades (COM DEFESA CONTRA ERROS NO RENDER)
-  let ncAno = ncDb || [];
-  try {
-    if (ano) {
-      ncAno = ncAno.filter(n => {
-        try {
-          const d = new Date(n?.dataAbertura || n?.importadoEm || new Date());
-          return !isNaN(d.getTime()) && d.getFullYear().toString() === ano;
-        } catch(e) { console.error('Erro filtrando ncAno: ' + String(e)); return false; }
-      });
-    }
-  } catch(e) { console.error('Erro filtrando ncAno Bloco: ' + String(e)); }
-
-  let ncFiltradas = ncAno;
-  try {
-    if (meses.length > 0) {
-      ncFiltradas = ncAno.filter(n => {
-        try {
-          const d = new Date(n?.dataAbertura || n?.importadoEm || new Date());
-          return !isNaN(d.getTime()) && meses.includes(MESES[d.getUTCMonth()]);
-        } catch(e) { console.error('Erro filtrando ncFiltradas: ' + String(e)); return false; }
-      });
-    }
-  } catch(e) { console.error('Erro filtrando ncFiltradas Bloco: ' + String(e)); }
-
-  let ncFiltradasParaDisplay = ncFiltradas;
-  let ncAbertasTotal = 0;
-  try {
-    ncFiltradasParaDisplay = isConectadoTst ? ncFiltradas.filter(n => n?.tecnicoId === tecnicoConectado?.id) : ncFiltradas;
-    ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n?.status && n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
-  } catch(e) { console.error('Erro calculando ncAbertasTotal: ' + String(e)); }
-
-  const tecnicosStats = (tecnicosDb || []).filter(t => t?.ativo).map(t => {
-    let dss = 0, insp = 0, rel = 0, nc = 0, nomeAbrev = t?.nome || '';
-    try {
-      dss = dssFiltrados.filter(a => matchTecnico(a?.nome, t?.nome)).length
-      insp = inspFiltradas.filter(a => matchTecnico(a?.nomeAuditor, t?.nome) || a?.tecnicoId === t?.id).length
-      const relTec = relatoriosFiltrados.filter(r => r?.tecnicoId === t?.id)
-      rel = relTec.length
-      nc = ncFiltradasParaDisplay.filter(n => matchTecnico(n?.nomeAuditor, t?.nome) || n?.tecnicoId === t?.id).length
-      
-      // Abreviação do nome segura
-      const safeNome = t?.nome || '';
-      const parts = safeNome.trim().split(' ').filter(Boolean)
-      nomeAbrev = parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : (parts[0] || '')
-    } catch (e) { console.error('Erro map tecnico: ' + String(e)); }
-
-    return {
-      nome: t?.nome || '',
-      nomeAbrev,
-      fotoUrl: t?.fotoUrl,
-      dss,
-      insp,
-      rel,
-      nc
-    }
-  })
-
-  // Lógica de Metas
-
-  const tstStat = isConectadoTst && tecnicoConectado ? tecnicosStats.find(t => t.nome === tecnicoConectado.nome) : null;
-
-  function getActiveMonthsForMetaDashboard(t: any, selMesesObj: string[], selYear: string): number {
-    if (t.contaMeta === false) return 0
-    const numYears = selYear ? 1 : (ANOS.length || 1)
-    const selMonthsCount = selMesesObj.length > 0 ? selMesesObj.length : 12
-
-    if (!selYear) return selMonthsCount * numYears
-
-    if (!t.admissao) return selMonthsCount
-
-    const admDate = new Date(t.admissao)
-    const admYear = admDate.getUTCFullYear()
-    const admMonth = admDate.getUTCMonth()
-
-    let demYear: number | null = null
-    let demMonth: number | null = null
-    if (t.demissao) {
-      const demDate = new Date(t.demissao)
-      demYear = demDate.getUTCFullYear()
-      demMonth = demDate.getUTCMonth()
-    }
-
-    const mesIdx: Record<string, number> = { Jan: 0, Fev: 1, Mar: 2, Abr: 3, Mai: 4, Jun: 5, Jul: 6, Ago: 7, Set: 8, Out: 9, Nov: 10, Dez: 11 }
-
-    let count = 0
-    const monthsToIterate = selMesesObj.length > 0 ? selMesesObj : Object.keys(mesIdx)
-    const targetYear = parseInt(selYear, 10)
-
-    monthsToIterate.forEach(m => {
-      const mIdx = mesIdx[m]
-      let isActive = false
-
-      if (targetYear > admYear) {
-        isActive = true
-      } else if (targetYear === admYear && mIdx >= admMonth) {
-        isActive = true
+  function handleCreateLote(e: React.FormEvent) {
+    e.preventDefault()
+    if (!meetingDate || !meetingTime || !meetingAssunto) return
+    startTransition(async () => {
+      const res = await createReuniaoLote(meetingDate, meetingTime, meetingTimeFim, meetingAssunto, meetingRecorrencia, meetingDataFim)
+      if (res.success) {
+        setShowCreateModal(false)
+        setMeetingDate('')
+        setMeetingTime('')
+        setMeetingTimeFim('')
+        setMeetingAssunto('')
+        setMeetingRecorrencia('none')
+        setMeetingDataFim('')
+        loadData()
+      } else {
+        alert(res.error || "Erro ao criar reuniões")
       }
+    })
+  }
 
-      if (isActive && demYear !== null && demMonth !== null) {
-        if (targetYear > demYear) {
-          isActive = false
-        } else if (targetYear === demYear && mIdx > demMonth) {
-          isActive = false
+  function handleDeleteLote() {
+    if (!deleteConfirmInfo) return
+    startTransition(async () => {
+      const res = await deleteReuniaoLote(deleteConfirmInfo.data, deleteConfirmInfo.assunto)
+      if (res.success) {
+        setDeleteConfirmInfo(null)
+        loadData()
+      } else {
+        alert("Erro ao excluir reunião.")
+      }
+    })
+  }
+
+  function openAtaEditor(dt: string, ast: string) {
+    const existingAta = atas.find(a => new Date(a.data).toISOString() === dt && a.assunto === ast)
+    setEditingAta({ data: dt, assunto: ast })
+    setAtaContent(existingAta?.conteudo || '')
+    setAtaAnexoNome(existingAta?.anexoNome || '')
+    setAtaAnexoUrl(existingAta?.anexoUrl || '')
+    setAtaAnexoBase64('')
+    setAtaAnexoContentType('')
+    
+    const meetingLogs = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast)
+    setTempPresencas(JSON.parse(JSON.stringify(meetingLogs)))
+  }
+
+  function handleSaveAta() {
+    if (!editingAta) return
+    startTransition(async () => {
+      let finalAnexoUrl = ataAnexoUrl
+      let finalAnexoNome = ataAnexoNome
+
+      if (ataAnexoBase64) {
+        const formData = new FormData();
+        formData.append('fileData', ataAnexoBase64);
+        formData.append('fileName', ataAnexoNome);
+        formData.append('contentType', ataAnexoContentType);
+        const uploadRes = await uploadAnexoReuniao(formData)
+        if (uploadRes.success && uploadRes.url) {
+          finalAnexoUrl = uploadRes.url
+        } else {
+          alert(uploadRes.error || "Erro ao fazer upload do anexo")
+          return
         }
       }
 
-      if (isActive) count++
+      // Salva a ata primeiro
+      const editorNode = document.getElementById('editor')
+      const contentToSave = editorNode ? editorNode.innerHTML : ataContent
+      const ataRes = await upsertAta(editingAta.data, editingAta.assunto, contentToSave, finalAnexoUrl, finalAnexoNome)
+      
+      // Salva os dados de presença da lista temporária
+      const updatesList = tempPresencas.map(tp => ({
+        id: tp.id,
+        presenca: tp.presenca,
+        pontualidade: tp.pontualidade,
+        justificada: tp.justificada,
+        motivo: tp.motivo || '',
+        observacao: tp.observacao || ''
+      }))
+      
+      const presRes = await updatePresencasReuniao(updatesList)
+
+      if (ataRes.success && presRes.success) {
+        setEditingAta(null)
+        loadData()
+      } else {
+        alert("Ocorreu um erro ao salvar.")
+      }
     })
-    return count
   }
 
-  const activeTecnicos = isConectadoTst 
-    ? [tecnicosDb.find(t => t.nome === tecnicoConectado?.nome)].filter(Boolean) 
-    : tecnicosDb.filter(t => (mostrarInativos ? true : t.ativo !== false) && t.contaMeta !== false);
-  
-  const numYears = ano ? 1 : (ANOS.length || 1)
-  const numMeses = meses.length > 0 ? meses.length : 12
-  const baseTargetPerTecDss = numMeses * numYears * META_DSS_POR_TEC;
-  const baseTargetPerTecInsp = numMeses * numYears * META_INSP_POR_TEC;
-
-  const totalMesesMeta = activeTecnicos.reduce((sum, t) => sum + getActiveMonthsForMetaDashboard(t, meses, ano || ''), 0);
-  const metaDssTotal = totalMesesMeta * META_DSS_POR_TEC;
-  const metaInspTotal = totalMesesMeta * META_INSP_POR_TEC;
-
-  // Valores reais baseados no filtro (Se TST, usa apenas do tstStat)
-  const totalDss = isConectadoTst ? (tstStat?.dss || 0) : (meses.length > 0
-    ? meses.reduce((acc, m) => acc + (dadosMensais[m]?.dss || 0), 0)
-    : Object.values(dadosMensais).reduce((a, v) => a + v.dss, 0))
-  
-  const totalInsp = isConectadoTst ? (tstStat?.insp || 0) : (meses.length > 0
-    ? meses.reduce((acc, m) => acc + (dadosMensais[m]?.insp || 0), 0)
-    : Object.values(dadosMensais).reduce((a, v) => a + v.insp, 0))
-
-  const totalRelatoriosDisplay = isConectadoTst ? (tstStat?.rel || 0) : totalRelatorios
-
-  // Percentuais
-  const pctDss = metaDssTotal > 0 ? Math.round((totalDss / metaDssTotal) * 100) : 0
-  const pctInsp = metaInspTotal > 0 ? Math.round((totalInsp / metaInspTotal) * 100) : 0
-
-  // Dados de Quilometragem (média)
-  const kmFiltrados = meses.length > 0
-    ? kmAno.filter(k => meses.includes(MESES[new Date(k.dataInicial).getUTCMonth()]))
-    : kmAno
-  
-  const kmFiltradosParaDisplay = isConectadoTst ? kmFiltrados.filter(k => k.tecnicoId === tecnicoConectado?.id) : kmFiltrados
-  const kmsValidos = kmFiltradosParaDisplay.filter(k => k.diferenca != null && k.diferenca > 0)
-  const totalKm = kmsValidos.reduce((acc, k) => acc + (k.diferenca || 0), 0)
-  const mediaKm = kmsValidos.length > 0 ? Math.round(totalKm / kmsValidos.length) : 0
-
-  // Rankings e Gráficos Globais (sem filtro de TST para poder calcular o rank original)
-  let barData = [...tecnicosStats]
-    .sort((a, b) => a.nome.localeCompare(b.nome))
-    .map(t => ({ ...t, nomeAbrev: abbreviateName(t.nome) }))
-
-  let rankDss = [...barData].sort((a, b) => b.dss - a.dss)
-  let rankInsp = [...barData].sort((a, b) => b.insp - a.insp)
-
-  // Se TST logado, reduz a lista de renderização do gráfico/ranking só para ele, mantendo o index original do rank (guardando na prop _realIndex)
-  let rankingListDss: any[] = rankDss
-  let rankingListInsp: any[] = rankInsp
-  if (isConectadoTst) {
-    const nomeTst = tecnicoConectado?.nome || ''
-    barData = barData.filter(t => t.nome === nomeTst)
+  async function openPrintPdf(dt: string, ast: string) {
+    const existingAta = atas.find(a => new Date(a.data).toISOString() === dt && a.assunto === ast)
+    const presencas = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast)
     
-    const idxDss = rankDss.findIndex(t => t.nome === nomeTst)
-    rankingListDss = idxDss >= 0 ? [{ ...rankDss[idxDss], _realIndex: idxDss }] : []
+    try {
+      const { gerarPdfAta } = await import('@/app/utils/gerarPdfAta')
+      const { fileName, doc } = await gerarPdfAta({
+        data: dt,
+        assunto: ast,
+        conteudo: existingAta?.conteudo || '',
+        anexoNome: existingAta?.anexoNome || undefined,
+        presencas: presencas.map(p => ({
+          tecnico: { nome: p.tecnico.nome },
+          presenca: p.presenca,
+          pontualidade: p.pontualidade,
+          motivo: p.motivo,
+          observacao: p.observacao
+        }))
+      })
+      doc.save(fileName)
+    } catch (err) {
+      console.error(err)
+      alert('Erro ao gerar o PDF da ata.')
+    }
+  }
+
+  function handleAnexoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
     
-    const idxInsp = rankInsp.findIndex(t => t.nome === nomeTst)
-    rankingListInsp = idxInsp >= 0 ? [{ ...rankInsp[idxInsp], _realIndex: idxInsp }] : []
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Arquivo muito grande. Limite é 50MB.')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      if (ev.target?.result) {
+        setAtaAnexoBase64(ev.target.result as string)
+        setAtaAnexoNome(file.name)
+        setAtaAnexoContentType(file.type)
+        setAtaAnexoUrl('')
+      }
+    }
+    reader.readAsDataURL(file)
   }
 
-  // Mapa global para o CustomXAxisTick acessar fotoUrl via nomeAbrev
-  if (typeof window !== 'undefined') {
-    ;(window as any).__barDataMap = Object.fromEntries(barData.map(t => [t.nomeAbrev, t]))
-    ;(window as any).__mostrarFotosGrafico = mostrarFotosGrafico
-  }
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 16 }}>
-        <Loader2 className="animate-spin" size={48} color={RED} />
-        <span style={{ color: '#64748b', fontWeight: 600 }}>Carregando dados do dashboard...</span>
-      </div>
-    )
+  function execCmd(command: string, arg?: string) {
+    document.execCommand(command, false, arg)
+    document.getElementById('editor')?.focus()
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
-      {debugMsgs.length > 0 && (
-        <div style={{ padding: 10, margin: 20, backgroundColor: 'red', color: 'white', borderRadius: 8, whiteSpace: 'pre-wrap', zIndex: 9999 }}>
-          <strong>Erros Detectados (Debug):</strong><br/>
-          {debugMsgs.map((m, i) => <div key={i}>{m}</div>)}
-        </div>
-      )}
+    <>
 
-      {/* ── Modal de Detalhes ── */}
-      {modalData && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: 500, overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}>
-            <div style={{ background: RED, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff' }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Detalhes do Técnico</h3>
-              <button onClick={() => setModalData(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
-                <X size={20} />
-              </button>
-            </div>
-            <div style={{ padding: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-                <div style={{ width: 72, height: 72, flexShrink: 0, borderRadius: '50%', background: 'linear-gradient(135deg, #f8fafc, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 900, color: '#334155', border: '2px solid #cbd5e1', overflow: 'hidden' }}>
-                  {modalData.fotoUrl ? (
-                    <img src={modalData.fotoUrl} alt={modalData.nome} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  ) : (
-                    getInitials(modalData.nome)
-                  )}
-                </div>
-                <div>
-                  <p style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>{modalData.nome}</p>
-                  <p style={{ fontSize: 13, color: '#64748b', fontWeight: 500, margin: 0 }}>
-                    {meses.length > 0 ? `Dados de ${meses.join(', ')}/${ano || 'Todos'}` : `Acumulado ${ano || 'Geral'}`}
-                  </p>
-                </div>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
-                <div style={{ background: '#f0f9ff', padding: 16, borderRadius: 12, border: '1px solid #bae6fd' }}>
-                  <p style={{ fontSize: 11, color: '#0369a1', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>DSS</p>
-                  <p style={{ fontSize: 28, fontWeight: 900, color: '#0284c7', margin: 0 }}>{modalData.dss}</p>
-                  <p style={{ fontSize: 10, color: '#0ea5e9', fontWeight: 600, marginTop: 4 }}>Meta: {META_DSS_POR_TEC * (tecnicosDb.find(t => t.nome === modalData.nome) ? getActiveMonthsForMetaDashboard(tecnicosDb.find(t => t.nome === modalData.nome), meses, ano || '') : (numMeses * numYears))}</p>
-                </div>
-                <div style={{ background: '#fffbeb', padding: 16, borderRadius: 12, border: '1px solid #fde68a' }}>
-                  <p style={{ fontSize: 11, color: '#b45309', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>Insp.</p>
-                  <p style={{ fontSize: 28, fontWeight: 900, color: '#d97706', margin: 0 }}>{modalData.insp}</p>
-                  <p style={{ fontSize: 10, color: '#f59e0b', fontWeight: 600, marginTop: 4 }}>Meta: {META_INSP_POR_TEC * (tecnicosDb.find(t => t.nome === modalData.nome) ? getActiveMonthsForMetaDashboard(tecnicosDb.find(t => t.nome === modalData.nome), meses, ano || '') : (numMeses * numYears))}</p>
-                </div>
-                <div style={{ background: '#faf5ff', padding: 16, borderRadius: 12, border: '1px solid #e9d5ff' }}>
-                  <p style={{ fontSize: 11, color: '#7e22ce', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>Relatórios</p>
-                  <p style={{ fontSize: 28, fontWeight: 900, color: '#9333ea', margin: 0 }}>{modalData.rel}</p>
-                  <p style={{ fontSize: 10, color: '#a855f7', fontWeight: 600, marginTop: 4 }}>Atividades</p>
-                </div>
-                <div style={{ background: '#fef2f2', padding: 16, borderRadius: 12, border: '1px solid #fecaca' }}>
-                  <p style={{ fontSize: 11, color: '#b91c1c', fontWeight: 700, margin: '0 0 4px 0', textTransform: 'uppercase' }}>NCs</p>
-                  <p style={{ fontSize: 28, fontWeight: 900, color: '#ef4444', margin: 0 }}>{modalData.nc}</p>
-                  <p style={{ fontSize: 10, color: '#f87171', fontWeight: 600, marginTop: 4 }}>Ocorrências</p>
-                </div>
-              </div>
-            </div>
+
+
+
+      <style>{`
+        .reuniao-ata-body { display: flex; flex: 1; overflow: hidden; }
+        .reuniao-ata-panel { width: 450px; padding: 0; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; }
+        @media (max-width: 768px) {
+          .reuniao-ata-body { flex-direction: column; overflow: visible; }
+          .reuniao-ata-panel { width: 100%; border-left: none; border-top: 1px solid #e2e8f0; max-height: 60vh; overflow-y: auto; }
+        }
+      `}</style>
+
+      {/* --- TELA PRINCIPAL --- */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+
+        {/* ── Cabeçalho Padronizado ── */}
+        <div style={{
+          background: '#fff',
+          borderRadius: 10,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CalendarDays color="#660099" size={22} />
+              Reuniões e Presenças
+            </h1>
           </div>
         </div>
-      )}
 
-      {/* ── Barra superior com Filtros ── */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-            Olá, {firstName}!
-          </h1>
-          <span style={{ fontSize: 14, color: '#94a3b8', fontWeight: 500 }}>
-            Bem-vindo ao painel SG4
-          </span>
-        </div>
-
-        {/* Filtros */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-          {/* Toggle Inativos */}
-          {!isTst && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                onClick={() => setMostrarInativos(!mostrarInativos)}
-                style={{
-                  background: mostrarInativos ? '#10b981' : '#f1f5f9',
-                  border: 'none',
-                  borderRadius: 20,
-                  width: 40,
-                  height: 22,
-                  position: 'relative',
-                  cursor: 'pointer',
-                  transition: 'background 0.3s'
-                }}
-              >
-                <div style={{
-                  position: 'absolute',
-                  top: 2,
-                  left: mostrarInativos ? 20 : 2,
-                  width: 18,
-                  height: 18,
-                  background: '#fff',
-                  borderRadius: '50%',
-                  transition: 'left 0.3s',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                }} />
-              </button>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Inativos</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+          {/* Filtro de Meses e Ano */}
+          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+              <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
+                <option value="ALL">Todos os Anos</option>
+                {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
             </div>
-          )}
-
-          {/* Seletor de Ano */}
-          <div style={{ position: 'relative' }}>
-            <select
-              value={ano}
-              onChange={e => setAno(e.target.value)}
-              style={{
-                appearance: 'none', background: '#f8fafc', border: '1px solid #e2e8f0',
-                borderRadius: 8, padding: '8px 36px 8px 16px', fontSize: 13,
-                fontWeight: 600, color: '#475569', cursor: 'pointer', outline: 'none'
-              }}
-            >
-              <option value="">Todos os Anos</option>
-              {ANOS.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
-            <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 11, pointerEvents: 'none', color: '#94a3b8' }} />
-          </div>
-
-          {/* Custom Dropdown Multi-select de Meses */}
-          <div ref={dropdownRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setDropdownAberto(!dropdownAberto)}
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: 8,
-                padding: '8px 16px',
-                fontSize: 13,
-                fontWeight: 600,
-                color: '#475569',
-                cursor: 'pointer',
-                outline: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                minWidth: 180,
-                justifyContent: 'space-between'
-              }}
-            >
-              <span>
-                {meses.length === 12
-                  ? 'Todos os Meses'
-                  : meses.length === 0
-                  ? 'Nenhum Mês'
-                  : meses.length <= 3
-                  ? meses.join(', ')
-                  : `${meses.length} Meses`}
-              </span>
-              <ChevronDown size={14} style={{ color: '#94a3b8' }} />
-            </button>
-
-            {dropdownAberto && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 4px)',
-                left: 0,
-                background: '#fff',
-                border: '1px solid #e2e8f0',
-                borderRadius: 8,
-                boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                zIndex: 1000,
-                width: 200,
-                maxHeight: 280,
-                overflowY: 'auto',
-                padding: 6
-              }}>
-                {/* Opção Selecionar Todos / Desmarcar Todos */}
-                <div 
-                  onClick={() => {
-                    if (meses.length === 12) {
-                      setMeses([])
-                    } else {
-                      setMeses([...MESES])
-                    }
-                  }}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    background: meses.length === 12 ? '#f1f5f9' : 'transparent',
-                    color: '#475569',
-                    borderBottom: '1px solid #f1f5f9',
-                    marginBottom: 4,
-                    userSelect: 'none'
-                  }}
-                >
-                  <input 
-                    type="checkbox" 
-                    checked={meses.length === 12}
-                    readOnly
-                    style={{ cursor: 'pointer', accentColor: '#660099' }}
-                  />
-                  <span>{meses.length === 12 ? 'Desmarcar Todos' : 'Selecionar Todos'}</span>
-                </div>
-
-                {/* Lista de Meses */}
-                {MESES.map(m => {
-                  const ativo = meses.includes(m)
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {MONTHS_LIST.slice(0, 6).map(m => {
+                  const isSelected = selectedMonths.includes(m.key)
                   return (
-                    <div
-                      key={m}
-                      onClick={() => {
-                        setMeses(prev => 
-                          ativo 
-                            ? prev.filter(x => x !== m) 
-                            : [...prev, m]
-                        )
-                      }}
+                    <button
+                      key={m.key}
+                      onClick={() => handleMonthClick(m.key)}
                       style={{
-                        padding: '6px 10px',
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        background: ativo ? 'rgba(102,0,153,0.06)' : 'transparent',
-                        color: ativo ? '#660099' : '#475569',
-                        transition: 'background 0.15s',
-                        userSelect: 'none'
+                        flex: 1, padding: '8px 0', borderRadius: 6,
+                        border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                        background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                        color: isSelected ? '#660099' : '#64748b',
+                        fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none'
                       }}
-                      onMouseEnter={e => e.currentTarget.style.background = ativo ? 'rgba(102,0,153,0.08)' : '#f8fafc'}
-                      onMouseLeave={e => e.currentTarget.style.background = ativo ? 'rgba(102,0,153,0.06)' : 'transparent'}
                     >
-                      <input 
-                        type="checkbox" 
-                        checked={ativo}
-                        readOnly
-                        style={{ cursor: 'pointer', accentColor: '#660099' }}
-                      />
-                      <span>{m}</span>
-                    </div>
+                      {m.label}
+                    </button>
                   )
                 })}
               </div>
-            )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {MONTHS_LIST.slice(6, 12).map(m => {
+                  const isSelected = selectedMonths.includes(m.key)
+                  return (
+                    <button
+                      key={m.key}
+                      onClick={() => handleMonthClick(m.key)}
+                      style={{
+                        flex: 1, padding: '8px 0', borderRadius: 6,
+                        border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                        background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                        color: isSelected ? '#660099' : '#64748b',
+                        fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none'
+                      }}
+                    >
+                      {m.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Card de Estatística */}
+          <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Métricas das Reuniões</span>
+              <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
+                {selectedMonths.length === 12 ? 'TODOS' : `${selectedMonths.length} MÊS(ES)`}
+              </span>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Presença Geral</span>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#1e293b' }}>{presenceRate}%</div>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Pontualidade</span>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#10b981' }}>{punctualityRate}%</div>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', fontWeight: 600, borderTop: '1px solid #f1f5f9', paddingTop: 12 }}>
+              <span>Reuniões: <b style={{ color: '#1e293b' }}>{totalMeetings}</b></span>
+              <span>Atrasos: <b style={{ color: '#f59e0b' }}>{totalAtrasados}</b></span>
+              <span>Ausentes: <b style={{ color: '#660099' }}>{totalAusentes}</b></span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ── 4 Stat cards — cores Vivo (Roxo/Violeta) ── */}
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#660099" bgDark="#4a0072" />
-        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#8e44ad" bgDark="#732d91" />
-        <StatCard onClick={() => router.push('/dashboard/naoconformidades')} icon={Target} label="Não Conform." value={ncAbertasTotal} subtitle="Em aberto da equipe" bg="#9c27b0" bgDark="#7b1fa2" />
-        <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#673ab7" bgDark="#512da8" />
-      </div>
-
-      {/* ── Charts & Rankings (2/3 + 1/3) ── */}
-      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-
-        {/* Coluna Esquerda: Gráfico BarChart */}
-        <div style={{ flex: 2, minWidth: 300, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <ChartCard
-            icon={FileText}
-            title="Desempenho por Técnico"
-            style={{ height: 500 }}
-            headerAction={
-              <div 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 6, 
-                  fontSize: 12, 
-                  cursor: 'pointer', 
-                  fontWeight: 600, 
-                  userSelect: 'none', 
-                  background: 'rgba(255,255,255,0.15)', 
-                  padding: '4px 10px', 
-                  borderRadius: 20, 
-                  border: '1px solid rgba(255,255,255,0.3)' 
-                }} 
-                onClick={() => setMostrarFotosGrafico(!mostrarFotosGrafico)}
-              >
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: mostrarFotosGrafico ? '#10b981' : '#ef4444' }} />
-                <span>{mostrarFotosGrafico ? 'Fotos Ativas' : 'Apenas Nomes'}</span>
-              </div>
-            }
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ left: -10, right: 10, bottom: 50, top: 60 }} barCategoryGap="15%" onClick={(data: any) => {
-                if (data && data.activePayload && data.activePayload.length > 0) {
-                  setModalData(data.activePayload[0].payload)
-                }
-              }}>
-                
-                <XAxis
-                  dataKey="nomeAbrev"
-                  tick={<CustomXAxisTick />}
-                  tickLine={false} axisLine={false} height={80}
-                  interval={0}
-                  style={{ cursor: 'pointer' }}
-                />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(102,0,153,0.04)', cursor: 'pointer' }} />
-                <Legend
-                  verticalAlign="top"
-                  align="center"
-                  wrapperStyle={{ fontSize: 13, fontWeight: 700, paddingBottom: 16, cursor: 'pointer' }}
-                  onClick={(e: any) => {
-                    const key = e.dataKey as string
-                    setLegendaAtiva(prev =>
-                      prev.includes(key)
-                        ? prev.length === 1 ? ['dss', 'insp'] : prev.filter(k => k !== key)
-                        : [...prev, key]
-                    )
-                  }}
-                  formatter={(value: string, entry: any) => (
-                    <span style={{
-                      color: legendaAtiva.includes(entry.dataKey) ? '#1e293b' : '#cbd5e1',
-                      textDecoration: legendaAtiva.includes(entry.dataKey) ? 'none' : 'line-through',
-                      transition: 'all .2s'
-                    }}>{value}</span>
-                  )}
-                />
-
-                <Bar dataKey="dss" name="DSS" fill="#660099" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('dss')} />
-                <Bar dataKey="insp" name="Inspeções" fill="#8e44ad" radius={[4, 4, 0, 0]} maxBarSize={45} style={{ cursor: 'pointer' }} hide={!legendaAtiva.includes('insp')} />
-                {legendaAtiva.includes('dss') && <ReferenceLine y={baseTargetPerTecDss} ifOverflow="extendDomain" stroke="#db2777" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: `Meta DSS: ${baseTargetPerTecDss}`, fill: '#db2777', fontSize: 14, fontWeight: 900, stroke: '#fff', strokeWidth: 2, paintOrder: 'stroke' }} />}
-                {legendaAtiva.includes('insp') && <ReferenceLine y={baseTargetPerTecInsp} ifOverflow="extendDomain" stroke="#db2777" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: `Meta Insp.: ${baseTargetPerTecInsp}`, fill: '#db2777', fontSize: 14, fontWeight: 900, stroke: '#fff', strokeWidth: 2, paintOrder: 'stroke' }} />}
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
-
-        {/* Coluna Direita: Rankings */}
-        <div style={{ flex: 1, minWidth: 280, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+          <div style={{ position: 'relative', width: 300 }}>
+            <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
+            <input type="text" placeholder="Buscar reuniões por assunto..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }} />
+          </div>
           
-          {/* Ranking DSS */}
-          <ChartCard icon={Target} title="Ranking - DSS" style={{ height: 240 }}>
-            <div style={{ overflowY: 'auto', height: '100%', paddingRight: 4 }} className="scrollbar-hide">
-              {rankingListDss.map((t: any, i) => {
-                const realPos = t._realIndex !== undefined ? t._realIndex : i
-                const medal = getMedal(realPos)
-                return (
-                  <div key={i} onClick={() => setModalData(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background .15s', borderRadius: 8 }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, border: medal.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: realPos < 3 ? 12 : 11, fontWeight: 900, boxShadow: realPos < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', boxSizing: 'border-box', lineHeight: 1, paddingBottom: 1 }}>
-                      {medal.label}
-                    </div>
-                    <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
-                    <div style={{ fontSize: 14, fontWeight: 900, color: COLORS.dss }}>{t.dss}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </ChartCard>
-
-          {/* Ranking Inspeções */}
-          <ChartCard icon={TrendingUp} title="Ranking - Inspeções" style={{ height: 240 }}>
-            <div style={{ overflowY: 'auto', height: '100%', paddingRight: 4 }} className="scrollbar-hide">
-              {rankingListInsp.map((t: any, i) => {
-                const realPos = t._realIndex !== undefined ? t._realIndex : i
-                const medal = getMedal(realPos)
-                return (
-                  <div key={i} onClick={() => setModalData(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background .15s', borderRadius: 8 }} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: medal.bg, color: medal.color, border: medal.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: realPos < 3 ? 12 : 11, fontWeight: 900, boxShadow: realPos < 3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none', boxSizing: 'border-box', lineHeight: 1, paddingBottom: 1 }}>
-                      {medal.label}
-                    </div>
-                    <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: '#334155' }}>{t.nome}</div>
-                    <div style={{ fontSize: 14, fontWeight: 900, color: COLORS.insp }}>{t.insp}</div>
-                  </div>
-                )
-              })}
-            </div>
-          </ChartCard>
-
+          {isMasterOrAdmin && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              style={{
+                background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+                fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+              }}
+            >
+              <PlusCircle size={16} />
+              Agendar Reunião
+            </button>
+          )}
         </div>
+
+        {/* ── CONTEÚDO: TABELA DE REUNIÕES AGENDADAS ── */}
+        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          {loading ? (
+            <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}>
+              <Loader2 className="animate-spin" size={32} color="#660099" />
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', width: '120px' }}>Data</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Assunto da Reunião</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Técnicos Presentes</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Ata Redigida</th>
+                    <th style={{ padding: '14px 20px', width: 220, textAlign: 'right' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchedMeetings.map(m => {
+                    const ata = atas.find(a => new Date(a.data).toISOString() === m.data && a.assunto === m.assunto)
+                    const temAta = !!ata
+                    
+                    return (
+                    <tr key={m.data + m.assunto} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s', ...((deleteConfirmInfo?.data === m.data && deleteConfirmInfo?.assunto === m.assunto) ? { background: '#f8fafc' } : {}) }}>
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                          {m.rawData.toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{m.assunto}</div>
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>{m.presences} / {m.count}</span>
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        {temAta ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: 'rgba(16,185,129,0.1)', color: '#10b981' }}>
+                            <CheckCircle2 size={12} /> Sim
+                          </span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 12, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', background: '#f1f5f9', color: '#64748b' }}>
+                            <XCircle size={12} /> Pendente
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                          {ata?.anexoUrl && (
+                            <a
+                              href={ata.anexoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#2563eb', transition: 'all 0.2s' }}
+                              title={`Ver Anexo: ${ata.anexoNome || 'Documento'}`}
+                            >
+                              <FileText size={16} />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => openPrintPdf(m.data, m.assunto)}
+                            disabled={pending}
+                            style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', transition: 'all 0.2s', opacity: pending ? 0.5 : 1 }}
+                            title="Visualizar Ata / PDF"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          {isMasterOrAdmin && (
+                            <>
+                              <button
+                                onClick={() => openAtaEditor(m.data, m.assunto)}
+                                disabled={pending}
+                                style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: '#660099', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: '#fff', fontSize: 12, fontWeight: 700, transition: 'all 0.2s', opacity: pending ? 0.5 : 1 }}
+                              >
+                                {temAta ? <Edit2 size={14} /> : <FileCode2 size={14} />} 
+                                {temAta ? 'Editar' : 'Redigir'}
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmInfo({ data: m.data, assunto: m.assunto })}
+                                disabled={pending}
+                                style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #fee2e2', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#ef4444', transition: 'all 0.2s', opacity: pending ? 0.5 : 1 }}
+                                title="Excluir Reunião"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    )
+                  })}
+                  {searchedMeetings.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '40px 24px', textAlign: 'center', fontSize: 13, color: '#94a3b8' }}>
+                        Nenhuma reunião agendada encontrada para o período.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
       </div>
-    </div>
+
+      {/* --- MODAL CONFIRMAÇÃO EXCLUSÃO --- */}
+      {deleteConfirmInfo && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 400, padding: 24 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#ef4444', margin: '0 0 16px 0' }}>Excluir Reunião?</h2>
+            <p style={{ margin: 0, fontSize: 14, color: '#334155', lineHeight: 1.5 }}>
+              Você está prestes a excluir a reunião <b>{deleteConfirmInfo.assunto}</b>. Isso removerá as presenças de todos os técnicos e a ata atrelada. Deseja continuar?
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24 }}>
+              <button disabled={pending} onClick={() => setDeleteConfirmInfo(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button disabled={pending} onClick={handleDeleteLote} style={{ padding: '10px 20px', borderRadius: 8, border: 'none', background: '#ef4444', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                Sim, Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL REDIGIR ATA E PRESENÇA --- */}
+      {editingAta && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 1000, maxHeight: '95vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Gestão do Evento (Ata & Presenças)</h2>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>{editingAta.assunto} • {new Date(editingAta.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</div>
+              </div>
+              <button onClick={() => setEditingAta(null)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+
+            <div className="reuniao-ata-body">
+              
+              {/* LADO ESQUERDO: REDIGIR ATA */}
+              <div style={{ flex: 1, padding: 24, overflowY: 'auto', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: '#334155', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><FileCode2 size={16} /> Redigir Ata</h3>
+                
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, background: '#f8fafc', padding: 8, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <button type="button" onClick={() => execCmd('bold')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>B</button>
+                  <button type="button" onClick={() => execCmd('italic')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontStyle: 'italic', cursor: 'pointer' }}>I</button>
+                  <button type="button" onClick={() => execCmd('underline')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', textDecoration: 'underline', cursor: 'pointer' }}>U</button>
+                  <div style={{ width: 1, background: '#cbd5e1', margin: '0 6px' }} />
+                  <button type="button" onClick={() => execCmd('insertUnorderedList')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>• Lista</button>
+                  <button type="button" onClick={() => execCmd('insertOrderedList')} style={{ padding: '6px 12px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>1. Num</button>
+                </div>
+
+                <div
+                  id="editor"
+                  contentEditable
+                  suppressContentEditableWarning
+                  onBlur={(e) => setAtaContent(e.currentTarget.innerHTML)}
+                  dangerouslySetInnerHTML={{ __html: ataContent }}
+                  style={{
+                    flex: 1, minHeight: 250, padding: 16, borderRadius: 8, border: '1px solid #cbd5e1',
+                    outline: 'none', fontSize: 14, color: '#334155', lineHeight: 1.6, overflowY: 'auto'
+                  }}
+                />
+
+                <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#334155', marginBottom: 8 }}>Anexo</label>
+                  {ataAnexoUrl || ataAnexoNome ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', padding: '10px 16px', borderRadius: 8, border: '1px solid #cbd5e1' }}>
+                      <FileText size={16} color="#660099" />
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{ataAnexoNome}</div>
+                        {ataAnexoUrl && <a href={ataAnexoUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#2563eb', textDecoration: 'none' }}>Ver arquivo original</a>}
+                      </div>
+                      <button type="button" onClick={async () => {
+                        if (ataAnexoUrl && editingAta) {
+                          if (!confirm('Tem certeza que deseja excluir o anexo do servidor?')) return;
+                          const res = await deleteAnexoAta(editingAta.data, editingAta.assunto, ataAnexoUrl);
+                          if (res.success) {
+                            setAtaAnexoUrl(''); setAtaAnexoNome(''); setAtaAnexoBase64(''); setAtaAnexoContentType('');
+                            loadData();
+                          } else {
+                            alert(res.error || 'Erro ao excluir anexo');
+                          }
+                        } else {
+                          setAtaAnexoUrl(''); setAtaAnexoNome(''); setAtaAnexoBase64(''); setAtaAnexoContentType('');
+                        }
+                      }} disabled={pending} style={{ padding: '6px 12px', borderRadius: 6, background: '#fee2e2', color: '#ef4444', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: 11, opacity: pending ? 0.5 : 1 }}>Remover</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input type="file" id="ataAnexoInput" onChange={handleAnexoChange} style={{ display: 'none' }} />
+                      <button type="button" onClick={() => document.getElementById('ataAnexoInput')?.click()} style={{ padding: '10px 16px', borderRadius: 8, border: '1px dashed #64748b', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', width: '100%' }}>Adicionar Arquivo (50MB max)</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* LADO DIREITO: LISTA DE PRESENÇA */}
+              <div className="reuniao-ata-panel">
+                <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff', position: 'sticky', top: 0, zIndex: 10 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: '#334155', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle2 size={16} /> Lançar Presenças</h3>
+                  <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#64748b' }}>Configure quem participou e as observações. Esses dados serão consolidados no final.</p>
+                </div>
+                
+                <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {tempPresencas.map((tp, idx) => {
+                    const isPresente = tp.presenca === 'PRESENTE';
+                    const isAusente = tp.presenca === 'AUSENTE';
+                    const isAtrasado = tp.pontualidade === 'ATRASADO';
+                    const isPontual = tp.pontualidade === 'PONTUAL';
+
+                    const showPontualidade = isPresente;
+                    const showJustificada = isAusente || (isPresente && isAtrasado);
+                    const showObservacao = isAusente || (isPresente && isAtrasado);
+
+                    return (
+                    <div key={tp.id} style={{ background: '#fff', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                        {tp.tecnico.fotoUrl ? (
+                          <img src={tp.tecnico.fotoUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                            {tp.tecnico.nome.substring(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{tp.tecnico.nome}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button 
+                            onClick={() => {
+                              const newArr = [...tempPresencas];
+                              newArr[idx].presenca = 'PRESENTE';
+                              if (newArr[idx].pontualidade === 'NAO_SE_APLICA') newArr[idx].pontualidade = 'PONTUAL';
+                              if (newArr[idx].pontualidade === 'PONTUAL') {
+                                newArr[idx].justificada = 'NAO_SE_APLICA';
+                                newArr[idx].motivo = '';
+                              }
+                              setTempPresencas(newArr);
+                            }}
+                            style={{ flex: 1, padding: '6px 0', borderRadius: 6, border: tp.presenca === 'PRESENTE' ? '1px solid #10b981' : '1px solid #e2e8f0', background: tp.presenca === 'PRESENTE' ? 'rgba(16,185,129,0.1)' : '#fff', color: tp.presenca === 'PRESENTE' ? '#10b981' : '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            PRESENTE
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const newArr = [...tempPresencas];
+                              newArr[idx].presenca = 'AUSENTE';
+                              newArr[idx].pontualidade = 'NAO_SE_APLICA';
+                              setTempPresencas(newArr);
+                            }}
+                            style={{ flex: 1, padding: '6px 0', borderRadius: 6, border: tp.presenca === 'AUSENTE' ? '1px solid #ef4444' : '1px solid #e2e8f0', background: tp.presenca === 'AUSENTE' ? 'rgba(239,68,68,0.1)' : '#fff', color: tp.presenca === 'AUSENTE' ? '#ef4444' : '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            AUSENTE
+                          </button>
+                        </div>
+                        
+                        {(showPontualidade || showJustificada) && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {showPontualidade && (
+                              <select 
+                                value={tp.pontualidade}
+                                onChange={(e) => {
+                                  const newArr = [...tempPresencas];
+                                  newArr[idx].pontualidade = e.target.value as any;
+                                  if (e.target.value === 'PONTUAL') {
+                                    newArr[idx].justificada = 'NAO_SE_APLICA';
+                                    newArr[idx].motivo = '';
+                                  }
+                                  setTempPresencas(newArr);
+                                }}
+                                style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, color: '#334155' }}
+                              >
+                                <option value="PONTUAL">Pontual</option>
+                                <option value="ATRASADO">Atrasado</option>
+                              </select>
+                            )}
+
+                            {showJustificada && (
+                              <select 
+                                value={tp.justificada}
+                                onChange={(e) => {
+                                  const newArr = [...tempPresencas];
+                                  newArr[idx].justificada = e.target.value as any;
+                                  setTempPresencas(newArr);
+                                }}
+                                style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, color: '#334155' }}
+                              >
+                                <option value="NAO_SE_APLICA">Justificada? (N/A)</option>
+                                <option value="SIM">Sim</option>
+                                <option value="NAO">Não</option>
+                              </select>
+                            )}
+                          </div>
+                        )}
+                        
+                        {showObservacao && (
+                          <input 
+                            type="text" 
+                            placeholder="Motivo / Observação..." 
+                            value={tp.motivo || tp.observacao || ''}
+                            onChange={(e) => {
+                              const newArr = [...tempPresencas];
+                              newArr[idx].motivo = e.target.value;
+                              setTempPresencas(newArr);
+                            }}
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12, background: '#f8fafc', borderRadius: '0 0 16px 16px' }}>
+              <button type="button" disabled={pending} onClick={() => setEditingAta(null)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+              <button type="button" disabled={pending} onClick={handleSaveAta} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                {pending ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
+                Salvar Evento Completo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Criar Nova Reunião Lote */}
+      {showCreateModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <PlusCircle color="#fff" size={20} />
+                Agendar Reunião
+              </h2>
+              <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleCreateLote} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+                Isso criará a estrutura da reunião. Depois, você poderá redigir a ata e lançar a presença dos técnicos individualmente.
+              </p>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data da Reunião</label>
+                  <input type="date" required value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Hora Início</label>
+                  <input type="time" required value={meetingTime} onChange={(e) => setMeetingTime(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Hora Fim</label>
+                  <input type="time" value={meetingTimeFim} onChange={(e) => setMeetingTimeFim(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Assunto Principal</label>
+                <input type="text" required value={meetingAssunto} onChange={(e) => setMeetingAssunto(e.target.value)} placeholder="Ex: Reunião de Alinhamento Mensal" style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Recorrência</label>
+                  <select value={meetingRecorrencia} onChange={(e) => setMeetingRecorrencia(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}>
+                    <option value="none">Evento Único</option>
+                    <option value="diaria">Diária</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="mensal">Mensal</option>
+                  </select>
+                </div>
+                {meetingRecorrencia !== 'none' && (
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Data Fim (Recorrência)</label>
+                    <input type="date" required value={meetingDataFim} onChange={(e) => setMeetingDataFim(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 10 }}>
+                <button type="button" disabled={pending} onClick={() => setShowCreateModal(false)} style={{ padding: '10px 20px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={pending} style={{ padding: '10px 24px', borderRadius: 8, border: 'none', background: '#660099', color: '#fff', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {pending && <Loader2 size={16} className="animate-spin" />} 
+                  Agendar Evento
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+    </>
   )
 }

@@ -83,6 +83,20 @@ export default function AbastecimentoOrcamentoPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+      <style>{`
+        .abast-card { display: flex; align-items: center; justify-content: space-between; gap: 16; }
+        .abast-info { display: flex; align-items: center; gap: 16; flex: 1; min-width: 0; }
+        .abast-stats { display: flex; gap: 32px; align-items: center; flex: 1.5; justify-content: center; flex-wrap: wrap; }
+        .abast-actions { flex: 1; display: flex; justify-content: flex-end; align-items: center; gap: 16; flex-wrap: wrap; }
+        .abast-header-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        @media (max-width: 768px) {
+          .abast-card { flex-direction: column; align-items: flex-start; gap: 16px; }
+          .abast-info { width: 100%; }
+          .abast-stats { width: 100%; justify-content: space-around; gap: 16px; }
+          .abast-actions { width: 100%; justify-content: space-between; flex-direction: row; align-items: center; }
+          .abast-header-controls { width: 100%; justify-content: space-between; }
+        }
+      `}</style>
       <div style={{
         background: '#fff',
         borderRadius: 10,
@@ -102,7 +116,7 @@ export default function AbastecimentoOrcamentoPage() {
           </h1>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="abast-header-controls">
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
             <input type="checkbox" checked={mostrarOcultos} onChange={e => setMostrarOcultos(e.target.checked)} style={{ accentColor: '#660099', cursor: 'pointer' }} />
             Exibir
@@ -157,10 +171,10 @@ export default function AbastecimentoOrcamentoPage() {
             dados.filter(item => mostrarOcultos || !(item.orcamento === 0 && item.gastoTotalAcumulado === 0 && item.recargasTotalAcumulado === 0)).map((item, index) => (
               <div key={item.tecnico.id} style={{ 
                 background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', 
-                padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: 24,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1 }}>
+              }} className="abast-card">
+                <div className="abast-info">
                   <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #e2e8f0' }}>
                     {item.tecnico.fotoUrl ? (
                       <img src={item.tecnico.fotoUrl} alt={item.tecnico.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -186,7 +200,7 @@ export default function AbastecimentoOrcamentoPage() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 32, alignItems: 'center', flex: 1.5, justifyContent: 'center' }}>
+                <div className="abast-stats">
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', marginBottom: 4 }}>
                       {ano === 0 ? 'GASTO TOTAL' : 'GASTO ACUMULADO'}
@@ -213,7 +227,7 @@ export default function AbastecimentoOrcamentoPage() {
                   </div>
                 </div>
 
-                <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16 }}>
+                <div className="abast-actions">
                   {ano !== 0 && item.status === 'ADEQUADO' && (
                     <div style={{ background: '#dcfce7', color: '#16a34a', padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <CheckCircle2 size={14} /> ADEQUADO
