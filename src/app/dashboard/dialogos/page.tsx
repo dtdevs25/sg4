@@ -1409,9 +1409,9 @@ export default function DialogosPage() {
 
                 {/* Grid de Informações Secundárias */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
+                  <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9', minWidth: 0 }}>
                     <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Assunto</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>{treatingItem.assunto || '--'}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#334155', wordBreak: 'break-word', display: 'block', lineHeight: 1.4 }}>{treatingItem.assunto || '--'}</span>
                   </div>
                   <div style={{ background: '#f8fafc', padding: '8px 12px', borderRadius: 6, border: '1px solid #f1f5f9' }}>
                     <span style={{ display: 'block', fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>Tipo</span>
