@@ -57,6 +57,7 @@ export default function ReunioesPage() {
   const [meetingAssunto, setMeetingAssunto] = useState('')
   const [meetingRecorrencia, setMeetingRecorrencia] = useState('none')
   const [meetingDataFim, setMeetingDataFim] = useState('')
+  const [meetingIncludeInativos, setMeetingIncludeInativos] = useState(false)
   
   const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{data: string, assunto: string} | null>(null)
 
@@ -167,7 +168,7 @@ export default function ReunioesPage() {
     e.preventDefault()
     if (!meetingDate || !meetingTime || !meetingAssunto) return
     startTransition(async () => {
-      const res = await createReuniaoLote(meetingDate, meetingTime, meetingTimeFim, meetingAssunto, meetingRecorrencia, meetingDataFim)
+      const res = await createReuniaoLote(meetingDate, meetingTime, meetingTimeFim, meetingAssunto, meetingRecorrencia, meetingDataFim, meetingIncludeInativos)
       if (res.success) {
         setShowCreateModal(false)
         setMeetingDate('')
@@ -176,6 +177,7 @@ export default function ReunioesPage() {
         setMeetingAssunto('')
         setMeetingRecorrencia('none')
         setMeetingDataFim('')
+        setMeetingIncludeInativos(false)
         loadData()
       } else {
         alert(res.error || "Erro ao criar reuniões")
@@ -833,6 +835,19 @@ export default function ReunioesPage() {
                     <input type="date" required value={meetingDataFim} onChange={(e) => setMeetingDataFim(e.target.value)} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }} />
                   </div>
                 )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                <input 
+                  type="checkbox" 
+                  id="includeInativos" 
+                  checked={meetingIncludeInativos} 
+                  onChange={(e) => setMeetingIncludeInativos(e.target.checked)} 
+                  style={{ cursor: 'pointer', width: 16, height: 16 }}
+                />
+                <label htmlFor="includeInativos" style={{ fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
+                  Incluir também os funcionários inativos na lista de presenças
+                </label>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 10 }}>

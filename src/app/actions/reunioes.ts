@@ -37,7 +37,7 @@ export async function getReunioes(ano?: number) {
   }
 }
 
-export async function createReuniaoLote(dataIso: string, hora: string, horaFim: string, assunto: string, recorrencia: string, dataFimIso: string) {
+export async function createReuniaoLote(dataIso: string, hora: string, horaFim: string, assunto: string, recorrencia: string, dataFimIso: string, includeInativos: boolean = false) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -49,7 +49,7 @@ export async function createReuniaoLote(dataIso: string, hora: string, horaFim: 
     const userId = (session.user as any).id
 
     const tecnicos = await prisma.tecnico.findMany({
-      where: { ativo: true },
+      where: includeInativos ? undefined : { ativo: true },
       select: { id: true }
     })
     

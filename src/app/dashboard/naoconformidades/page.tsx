@@ -196,6 +196,7 @@ export default function NaoConformidadesPage() {
 
   // Global states
   const [showInactive, setShowInactive] = useState(false)
+  const [showGraficoModal, setShowGraficoModal] = useState(false)
 
   // Modal / Detail States
   const [selectedItem, setSelectedItem] = useState<NaoConformidadeItem | null>(null)
@@ -912,7 +913,12 @@ export default function NaoConformidadesPage() {
             </div>
 
             {/* Consolidado Stats Card */}
-            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20 }}>
+            <div 
+              onClick={() => setShowGraficoModal(true)}
+              style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(102,0,153,0.15)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)')}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Resumo do Período</span>
                 <span style={{ background: 'rgba(102,0,153,0.1)', color: PURPLE, fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
@@ -941,6 +947,7 @@ export default function NaoConformidadesPage() {
                   <span style={{ fontSize: 22, fontWeight: 800, color: '#334155' }}>{statsConsolidado.total}</span>
                 </div>
               </div>
+              <span style={{ display: 'block', fontSize: 10, color: '#94a3b8', marginTop: 12, fontWeight: 600, textAlign: 'center' }}>📊 Clique para ver gráfico mês a mês</span>
             </div>
           </div>
 
@@ -1414,7 +1421,7 @@ export default function NaoConformidadesPage() {
                     ) : (
                       paginatedArkium.map(item => {
                         const dateLabel = item.dataAbertura
-                          ? new Date(item.dataAbertura).toLocaleDateString('pt-BR')
+                          ? new Date(item.dataAbertura).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
                           : '-'
 
                         let statusBadge = { bg: '#dbeafe', text: '#1d4ed8', label: 'Pendente (N. Venc.)' }
@@ -1586,7 +1593,7 @@ export default function NaoConformidadesPage() {
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Data Abertura</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#334155', marginTop: 2 }}>
-                    {selectedItem.dataAbertura ? new Date(selectedItem.dataAbertura).toLocaleDateString('pt-BR') : '-'}
+                    {selectedItem.dataAbertura ? new Date(selectedItem.dataAbertura).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}
                   </div>
                 </div>
                 <div>
@@ -1974,6 +1981,102 @@ export default function NaoConformidadesPage() {
           to { transform: rotate(360deg); }
         }
       `}</style>
+      {/* Modal Gráfico Mês a Mês */}
+      {showGraficoModal && (() => {
+        // Compute monthly data
+        const dadosPorMes = MONTHS_LIST.map((m, i) => {
+          const mesNcs = data.filter(a => {
+            if (!a.dataAbertura) return false;
+            const d = new Date(a.dataAbertura);
+            if (d.getUTCMonth() !== i) return false;
+            if (selectedYear !== 'ALL' && d.getUTCFullYear() !== selectedYear) return false;
+            if (isTst && a.tecnicoId !== userTecnicoId) return false;
+            if (!showInactive && a.tecnico?.ativo === false) return false;
+            
+            // Apply search filter so it reflects the global Consolidado search
+            if (consolidadoSearch.trim() && a.tecnico?.nome) {
+              if (!a.tecnico.nome.toLowerCase().includes(consolidadoSearch.toLowerCase())) {
+                return false;
+              }
+            }
+            return true;
+          });
+
+          const fechadas = mesNcs.filter(n => n.status === 'RESOLVIDO').length;
+          const abertas = mesNcs.filter(n => n.status === 'EM_ANDAMENTO' || n.status === 'PENDENTE_NAO_VENCIDA').length;
+          const outras = mesNcs.filter(n => n.status === 'PENDENTE_VENCIDA').length;
+          
+          return { label: m.label, key: m.key, fechadas, abertas, outras, count: fechadas + abertas + outras };
+        });
+
+        const maxContagem = Math.max(...dadosPorMes.map(d => d.count), 1);
+        const totalGeral = dadosPorMes.reduce((acc, curr) => acc + curr.count, 0);
+
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+            <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
+              {/* Header */}
+              <div style={{ background: PURPLE, padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>📊 Evolução Mês a Mês</h2>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Não Conformidades por mês em {selectedYear === 'ALL' ? 'Todos os Anos' : selectedYear}</span>
+                  </div>
+                </div>
+                <button onClick={() => setShowGraficoModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 20, fontWeight: 'bold', lineHeight: 1 }}>×</button>
+              </div>
+
+              {/* Chart Body */}
+              <div style={{ padding: 24, overflowY: 'auto' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 200, marginBottom: 8 }}>
+                  {dadosPorMes.map((d, i) => {
+                    const isFiltered = selectedMonths.includes(d.key as MesKey);
+                    const hFechadas = maxContagem > 0 ? Math.round((d.fechadas / maxContagem) * 180) : 0;
+                    const hAbertas = maxContagem > 0 ? Math.round((d.abertas / maxContagem) * 180) : 0;
+                    const hOutras = maxContagem > 0 ? Math.round((d.outras / maxContagem) * 180) : 0;
+                    
+                    return (
+                      <div key={d.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: d.count > 0 ? '#1e293b' : '#cbd5e1' }}>{d.count > 0 ? d.count : ''}</span>
+                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: 4, opacity: isFiltered ? 1 : 0.4 }}>
+                          {/* Stacked bars (from top to bottom: Outras, Abertas, Fechadas) */}
+                          {d.outras > 0 && <div style={{ height: hOutras || 2, background: '#ef4444', borderRadius: (d.abertas === 0 && d.fechadas === 0) ? '4px 4px 0 0' : '0' }} title={`Vencidas: ${d.outras}`} />}
+                          {d.abertas > 0 && <div style={{ height: hAbertas || 2, background: '#3b82f6', borderRadius: (d.outras === 0 && d.fechadas === 0) ? '4px 4px 0 0' : '0' }} title={`Em Aberto: ${d.abertas}`} />}
+                          {d.fechadas > 0 && <div style={{ height: hFechadas || 2, background: '#10b981', borderRadius: (d.outras === 0 && d.abertas === 0) ? '4px 4px 0 0' : '0' }} title={`Fechadas: ${d.fechadas}`} />}
+                          {d.count === 0 && <div style={{ height: 4, background: '#e2e8f0', borderRadius: '4px 4px 0 0' }} />}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                
+                {/* Labels dos Meses */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                  {dadosPorMes.map((d) => (
+                    <div key={d.label} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, color: selectedMonths.includes(d.key as MesKey) ? PURPLE : '#94a3b8' }}>{d.label}</div>
+                  ))}
+                </div>
+                
+                {/* Legenda do Gráfico */}
+                <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 11, color: '#64748b', fontWeight: 600, flexWrap: 'wrap' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#10b981', display: 'inline-block' }} />Fechadas</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#3b82f6', display: 'inline-block' }} />Em Aberto (No Prazo)</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#ef4444', display: 'inline-block' }} />Outras (Vencidas)</span>
+                </div>
+                
+                {/* Total Stats */}
+                <div style={{ marginTop: 24, padding: 16, background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, textAlign: 'center' }}>
+                  <div><div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{totalGeral}</div><div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Total no Ano</div></div>
+                  <div><div style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }}>{dadosPorMes.reduce((acc, curr) => acc + curr.fechadas, 0)}</div><div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Total Fechadas</div></div>
+                  <div><div style={{ fontSize: 22, fontWeight: 800, color: PURPLE }}>{totalGeral > 0 ? Math.round((dadosPorMes.reduce((acc, curr) => acc + curr.fechadas, 0) / totalGeral) * 100) : 0}%</div><div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Taxa de Conclusão</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
     </div>
   )
 }
