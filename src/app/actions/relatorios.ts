@@ -151,8 +151,19 @@ export async function deleteAtividade(id: string) {
 
 // Para o gerador de PDF
 export async function getAtividadesForPrint(mes: number, ano: number, empresa: string, tecnicoId?: string) {
-  const startDate = new Date(Date.UTC(ano, mes - 1, 1))
-  const endDate = new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999))
+  // Valida os parâmetros antes de criar datas — evita o erro "Invalid Date" no Prisma
+  const mesNum = Number(mes)
+  const anoNum = Number(ano)
+  if (
+    !Number.isFinite(mesNum) || mesNum < 1 || mesNum > 12 ||
+    !Number.isFinite(anoNum) || anoNum < 2000 || anoNum > 2100
+  ) {
+    console.error('[getAtividadesForPrint] Parâmetros inválidos:', { mes, ano })
+    return []
+  }
+
+  const startDate = new Date(Date.UTC(anoNum, mesNum - 1, 1))
+  const endDate = new Date(Date.UTC(anoNum, mesNum, 0, 23, 59, 59, 999))
 
   let whereClause: any = {
     data: { gte: startDate, lte: endDate }

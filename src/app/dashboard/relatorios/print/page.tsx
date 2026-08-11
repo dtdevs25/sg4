@@ -14,6 +14,13 @@ export default function PrintRelatorioPage({ searchParams }: { searchParams: { m
   async function loadData() {
     const mes = parseInt(searchParams.mes)
     const ano = parseInt(searchParams.ano)
+
+    // Evita chamar a action com parâmetros inválidos (NaN)
+    if (!searchParams.mes || !searchParams.ano || isNaN(mes) || isNaN(ano)) {
+      setLoading(false)
+      return
+    }
+
     const data = await getAtividadesForPrint(mes, ano, searchParams.empresa, searchParams.tecnicoId)
     setAtividades(data)
     setLoading(false)
