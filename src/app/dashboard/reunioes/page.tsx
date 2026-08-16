@@ -73,7 +73,6 @@ export default function ReunioesPage() {
   const [ataAnexoContentType, setAtaAnexoContentType] = useState('')
   // Lista de presença temporária (no modal)
   const [tempPresencas, setTempPresencas] = useState<ReuniaoData[]>([])
-  const [showInativosModal, setShowInativosModal] = useState(false)
 
   const MONTHS_LIST = [
     { key: 1, label: 'Jan' }, { key: 2, label: 'Fev' },
@@ -217,31 +216,48 @@ export default function ReunioesPage() {
     
     const meetingLogs = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast)
     
-    const combinedPresences = tecnicos.map(tec => {
-      const existing = meetingLogs.find(l => l.tecnicoId === tec.id)
-      if (existing) {
-        return { ...existing, tecnico: { ...existing.tecnico, ativo: tec.ativo } }
-      }
-      return {
-        id: '', // Empty ID means it needs to be created
-        tecnicoId: tec.id,
-        data: dt,
-        assunto: ast,
-        presenca: 'AUSENTE' as const,
-        pontualidade: 'NAO_SE_APLICA' as const,
-        justificada: 'NAO_SE_APLICA' as const,
-        motivo: '',
-        observacao: '',
-        tecnico: {
-          nome: tec.nome,
-          fotoUrl: tec.fotoUrl,
-          ativo: tec.ativo
+    const meetingDateObj = new Date(dt)
+    
+    const combinedPresences = tecnicos
+      .filter(tec => {
+        // Only include technicians employed at the time of the meeting
+        const admissaoDate = new Date(tec.admissao)
+        const demissaoDate = tec.demissao ? new Date(tec.demissao) : null
+        
+        // Convert to YYYY-MM-DD for fair comparison without time biases
+        const mDate = meetingDateObj.toISOString().split('T')[0]
+        const aDate = admissaoDate.toISOString().split('T')[0]
+        const dDate = demissaoDate ? demissaoDate.toISOString().split('T')[0] : null
+        
+        const wasEmployedBeforeMeeting = aDate <= mDate
+        const wasFiredAfterMeeting = !dDate || dDate >= mDate
+        
+        return wasEmployedBeforeMeeting && wasFiredAfterMeeting
+      })
+      .map(tec => {
+        const existing = meetingLogs.find(l => l.tecnicoId === tec.id)
+        if (existing) {
+          return { ...existing, tecnico: { ...existing.tecnico, ativo: tec.ativo } }
         }
-      }
-    })
+        return {
+          id: '', // Empty ID means it needs to be created
+          tecnicoId: tec.id,
+          data: dt,
+          assunto: ast,
+          presenca: 'PRESENTE' as const,
+          pontualidade: 'PONTUAL' as const,
+          justificada: 'NAO_SE_APLICA' as const,
+          motivo: '',
+          observacao: '',
+          tecnico: {
+            nome: tec.nome,
+            fotoUrl: tec.fotoUrl,
+            ativo: tec.ativo
+          }
+        }
+      })
     
     setTempPresencas(combinedPresences)
-    setShowInativosModal(false)
   }
 
   function handleSaveAta() {
@@ -688,19 +704,12 @@ export default function ReunioesPage() {
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff', position: 'sticky', top: 0, zIndex: 10 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 800, color: '#334155', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle2 size={16} /> Lançar Presenças</h3>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-                    <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Configure quem participou da reunião.</p>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#64748b', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={showInativosModal} onChange={e => setShowInativosModal(e.target.checked)} />
-                      Mostrar inativos
-                    </label>
+                    <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Técnicos filtrados com base na data de admissão e demissão em relação à data da reunião.</p>
                   </div>
                 </div>
                 
                 <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {tempPresencas.map((tp, idx) => {
-                    const isRealRecord = !!tp.id;
-                    if (!showInativosModal && tp.tecnico.ativo === false && !isRealRecord) return null;
-
                     const isPresente = tp.presenca === 'PRESENTE';
                     const isAusente = tp.presenca === 'AUSENTE';
                     const isAtrasado = tp.pontualidade === 'ATRASADO';
