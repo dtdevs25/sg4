@@ -28,7 +28,8 @@ export default function TecnicosPage() {
   
   // Form state
   const [form, setForm] = useState<{
-    nome: string; email: string; telefone: string; admissao: string; demissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null; contaMeta: boolean; ativo: boolean; matriculaArkium: string
+    nome: string; email: string; telefone: string; admissao: string; demissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null; contaMeta: boolean; ativo: boolean; matriculaArkium: string;
+    matriculaVivo: string; numeroGaus: string; dataNascimento: string; registroProfissional: string; cpf: string; rg: string; patrimonioCelular: string; patrimonioNotebook: string; veiculo: string; endereco: string;
   }>({
     nome: '', email: '', telefone: '',
     admissao: new Date().toLocaleDateString('pt-BR'),
@@ -38,7 +39,8 @@ export default function TecnicosPage() {
     baseFixaId: null,
     contaMeta: true,
     ativo: true,
-    matriculaArkium: ''
+    matriculaArkium: '',
+    matriculaVivo: '', numeroGaus: '', dataNascimento: '', registroProfissional: '', cpf: '', rg: '', patrimonioCelular: '', patrimonioNotebook: '', veiculo: '', endereco: ''
   })
   
   const [fotoFile, setFotoFile] = useState<File | null>(null)
@@ -78,7 +80,8 @@ export default function TecnicosPage() {
       baseFixaId: null,
       contaMeta: true,
       ativo: true,
-      matriculaArkium: ''
+      matriculaArkium: '',
+      matriculaVivo: '', numeroGaus: '', dataNascimento: '', registroProfissional: '', cpf: '', rg: '', patrimonioCelular: '', patrimonioNotebook: '', veiculo: '', endereco: ''
     })
     setFotoFile(null)
     setPreviewUrl('')
@@ -97,7 +100,17 @@ export default function TecnicosPage() {
       baseFixaId: tecnico.baseFixaId || null,
       contaMeta: tecnico.contaMeta !== false,
       ativo: tecnico.ativo !== false,
-      matriculaArkium: tecnico.matriculaArkium || ''
+      matriculaArkium: tecnico.matriculaArkium || '',
+      matriculaVivo: tecnico.matriculaVivo || '',
+      numeroGaus: tecnico.numeroGaus || '',
+      dataNascimento: tecnico.dataNascimento ? new Date(tecnico.dataNascimento).toLocaleDateString('pt-BR') : '',
+      registroProfissional: tecnico.registroProfissional || '',
+      cpf: tecnico.cpf || '',
+      rg: tecnico.rg || '',
+      patrimonioCelular: tecnico.patrimonioCelular || '',
+      patrimonioNotebook: tecnico.patrimonioNotebook || '',
+      veiculo: tecnico.veiculo || '',
+      endereco: tecnico.endereco || ''
     })
     setFotoFile(null)
     setPreviewUrl(tecnico.fotoUrl || '')
@@ -152,7 +165,17 @@ export default function TecnicosPage() {
         baseFixaId: form.baseFixaId,
         contaMeta: form.contaMeta,
         ativo: form.ativo,
-        matriculaArkium: form.matriculaArkium
+        matriculaArkium: form.matriculaArkium,
+        matriculaVivo: form.matriculaVivo,
+        numeroGaus: form.numeroGaus,
+        dataNascimento: form.dataNascimento || undefined,
+        registroProfissional: form.registroProfissional,
+        cpf: form.cpf,
+        rg: form.rg,
+        patrimonioCelular: form.patrimonioCelular,
+        patrimonioNotebook: form.patrimonioNotebook,
+        veiculo: form.veiculo,
+        endereco: form.endereco
       })
 
       setShowModal(false)
@@ -172,7 +195,17 @@ export default function TecnicosPage() {
       baseFixaId: tecnico.baseFixaId || null,
       contaMeta: tecnico.contaMeta !== false,
       ativo: !tecnico.ativo, // Flip state immediately
-      matriculaArkium: tecnico.matriculaArkium || ''
+      matriculaArkium: tecnico.matriculaArkium || '',
+      matriculaVivo: tecnico.matriculaVivo || '',
+      numeroGaus: tecnico.numeroGaus || '',
+      dataNascimento: tecnico.dataNascimento ? new Date(tecnico.dataNascimento).toLocaleDateString('pt-BR') : '',
+      registroProfissional: tecnico.registroProfissional || '',
+      cpf: tecnico.cpf || '',
+      rg: tecnico.rg || '',
+      patrimonioCelular: tecnico.patrimonioCelular || '',
+      patrimonioNotebook: tecnico.patrimonioNotebook || '',
+      veiculo: tecnico.veiculo || '',
+      endereco: tecnico.endereco || ''
     })
     setFotoFile(null)
     setPreviewUrl(tecnico.fotoUrl || '')
@@ -457,6 +490,60 @@ export default function TecnicosPage() {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Admissão</label>
                   <input type="text" value={form.admissao} onChange={(e) => setForm(p => ({ ...p, admissao: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Ex: 05/08/2025" />
                 </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Matrícula VIVO</label>
+                  <input type="text" value={form.matriculaVivo} onChange={(e) => setForm(p => ({ ...p, matriculaVivo: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Ex: 12345678" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Número Gaus</label>
+                  <input type="text" value={form.numeroGaus} onChange={(e) => setForm(p => ({ ...p, numeroGaus: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Ex: 123456" />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>CPF</label>
+                  <input type="text" value={form.cpf} onChange={(e) => setForm(p => ({ ...p, cpf: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Ex: 000.000.000-00" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>RG</label>
+                  <input type="text" value={form.rg} onChange={(e) => setForm(p => ({ ...p, rg: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Ex: 00.000.000-0" />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Data de Nascimento</label>
+                  <input type="text" value={form.dataNascimento} onChange={(e) => setForm(p => ({ ...p, dataNascimento: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="DD/MM/AAAA" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Registro Profissional</label>
+                  <input type="text" value={form.registroProfissional} onChange={(e) => setForm(p => ({ ...p, registroProfissional: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Nº TST e Estado" />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Endereço Residencial</label>
+                <input type="text" value={form.endereco} onChange={(e) => setForm(p => ({ ...p, endereco: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Rua, Número, Bairro, Cidade - UF" />
+              </div>
+
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Patrimônio Celular</label>
+                  <input type="text" value={form.patrimonioCelular} onChange={(e) => setForm(p => ({ ...p, patrimonioCelular: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Patrimônio Notebook</label>
+                  <input type="text" value={form.patrimonioNotebook} onChange={(e) => setForm(p => ({ ...p, patrimonioNotebook: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Veículo</label>
+                <input type="text" value={form.veiculo} onChange={(e) => setForm(p => ({ ...p, veiculo: e.target.value }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', outline: 'none' }} placeholder="Marca, Cor e Placa" />
               </div>
 
               <div>

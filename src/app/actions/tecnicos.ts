@@ -65,7 +65,7 @@ export async function uploadFotoTecnico(formData: FormData) {
   }
 }
 
-export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, demissao?: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null, contaMeta?: boolean, ativo?: boolean, matriculaArkium?: string }) {
+export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, demissao?: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null, contaMeta?: boolean, ativo?: boolean, matriculaArkium?: string, matriculaVivo?: string, numeroGaus?: string, dataNascimento?: string, registroProfissional?: string, cpf?: string, rg?: string, patrimonioCelular?: string, patrimonioNotebook?: string, veiculo?: string, endereco?: string }) {
   try {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
@@ -80,6 +80,14 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
       demissaoDate = new Date(`${dParts[2]}-${dParts[1]}-${dParts[0]}T12:00:00Z`)
     }
 
+    let dataNascimentoDate = null
+    if (data.dataNascimento) {
+      const dnParts = data.dataNascimento.split('/')
+      if (dnParts.length === 3) {
+        dataNascimentoDate = new Date(`${dnParts[2]}-${dnParts[1]}-${dnParts[0]}T12:00:00Z`)
+      }
+    }
+
     const payload: any = {
       nome: data.nome,
       email: data.email,
@@ -91,7 +99,17 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
       baseFixaId: data.baseFixaId || null,
       contaMeta: data.contaMeta !== undefined ? data.contaMeta : true,
       ativo: data.ativo !== undefined ? data.ativo : true,
-      matriculaArkium: data.matriculaArkium || null
+      matriculaArkium: data.matriculaArkium || null,
+      matriculaVivo: data.matriculaVivo || null,
+      numeroGaus: data.numeroGaus || null,
+      dataNascimento: dataNascimentoDate,
+      registroProfissional: data.registroProfissional || null,
+      cpf: data.cpf || null,
+      rg: data.rg || null,
+      patrimonioCelular: data.patrimonioCelular || null,
+      patrimonioNotebook: data.patrimonioNotebook || null,
+      veiculo: data.veiculo || null,
+      endereco: data.endereco || null
     }
 
     if (data.id) {

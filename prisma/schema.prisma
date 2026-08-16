@@ -81,6 +81,16 @@ model Tecnico {
   contaMeta Boolean   @default(true)
   recebeRelatorioProdutividade Boolean @default(false)
   matriculaArkium String?
+  matriculaVivo   String?
+  numeroGaus      String?
+  dataNascimento  DateTime?
+  registroProfissional String?
+  cpf             String?
+  rg              String?
+  patrimonioCelular String?
+  patrimonioNotebook String?
+  veiculo         String?
+  endereco        String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
