@@ -145,7 +145,7 @@ export async function deleteReuniaoItem(id: string) {
   }
 }
 
-export async function updatePresencasReuniao(updates: { id: string, presenca: string, pontualidade: string, justificada: string, motivo: string, observacao: string }[]) {
+export async function updatePresencasReuniao(dataIso: string, assunto: string, updates: { id?: string, tecnicoId: string, presenca: string, pontualidade: string, justificada: string, motivo: string, observacao: string }[]) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -157,16 +157,34 @@ export async function updatePresencasReuniao(updates: { id: string, presenca: st
     const userId = (session.user as any).id
 
     for (const update of updates) {
-      await prisma.reuniao.update({
-        where: { id: update.id },
-        data: {
-          presenca: update.presenca as any,
-          pontualidade: update.presenca === 'AUSENTE' ? 'NAO_SE_APLICA' : update.pontualidade as any,
-          justificada: update.presenca === 'PRESENTE' ? 'NAO_SE_APLICA' : update.justificada as any,
-          motivo: update.motivo,
-          observacao: update.observacao
-        }
-      })
+      const pontual = update.presenca === 'AUSENTE' ? 'NAO_SE_APLICA' : update.pontualidade as any
+      const justificada = update.presenca === 'PRESENTE' ? 'NAO_SE_APLICA' : update.justificada as any
+
+      if (update.id) {
+        await prisma.reuniao.update({
+          where: { id: update.id },
+          data: {
+            presenca: update.presenca as any,
+            pontualidade: pontual,
+            justificada: justificada,
+            motivo: update.motivo,
+            observacao: update.observacao
+          }
+        })
+      } else {
+        await prisma.reuniao.create({
+          data: {
+            tecnicoId: update.tecnicoId,
+            data: new Date(dataIso),
+            assunto: assunto,
+            presenca: update.presenca as any,
+            pontualidade: pontual,
+            justificada: justificada,
+            motivo: update.motivo,
+            observacao: update.observacao
+          }
+        })
+      }
     }
 
     await audit({ userId, action: 'EDITAR_REUNIAO_LOTE', entity: 'Reunião', details: { qtdAtualizados: updates.length } })

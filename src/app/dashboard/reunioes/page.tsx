@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { getReunioes, createReuniaoLote, deleteReuniaoLote, updatePresencasReuniao } from '@/app/actions/reunioes'
 import { getAtas, upsertAta, uploadAnexoReuniao, deleteAnexoAta } from '@/app/actions/atas'
+import { getTecnicos } from '@/app/actions/tecnicos'
 import { useSession } from 'next-auth/react'
 
 type ReuniaoData = {
@@ -23,6 +24,7 @@ type ReuniaoData = {
   tecnico: {
     nome: string
     fotoUrl: string | null
+    ativo?: boolean
   }
 }
 
@@ -41,6 +43,7 @@ export default function ReunioesPage() {
 
   const [logs, setLogs] = useState<ReuniaoData[]>([])
   const [atas, setAtas] = useState<AtaData[]>([])
+  const [tecnicos, setTecnicos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
   
@@ -70,6 +73,7 @@ export default function ReunioesPage() {
   const [ataAnexoContentType, setAtaAnexoContentType] = useState('')
   // Lista de presença temporária (no modal)
   const [tempPresencas, setTempPresencas] = useState<ReuniaoData[]>([])
+  const [showInativosModal, setShowInativosModal] = useState(false)
 
   const MONTHS_LIST = [
     { key: 1, label: 'Jan' }, { key: 2, label: 'Fev' },
@@ -86,10 +90,11 @@ export default function ReunioesPage() {
 
   async function loadData() {
     setLoading(true)
-    const [anos, resReunioes, resAtas] = await Promise.all([
+    const [anos, resReunioes, resAtas, resTecnicos] = await Promise.all([
       getAnosComDados(),
       getReunioes(selectedYear === 'ALL' ? undefined : selectedYear),
-      getAtas(selectedYear === 'ALL' ? undefined : selectedYear)
+      getAtas(selectedYear === 'ALL' ? undefined : selectedYear),
+      getTecnicos()
     ])
     setAnosDisponiveis(anos)
     
@@ -98,6 +103,9 @@ export default function ReunioesPage() {
     }
     if (resAtas.success && resAtas.data) {
       setAtas(resAtas.data)
+    }
+    if (resTecnicos.success && resTecnicos.data) {
+      setTecnicos(resTecnicos.data)
     }
     setLoading(false)
   }
@@ -208,7 +216,32 @@ export default function ReunioesPage() {
     setAtaAnexoContentType('')
     
     const meetingLogs = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast)
-    setTempPresencas(JSON.parse(JSON.stringify(meetingLogs)))
+    
+    const combinedPresences = tecnicos.map(tec => {
+      const existing = meetingLogs.find(l => l.tecnicoId === tec.id)
+      if (existing) {
+        return { ...existing, tecnico: { ...existing.tecnico, ativo: tec.ativo } }
+      }
+      return {
+        id: '', // Empty ID means it needs to be created
+        tecnicoId: tec.id,
+        data: dt,
+        assunto: ast,
+        presenca: 'AUSENTE' as const,
+        pontualidade: 'NAO_SE_APLICA' as const,
+        justificada: 'NAO_SE_APLICA' as const,
+        motivo: '',
+        observacao: '',
+        tecnico: {
+          nome: tec.nome,
+          fotoUrl: tec.fotoUrl,
+          ativo: tec.ativo
+        }
+      }
+    })
+    
+    setTempPresencas(combinedPresences)
+    setShowInativosModal(false)
   }
 
   function handleSaveAta() {
@@ -238,7 +271,8 @@ export default function ReunioesPage() {
       
       // Salva os dados de presença da lista temporária
       const updatesList = tempPresencas.map(tp => ({
-        id: tp.id,
+        id: tp.id || undefined,
+        tecnicoId: tp.tecnicoId,
         presenca: tp.presenca,
         pontualidade: tp.pontualidade,
         justificada: tp.justificada,
@@ -246,7 +280,7 @@ export default function ReunioesPage() {
         observacao: tp.observacao || ''
       }))
       
-      const presRes = await updatePresencasReuniao(updatesList)
+      const presRes = await updatePresencasReuniao(editingAta.data, editingAta.assunto, updatesList)
 
       if (ataRes.success && presRes.success) {
         setEditingAta(null)
@@ -653,11 +687,20 @@ export default function ReunioesPage() {
               <div className="reuniao-ata-panel">
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff', position: 'sticky', top: 0, zIndex: 10 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 800, color: '#334155', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle2 size={16} /> Lançar Presenças</h3>
-                  <p style={{ margin: '4px 0 0 0', fontSize: 12, color: '#64748b' }}>Configure quem participou e as observações. Esses dados serão consolidados no final.</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                    <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Configure quem participou da reunião.</p>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#64748b', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={showInativosModal} onChange={e => setShowInativosModal(e.target.checked)} />
+                      Mostrar inativos
+                    </label>
+                  </div>
                 </div>
                 
                 <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {tempPresencas.map((tp, idx) => {
+                    const isRealRecord = !!tp.id;
+                    if (!showInativosModal && tp.tecnico.ativo === false && !isRealRecord) return null;
+
                     const isPresente = tp.presenca === 'PRESENTE';
                     const isAusente = tp.presenca === 'AUSENTE';
                     const isAtrasado = tp.pontualidade === 'ATRASADO';
@@ -668,7 +711,7 @@ export default function ReunioesPage() {
                     const showObservacao = isAusente || (isPresente && isAtrasado);
 
                     return (
-                    <div key={tp.id} style={{ background: '#fff', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                    <div key={tp.tecnicoId} style={{ background: '#fff', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                         {tp.tecnico.fotoUrl ? (
                           <img src={tp.tecnico.fotoUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
