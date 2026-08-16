@@ -714,13 +714,18 @@ export default function ReunioesPage() {
                     <div key={tp.tecnicoId} style={{ background: '#fff', padding: 16, borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                         {tp.tecnico.fotoUrl ? (
-                          <img src={tp.tecnico.fotoUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }} />
+                          <img src={tp.tecnico.fotoUrl} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                         ) : (
-                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
                             {tp.tecnico.nome.substring(0, 2).toUpperCase()}
                           </div>
                         )}
-                        <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{tp.tecnico.nome}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{tp.tecnico.nome}</span>
+                          {tp.tecnico.ativo === false && (
+                            <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, textTransform: 'uppercase' }}>Inativo</span>
+                          )}
+                        </div>
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
