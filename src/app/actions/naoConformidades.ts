@@ -159,13 +159,9 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
       })
 
       if (existing) {
-        const currentStatus = existing.status
-        let finalStatus = currentStatus
-        if (item.status === 'RESOLVIDO') {
-          finalStatus = 'RESOLVIDO'
-        } else if (currentStatus !== 'EM_ANDAMENTO' && currentStatus !== 'RESOLVIDO') {
-          finalStatus = item.status || 'PENDENTE_NAO_VENCIDA'
-        }
+        // A pedido do usuário, o sistema deve sempre espelhar a planilha do Arkium.
+        // Portanto, o status do SG4 sempre será sobrescrito pelo status da planilha.
+        const finalStatus = item.status || 'PENDENTE_NAO_VENCIDA'
 
         await prisma.naoConformidade.update({
           where: { id: existing.id },
