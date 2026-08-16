@@ -15,6 +15,8 @@ function normalize(str: string | null | undefined): string {
 function nameMatches(arkiumName: string, dbName: string): boolean {
   if (!arkiumName || !dbName) return false
   
+  if (arkiumName === dbName) return true
+  
   const prepositions = ['de', 'da', 'do', 'das', 'dos', 'e']
   
   const arkTokens = arkiumName.toLowerCase()
@@ -35,11 +37,14 @@ function nameMatches(arkiumName: string, dbName: string): boolean {
   // If one name has only one token, allow it
   if (arkTokens.length === 1 || dbTokens.length === 1) return true
   
-  // Check if they share at least one surname
+  // Exigir que TODOS os sobrenomes do nome mais curto estejam contidos no maior
   const arkSurnames = arkTokens.slice(1)
   const dbSurnames = dbTokens.slice(1)
   
-  return dbSurnames.some(s => arkSurnames.includes(s))
+  const minSurnamesCount = Math.min(arkSurnames.length, dbSurnames.length)
+  const sharedSurnames = arkSurnames.filter(s => dbSurnames.includes(s))
+  
+  return sharedSurnames.length >= minSurnamesCount
 }
 
 function cleanName(nameStr: string): string {
@@ -125,7 +130,10 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
       // Try matching Executor name
       if (cleanExecutor) {
         const executorNorm = normalize(cleanExecutor)
-        const match = tecnicos.find(t => nameMatches(executorNorm, normalize(t.nome)))
+        let match = tecnicos.find(t => normalize(t.nome) === executorNorm)
+        if (!match) {
+          match = tecnicos.find(t => nameMatches(executorNorm, normalize(t.nome)))
+        }
         if (match) {
           tecnicoId = match.id
         }
@@ -134,7 +142,10 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
       // Try matching Responsavel name if Executor didn't match
       if (!tecnicoId && cleanResponsavel) {
         const responsavelNorm = normalize(cleanResponsavel)
-        const match = tecnicos.find(t => nameMatches(responsavelNorm, normalize(t.nome)))
+        let match = tecnicos.find(t => normalize(t.nome) === responsavelNorm)
+        if (!match) {
+          match = tecnicos.find(t => nameMatches(responsavelNorm, normalize(t.nome)))
+        }
         if (match) {
           tecnicoId = match.id
         }
