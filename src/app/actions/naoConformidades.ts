@@ -151,8 +151,8 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
         }
       }
 
-      // Se não corresponde a nenhum técnico da nossa base, o tecnicoId ficará nulo,
-      // mas vamos importar a não conformidade mesmo assim para não perder o histórico.
+      // Se não corresponde a nenhum técnico da nossa base (terceiros), ignora o registro
+      if (!tecnicoId) continue
 
       const existing = await prisma.naoConformidade.findUnique({
         where: { originalId: String(item.originalId) }
