@@ -534,7 +534,7 @@ export default function NaoConformidadesPage() {
 
         setImportProgress('Processando linhas...')
         const worksheet = wb.Sheets[sheetName]
-        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[]
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' }) as any[]
 
         if (jsonData.length === 0) {
           throw new Error("Nenhum dado encontrado na planilha.")
