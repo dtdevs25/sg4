@@ -543,8 +543,20 @@ export default function NaoConformidadesPage() {
         const firstRow = jsonData[0]
         const rowKeys = Object.keys(firstRow)
         const findMatch = (keysList: string[]) => {
+          // 1. Try exact normalized match first
           for (const k of keysList) {
-            const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === k.toLowerCase().replace(/[^a-z0-9]/g, ''))
+            const normalizedK = k.toLowerCase().replace(/[^a-z0-9]/g, '')
+            const match = rowKeys.find(rk => rk.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedK)
+            if (match) return match
+          }
+          // 2. Try substring match (only if candidate key is at least 3 characters to avoid false matches)
+          for (const k of keysList) {
+            const normalizedK = k.toLowerCase().replace(/[^a-z0-9]/g, '')
+            if (normalizedK.length < 3) continue
+            const match = rowKeys.find(rk => {
+              const normalizedRk = rk.toLowerCase().replace(/[^a-z0-9]/g, '')
+              return normalizedRk.includes(normalizedK) || normalizedK.includes(normalizedRk)
+            })
             if (match) return match
           }
           return null
@@ -615,7 +627,7 @@ export default function NaoConformidadesPage() {
         const res = await upsertNaoConformidadesBatch(itemsToUpsert)
 
         if (res.success) {
-          setImportResultMsg(`Importação concluída! ${res.inseridos} registros vinculados a nossos técnicos foram importados e ${res.atualizados} foram atualizados. Registros de terceiros foram ignorados.`)
+          setImportResultMsg(`Importação concluída! ${res.inseridos} registros vinculados a nossos técnicos foram importados e ${res.atualizados} foram atualizados. Registros de terceiros foram ignorados. [Coluna Audit mapeada: "${matchedKeys.audit || 'Não encontrada'}"]`)
           await loadData()
         } else {
           setImportResultMsg(`Erro ao salvar no banco de dados: ${res.error}`)
