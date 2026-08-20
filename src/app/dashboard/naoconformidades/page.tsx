@@ -14,6 +14,7 @@ import {
   getNaoConformidades,
   upsertNaoConformidadesBatch,
   addNaoConformidadeUpdate,
+  addNaoConformidadeUpdatesBatch,
   updateNaoConformidadeStatus,
   deleteNaoConformidade,
   uploadNaoConformidadeEvidencia,
@@ -62,6 +63,7 @@ type NaoConformidadeItem = {
   base: string
   questionario: string
   dataAbertura: string | null
+  audit?: string | null
   status: 'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO'
   updates: UpdateItem[]
   importadoEm: string
@@ -233,6 +235,13 @@ export default function NaoConformidadesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [lastImport, setLastImport] = useState<{ createdAt: string; userName: string } | null>(null)
 
+  // Batch updates state
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [showBatchModal, setShowBatchModal] = useState(false)
+  const [batchUpdateText, setBatchUpdateText] = useState('')
+  const [batchStatus, setBatchStatus] = useState<'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO' | ''>('')
+  const [batchActionDate, setBatchActionDate] = useState(new Date().toISOString().split('T')[0])
+
   const [pending, startTransition] = useTransition()
 
   // Handle clicking outside the custom technician dropdown filter to close it
@@ -245,6 +254,10 @@ export default function NaoConformidadesPage() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    setSelectedIds([])
+  }, [arkiumSearch, statusFilter, classFilter, tecnicoFilter, selectedMonths, selectedYear, showInactive, activeTab])
 
   // Load Data
   useEffect(() => {
@@ -357,6 +370,7 @@ export default function NaoConformidadesPage() {
       const query = arkiumSearch.toLowerCase()
       const matchesSearch =
         (item.originalId || '').toLowerCase().includes(query) ||
+        (item.audit || '').toLowerCase().includes(query) ||
         (item.executor || '').toLowerCase().includes(query) ||
         (item.questionario || '').toLowerCase().includes(query) ||
         (item.pergunta || '').toLowerCase().includes(query) ||
@@ -389,6 +403,7 @@ export default function NaoConformidadesPage() {
       const query = arkiumSearch.toLowerCase()
       const matchesSearch =
         (item.originalId || '').toLowerCase().includes(query) ||
+        (item.audit || '').toLowerCase().includes(query) ||
         (item.executor || '').toLowerCase().includes(query) ||
         (item.questionario || '').toLowerCase().includes(query) ||
         (item.pergunta || '').toLowerCase().includes(query) ||
@@ -536,21 +551,22 @@ export default function NaoConformidadesPage() {
         }
 
         const matchedKeys = {
-          id: findMatch(['Id', 'ID', 'Identificador']),
-          executor: findMatch(['Executor', 'COLABORADOR', 'Exec.']),
-          responsavel: findMatch(['Responsável', 'Responsavel', 'Responsável/executor', 'Responsavel/executor']),
-          pergunta: findMatch(['Pergunta', 'Questão']),
+          id: findMatch(['Id', 'ID', 'Identificador', 'RES_ID', 'RESID']),
+          executor: findMatch(['Executor', 'COLABORADOR', 'Exec.', 'Ativo da resposta', 'Ativodaresposta']),
+          responsavel: findMatch(['Responsável', 'Responsavel', 'Responsável/executor', 'Responsavel/executor', 'Ativo da resposta', 'Ativodaresposta']),
+          pergunta: findMatch(['Pergunta', 'Questão', 'PER_DESCRICAO', 'PERDESCRICAO']),
           resposta: findMatch(['Resposta']),
-          classificacao: findMatch(['Classificação', 'Classificacao', 'Gravidade']),
+          classificacao: findMatch(['Classificação', 'Classificacao', 'Gravidade', 'PER_CLASSIFICACAO', 'PERCLASSIFICACAO']),
           localidade: findMatch(['Localidade', 'Cidade']),
-          base: findMatch(['Base', 'Unidade']),
+          base: findMatch(['Base', 'Unidade', 'NEG_ID', 'NEGID']),
           questionario: findMatch(['Questionário', 'Questionario', 'Checklist']),
-          compl1: findMatch(['Compl. 1', 'Compl1']),
+          compl1: findMatch(['Compl. 1', 'Compl1', 'RES_COMPL1', 'RESCOMPL1']),
           rCompl1: findMatch(['R. Compl. 1', 'R. Compl1', 'R.Compl.1', 'RCompl1', 'Detalhamento']),
-          situacao: findMatch(['Situação', 'Situacao', 'Status', 'Sit.'])
+          situacao: findMatch(['Situação', 'Situacao', 'Status', 'Sit.', 'Situacao']),
+          audit: findMatch(['Audit', 'Auditoria', 'HEA_RES_ID', 'HEARESID'])
         }
 
-        const dataAberturaKey = findMatch(['Data Abertura', 'DataAbertura', 'Abertura'])
+        const dataAberturaKey = findMatch(['Data Abertura', 'DataAbertura', 'Abertura', 'HEA_DT_ABERTURA', 'HEADTABERTURA'])
 
         setImportProgress('Validando registros...')
         const itemsToUpsert = jsonData
@@ -572,6 +588,7 @@ export default function NaoConformidadesPage() {
             const questionario = String(row[matchedKeys.questionario || 'Questionário'] || '')
             const rawSituacao = String(row[matchedKeys.situacao || 'Situação'] || '')
             const mappedStatus = mapArkiumStatus(rawSituacao)
+            const audit = matchedKeys.audit ? String(row[matchedKeys.audit] || '') : ''
 
             const rawDate = dataAberturaKey ? row[dataAberturaKey] : null
             const parsedDate = parseExcelDate(rawDate)
@@ -588,6 +605,7 @@ export default function NaoConformidadesPage() {
               localidade,
               base,
               questionario,
+              audit,
               dataAbertura: parsedDate ? parsedDate.toISOString() : null,
               status: mappedStatus
             }
@@ -668,6 +686,53 @@ export default function NaoConformidadesPage() {
         await loadData()
       } else {
         alert("Erro ao salvar atualização: " + res.error)
+      }
+    })
+  }
+
+  const handleBatchUpdate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (selectedIds.length === 0 || !batchUpdateText.trim()) return
+
+    startTransition(async () => {
+      let uploadedUrl = ''
+      if (fotoBase64) {
+        setIsUploading(true)
+        const formData = new FormData()
+        formData.append('fileData', fotoBase64)
+        formData.append('fileName', fotoName || 'foto.jpg')
+        formData.append('contentType', fotoType || 'image/jpeg')
+        const uploadRes = await uploadNaoConformidadeEvidencia(formData)
+        setIsUploading(false)
+        if (uploadRes.success && uploadRes.url) {
+          uploadedUrl = uploadRes.url
+        } else {
+          alert("Erro ao fazer upload da foto: " + uploadRes.error)
+          return
+        }
+      }
+
+      const res = await addNaoConformidadeUpdatesBatch(
+        selectedIds,
+        batchUpdateText,
+        batchStatus || undefined,
+        batchActionDate,
+        uploadedUrl
+      )
+
+      if (res.success) {
+        setBatchUpdateText('')
+        setFotoBase64(null)
+        setFotoName(null)
+        setFotoType(null)
+        setBatchStatus('')
+        setBatchActionDate(new Date().toISOString().split('T')[0])
+        setSelectedIds([])
+        setShowBatchModal(false)
+        await loadData()
+        alert("Ações registradas em lote com sucesso!")
+      } else {
+        alert("Erro ao salvar atualizações: " + res.error)
       }
     })
   }
@@ -1262,7 +1327,7 @@ export default function NaoConformidadesPage() {
                   <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
                   <input
                     type="text"
-                    placeholder="Buscar por código, executor ou pergunta..."
+                    placeholder="Buscar por código, audit, executor ou pergunta..."
                     value={arkiumSearch}
                     onChange={(e) => { setArkiumSearch(e.target.value); setCurrentPageArkium(1); }}
                     style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
@@ -1392,12 +1457,67 @@ export default function NaoConformidadesPage() {
               </div>
             </div>
 
+            {selectedIds.length > 0 && (
+              <div style={{
+                background: 'rgba(102,0,153,0.08)', border: `1px solid ${PURPLE}`, borderRadius: 10,
+                padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                marginBottom: 16
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: PURPLE }}>
+                    {selectedIds.length} {selectedIds.length === 1 ? 'item selecionado' : 'itens selecionados'}
+                  </span>
+                  <button
+                    onClick={() => setSelectedIds([])}
+                    style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Limpar seleção
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    setBatchUpdateText('');
+                    setFotoBase64(null);
+                    setFotoName(null);
+                    setFotoType(null);
+                    setBatchStatus('');
+                    setBatchActionDate(new Date().toISOString().split('T')[0]);
+                    setShowBatchModal(true);
+                  }}
+                  style={{
+                    background: PURPLE, color: '#fff', border: 'none', padding: '8px 16px',
+                    borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 6
+                  }}
+                >
+                  <PlusCircle size={15} />
+                  Inserir Ação em Lote
+                </button>
+              </div>
+            )}
+
             {/* Arkium Table */}
             <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 900 }}>
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                      <th style={{ padding: '12px 16px', width: 40 }}>
+                        <input
+                          type="checkbox"
+                          checked={paginatedArkium.length > 0 && paginatedArkium.every(item => selectedIds.includes(item.id))}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              const pageIds = paginatedArkium.map(item => item.id)
+                              setSelectedIds(prev => Array.from(new Set([...prev, ...pageIds])))
+                            } else {
+                              const pageIds = paginatedArkium.map(item => item.id)
+                              setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)))
+                            }
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </th>
                       <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Cód. Arkium</th>
                       <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data Abertura</th>
                       <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Executor / Técnico</th>
@@ -1411,13 +1531,13 @@ export default function NaoConformidadesPage() {
                   <tbody>
                     {pending ? (
                       <tr>
-                        <td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+                        <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
                           <Loader2 size={24} color={PURPLE} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 10px' }} />
                           Carregando dados...
                         </td>
                       </tr>
                     ) : paginatedArkium.length === 0 ? (
-                      <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Nenhuma não conformidade encontrada para os filtros selecionados.</td></tr>
+                      <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Nenhuma não conformidade encontrada para os filtros selecionados.</td></tr>
                     ) : (
                       paginatedArkium.map(item => {
                         const dateLabel = item.dataAbertura
@@ -1441,8 +1561,22 @@ export default function NaoConformidadesPage() {
 
                         return (
                           <tr key={item.id} style={{ borderBottom: '1px solid #f1f5f9', background: rowBg }}>
+                            <td style={{ padding: '12px 16px', width: 40 }}>
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.includes(item.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedIds(prev => [...prev, item.id])
+                                  } else {
+                                    setSelectedIds(prev => prev.filter(id => id !== item.id))
+                                  }
+                                }}
+                                style={{ cursor: 'pointer' }}
+                              />
+                            </td>
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-                              #{item.originalId}
+                              #{item.audit || item.originalId}
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
                               {dateLabel}
@@ -1569,7 +1703,7 @@ export default function NaoConformidadesPage() {
             }}>
               <div>
                 <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-                  Não Conformidade #{selectedItem.originalId}
+                  Não Conformidade #{selectedItem.audit || selectedItem.originalId}
                 </h3>
                 <span style={{ fontSize: 12, color: PURPLE, fontWeight: 600 }}>
                   {selectedItem.questionario}
@@ -1587,7 +1721,7 @@ export default function NaoConformidadesPage() {
             <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
               {/* Info Grid */}
               <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                 gap: 16, background: '#f8fafc', borderRadius: 10, padding: 16
               }}>
                 <div>
@@ -1597,9 +1731,28 @@ export default function NaoConformidadesPage() {
                   </div>
                 </div>
                 <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Audit</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#334155', marginTop: 2 }}>
+                    {selectedItem.audit || '-'}
+                  </div>
+                </div>
+                <div>
                   <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Localidade / Base</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#334155', marginTop: 2 }}>
                     {selectedItem.localidade} ({selectedItem.base})
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Gravidade</div>
+                  <div style={{ marginTop: 2 }}>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: 11,
+                      background: selectedItem.classificacao?.toLowerCase().includes('grave') ? '#fef2f2' : '#f8fafc',
+                      color: selectedItem.classificacao?.toLowerCase().includes('grave') ? '#ef4444' : '#64748b',
+                      border: `1px solid ${selectedItem.classificacao?.toLowerCase().includes('grave') ? '#fecaca' : '#e2e8f0'}`
+                    }}>
+                      {selectedItem.classificacao || 'Normal'}
+                    </span>
                   </div>
                 </div>
                 <div>
@@ -1614,21 +1767,62 @@ export default function NaoConformidadesPage() {
                     {selectedItem.tecnico ? selectedItem.tecnico.nome : 'Nenhum'}
                   </div>
                 </div>
-              </div>
-
-              {/* QA */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ borderLeft: `3px solid ${PURPLE}`, paddingLeft: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Pergunta</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginTop: 2 }}>
-                    {selectedItem.pergunta}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Importado em</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#334155', marginTop: 2 }}>
+                    {selectedItem.importadoEm ? new Date(selectedItem.importadoEm).toLocaleString('pt-BR') : '-'}
                   </div>
                 </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Situação Atual</div>
+                  <div style={{ marginTop: 2 }}>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: 4, fontWeight: 700, fontSize: 11,
+                      background: selectedItem.status === 'RESOLVIDO' ? '#d1fae5' : selectedItem.status === 'EM_ANDAMENTO' ? '#fef3c7' : '#fee2e2',
+                      color: selectedItem.status === 'RESOLVIDO' ? '#10b981' : selectedItem.status === 'EM_ANDAMENTO' ? '#d97706' : '#ef4444'
+                    }}>
+                      {selectedItem.status === 'RESOLVIDO' ? 'Resolvido' : selectedItem.status === 'EM_ANDAMENTO' ? 'Em Processamento' : 'Pendente'}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-                <div style={{ borderLeft: '3px solid #ef4444', paddingLeft: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Detalhamento da Ocorrência (R. Compl 1)</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#b91c1c', marginTop: 2 }}>
-                    {selectedItem.rCompl1 || 'Não informado'}
+              {/* QA Section */}
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 20 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 16px 0' }}>
+                  Detalhes da Ocorrência
+                </h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, background: '#f8fafc', padding: 16, borderRadius: 10 }}>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Pergunta</span>
+                    <p style={{ fontSize: 13.5, fontWeight: 600, color: '#1e293b', margin: '4px 0 0' }}>
+                      {selectedItem.pergunta}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Resposta do Checklist</span>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', margin: '4px 0 0' }}>
+                        {selectedItem.resposta || '-'}
+                      </p>
+                    </div>
+                    {selectedItem.compl1 && (
+                      <div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Complemento (Compl. 1)</span>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: '#334155', margin: '4px 0 0' }}>
+                          {selectedItem.compl1}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase' }}>Detalhamento / Justificativa (R. Compl. 1)</span>
+                    <p style={{ fontSize: 13.5, fontWeight: 700, color: '#b91c1c', margin: '4px 0 0', background: 'rgba(239,68,68,0.05)', padding: 10, borderRadius: 6, borderLeft: '3px solid #ef4444' }}>
+                      {selectedItem.rCompl1 || 'Não informado'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1972,6 +2166,177 @@ export default function NaoConformidadesPage() {
                 Excluir
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ações em Lote */}
+      {showBatchModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000,
+          background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 16, width: '90%', maxWidth: 600,
+            maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px 24px', borderBottom: '1px solid #e2e8f0',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+            }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                  Registrar Ação em Lote ({selectedIds.length} {selectedIds.length === 1 ? 'item' : 'itens'})
+                </h3>
+                <span style={{ fontSize: 12, color: PURPLE, fontWeight: 600 }}>
+                  A ação será registrada no histórico de todos os itens selecionados.
+                </span>
+              </div>
+              <button
+                onClick={() => { setShowBatchModal(false); setFotoBase64(null); setFotoName(null); setFotoType(null); }}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <form onSubmit={handleBatchUpdate} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Nova Situação:</span>
+                  <select
+                    value={batchStatus}
+                    onChange={e => setBatchStatus(e.target.value as any)}
+                    style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none', background: '#fff', color: '#334155' }}
+                  >
+                    <option value="">Manter status atual de cada item</option>
+                    <option value="PENDENTE_NAO_VENCIDA">Pendente Não Vencida</option>
+                    <option value="PENDENTE_VENCIDA">Pendente Vencida</option>
+                    <option value="EM_ANDAMENTO">Em Processamento</option>
+                    <option value="RESOLVIDO">Resolvido</option>
+                  </select>
+                </div>
+
+                <textarea
+                  value={batchUpdateText}
+                  onChange={e => setBatchUpdateText(e.target.value)}
+                  placeholder="Descreva a ação a ser inserida para todos os itens selecionados..."
+                  required
+                  rows={4}
+                  style={{
+                    width: '100%', padding: 12, borderRadius: 8, border: '1px solid #cbd5e1',
+                    fontSize: 13, outline: 'none', resize: 'vertical'
+                  }}
+                />
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                      Data da Ação
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={batchActionDate}
+                      onChange={e => setBatchActionDate(e.target.value)}
+                      style={{
+                        width: '100%', padding: '8px 12px', borderRadius: 8,
+                        border: '1px solid #cbd5e1', fontSize: 13, outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                      Anexar Foto de Evidência
+                    </label>
+                    
+                    <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+                    <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+
+                    {fotoBase64 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, border: '1px solid #10b981', background: 'rgba(16,185,129,0.05)', height: 38 }}>
+                        <img src={fotoBase64} alt="Preview" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }} />
+                        <div style={{ flex: 1, overflow: 'hidden', fontSize: 11, color: '#065f46', fontWeight: 600, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {fotoName}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setFotoBase64(null); setFotoName(null); setFotoType(null); }}
+                          style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => cameraInputRef.current?.click()}
+                          style={{
+                            flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px dashed #cbd5e1',
+                            background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
+                          }}
+                        >
+                          <Camera size={14} /> Foto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => galleryInputRef.current?.click()}
+                          style={{
+                            flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px dashed #cbd5e1',
+                            background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
+                          }}
+                        >
+                          <UploadCloud size={14} /> Galeria
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #e2e8f0', paddingTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowBatchModal(false); setFotoBase64(null); setFotoName(null); setFotoType(null); }}
+                  style={{
+                    padding: '8px 18px', border: '1px solid #cbd5e1', borderRadius: 8,
+                    fontSize: 13, fontWeight: 700, background: '#fff', color: '#475569', cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={pending || isUploading}
+                  style={{
+                    padding: '8px 18px', background: PURPLE, color: '#fff', border: 'none',
+                    borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (pending || isUploading) ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 6, opacity: (pending || isUploading) ? 0.7 : 1
+                  }}
+                >
+                  {(pending || isUploading) ? (
+                    <>
+                      <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                      {isUploading ? 'Enviando Imagem...' : 'Processando...'}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={14} />
+                      Salvar Ação em Lote
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -592,6 +592,7 @@ model NaoConformidade {
   localidade          String?
   base                String?
   questionario        String?
+  audit               String?
   dataAbertura        DateTime? @map("data_abertura")
   status              String    @default("ABERTO")
   updates             Json?     // Array of updates: [{ date: string, text: string, author: string }]

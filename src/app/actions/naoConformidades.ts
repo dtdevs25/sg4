@@ -176,6 +176,7 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
             localidade: item.localidade !== undefined ? item.localidade : existing.localidade,
             base: item.base !== undefined ? item.base : existing.base,
             questionario: item.questionario !== undefined ? item.questionario : existing.questionario,
+            audit: item.audit !== undefined ? item.audit : existing.audit,
             dataAbertura: item.dataAbertura ? new Date(item.dataAbertura) : existing.dataAbertura,
             status: finalStatus
           }
@@ -195,6 +196,7 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
             localidade: item.localidade || '',
             base: item.base || '',
             questionario: item.questionario || '',
+            audit: item.audit || '',
             dataAbertura: item.dataAbertura ? new Date(item.dataAbertura) : null,
             status: item.status || 'PENDENTE_NAO_VENCIDA',
             updates: []
@@ -215,6 +217,68 @@ export async function upsertNaoConformidadesBatch(items: any[]) {
     return { success: true, inseridos, atualizados }
   } catch (error: any) {
     console.error('Erro ao processar lote de não conformidades:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function addNaoConformidadeUpdatesBatch(
+  ids: string[],
+  text: string,
+  newStatus?: string,
+  actionDate?: string,
+  fotoUrl?: string
+) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const author = session.user.name || 'Usuário SG4'
+    const userId = (session.user as any).id
+
+    const items = await prisma.naoConformidade.findMany({
+      where: { id: { in: ids } }
+    })
+
+    if (items.length === 0) return { success: false, error: 'Nenhuma não conformidade encontrada' }
+
+    const newUpdate = {
+      date: new Date().toISOString(),
+      text,
+      author,
+      actionDate: actionDate || new Date().toISOString().split('T')[0],
+      fotoUrl: fotoUrl || null
+    }
+
+    const updatesPromises = items.map(item => {
+      let currentUpdates: any[] = []
+      if (item.updates && typeof item.updates === 'object') {
+        currentUpdates = Array.isArray(item.updates) ? item.updates : []
+      }
+      const updatedUpdates = [...currentUpdates, newUpdate]
+      const updatedStatus = newStatus || item.status
+
+      return prisma.naoConformidade.update({
+        where: { id: item.id },
+        data: {
+          updates: updatedUpdates,
+          status: updatedStatus
+        }
+      })
+    })
+
+    await Promise.all(updatesPromises)
+
+    await audit({
+      userId,
+      action: 'ATUALIZAR_NAO_CONFORMIDADES_EM_LOTE',
+      entity: 'NaoConformidade',
+      details: { ids, text, status: newStatus || 'sem alteração', actionDate, fotoUrl }
+    })
+
+    revalidatePath('/dashboard/naoconformidades')
+    return { success: true }
+  } catch (error: any) {
+    console.error('Erro ao adicionar atualizações em lote:', error)
     return { success: false, error: error.message }
   }
 }
