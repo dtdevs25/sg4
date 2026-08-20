@@ -587,7 +587,6 @@ export default function NaoConformidadesPage() {
             return idVal !== undefined && idVal !== null && String(idVal).trim() !== ''
           })
           .map(row => {
-            const originalId = String(row[matchedKeys.id || 'Id'])
             const executor = String(row[matchedKeys.executor || 'Executor'] || '')
             const responsavel = String(row[matchedKeys.responsavel || 'Responsável'] || '')
             const pergunta = String(row[matchedKeys.pergunta || 'Pergunta'] || '')
@@ -600,7 +599,10 @@ export default function NaoConformidadesPage() {
             const questionario = String(row[matchedKeys.questionario || 'Questionário'] || '')
             const rawSituacao = String(row[matchedKeys.situacao || 'Situação'] || '')
             const mappedStatus = mapArkiumStatus(rawSituacao)
-            const audit = matchedKeys.audit ? String(row[matchedKeys.audit] || '') : ''
+            const audit = matchedKeys.audit && row[matchedKeys.audit] != null ? String(row[matchedKeys.audit]).trim() : ''
+            
+            // Se o originalId vier como '0000000' ou similar e o audit existir, usar o audit como fallback visual
+            const originalId = String(row[matchedKeys.id || 'Id'] || '')
 
             const rawDate = dataAberturaKey ? row[dataAberturaKey] : null
             const parsedDate = parseExcelDate(rawDate)
@@ -1588,7 +1590,12 @@ export default function NaoConformidadesPage() {
                               />
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-                              #{item.audit || item.originalId}
+                              #{item.originalId}
+                              {item.audit && item.audit !== item.originalId && (
+                                <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, marginTop: 2 }}>
+                                  Aud: #{item.audit}
+                                </div>
+                              )}
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
                               {dateLabel}
