@@ -21,6 +21,7 @@ import {
   deleteNaoConformidadeUpdate,
   replaceNaoConformidadeUpdateImage
 } from '@/app/actions/naoConformidades'
+import { optimizeTextWithAI } from '@/app/actions/ai'
 import { getLastImportTime } from '@/app/actions/logs'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
@@ -241,6 +242,11 @@ export default function NaoConformidadesPage() {
   const [batchUpdateText, setBatchUpdateText] = useState('')
   const [batchStatus, setBatchStatus] = useState<'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO' | ''>('')
   const [batchActionDate, setBatchActionDate] = useState(new Date().toISOString().split('T')[0])
+  const [showSelectedPreview, setShowSelectedPreview] = useState(false)
+
+  // AI correction states
+  const [isAiLoadingSingle, setIsAiLoadingSingle] = useState(false)
+  const [isAiLoadingBatch, setIsAiLoadingBatch] = useState(false)
 
   const [pending, startTransition] = useTransition()
 
@@ -1471,44 +1477,85 @@ export default function NaoConformidadesPage() {
               </div>
             </div>
 
-            {selectedIds.length > 0 && (
-              <div style={{
-                background: 'rgba(102,0,153,0.08)', border: `1px solid ${PURPLE}`, borderRadius: 10,
-                padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                marginBottom: 16
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: PURPLE }}>
-                    {selectedIds.length} {selectedIds.length === 1 ? 'item selecionado' : 'itens selecionados'}
-                  </span>
-                  <button
-                    onClick={() => setSelectedIds([])}
-                    style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
-                  >
-                    Limpar seleção
-                  </button>
+            {selectedIds.length > 0 && (() => {
+              const selectedItems = data.filter(d => selectedIds.includes(d.id))
+              return (
+                <div style={{
+                  background: 'rgba(102,0,153,0.05)', border: `1px solid ${PURPLE}`, borderRadius: 10,
+                  padding: '12px 16px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: PURPLE }}>
+                        {selectedIds.length} {selectedIds.length === 1 ? 'item selecionado' : 'itens selecionados'}
+                      </span>
+                      <button
+                        onClick={() => setShowSelectedPreview(v => !v)}
+                        style={{ background: 'none', border: `1px solid ${PURPLE}`, borderRadius: 6, color: PURPLE, fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '2px 10px' }}
+                      >
+                        {showSelectedPreview ? 'Ocultar' : 'Visualizar'}
+                      </button>
+                      <button
+                        onClick={() => { setSelectedIds([]); setShowSelectedPreview(false); }}
+                        style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Limpar seleção
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setBatchUpdateText('');
+                        setFotoBase64(null);
+                        setFotoName(null);
+                        setFotoType(null);
+                        setBatchStatus('');
+                        setBatchActionDate(new Date().toISOString().split('T')[0]);
+                        setShowBatchModal(true);
+                      }}
+                      style={{
+                        background: PURPLE, color: '#fff', border: 'none', padding: '8px 16px',
+                        borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 6
+                      }}
+                    >
+                      <PlusCircle size={15} />
+                      Inserir Ação em Lote
+                    </button>
+                  </div>
+
+                  {showSelectedPreview && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto', paddingRight: 4 }}>
+                      {selectedItems.map(item => {
+                        let dotColor = '#3b82f6'
+                        if (item.status === 'PENDENTE_VENCIDA') dotColor = '#ef4444'
+                        else if (item.status === 'EM_ANDAMENTO') dotColor = '#f59e0b'
+                        else if (item.status === 'RESOLVIDO') dotColor = '#10b981'
+                        return (
+                          <div key={item.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            background: '#fff', borderRadius: 8, padding: '8px 12px',
+                            border: '1px solid #e2e8f0', fontSize: 12
+                          }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+                            <span style={{ fontWeight: 800, color: '#334155', flexShrink: 0 }}>#{item.audit || item.originalId}</span>
+                            <span style={{ color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                              {item.executor} — {item.localidade}
+                            </span>
+                            <button
+                              onClick={() => setSelectedIds(prev => prev.filter(id => id !== item.id))}
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 2, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                              title="Remover da seleção"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={() => {
-                    setBatchUpdateText('');
-                    setFotoBase64(null);
-                    setFotoName(null);
-                    setFotoType(null);
-                    setBatchStatus('');
-                    setBatchActionDate(new Date().toISOString().split('T')[0]);
-                    setShowBatchModal(true);
-                  }}
-                  style={{
-                    background: PURPLE, color: '#fff', border: 'none', padding: '8px 16px',
-                    borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 6
-                  }}
-                >
-                  <PlusCircle size={15} />
-                  Inserir Ação em Lote
-                </button>
-              </div>
-            )}
+              )
+            })()}
 
             {/* Arkium Table */}
             <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -1967,17 +2014,45 @@ export default function NaoConformidadesPage() {
                     </div>
                   </div>
 
-                  <textarea
-                    value={newUpdateText}
-                    onChange={e => setNewUpdateText(e.target.value)}
-                    placeholder="Descreva a ação tomada (ex. Enviei e-mail solicitando correção ao responsável...)"
-                    required
-                    rows={3}
-                    style={{
-                      width: '100%', padding: 10, borderRadius: 8, border: '1px solid #cbd5e1',
-                      fontSize: 13, outline: 'none', resize: 'vertical'
-                    }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <textarea
+                      value={newUpdateText}
+                      onChange={e => setNewUpdateText(e.target.value)}
+                      placeholder="Descreva a ação tomada (ex. Enviei e-mail solicitando correção ao responsável...)"
+                      required
+                      rows={3}
+                      style={{
+                        width: '100%', padding: 10, paddingRight: 44, borderRadius: 8, border: '1px solid #cbd5e1',
+                        fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      title="Corrigir e melhorar com IA"
+                      disabled={isAiLoadingSingle || !newUpdateText.trim()}
+                      onClick={async () => {
+                        if (!newUpdateText.trim()) return
+                        setIsAiLoadingSingle(true)
+                        const res = await optimizeTextWithAI(newUpdateText)
+                        if (res.success && res.text) setNewUpdateText(res.text)
+                        setIsAiLoadingSingle(false)
+                      }}
+                      style={{
+                        position: 'absolute', top: 8, right: 8,
+                        background: isAiLoadingSingle ? '#f1f5f9' : 'linear-gradient(135deg, #660099, #9333ea)',
+                        border: 'none', borderRadius: 6, width: 30, height: 30,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: (!newUpdateText.trim() || isAiLoadingSingle) ? 'not-allowed' : 'pointer',
+                        opacity: (!newUpdateText.trim() || isAiLoadingSingle) ? 0.5 : 1,
+                        transition: 'all 0.2s', flexShrink: 0
+                      }}
+                    >
+                      {isAiLoadingSingle
+                        ? <Loader2 size={14} color={PURPLE} style={{ animation: 'spin 1s linear infinite' }} />
+                        : <span style={{ fontSize: 14, lineHeight: 1 }}>✨</span>
+                      }
+                    </button>
+                  </div>
 
                   {/* Two column layout for Date and Photo upload */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -2235,17 +2310,45 @@ export default function NaoConformidadesPage() {
                   </select>
                 </div>
 
-                <textarea
-                  value={batchUpdateText}
-                  onChange={e => setBatchUpdateText(e.target.value)}
-                  placeholder="Descreva a ação a ser inserida para todos os itens selecionados..."
-                  required
-                  rows={4}
-                  style={{
-                    width: '100%', padding: 12, borderRadius: 8, border: '1px solid #cbd5e1',
-                    fontSize: 13, outline: 'none', resize: 'vertical'
-                  }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <textarea
+                    value={batchUpdateText}
+                    onChange={e => setBatchUpdateText(e.target.value)}
+                    placeholder="Descreva a ação a ser inserida para todos os itens selecionados..."
+                    required
+                    rows={4}
+                    style={{
+                      width: '100%', padding: 12, paddingRight: 48, borderRadius: 8, border: '1px solid #cbd5e1',
+                      fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    title="Corrigir e melhorar com IA"
+                    disabled={isAiLoadingBatch || !batchUpdateText.trim()}
+                    onClick={async () => {
+                      if (!batchUpdateText.trim()) return
+                      setIsAiLoadingBatch(true)
+                      const res = await optimizeTextWithAI(batchUpdateText)
+                      if (res.success && res.text) setBatchUpdateText(res.text)
+                      setIsAiLoadingBatch(false)
+                    }}
+                    style={{
+                      position: 'absolute', top: 10, right: 10,
+                      background: isAiLoadingBatch ? '#f1f5f9' : 'linear-gradient(135deg, #660099, #9333ea)',
+                      border: 'none', borderRadius: 6, width: 32, height: 32,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: (!batchUpdateText.trim() || isAiLoadingBatch) ? 'not-allowed' : 'pointer',
+                      opacity: (!batchUpdateText.trim() || isAiLoadingBatch) ? 0.5 : 1,
+                      transition: 'all 0.2s', flexShrink: 0
+                    }}
+                  >
+                    {isAiLoadingBatch
+                      ? <Loader2 size={14} color={PURPLE} style={{ animation: 'spin 1s linear infinite' }} />
+                      : <span style={{ fontSize: 16, lineHeight: 1 }}>✨</span>
+                    }
+                  </button>
+                </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
