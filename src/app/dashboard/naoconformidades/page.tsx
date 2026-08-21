@@ -1533,25 +1533,26 @@ export default function NaoConformidadesPage() {
                         />
                       </th>
                       <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Cód. Arkium</th>
+                      <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Audit.</th>
                       <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data Abertura</th>
                       <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Executor / Técnico</th>
                       <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Questionário / Pergunta</th>
                       <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Localidade</th>
-                      <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Gravidade</th>
-                      <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Situação</th>
+                      <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center', width: 60 }}>Grav.</th>
+                      <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center', width: 60 }}>Sit.</th>
                       <th style={{ padding: '12px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pending ? (
                       <tr>
-                        <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+                        <td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
                           <Loader2 size={24} color={PURPLE} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 10px' }} />
                           Carregando dados...
                         </td>
                       </tr>
                     ) : paginatedArkium.length === 0 ? (
-                      <tr><td colSpan={9} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Nenhuma não conformidade encontrada para os filtros selecionados.</td></tr>
+                      <tr><td colSpan={10} style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>Nenhuma não conformidade encontrada para os filtros selecionados.</td></tr>
                     ) : (
                       paginatedArkium.map(item => {
                         const dateLabel = item.dataAbertura
@@ -1591,11 +1592,9 @@ export default function NaoConformidadesPage() {
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
                               #{item.originalId}
-                              {item.audit && item.audit !== item.originalId && (
-                                <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, marginTop: 2 }}>
-                                  Aud: #{item.audit}
-                                </div>
-                              )}
+                            </td>
+                            <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: PURPLE }}>
+                              {item.audit ? `#${item.audit}` : '-'}
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
                               {dateLabel}
@@ -1615,23 +1614,19 @@ export default function NaoConformidadesPage() {
                             <td style={{ padding: '12px 16px', fontSize: 13, color: '#475569' }}>
                               {item.localidade || '-'}
                             </td>
-                            <td style={{ padding: '12px 16px', fontSize: 12 }}>
-                              <span style={{
-                                padding: '2px 8px', borderRadius: 4, fontWeight: 700,
-                                background: item.classificacao?.toLowerCase().includes('grave') ? '#fef2f2' : '#f8fafc',
-                                color: item.classificacao?.toLowerCase().includes('grave') ? '#ef4444' : '#64748b',
-                                border: `1px solid ${item.classificacao?.toLowerCase().includes('grave') ? '#fecaca' : '#e2e8f0'}`
-                              }}>
-                                {item.classificacao || 'Normal'}
-                              </span>
+                            <td style={{ padding: '12px 16px', fontSize: 12, textAlign: 'center' }} title={item.classificacao || 'Normal'}>
+                              <div style={{
+                                width: 12, height: 12, borderRadius: '50%', margin: '0 auto', cursor: 'help',
+                                background: item.classificacao?.toLowerCase().includes('grave') ? '#ef4444' : '#94a3b8',
+                                boxShadow: `0 0 0 3px ${item.classificacao?.toLowerCase().includes('grave') ? '#fecaca' : '#f1f5f9'}`
+                              }} />
                             </td>
-                            <td style={{ padding: '12px 16px', fontSize: 12, textAlign: 'center' }}>
-                              <span style={{
-                                padding: '4px 10px', borderRadius: 20, fontWeight: 700,
-                                background: statusBadge.bg, color: statusBadge.text
-                              }}>
-                                {statusBadge.label}
-                              </span>
+                            <td style={{ padding: '12px 16px', fontSize: 12, textAlign: 'center' }} title={statusBadge.label}>
+                              <div style={{
+                                width: 12, height: 12, borderRadius: '50%', margin: '0 auto', cursor: 'help',
+                                background: statusBadge.text,
+                                boxShadow: `0 0 0 3px ${statusBadge.bg}`
+                              }} />
                             </td>
                             <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                               <button
