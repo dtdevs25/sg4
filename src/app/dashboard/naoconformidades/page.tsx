@@ -1649,7 +1649,7 @@ export default function NaoConformidadesPage() {
                               #{item.originalId}
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: PURPLE }}>
-                              {item.audit ? `#${item.audit}` : '-'}
+                              {item.audit || '-'}
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
                               {dateLabel}
