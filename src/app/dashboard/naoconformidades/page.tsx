@@ -581,8 +581,16 @@ export default function NaoConformidadesPage() {
           compl1: findMatch(['Compl. 1', 'Compl1', 'RES_COMPL1', 'RESCOMPL1']),
           rCompl1: findMatch(['R. Compl. 1', 'R. Compl1', 'R.Compl.1', 'RCompl1', 'Detalhamento']),
           situacao: findMatch(['Situação', 'Situacao', 'Status', 'Sit.', 'Situacao']),
-          audit: findMatch(['Audit', 'Auditoria', 'HEA_RES_ID', 'HEARESID'])
+          // Try direct key name first (covers 'Audit.' exactly), then normalized matches
+          audit: rowKeys.find(k => k.trim() === 'Audit.') ||
+                 rowKeys.find(k => k.trim().toLowerCase().replace(/[^a-z0-9]/g, '') === 'audit') ||
+                 findMatch(['Audit', 'Auditoria', 'HEA_RES_ID', 'HEARESID'])
         }
+
+        // Debug: show what was found for audit key
+        console.log('[NC Import] rowKeys:', rowKeys)
+        console.log('[NC Import] audit key matched:', matchedKeys.audit)
+        if (matchedKeys.audit) console.log('[NC Import] first row audit value:', jsonData[0][matchedKeys.audit])
 
         const dataAberturaKey = findMatch(['Data Abertura', 'DataAbertura', 'Abertura', 'HEA_DT_ABERTURA', 'HEADTABERTURA'])
 
@@ -1646,13 +1654,38 @@ export default function NaoConformidadesPage() {
                             <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
                               {dateLabel}
                             </td>
-                            <td style={{ padding: '12px 16px' }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{item.executor}</div>
-                              {item.tecnico && (
-                                <div style={{ fontSize: 10, color: PURPLE, fontWeight: 600, marginTop: 2 }}>
-                                  🔗 {item.tecnico.nome}
-                                </div>
-                              )}
+                            <td style={{ padding: '12px 8px', textAlign: 'center', width: 48 }}>
+                              {(() => {
+                                const label = item.tecnico
+                                  ? `${item.executor} \u2192 ${item.tecnico.nome}`
+                                  : item.executor || '-'
+                                if (item.tecnico?.fotoUrl) {
+                                  return (
+                                    <img
+                                      src={item.tecnico.fotoUrl}
+                                      alt={item.tecnico.nome}
+                                      title={label}
+                                      style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${PURPLE}`, cursor: 'help', display: 'block', margin: '0 auto' }}
+                                    />
+                                  )
+                                }
+                                const initials = (item.tecnico?.nome || item.executor || '?').substring(0, 2).toUpperCase()
+                                return (
+                                  <div
+                                    title={label}
+                                    style={{
+                                      width: 32, height: 32, borderRadius: '50%', margin: '0 auto', cursor: 'help',
+                                      background: item.tecnico ? 'linear-gradient(135deg,#660099,#9333ea)' : '#e2e8f0',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      fontSize: 11, fontWeight: 800,
+                                      color: item.tecnico ? '#fff' : '#64748b',
+                                      border: item.tecnico ? `2px solid ${PURPLE}` : '2px solid #cbd5e1'
+                                    }}
+                                  >
+                                    {initials}
+                                  </div>
+                                )
+                              })()}
                             </td>
                             <td style={{ padding: '12px 16px', fontSize: 13, maxWidth: 300 }}>
                               <div style={{ fontWeight: 600, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.questionario}</div>
