@@ -73,6 +73,7 @@ export default function ReunioesPage() {
   const [ataAnexoContentType, setAtaAnexoContentType] = useState('')
   // Lista de presença temporária (no modal)
   const [tempPresencas, setTempPresencas] = useState<ReuniaoData[]>([])
+  const [showInativosNaAta, setShowInativosNaAta] = useState(false)
 
   const MONTHS_LIST = [
     { key: 1, label: 'Jan' }, { key: 2, label: 'Fev' },
@@ -285,16 +286,18 @@ export default function ReunioesPage() {
       const contentToSave = editorNode ? editorNode.innerHTML : ataContent
       const ataRes = await upsertAta(editingAta.data, editingAta.assunto, contentToSave, finalAnexoUrl, finalAnexoNome)
       
-      // Salva os dados de presença da lista temporária
-      const updatesList = tempPresencas.map(tp => ({
-        id: tp.id || undefined,
-        tecnicoId: tp.tecnicoId,
-        presenca: tp.presenca,
-        pontualidade: tp.pontualidade,
-        justificada: tp.justificada,
-        motivo: tp.motivo || '',
-        observacao: tp.observacao || ''
-      }))
+      // Salva os dados de presença — apenas ativos (ou todos se toggle ligado)
+      const updatesList = tempPresencas
+        .filter(tp => showInativosNaAta || tp.tecnico.ativo !== false)
+        .map(tp => ({
+          id: tp.id || undefined,
+          tecnicoId: tp.tecnicoId,
+          presenca: tp.presenca,
+          pontualidade: tp.pontualidade,
+          justificada: tp.justificada,
+          motivo: tp.motivo || '',
+          observacao: tp.observacao || ''
+        }))
       
       const presRes = await updatePresencasReuniao(editingAta.data, editingAta.assunto, updatesList)
 
@@ -309,7 +312,8 @@ export default function ReunioesPage() {
 
   async function openPrintPdf(dt: string, ast: string) {
     const existingAta = atas.find(a => new Date(a.data).toISOString() === dt && a.assunto === ast)
-    const presencas = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast)
+    // PDF: sempre filtra apenas técnicos ativos
+    const presencas = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast && l.tecnico?.ativo !== false)
     
     try {
       const { gerarPdfAta } = await import('@/app/utils/gerarPdfAta')
@@ -704,12 +708,23 @@ export default function ReunioesPage() {
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', background: '#fff', position: 'sticky', top: 0, zIndex: 10 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 800, color: '#334155', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><CheckCircle2 size={16} /> Lançar Presenças</h3>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-                    <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Técnicos filtrados com base na data de admissão e demissão em relação à data da reunião.</p>
+                    <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Exibindo técnicos ativos na data da reunião.</p>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', userSelect: 'none', flexShrink: 0, marginLeft: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={showInativosNaAta}
+                        onChange={e => setShowInativosNaAta(e.target.checked)}
+                        style={{ cursor: 'pointer', width: 14, height: 14, accentColor: '#660099' }}
+                      />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: showInativosNaAta ? '#660099' : '#94a3b8', whiteSpace: 'nowrap' }}>Ver inativos</span>
+                    </label>
                   </div>
                 </div>
                 
                 <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {tempPresencas.map((tp, idx) => {
+                  {tempPresencas
+                    .filter(tp => showInativosNaAta || tp.tecnico.ativo !== false)
+                    .map((tp, idx) => {
                     const isPresente = tp.presenca === 'PRESENTE';
                     const isAusente = tp.presenca === 'AUSENTE';
                     const isAtrasado = tp.pontualidade === 'ATRASADO';
@@ -741,12 +756,14 @@ export default function ReunioesPage() {
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button 
                             onClick={() => {
+                              const realIdx = tempPresencas.findIndex(x => x.tecnicoId === tp.tecnicoId);
+                              if (realIdx === -1) return;
                               const newArr = [...tempPresencas];
-                              newArr[idx].presenca = 'PRESENTE';
-                              if (newArr[idx].pontualidade === 'NAO_SE_APLICA') newArr[idx].pontualidade = 'PONTUAL';
-                              if (newArr[idx].pontualidade === 'PONTUAL') {
-                                newArr[idx].justificada = 'NAO_SE_APLICA';
-                                newArr[idx].motivo = '';
+                              newArr[realIdx].presenca = 'PRESENTE';
+                              if (newArr[realIdx].pontualidade === 'NAO_SE_APLICA') newArr[realIdx].pontualidade = 'PONTUAL';
+                              if (newArr[realIdx].pontualidade === 'PONTUAL') {
+                                newArr[realIdx].justificada = 'NAO_SE_APLICA';
+                                newArr[realIdx].motivo = '';
                               }
                               setTempPresencas(newArr);
                             }}
@@ -756,9 +773,11 @@ export default function ReunioesPage() {
                           </button>
                           <button 
                             onClick={() => {
+                              const realIdx = tempPresencas.findIndex(x => x.tecnicoId === tp.tecnicoId);
+                              if (realIdx === -1) return;
                               const newArr = [...tempPresencas];
-                              newArr[idx].presenca = 'AUSENTE';
-                              newArr[idx].pontualidade = 'NAO_SE_APLICA';
+                              newArr[realIdx].presenca = 'AUSENTE';
+                              newArr[realIdx].pontualidade = 'NAO_SE_APLICA';
                               setTempPresencas(newArr);
                             }}
                             style={{ flex: 1, padding: '6px 0', borderRadius: 6, border: tp.presenca === 'AUSENTE' ? '1px solid #ef4444' : '1px solid #e2e8f0', background: tp.presenca === 'AUSENTE' ? 'rgba(239,68,68,0.1)' : '#fff', color: tp.presenca === 'AUSENTE' ? '#ef4444' : '#64748b', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
@@ -773,11 +792,13 @@ export default function ReunioesPage() {
                               <select 
                                 value={tp.pontualidade}
                                 onChange={(e) => {
+                                  const realIdx = tempPresencas.findIndex(x => x.tecnicoId === tp.tecnicoId);
+                                  if (realIdx === -1) return;
                                   const newArr = [...tempPresencas];
-                                  newArr[idx].pontualidade = e.target.value as any;
+                                  newArr[realIdx].pontualidade = e.target.value as any;
                                   if (e.target.value === 'PONTUAL') {
-                                    newArr[idx].justificada = 'NAO_SE_APLICA';
-                                    newArr[idx].motivo = '';
+                                    newArr[realIdx].justificada = 'NAO_SE_APLICA';
+                                    newArr[realIdx].motivo = '';
                                   }
                                   setTempPresencas(newArr);
                                 }}
@@ -792,8 +813,10 @@ export default function ReunioesPage() {
                               <select 
                                 value={tp.justificada}
                                 onChange={(e) => {
+                                  const realIdx = tempPresencas.findIndex(x => x.tecnicoId === tp.tecnicoId);
+                                  if (realIdx === -1) return;
                                   const newArr = [...tempPresencas];
-                                  newArr[idx].justificada = e.target.value as any;
+                                  newArr[realIdx].justificada = e.target.value as any;
                                   setTempPresencas(newArr);
                                 }}
                                 style={{ flex: 1, padding: '6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, fontWeight: 600, color: '#334155' }}
@@ -812,8 +835,10 @@ export default function ReunioesPage() {
                             placeholder="Motivo / Observação..." 
                             value={tp.motivo || tp.observacao || ''}
                             onChange={(e) => {
+                              const realIdx = tempPresencas.findIndex(x => x.tecnicoId === tp.tecnicoId);
+                              if (realIdx === -1) return;
                               const newArr = [...tempPresencas];
-                              newArr[idx].motivo = e.target.value;
+                              newArr[realIdx].motivo = e.target.value;
                               setTempPresencas(newArr);
                             }}
                             style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
