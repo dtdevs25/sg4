@@ -536,12 +536,12 @@ export default function APRPage() {
       ]
 
       await gerarExcelCentral({
-        titulo: 'SG4 - Relatório de Análise Preliminar de Risco (APR)',
+        titulo: 'VIVO - Análise Preliminar de Risco',
         subtitulo: `Filtros Aplicados: Ano ${selectedYear} | Estado: ${selectedState || 'Todos'} | Cidade: ${selectedCity || 'Todas'}`,
         headers,
         rows,
         resumo,
-        fileName: `SG4_APR_${new Date().toISOString().substring(0,10)}.xlsx`
+        fileName: `VIVO_APR_${new Date().toISOString().substring(0,10)}.xlsx`
       })
     } catch (err) {
       console.error(err)
