@@ -442,7 +442,6 @@ export default function DashboardPage() {
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
   function isTecnicoActiveInPeriod(t: any, selMesesObj: string[], selYear: string): boolean {
-    if (t.ativo) return true; // Se tá ativo atualmente, mostra sempre por padrão
     if (!selYear) return false;
 
     const targetYear = parseInt(selYear, 10);

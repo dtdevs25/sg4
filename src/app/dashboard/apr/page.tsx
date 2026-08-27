@@ -218,18 +218,12 @@ export default function APRPage() {
         setShowTecnicoDropdown(false)
       }
       if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target as Node)) {
-        // Só dispara loadData ao fechar o dropdown de cidade se alguma cidade estiver selecionada
-        // (ou se estava aberto — indica que o usuário terminou de selecionar)
-        if (showCityDropdown) {
-          setShowCityDropdown(false)
-          setCurrentPage(1)
-          loadData()
-        }
+        setShowCityDropdown(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showCityDropdown, loadData])
+  }, [])
 
   // Search & Pagination in Data Table tab
   const [searchText, setSearchText] = useState('')
@@ -348,16 +342,16 @@ export default function APRPage() {
 
   // Auto-reload when discrete filters or pagination changes
   useEffect(() => {
-    if (hasLoadedOnce) {
+    if (hasLoadedOnce && !showCityDropdown && !showTecnicoDropdown) {
       loadData()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, itemsPerPage, selectedYear, selectedMonths, selectedRegion, selectedState, selectedTecnico, selectedAtividade])
+  }, [currentPage, itemsPerPage, selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity, selectedTecnico, selectedAtividade, showCityDropdown, showTecnicoDropdown])
 
-  // Reset pagination when filters change (excluding selectedCity — handled on dropdown close)
+  // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, selectedYear, selectedMonths, selectedRegion, selectedState, selectedTecnico, selectedAtividade])
+  }, [searchText, selectedYear, selectedMonths, selectedRegion, selectedState, selectedCity, selectedTecnico, selectedAtividade])
 
   const totalPages = Math.ceil(totalCount / itemsPerPage)
 
@@ -1181,8 +1175,6 @@ export default function APRPage() {
                               e.stopPropagation()
                               setSelectedCity([])
                               setShowCityDropdown(false)
-                              setCurrentPage(1)
-                              setTimeout(() => loadData(), 0)
                             }}
                             style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', background: selectedCity.length === 0 ? '#eff6ff' : 'transparent', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}
                           >
@@ -1220,7 +1212,7 @@ export default function APRPage() {
                     {selectedCity.length > 0 && (
                       <div style={{ fontSize: 11, fontWeight: 700, color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
                         {selectedCity.length === 1 ? '1 Cidade' : `${selectedCity.length} Cidades`}
-                        <X size={12} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={() => { setSelectedCity([]); setCurrentPage(1); setTimeout(() => loadData(), 0) }} />
+                        <X size={12} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={() => setSelectedCity([])} />
                       </div>
                     )}
                   </div>
