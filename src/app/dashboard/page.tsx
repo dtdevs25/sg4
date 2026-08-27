@@ -442,7 +442,54 @@ export default function DashboardPage() {
   const ANOS = Array.from(anosSet).sort().reverse()
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
-  const activeTecnicosAll = tecnicosDb.filter(t => mostrarInativos ? true : t.ativo !== false)
+  function isTecnicoActiveInPeriod(t: any, selMesesObj: string[], selYear: string): boolean {
+    if (t.ativo) return true; // Se tá ativo atualmente, mostra sempre por padrão
+    if (!selYear) return false;
+
+    const targetYear = parseInt(selYear, 10);
+    const admDate = t.admissao ? new Date(t.admissao) : null;
+    const admYear = admDate ? admDate.getUTCFullYear() : null;
+    const admMonth = admDate ? admDate.getUTCMonth() : null;
+
+    let demYear: number | null = null;
+    let demMonth: number | null = null;
+    if (t.demissao) {
+      const demDate = new Date(t.demissao);
+      demYear = demDate.getUTCFullYear();
+      demMonth = demDate.getUTCMonth();
+    }
+
+    const mesIdx: Record<string, number> = { Jan: 0, Fev: 1, Mar: 2, Abr: 3, Mai: 4, Jun: 5, Jul: 6, Ago: 7, Set: 8, Out: 9, Nov: 10, Dez: 11 };
+    const monthsToIterate = selMesesObj.length > 0 ? selMesesObj : Object.keys(mesIdx);
+
+    let activeInAnyMonth = false;
+    monthsToIterate.forEach(m => {
+      const mIdx = mesIdx[m];
+      let isActive = true;
+
+      if (admYear !== null && admMonth !== null) {
+        if (targetYear < admYear) {
+          isActive = false;
+        } else if (targetYear === admYear && mIdx < admMonth) {
+          isActive = false;
+        }
+      }
+
+      if (isActive && demYear !== null && demMonth !== null) {
+        if (targetYear > demYear) {
+          isActive = false;
+        } else if (targetYear === demYear && mIdx > demMonth) {
+          isActive = false;
+        }
+      }
+
+      if (isActive) activeInAnyMonth = true;
+    });
+
+    return activeInAnyMonth;
+  }
+
+  const activeTecnicosAll = tecnicosDb.filter(t => mostrarInativos ? true : isTecnicoActiveInPeriod(t, meses, ano || ''))
   const isByActiveTecnico = (nome: string) => activeTecnicosAll.some(t => matchTecnico(nome, t.nome))
 
   const dssArkiumValidos = dssArkiumDb.filter(a => isDssAssinado(a.assinado) && isByActiveTecnico(a.nome))
@@ -526,7 +573,7 @@ export default function DashboardPage() {
     ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n?.status && n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
   } catch(e) { console.error('Erro calculando ncAbertasTotal: ' + String(e)); }
 
-  const tecnicosStats = (tecnicosDb || []).filter(t => t?.ativo).map(t => {
+  const tecnicosStats = (tecnicosDb || []).filter(t => mostrarInativos ? true : isTecnicoActiveInPeriod(t, meses, ano || '')).map(t => {
     let dss = 0, insp = 0, rel = 0, nc = 0, nomeAbrev = t?.nome || '';
     try {
       dss = dssFiltrados.filter(a => matchTecnico(a?.nome, t?.nome)).length
@@ -568,6 +615,7 @@ export default function DashboardPage() {
     const admDate = new Date(t.admissao)
     const admYear = admDate.getUTCFullYear()
     const admMonth = admDate.getUTCMonth()
+    const admDay = admDate.getUTCDate()
 
     let demYear: number | null = null
     let demMonth: number | null = null
@@ -591,6 +639,10 @@ export default function DashboardPage() {
         isActive = true
       } else if (targetYear === admYear && mIdx >= admMonth) {
         isActive = true
+        // Regra da 2a quinzena: se admitido após o dia 15, o mês de admissão não tem meta
+        if (mIdx === admMonth && admDay > 15) {
+          isActive = false
+        }
       }
 
       if (isActive && demYear !== null && demMonth !== null) {
@@ -608,7 +660,7 @@ export default function DashboardPage() {
 
   const activeTecnicos = isConectadoTst 
     ? [tecnicosDb.find(t => t.nome === tecnicoConectado?.nome)].filter(Boolean) 
-    : tecnicosDb.filter(t => (mostrarInativos ? true : t.ativo !== false) && t.contaMeta !== false);
+    : tecnicosDb.filter(t => (mostrarInativos ? true : isTecnicoActiveInPeriod(t, meses, ano || '')) && t.contaMeta !== false);
   
   const numYears = ano ? 1 : (ANOS.length || 1)
   const numMeses = meses.length > 0 ? meses.length : 12
