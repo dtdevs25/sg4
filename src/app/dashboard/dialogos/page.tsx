@@ -853,7 +853,14 @@ export default function DialogosPage() {
             {/* Filtro de Meses e Ano */}
             <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 16px', display: 'flex', flexDirection: 'column', gap: 8, gridColumn: 'span 2' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                  {lastImport && (
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>
+                      Última atualização: {new Date(lastImport.createdAt).toLocaleString('pt-BR')}
+                    </span>
+                  )}
+                </div>
                 <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
                   <option value="ALL">Todos os Anos</option>
                   {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
@@ -1374,16 +1381,16 @@ export default function DialogosPage() {
       {/* MODAL TRATAR ARKIUM */}
       {treatingItem && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.8)', padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
+          <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg, #660099, #9333ea)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#fff' }}>
                 {treatingItem.estado === 'ABERTO' ? 'Tratar' : 'Detalhes'}: {treatingItem.numeroDialogo}
               </h3>
-              <button onClick={() => setTreatingItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+              <button onClick={() => setTreatingItem(null)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: '#fff', borderRadius: 6, padding: 4, display: 'flex', alignItems: 'center' }}>
                 <X size={18} />
               </button>
             </div>
-            <form onSubmit={handleTratar} style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <form onSubmit={handleTratar} style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', flex: 1 }}>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {/* Cabeçalho do Card Interno */}

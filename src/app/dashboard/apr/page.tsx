@@ -1324,9 +1324,9 @@ export default function APRPage() {
                   <span style={{ fontSize: 12, color: '#94a3b8' }}>Selecione um estado no mapa para drill-down</span>
                 </div>
                 
-                {(selectedRegion || selectedState || selectedCity) && (
+                {(selectedRegion || selectedState || selectedCity.length > 0) && (
                   <button
-                    onClick={() => { setSelectedRegion(''); setSelectedState(''); setSelectedCity(''); }}
+                    onClick={() => { setSelectedRegion(''); setSelectedState(''); setSelectedCity([]); }}
                     style={{ padding: '6px 10px', fontSize: 11, fontWeight: 700, color: '#ef4444', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                   >
                     <X size={12} /> Limpar

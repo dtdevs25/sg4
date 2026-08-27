@@ -952,7 +952,14 @@ export default function NaoConformidadesPage() {
             {/* Period selector */}
             <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                  {lastImport && (
+                    <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>
+                      Última atualização: {new Date(lastImport.createdAt).toLocaleString('pt-BR')}
+                    </span>
+                  )}
+                </div>
                 <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none' }}>
                   <option value="ALL">Todos os Anos</option>
                   {anosDisponiveis.map(a => <option key={a} value={a}>{a}</option>)}
@@ -1787,32 +1794,35 @@ export default function NaoConformidadesPage() {
         }}>
           <div style={{
             background: '#fff', borderRadius: 16, width: '90%', maxWidth: 750,
-            maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column',
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)'
+            maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            overflow: 'hidden'
           }}>
-            {/* Modal Header */}
+            {/* Modal Header — fixo */}
             <div style={{
-              padding: '20px 24px', borderBottom: '1px solid #e2e8f0',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, #660099, #9333ea)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0
             }}>
               <div>
-                <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>
                   Não Conformidade #{selectedItem.audit || selectedItem.originalId}
                 </h3>
-                <span style={{ fontSize: 12, color: PURPLE, fontWeight: 600 }}>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 600 }}>
                   {selectedItem.questionario}
                 </span>
               </div>
               <button
                 onClick={() => setSelectedItem(null)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', cursor: 'pointer', padding: 6, borderRadius: 8, display: 'flex', alignItems: 'center' }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Modal Content */}
-            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Modal Content — scrollável */}
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', flex: 1 }}>
               {/* Info Grid */}
               <div style={{
                 display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
