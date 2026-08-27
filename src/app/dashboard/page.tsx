@@ -345,7 +345,6 @@ export default function DashboardPage() {
   const [ano, setAno] = useState<string>(currentYear)
   const [meses, setMeses] = useState<string[]>([MESES[new Date().getMonth()]]) // apenas o mês atual
   const [mostrarFotosGrafico, setMostrarFotosGrafico] = useState<boolean>(true)
-  const [mostrarInativos, setMostrarInativos] = useState<boolean>(false)
   const [dropdownAberto, setDropdownAberto] = useState<boolean>(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -395,13 +394,13 @@ export default function DashboardPage() {
         ])
         
         if (ativRes.success) setAtividadesDb(ativRes.data || [])
-        else if (ativRes.error) addDebug('API Atividades retornou erro: ' + ativRes.error)
+        else if ((ativRes as any).error) addDebug('API Atividades retornou erro: ' + (ativRes as any).error)
         
         if (tecRes.success) setTecnicosDb(tecRes.data || [])
-        else if (tecRes.error) addDebug('API Tecnicos retornou erro: ' + tecRes.error)
+        else if ((tecRes as any).error) addDebug('API Tecnicos retornou erro: ' + (tecRes as any).error)
         
         if (kmRes.success) setKmDb(kmRes.data || [])
-        else if (kmRes.error) addDebug('API Quilometragens retornou erro: ' + kmRes.error)
+        else if ((kmRes as any).error) addDebug('API Quilometragens retornou erro: ' + (kmRes as any).error)
         
         if (dssRes.success) {
           const arkList = dssRes.data || [];
@@ -412,15 +411,15 @@ export default function DashboardPage() {
             return { id: a.id, nome: a.tecnico?.nome, assinado: 'SIM', dataFechamento: dateStr, matricula: a.tecnico?.matriculaArkium || 'N/A', tecnico: a.tecnico, isAliado: true };
           });
           setDssArkiumDb([...arkList, ...aliMapped]);
-        } else if (dssRes.error) addDebug('API DssArkium retornou erro: ' + dssRes.error)
+        } else if ((dssRes as any).error) addDebug('API DssArkium retornou erro: ' + (dssRes as any).error)
         
         if (inspRes.success) setInspecoesArkiumDb(inspRes.data || [])
-        else if (inspRes.error) addDebug('API InspecoesArkium retornou erro: ' + inspRes.error)
+        else if ((inspRes as any).error) addDebug('API InspecoesArkium retornou erro: ' + (inspRes as any).error)
         
         setRelatoriosDb(Array.isArray(relRes) ? relRes : [])
         
         if (ncRes?.success) setNcDb(ncRes.data || [])
-        else if (ncRes?.error) addDebug('API NaoConformidades retornou erro: ' + ncRes.error)
+        else if ((ncRes as any)?.error) addDebug('API NaoConformidades retornou erro: ' + (ncRes as any).error)
         
       } catch (err) {
         addDebug('Erro Fatal no Promise.all: ' + String(err))
@@ -489,7 +488,7 @@ export default function DashboardPage() {
     return activeInAnyMonth;
   }
 
-  const activeTecnicosAll = tecnicosDb.filter(t => mostrarInativos ? true : isTecnicoActiveInPeriod(t, meses, ano || ''))
+  const activeTecnicosAll = tecnicosDb.filter(t => isTecnicoActiveInPeriod(t, meses, ano || ''))
   const isByActiveTecnico = (nome: string) => activeTecnicosAll.some(t => matchTecnico(nome, t.nome))
 
   const dssArkiumValidos = dssArkiumDb.filter(a => isDssAssinado(a.assinado) && isByActiveTecnico(a.nome))
@@ -573,7 +572,7 @@ export default function DashboardPage() {
     ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n?.status && n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
   } catch(e) { console.error('Erro calculando ncAbertasTotal: ' + String(e)); }
 
-  const tecnicosStats = (tecnicosDb || []).filter(t => mostrarInativos ? true : isTecnicoActiveInPeriod(t, meses, ano || '')).map(t => {
+  const tecnicosStats = (tecnicosDb || []).filter(t => isTecnicoActiveInPeriod(t, meses, ano || '')).map(t => {
     let dss = 0, insp = 0, rel = 0, nc = 0, nomeAbrev = t?.nome || '';
     try {
       dss = dssFiltrados.filter(a => matchTecnico(a?.nome, t?.nome)).length
@@ -660,7 +659,7 @@ export default function DashboardPage() {
 
   const activeTecnicos = isConectadoTst 
     ? [tecnicosDb.find(t => t.nome === tecnicoConectado?.nome)].filter(Boolean) 
-    : tecnicosDb.filter(t => (mostrarInativos ? true : isTecnicoActiveInPeriod(t, meses, ano || '')) && t.contaMeta !== false);
+    : tecnicosDb.filter(t => isTecnicoActiveInPeriod(t, meses, ano || '') && t.contaMeta !== false);
   
   const numYears = ano ? 1 : (ANOS.length || 1)
   const numMeses = meses.length > 0 ? meses.length : 12
@@ -820,38 +819,6 @@ export default function DashboardPage() {
 
         {/* Filtros */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-          {/* Toggle Inativos */}
-          {!isTst && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                onClick={() => setMostrarInativos(!mostrarInativos)}
-                style={{
-                  background: mostrarInativos ? '#10b981' : '#f1f5f9',
-                  border: 'none',
-                  borderRadius: 20,
-                  width: 40,
-                  height: 22,
-                  position: 'relative',
-                  cursor: 'pointer',
-                  transition: 'background 0.3s'
-                }}
-              >
-                <div style={{
-                  position: 'absolute',
-                  top: 2,
-                  left: mostrarInativos ? 20 : 2,
-                  width: 18,
-                  height: 18,
-                  background: '#fff',
-                  borderRadius: '50%',
-                  transition: 'left 0.3s',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                }} />
-              </button>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Inativos</span>
-            </div>
-          )}
-
           {/* Seletor de Ano */}
           <div style={{ position: 'relative' }}>
             <select

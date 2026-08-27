@@ -29,7 +29,7 @@ export async function gerarExcelCentral(opts: {
   titulo: string
   subtitulo: string
   headers: string[]
-  rows: (string | number)[][]
+  rows: (string | number | Date | null | undefined)[][]
   resumo?: { label: string; valor: string | number; pct?: number | string }[]
   fileName?: string
 }) {
