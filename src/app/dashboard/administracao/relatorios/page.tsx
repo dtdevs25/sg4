@@ -15,6 +15,7 @@ import {
   getRelatorioProdutividadeDssInspecoes,
   definirRecebedorRelatorioProdutividade,
   getRelatorioUnidadesTecnico,
+  getRelatorioContatosTecnicos,
   type FiltrosRelatorio
 } from '@/app/actions/relatoriosGerais'
 
@@ -34,6 +35,7 @@ const TIPOS = [
   { id: 'atividades',  label: 'Atividades de Campo',          icon: BarChart3,      cor: '#16a34a', grupo: 'Gerenciais',       desc: 'Atividades executadas com empresa, local e descrição' },
   { id: 'custo-abastecimento', label: 'Custo de Abastecimento', icon: BarChart3, cor: '#0ea5e9', grupo: 'Gerenciais', desc: 'Saldo de abastecimento acumulado e gasto mês a mês por técnico' },
   { id: 'unidades-tecnico', label: 'Unidades por Técnico', icon: Users, cor: '#7c3aed', grupo: 'Gerenciais', desc: 'Vínculos de bases e unidades atendidas, responsáveis e endereços por técnico' },
+  { id: 'tecnicos-contatos', label: 'Contatos dos Técnicos', icon: Users, cor: '#f59e0b', grupo: 'Gerenciais', desc: 'Relação de técnicos com nome, e-mail, telefone e status' },
   { id: 'ranking',     label: 'Ranking de Desempenho',        icon: Trophy,         cor: '#d97706', grupo: 'Gerenciais',       desc: 'Score consolidado: DSS + Inspeções + Reuniões' },
   { id: 'produtividade',label: 'Produtividade', icon: CheckCircle,    cor: '#ec4899', grupo: 'Operacionais',    desc: 'Consolidado de DSS e Inspeções realizadas por técnico' },
 ]
@@ -202,6 +204,9 @@ export default function AdminRelatoriosPage() {
         } else if (tipoSel === 'unidades-tecnico') {
           const d = await getRelatorioUnidadesTecnico(filtros)
           genOpts = { titulo: 'Unidades por Técnico', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} vínculos de unidade`, headers: ['Técnico', 'Status', 'Tipo de Vínculo', 'Unidade', 'Responsável', 'Cidade/UF', 'Endereço'], rows: d.data.map((r: any) => [r.tecnico, r.status, r.tipoVinculo, r.nomeUnidade, r.responsavel, r.cidadeUf, r.endereco]) }
+        } else if (tipoSel === 'tecnicos-contatos') {
+          const d = await getRelatorioContatosTecnicos(filtros)
+          genOpts = { titulo: 'Contatos dos Técnicos', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} técnicos`, headers: ['Nome', 'E-mail', 'Telefone', 'Status'], rows: d.data.map((r: any) => [r.nome, r.email, r.telefone, r.status]) }
         } else if (tipoSel === 'ausencias') {
           const d = await getRelatorioAusencias(filtros)
           genOpts = { titulo: 'Ausências em Reuniões', ...baseOpts, fileName: fn, totalTexto: `Total: ${d.data.length} ausências registradas`, headers: ['Técnico','Data','Assunto','Justificada','Motivo','Observação'], rows: d.data.map((r:any) => [r.tecnico, formatarQualquerData(r.data), r.assunto, r.justificada, r.motivo, r.observacao]) }

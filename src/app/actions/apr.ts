@@ -206,7 +206,7 @@ export async function getAprs(filters?: {
   months?: number[]   // 1..12 — use numbers instead of abbreviation strings
   region?: string
   state?: string
-  city?: string
+  city?: string[]
   tecnico?: string[]
   atividade?: string
   search?: string
@@ -222,7 +222,7 @@ export async function getAprs(filters?: {
     const months = filters?.months ?? []  // empty = all months
     const region = filters?.region || ''
     const state = filters?.state || ''
-    const city = filters?.city || ''
+    const city = filters?.city || []
     const tecnicos = filters?.tecnico || []
     const atividade = filters?.atividade || ''
     const search = filters?.search || ''
@@ -295,8 +295,10 @@ export async function getAprs(filters?: {
       }
     }
 
-    if (city.trim()) {
-      andConditions.push({ localidadeObjeto: { contains: city.trim(), mode: 'insensitive' } })
+    if (city.length > 0) {
+      andConditions.push({
+        OR: city.map(c => ({ localidadeObjeto: { contains: c.trim(), mode: 'insensitive' } }))
+      })
     }
 
     if (search.trim()) {

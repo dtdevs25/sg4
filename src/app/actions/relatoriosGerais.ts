@@ -1214,5 +1214,31 @@ export async function getRelatorioUnidadesTecnico(f: FiltrosRelatorio) {
   }
 }
 
+// ── 14. Contatos dos Técnicos ────────────────────────────────────────────────
 
+export async function getRelatorioContatosTecnicos(f: FiltrosRelatorio) {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }
 
+  const where: any = {}
+  if (f.tecnicoId === 'ativos') {
+    where.ativo = true
+  } else if (f.tecnicoId) {
+    where.id = f.tecnicoId
+  }
+
+  const tecnicos = await prisma.tecnico.findMany({
+    where,
+    orderBy: { nome: 'asc' }
+  })
+
+  return {
+    success: true,
+    data: tecnicos.map(t => ({
+      nome: t.nome,
+      email: t.email || '—',
+      telefone: t.telefone || '—',
+      status: t.ativo ? 'Ativo' : 'Inativo'
+    }))
+  }
+}

@@ -197,7 +197,7 @@ export default function APRPage() {
   )
   const [selectedRegion, setSelectedRegion] = useState<string>('')
   const [selectedState, setSelectedState] = useState<string>('')
-  const [selectedCity, setSelectedCity] = useState<string>('')
+  const [selectedCity, setSelectedCity] = useState<string[]>([])
   const [selectedTecnico, setSelectedTecnico] = useState<string[]>([])
   const [selectedAtividade, setSelectedAtividade] = useState<string>('')
 
@@ -207,10 +207,18 @@ export default function APRPage() {
   const [showTecnicoDropdown, setShowTecnicoDropdown] = useState(false)
   const tecnicoDropdownRef = useRef<HTMLDivElement>(null)
 
+  // Searchable City Dropdown state
+  const [searchCityText, setSearchCityText] = useState('')
+  const [showCityDropdown, setShowCityDropdown] = useState(false)
+  const cityDropdownRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (tecnicoDropdownRef.current && !tecnicoDropdownRef.current.contains(event.target as Node)) {
         setShowTecnicoDropdown(false)
+      }
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target as Node)) {
+        setShowCityDropdown(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -374,13 +382,13 @@ export default function APRPage() {
   const handleRegionChange = (reg: string) => {
     setSelectedRegion(reg)
     setSelectedState('')
-    setSelectedCity('')
+    setSelectedCity([])
   }
 
   // State filter handler
   const handleStateChange = (uf: string) => {
     setSelectedState(uf)
-    setSelectedCity('')
+    setSelectedCity([])
     if (uf) {
       const reg = getRegionForState(uf)
       if (reg !== 'Outro') setSelectedRegion(reg)
@@ -391,10 +399,10 @@ export default function APRPage() {
   const handleStateClick = (uf: string) => {
     if (selectedState === uf) {
       setSelectedState('')
-      setSelectedCity('')
+      setSelectedCity([])
     } else {
       setSelectedState(uf)
-      setSelectedCity('')
+      setSelectedCity([])
       const reg = getRegionForState(uf)
       if (reg !== 'Outro') {
         setSelectedRegion(reg)
@@ -409,7 +417,7 @@ export default function APRPage() {
     setSelectedMonths(Array.from({ length: currentM }, (_, i) => i + 1))
     setSelectedRegion('')
     setSelectedState('')
-    setSelectedCity('')
+    setSelectedCity([])
     setSelectedTecnico([])
     setSelectedAtividade('')
     setSearchText('')
@@ -537,7 +545,7 @@ export default function APRPage() {
 
       await gerarExcelCentral({
         titulo: 'VIVO - Análise Preliminar de Risco',
-        subtitulo: `Filtros Aplicados: Ano ${selectedYear} | Estado: ${selectedState || 'Todos'} | Cidade: ${selectedCity || 'Todas'}`,
+        subtitulo: `Filtros Aplicados: Ano ${selectedYear} | Estado: ${selectedState || 'Todos'} | Cidades: ${selectedCity.length > 0 ? selectedCity.join(', ') : 'Todas'}`,
         headers,
         rows,
         resumo,
@@ -1147,15 +1155,66 @@ export default function APRPage() {
 
                 {selectedState && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 120 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Cidade</label>
-                    <select
-                      value={selectedCity}
-                      onChange={e => setSelectedCity(e.target.value)}
-                      style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155' }}
-                    >
-                      <option value="">Todas as Cidades</option>
-                      {availableCities.map(c => <option key={c.name} value={c.name}>{c.name} ({c.count})</option>)}
-                    </select>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Cidades</label>
+                    <div style={{ position: 'relative' }} ref={cityDropdownRef}>
+                      <input 
+                        type="text" 
+                        placeholder="Buscar Cidade..." 
+                        value={searchCityText}
+                        onChange={e => {
+                          setSearchCityText(e.target.value)
+                          setShowCityDropdown(true)
+                        }}
+                        onFocus={() => setShowCityDropdown(true)}
+                        style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#334155', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                      />
+                      {showCityDropdown && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, width: '100%', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 50, maxHeight: 250, overflowY: 'auto' }}>
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedCity([])
+                              setShowCityDropdown(false)
+                            }}
+                            style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', background: selectedCity.length === 0 ? '#eff6ff' : 'transparent', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}
+                          >
+                            <span style={{ flex: 1, fontWeight: selectedCity.length === 0 ? 700 : 500, color: selectedCity.length === 0 ? '#1e3a8a' : '#334155' }}>Todas as Cidades</span>
+                          </div>
+                          {availableCities
+                            .filter(c => c.name.toLowerCase().includes(searchCityText.toLowerCase()))
+                            .map(c => {
+                              const isSelected = selectedCity.includes(c.name)
+                              return (
+                                <div 
+                                  key={c.name} 
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (!isSelected) {
+                                      setSelectedCity(prev => [...prev, c.name])
+                                    } else {
+                                      setSelectedCity(prev => prev.filter(x => x !== c.name))
+                                    }
+                                  }}
+                                  style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', background: isSelected ? '#eff6ff' : 'transparent', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}
+                                >
+                                  <input type="checkbox" checked={isSelected} readOnly style={{ cursor: 'pointer' }} />
+                                  <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isSelected ? 700 : 500, color: isSelected ? '#1e3a8a' : '#334155' }}>{c.name} ({c.count})</span>
+                                </div>
+                              )
+                            })
+                          }
+                          {availableCities.filter(c => c.name.toLowerCase().includes(searchCityText.toLowerCase())).length === 0 && (
+                            <div style={{ padding: '8px 12px', fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>Nenhuma cidade encontrada</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {selectedCity.length > 0 && (
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                        {selectedCity.length === 1 ? '1 Cidade' : `${selectedCity.length} Cidades`}
+                        <X size={12} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={() => setSelectedCity([])} />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1343,7 +1402,7 @@ export default function APRPage() {
 
               {/* Info panel below the map */}
               <div style={{ width: '100%', marginTop: 12, background: '#f8fafc', padding: 12, borderRadius: 8, fontSize: 12, color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Filtro Geográfico: <strong>{selectedState ? `${selectedState} (${selectedCity || 'Todas Cidades'})` : (selectedRegion ? `Região ${selectedRegion}` : 'Nacional')}</strong></span>
+                <span>Filtro Geográfico: <strong>{selectedState ? `${selectedState} (${selectedCity.length > 0 ? selectedCity.join(', ') : 'Todas Cidades'})` : (selectedRegion ? `Região ${selectedRegion}` : 'Nacional')}</strong></span>
                 <span style={{ background: '#e2e8f0', padding: '3px 8px', borderRadius: 4, fontWeight: 700, color: '#475569' }}>
                   {stats.total} APRs
                 </span>
