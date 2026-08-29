@@ -1,14 +1,17 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-import { Fuel, CheckCircle2, Loader2, Send } from 'lucide-react'
+
+import { Fuel, CheckCircle2, Loader2, Send, Cake } from 'lucide-react'
 import { testN8NWebhook } from '@/app/actions/abastecimentoOrcamento'
 import { testN8NMetasWebhook } from '@/app/actions/metas'
+import { testN8NAniversarioWebhook } from '@/app/actions/aniversarios'
 import { getTecnicos } from '@/app/actions/tecnicos'
 
 export default function TestesPage() {
   const [testandoAbastecimento, setTestandoAbastecimento] = useState(false)
   const [testandoMetas, setTestandoMetas] = useState(false)
+  const [testandoAniversario, setTestandoAniversario] = useState(false)
   const [isPending, startTransition] = useTransition()
   
   const [tecnicos, setTecnicos] = useState<any[]>([])
@@ -146,6 +149,64 @@ export default function TestesPage() {
           >
             {testandoMetas ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
             Testar N8N_WEBHOOK_METAS
+          </button>
+        </div>
+
+        {/* Teste Aniversários */}
+        <div style={{ flex: 1, minWidth: 300, background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', padding: 24, boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fce7f3', color: '#db2777', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Cake size={24} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: 0 }}>Feliz Aniversário</h2>
+              <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0 0' }}>Envia os dados de aniversário do técnico selecionado.</p>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>TÉCNICO PARA O TESTE</label>
+            <select 
+              value={selectedTec}
+              onChange={e => handleSelectTecnico(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box', backgroundColor: '#f8fafc', outline: 'none' }}
+            >
+              <option value="">Aleatório (Qualquer técnico)</option>
+              {tecnicos.map(t => (
+                <option key={t.id} value={t.id}>{t.nome}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>NÚMERO DE DESTINO</label>
+            <input 
+              type="text" 
+              placeholder="11999999999"
+              value={telefoneInput}
+              onChange={e => setTelefoneInput(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <button 
+            onClick={() => {
+              setTestandoAniversario(true)
+              startTransition(async () => {
+                const res = await testN8NAniversarioWebhook(telefoneInput, selectedTec || undefined)
+                setTestandoAniversario(false)
+                if (res.success) {
+                  setNotification({ type: 'success', title: 'Teste Aniversário Enviado', message: 'Mensagem de teste de aniversário enviada com sucesso!' })
+                } else {
+                  setNotification({ type: 'error', title: 'Falha no Teste', message: res.error || 'Erro ao enviar o teste de aniversário' })
+                }
+              })
+            }}
+            disabled={testandoAniversario || isPending}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12, background: '#db2777', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 800, cursor: (testandoAniversario || isPending) ? 'not-allowed' : 'pointer', opacity: (testandoAniversario || isPending) ? 0.7 : 1 }}
+          >
+            {testandoAniversario ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+            Testar N8N_WEBHOOK_ANIVERSARIO
           </button>
         </div>
       </div>
