@@ -1150,7 +1150,7 @@ export default function InspecoesPage() {
                       <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>Importar Inspeções Arkium</div>
                       <div style={{ fontSize: 12, color: '#64748b' }}>Excel (.xlsx) ou CSV</div>
                     </div>
-                    <input type="file" ref={fileInputRef} accept=".xlsx, .xls, .csv" onChange={handleFileUpload} style={{ display: 'none' }} />
+                    <input type="file" ref={fileInputRef} accept=".xlsx, .xls, .xlsm, .csv" onChange={handleFileUpload} style={{ display: 'none' }} />
                     <button onClick={() => fileInputRef.current?.click()}
                       style={{ background: '#660099', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}
                     >

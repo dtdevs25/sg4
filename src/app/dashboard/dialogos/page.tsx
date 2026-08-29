@@ -1212,7 +1212,7 @@ export default function DialogosPage() {
                     <input 
                       type="file" 
                       ref={fileInputRef} 
-                      accept=".xlsx, .xls, .csv" 
+                      accept=".xlsx, .xls, .xlsm, .csv" 
                       onChange={handleFileUpload} 
                       style={{ display: 'none' }} 
                     />

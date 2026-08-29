@@ -1334,7 +1334,7 @@ export default function NaoConformidadesPage() {
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>Importar Não Conformidades</div>
                   <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Excel (.xls ou .xlsx)</div>
                 </div>
-                <input type="file" ref={fileInputRef} accept=".xlsx, .xls" onChange={handleFileUpload} style={{ display: 'none' }} />
+                <input type="file" ref={fileInputRef} accept=".xlsx, .xls, .xlsm, .csv" onChange={handleFileUpload} style={{ display: 'none' }} />
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   style={{
