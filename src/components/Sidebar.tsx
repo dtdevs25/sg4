@@ -45,6 +45,7 @@ const NAV: NavItemType[] = [
       { href: '/dashboard/administracao/logs', label: 'Logs' },
       // { href: '/dashboard/administracao/programacao', label: 'Programação' },
       { href: '/dashboard/administracao/relatorios', label: 'Relatórios' },
+      { href: '/dashboard/administracao/testes', label: 'Testes N8N' },
     ]
   },
 ]
