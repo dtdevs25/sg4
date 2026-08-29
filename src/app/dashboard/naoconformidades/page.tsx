@@ -1057,7 +1057,8 @@ export default function NaoConformidadesPage() {
           </div>
 
           {/* Search bar & active count — oculto para TST */}
-          {!isTst && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {!isTst && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 16 }}>
               <div style={{ position: 'relative', width: 300 }}>
                 <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
