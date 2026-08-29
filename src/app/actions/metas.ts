@@ -24,6 +24,13 @@ function getMetaMessage(nome: string, tipo: string, mesAno: string, realizado: n
   return `Olá *${primeiroNome}*! 🎉\n\nPassando para parabenizar você: sua meta de *${tipo}* do mês de ${mesAno} foi atingida com sucesso!\n\nVocê realizou *${realizado}* ${emoji} (a meta era ${meta}).\n\nContinue com o excelente trabalho! 🚀`
 }
 
+function getSaudacao() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Bom dia'
+  if (hour < 18) return 'Boa tarde'
+  return 'Boa noite'
+}
+
 export async function checkAndTriggerMetaNotification(
   tecnicoId: string,
   tipo: 'DSS' | 'INSPECAO',
@@ -61,14 +68,14 @@ export async function checkAndTriggerMetaNotification(
       try {
         const payload = {
           tecnicoId: tecnico.id,
-          nome: tecnico.nome,
-          telefone: tecnico.telefone,
-          telefoneFormatado: formatWhatsAppNumber(tecnico.telefone),
-          tipo,
+          nome: tecnico.nome.split(' ')[0], // Envia só o primeiro nome como na sua mensagem
+          NumeroDestino: formatWhatsAppNumber(tecnico.telefone),
+          saudacao: getSaudacao(),
+          tipoMeta: tipo,
           mesAno,
           realizado,
           meta,
-          mensagemSugerida: getMetaMessage(tecnico.nome, tipo, mesAno, realizado, meta)
+          percentual: (realizado / meta * 100).toFixed(0) + '%'
         }
         
         // Timeout de segurança
@@ -129,19 +136,19 @@ export async function testN8NMetasWebhook(telefoneDestino?: string, tecnicoId?: 
       })
     }
 
-    const nomeTecnico = tec?.nome || 'Técnico Teste (DSS/Inspeções)'
+    const nomeTecnico = tec?.nome || 'Técnico Teste'
     const telefoneFinal = telefoneDestino || tec?.telefone || '11999999999'
 
     const payload = {
       tecnicoId: tec?.id || 'teste-metas-123',
-      nome: nomeTecnico,
-      telefone: telefoneFinal,
-      telefoneFormatado: formatWhatsAppNumber(telefoneFinal),
-      tipo: 'DSS',
+      nome: nomeTecnico.split(' ')[0], // Envia só o primeiro nome
+      NumeroDestino: formatWhatsAppNumber(telefoneFinal),
+      saudacao: getSaudacao(),
+      tipoMeta: 'DSS',
       mesAno: '08/2026',
       realizado: 8,
       meta: 8,
-      mensagemSugerida: getMetaMessage(nomeTecnico, 'DSS', '08/2026', 8, 8)
+      percentual: '100%'
     }
 
     const res = await fetch(webhookUrl, {
