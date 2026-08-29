@@ -6,7 +6,7 @@ import {
   CalendarDays, CheckCircle2, Clock, XCircle,
   PlusCircle, Search, Sparkles, X, Edit2, Trash2, Loader2, Save, FileText, Printer, FileEdit, FileCode2, Eye
 } from 'lucide-react'
-import { getReunioes, createReuniaoLote, deleteReuniaoLote, updatePresencasReuniao } from '@/app/actions/reunioes'
+import { getReunioes, createReuniaoLote, deleteReuniaoLote, updatePresencasReuniao, getReuniaoCompletaParaAta } from '@/app/actions/reunioes'
 import { getAtas, upsertAta, uploadAnexoReuniao, deleteAnexoAta } from '@/app/actions/atas'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { useSession } from 'next-auth/react'
@@ -312,17 +312,25 @@ export default function ReunioesPage() {
 
   async function openPrintPdf(dt: string, ast: string) {
     const existingAta = atas.find(a => new Date(a.data).toISOString() === dt && a.assunto === ast)
-    // PDF: sempre filtra apenas técnicos ativos
-    const presencas = filteredLogs.filter(l => new Date(l.data).toISOString() === dt && (l.assunto || 'Reunião') === ast && l.tecnico?.ativo !== false)
     
     try {
+      // Busca os dados no servidor sem restrição de TST, para ter a lista completa de todos os presentes.
+      const res = await getReuniaoCompletaParaAta(dt, ast)
+      if (!res.success || !res.data) {
+        alert('Erro ao buscar lista completa de presenças. PDF incompleto ou indisponível.')
+        return
+      }
+
+      // PDF: sempre filtra apenas técnicos ativos (tecnico.ativo !== false)
+      const presencas = res.data.filter(l => l.tecnico?.ativo !== false)
+
       const { gerarPdfAta } = await import('@/app/utils/gerarPdfAta')
       const { fileName, doc } = await gerarPdfAta({
         data: dt,
         assunto: ast,
         conteudo: existingAta?.conteudo || '',
         anexoNome: existingAta?.anexoNome || undefined,
-        presencas: presencas.map(p => ({
+        presencas: presencas.map((p: any) => ({
           tecnico: { nome: p.tecnico.nome },
           presenca: p.presenca,
           pontualidade: p.pontualidade,

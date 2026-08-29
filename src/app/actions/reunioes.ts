@@ -235,3 +235,30 @@ export async function deleteReuniaoLote(dataIso: string, assunto: string) {
     return { success: false, error: 'Falha ao excluir a reunião inteira' }
   }
 }
+
+export async function getReuniaoCompletaParaAta(dataIso: string, assunto: string) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    
+    // IMPORTANTE: Não filtramos por TST aqui pois a ata deve ser completa.
+    // TSTs têm acesso à ata completa da qual participaram.
+    
+    const data = await prisma.reuniao.findMany({
+      where: {
+        data: new Date(dataIso),
+        assunto: assunto
+      },
+      include: {
+        tecnico: {
+          select: { nome: true, ativo: true }
+        }
+      }
+    })
+    
+    return { success: true, data }
+  } catch (error) {
+    console.error('Erro ao buscar presenças da ata:', error)
+    return { success: false, error: 'Erro ao buscar presenças' }
+  }
+}
