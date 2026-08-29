@@ -704,8 +704,8 @@ export default function ReunioesPage() {
                     </div>
                   ) : (
                     <div>
-                      <input type="file" id="ataAnexoInput" onChange={handleAnexoChange} style={{ display: 'none' }} />
-                      <button type="button" onClick={() => document.getElementById('ataAnexoInput')?.click()} style={{ padding: '10px 16px', borderRadius: 8, border: '1px dashed #64748b', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', width: '100%' }}>Adicionar Arquivo (50MB max)</button>
+                      <input type="file" id="ataAnexoInput" accept=".pdf" onChange={handleAnexoChange} style={{ display: 'none' }} />
+                      <button type="button" onClick={() => document.getElementById('ataAnexoInput')?.click()} style={{ padding: '10px 16px', borderRadius: 8, border: '1px dashed #64748b', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer', width: '100%' }}>Anexar Arquivo PDF (50MB max)</button>
                     </div>
                   )}
                 </div>
