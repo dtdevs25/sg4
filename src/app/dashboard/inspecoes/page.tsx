@@ -19,6 +19,7 @@ import {
 } from '@/app/actions/inspecoesArkium'
 import { checkAndTriggerMetaNotification } from '@/app/actions/metas'
 import { getLastImportTime } from '@/app/actions/logs'
+import { upsertAprBatch } from '@/app/actions/apr'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
 
@@ -108,6 +109,8 @@ export default function InspecoesPage() {
   const [search, setSearch] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  
+  const [importarAprJunto, setImportarAprJunto] = useState(true)
   const [editValue, setEditValue] = useState<number>(0)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [currentPageConsolidado, setCurrentPageConsolidado] = useState(1)
@@ -567,6 +570,69 @@ export default function InspecoesPage() {
         await limparInspecoesArkiumInvalidos()
         
         setImportResult(true)
+        setImportResult(true)
+
+        // IMPORTAR APRS EM CONJUNTO
+        if (importarAprJunto) {
+          setImportProgress('Extraindo APRs do arquivo...')
+          
+          const getCategorizedStatus = (res: string | null | undefined): 'ABERTO' | 'FECHADO' => {
+            const val = String(res || '').toUpperCase()
+            if (val.includes('CONFORME') || val.includes('NORMAL') || val.includes('FECHADO') || val.includes('REGULAR')) return 'FECHADO'
+            return 'ABERTO'
+          }
+
+          const aprValidRows: any[] = []
+          for (const row of parsed) {
+            const matchedQuestKey = matchedKeys.nomeQuestionario
+            const quest = matchedQuestKey && row[matchedQuestKey] ? String(row[matchedQuestKey]).toUpperCase() : ''
+            
+            if (!quest.includes('APR')) {
+              continue
+            }
+
+            const getVal = (keyName: keyof typeof matchedKeys) => {
+              const matchedKey = matchedKeys[keyName]
+              return (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) ? row[matchedKey] : ''
+            }
+
+            const mappedRow = {
+              numero: String(getVal('numero')).trim(),
+              resultado: getVal('resultado') ? String(getVal('resultado')).trim() : null,
+              dataAbertura: formatDataInspecao(String(getVal('dataAbertura'))),
+              dataFechamento: formatDataInspecao(String(getVal('dataFechamento'))),
+              dataChecklist: formatDataInspecao(String(getVal('dataAbertura'))),
+              matriculaAuditor: getVal('matriculaAuditor') ? String(getVal('matriculaAuditor')).trim() : null,
+              nomeAuditor: getVal('nomeAuditor') ? String(getVal('nomeAuditor')).trim() : null,
+              identificadorObjeto: getVal('identificadorObjeto') ? String(getVal('identificadorObjeto')).trim() : null,
+              nomeQuestionario: getVal('nomeQuestionario') ? String(getVal('nomeQuestionario')).trim() : null,
+              clienteObjeto: getVal('clienteObjeto') ? String(getVal('clienteObjeto')).trim() : null,
+              localidadeObjeto: getVal('localidadeObjeto') ? String(getVal('localidadeObjeto')).trim() : null,
+              autocheck: getVal('autocheck') ? String(getVal('autocheck')).trim() : null,
+              observacao: getVal('observacao') ? String(getVal('observacao')).trim() : null,
+              status: getCategorizedStatus(getVal('resultado')),
+              importadoPor: session?.user?.name || 'Administrador'
+            }
+
+            if (mappedRow.numero) {
+              aprValidRows.push(mappedRow)
+            }
+          }
+
+          if (aprValidRows.length > 0) {
+            setImportProgress(`Salvando ${aprValidRows.length} APRs encontradas...`)
+            let aprInseridos = 0
+            for (let i = 0; i < aprValidRows.length; i += batchSize) {
+              const chunk = aprValidRows.slice(i, i + batchSize)
+              const saveRes = await upsertAprBatch(chunk)
+              if (saveRes.success) {
+                aprInseridos += saveRes.inseridos || 0
+              }
+            }
+            setImportProgress(msg + ` E mais ${aprInseridos} APRs salvas juntas!`)
+          }
+        }
+
       } catch (err: any) {
         setIsImporting(false)
         setImportResult(false)
@@ -1157,6 +1223,15 @@ export default function InspecoesPage() {
                       <UploadCloud size={16} />
                       Selecionar Arquivo
                     </button>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: 12, color: '#475569', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={importarAprJunto}
+                        onChange={(e) => setImportarAprJunto(e.target.checked)}
+                        style={{ accentColor: '#660099', width: 14, height: 14, cursor: 'pointer' }}
+                      />
+                      Importar também as APRs deste arquivo
+                    </label>
                     {lastImport && (
                       <div style={{ fontSize: 10, color: '#64748b', marginTop: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                         <span>Último upload: <strong>{new Date(lastImport.createdAt).toLocaleString('pt-BR')}</strong></span>
