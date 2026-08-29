@@ -13,6 +13,7 @@ export default function TestesPage() {
   
   const [tecnicos, setTecnicos] = useState<any[]>([])
   const [selectedTec, setSelectedTec] = useState('')
+  const [telefoneInput, setTelefoneInput] = useState('')
 
   useEffect(() => {
     getTecnicos().then(res => {
@@ -22,6 +23,20 @@ export default function TestesPage() {
     })
   }, [])
   
+  const handleSelectTecnico = (id: string) => {
+    setSelectedTec(id)
+    if (id) {
+      const tec = tecnicos.find(t => t.id === id)
+      if (tec && tec.telefone) {
+        setTelefoneInput(tec.telefone)
+      } else {
+        setTelefoneInput('')
+      }
+    } else {
+      setTelefoneInput('')
+    }
+  }
+
   const [notification, setNotification] = useState<{ type: 'success' | 'error', title: string, message: string } | null>(null)
 
   return (
@@ -92,7 +107,7 @@ export default function TestesPage() {
             <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>TÉCNICO PARA O TESTE</label>
             <select 
               value={selectedTec}
-              onChange={e => setSelectedTec(e.target.value)}
+              onChange={e => handleSelectTecnico(e.target.value)}
               style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box', backgroundColor: '#f8fafc', outline: 'none' }}
             >
               <option value="">Aleatório (Qualquer técnico)</option>
@@ -103,21 +118,21 @@ export default function TestesPage() {
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>SEU NÚMERO (Ex: 11999999999)</label>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>NÚMERO DE DESTINO</label>
             <input 
               type="text" 
               placeholder="11999999999"
-              id="input-telefone-metas"
+              value={telefoneInput}
+              onChange={e => setTelefoneInput(e.target.value)}
               style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
             />
           </div>
 
           <button 
             onClick={() => {
-              const num = (document.getElementById('input-telefone-metas') as HTMLInputElement)?.value || ''
               setTestandoMetas(true)
               startTransition(async () => {
-                const res = await testN8NMetasWebhook(num, selectedTec || undefined)
+                const res = await testN8NMetasWebhook(telefoneInput, selectedTec || undefined)
                 setTestandoMetas(false)
                 if (res.success) {
                   setNotification({ type: 'success', title: 'Teste Metas Enviado', message: 'Mensagem de teste de metas enviada com sucesso!' })
