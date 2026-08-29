@@ -90,17 +90,23 @@ export async function checkAndTriggerMetaNotification(
   }
 }
 
-export async function testN8NMetasWebhook() {
+export async function testN8NMetasWebhook(telefoneDestino?: string) {
   try {
     const webhookUrl = process.env.N8N_WEBHOOK_METAS
     if (!webhookUrl) {
       return { success: false, error: 'A variável de ambiente N8N_WEBHOOK_METAS não está configurada no servidor.' }
     }
 
+    // Busca o primeiro técnico ativo para usar como exemplo real
+    const tec = await prisma.tecnico.findFirst({
+      where: { ativo: true },
+      select: { id: true, nome: true, telefone: true }
+    })
+
     const payload = {
-      tecnicoId: 'teste-metas-123',
-      nome: 'Técnico Teste (DSS/Inspeções)',
-      telefone: '11999999999',
+      tecnicoId: tec?.id || 'teste-metas-123',
+      nome: tec?.nome || 'Técnico Teste (DSS/Inspeções)',
+      telefone: telefoneDestino || tec?.telefone || '11999999999',
       tipo: 'DSS',
       mesAno: '08/2026',
       realizado: 8,

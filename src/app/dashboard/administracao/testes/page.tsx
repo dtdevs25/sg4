@@ -72,15 +72,26 @@ export default function TestesPage() {
             </div>
             <div>
               <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: 0 }}>Metas Atingidas</h2>
-              <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0 0' }}>Envia um payload simulando um TST que bateu a meta do mês.</p>
+              <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0 0' }}>Envia os dados de um técnico real. Insira seu número para receber o teste.</p>
             </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>SEU NÚMERO (Ex: 11999999999)</label>
+            <input 
+              type="text" 
+              placeholder="11999999999"
+              id="input-telefone-metas"
+              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
+            />
           </div>
 
           <button 
             onClick={() => {
+              const num = (document.getElementById('input-telefone-metas') as HTMLInputElement)?.value || ''
               setTestandoMetas(true)
               startTransition(async () => {
-                const res = await testN8NMetasWebhook()
+                const res = await testN8NMetasWebhook(num)
                 setTestandoMetas(false)
                 if (res.success) {
                   setNotification({ type: 'success', title: 'Teste Metas Enviado', message: 'Mensagem de teste de metas enviada com sucesso!' })
