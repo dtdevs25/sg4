@@ -1,14 +1,26 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { Fuel, CheckCircle2, Loader2, Send } from 'lucide-react'
 import { testN8NWebhook } from '@/app/actions/abastecimentoOrcamento'
 import { testN8NMetasWebhook } from '@/app/actions/metas'
+import { getTecnicos } from '@/app/actions/tecnicos'
 
 export default function TestesPage() {
   const [testandoAbastecimento, setTestandoAbastecimento] = useState(false)
   const [testandoMetas, setTestandoMetas] = useState(false)
   const [isPending, startTransition] = useTransition()
+  
+  const [tecnicos, setTecnicos] = useState<any[]>([])
+  const [selectedTec, setSelectedTec] = useState('')
+
+  useEffect(() => {
+    getTecnicos().then(res => {
+      if (res.success && res.data) {
+        setTecnicos(res.data.filter((t: any) => t.ativo))
+      }
+    })
+  }, [])
   
   const [notification, setNotification] = useState<{ type: 'success' | 'error', title: string, message: string } | null>(null)
 
@@ -77,6 +89,20 @@ export default function TestesPage() {
           </div>
 
           <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>TÉCNICO PARA O TESTE</label>
+            <select 
+              value={selectedTec}
+              onChange={e => setSelectedTec(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box', backgroundColor: '#f8fafc', outline: 'none' }}
+            >
+              <option value="">Aleatório (Qualquer técnico)</option>
+              {tecnicos.map(t => (
+                <option key={t.id} value={t.id}>{t.nome}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>SEU NÚMERO (Ex: 11999999999)</label>
             <input 
               type="text" 
@@ -91,7 +117,7 @@ export default function TestesPage() {
               const num = (document.getElementById('input-telefone-metas') as HTMLInputElement)?.value || ''
               setTestandoMetas(true)
               startTransition(async () => {
-                const res = await testN8NMetasWebhook(num)
+                const res = await testN8NMetasWebhook(num, selectedTec || undefined)
                 setTestandoMetas(false)
                 if (res.success) {
                   setNotification({ type: 'success', title: 'Teste Metas Enviado', message: 'Mensagem de teste de metas enviada com sucesso!' })
