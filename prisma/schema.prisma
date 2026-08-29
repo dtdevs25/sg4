@@ -120,6 +120,7 @@ model Tecnico {
 
   alertasAbastecimento AlertaAbastecimento[]
   recargasAbastecimento RecargaAbastecimento[]
+  naoConformidades  NaoConformidade[]
   aprsArkium        AprArkium[]
   notificacaoMetas  NotificacaoMeta[]
 
