@@ -119,8 +119,12 @@ export default function DialogosPage() {
   }, [data])
 
   const targetMeta = 8 // Meta de DSS da planilha (8/mês)
-  const baseData = data.filter(t => showInactive ? true : t.ativo)
-  const filtered = baseData.filter(t => t.nome.toLowerCase().includes(search.toLowerCase()))
+  const baseData = isTst
+    ? data.filter(t => t.id === userTecnicoId)
+    : data.filter(t => showInactive ? true : t.ativo)
+  const filtered = isTst
+    ? baseData
+    : baseData.filter(t => t.nome.toLowerCase().includes(search.toLowerCase()))
   const totalRealizado = filtered.reduce((acc, curr) => {
     return acc + selectedMonths.reduce((sum, m) => sum + curr[m], 0)
   }, 0)
@@ -936,6 +940,8 @@ export default function DialogosPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* ── Tabela de Lançamentos ── */}
+          {/* Barra de busca e filtros: oculto para TST */}
+          {!isTst && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', gap: 16, flexWrap: 'wrap' }}>
               <div style={{ position: 'relative', width: 300, maxWidth: '100%' }}>
                 <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
@@ -966,6 +972,7 @@ export default function DialogosPage() {
                 </label>
               </div>
             </div>
+          )}
 
             <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
               <div style={{ overflowX: 'auto' }}>
