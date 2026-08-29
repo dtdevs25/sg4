@@ -158,6 +158,11 @@ export default function InspecoesPage() {
 
   const targetMeta = 20
   const filtered = data.filter(t => {
+    // TST só pode ver o próprio registro
+    if (isTst) {
+      if (!userTecnicoId) return false
+      return t.id === userTecnicoId
+    }
     if (!showInactive && t.ativo === false) return false
     return t.nome.toLowerCase().includes(search.toLowerCase())
   })
@@ -887,6 +892,8 @@ export default function InspecoesPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Barra de busca e filtros: oculto para TST */}
+            {!isTst && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
               <div style={{ position: 'relative', width: 300 }}>
                 <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
@@ -910,6 +917,7 @@ export default function InspecoesPage() {
                 </label>
               </div>
             </div>
+            )}
 
             <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
               <div style={{ overflowX: 'auto' }}>
