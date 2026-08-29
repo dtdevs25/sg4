@@ -445,7 +445,12 @@ export default function NaoConformidadesPage() {
 
   // --- Consolidado / Matrix calculations ---
   const consolidadoData = useMemo(() => {
-    const visibleTecnicos = tecnicos.filter(t => showInactive ? true : t.ativo !== false)
+    let visibleTecnicos = tecnicos.filter(t => showInactive ? true : t.ativo !== false)
+
+    // TST só vê o próprio registro
+    if (isTst) {
+      visibleTecnicos = visibleTecnicos.filter(t => t.id === userTecnicoId)
+    }
 
     return visibleTecnicos.map(t => {
       // Find all NCs for this technician in the selected period
@@ -476,7 +481,7 @@ export default function NaoConformidadesPage() {
       const matchesActivity = showInactive ? true : (t.ativo || t.total > 0)
       return matchesSearch && matchesActivity
     }).sort((a, b) => b.total - a.total)
-  }, [tecnicos, data, selectedMonths, selectedYear, showInactive, consolidadoSearch])
+  }, [tecnicos, data, selectedMonths, selectedYear, showInactive, consolidadoSearch, isTst, userTecnicoId])
 
   // Overall totals for Consolidado statistics
   const statsConsolidado = useMemo(() => {
@@ -1051,8 +1056,8 @@ export default function NaoConformidadesPage() {
             </div>
           </div>
 
-          {/* Search bar & active count */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Search bar & active count — oculto para TST */}
+          {!isTst && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 16 }}>
               <div style={{ position: 'relative', width: 300 }}>
                 <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
@@ -1077,6 +1082,7 @@ export default function NaoConformidadesPage() {
                 </label>
               </div>
             </div>
+          )}
 
             {/* Matrix Table */}
             <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
