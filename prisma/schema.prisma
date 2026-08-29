@@ -120,8 +120,8 @@ model Tecnico {
 
   alertasAbastecimento AlertaAbastecimento[]
   recargasAbastecimento RecargaAbastecimento[]
-  naoConformidades NaoConformidade[]
   aprsArkium        AprArkium[]
+  notificacaoMetas  NotificacaoMeta[]
 
   @@map("tecnicos")
 }
@@ -606,4 +606,16 @@ model NaoConformidade {
   @@map("nao_conformidades")
 }
 
+model NotificacaoMeta {
+  id         String   @id @default(cuid())
+  tecnicoId  String
+  tipo       String   // "DSS" ou "INSPECAO"
+  mesAno     String   // ex: "08/2026"
+  enviadoEm  DateTime @default(now())
+  
+  tecnico    Tecnico  @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
 
+  @@unique([tecnicoId, tipo, mesAno])
+  @@index([tecnicoId])
+  @@map("notificacao_metas")
+}

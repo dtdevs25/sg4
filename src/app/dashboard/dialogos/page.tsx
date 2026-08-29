@@ -13,6 +13,7 @@ import { getTecnicos } from '@/app/actions/tecnicos'
 import { getAtividades, upsertAtividadeMes } from '@/app/actions/atividades'
 import { getDssArkium, upsertDssArkiumBatch, updateEstadoDssArkium, limparDssArkiumInvalidos, deleteDssArkium } from '@/app/actions/dssArkium'
 import { getDssAliados, deleteDssAliado } from '@/app/actions/dssAliado'
+import { checkAndTriggerMetaNotification } from '@/app/actions/metas'
 import { getLastImportTime } from '@/app/actions/logs'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
@@ -295,6 +296,22 @@ export default function DialogosPage() {
       }).filter((r: any) => r.ativo || Object.keys(MES_MAP).some(k => r[k as MesKey] > 0))
       
       setData(newData)
+
+      // Verificação de Metas para Notificação via WhatsApp (N8N)
+      const currentJsDate = new Date()
+      // Só dispara se o usuário estiver visualizando o ano atual ou "ALL" (onde os totais incluem o mês corrente)
+      if (selectedYear === currentJsDate.getFullYear() || selectedYear === 'ALL') {
+        const currentMonthIdx = currentJsDate.getMonth()
+        const keys: MesKey[] = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
+        const currentMonthKey = keys[currentMonthIdx]
+        const mesAno = `${String(currentMonthIdx + 1).padStart(2, '0')}/${currentJsDate.getFullYear()}`
+        
+        newData.forEach((t: any) => {
+          if (t[currentMonthKey] >= targetMeta && t.contaMeta !== false) {
+             checkAndTriggerMetaNotification(t.id, 'DSS', mesAno, t[currentMonthKey], targetMeta).catch(console.error)
+          }
+        })
+      }
       
       // Mapeamento do Arkium data reaproveitando a resposta e newData
       if (arkiumList.length > 0) {

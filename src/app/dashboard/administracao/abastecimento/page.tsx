@@ -122,25 +122,48 @@ export default function AbastecimentoOrcamentoPage() {
             Exibir
           </label>
 
-          <button 
-            onClick={() => {
-              setTestandoN8N(true)
-              startTransition(async () => {
-                const res = await testN8NWebhook()
-                setTestandoN8N(false)
-                if (res.success) {
-                  setNotification({ type: 'success', title: 'Teste Enviado', message: 'Mensagem de teste enviada para o N8N com sucesso!' })
-                } else {
-                  setNotification({ type: 'error', title: 'Falha no Teste', message: res.error || 'Erro ao enviar o teste pro N8N' })
-                }
-              })
-            }}
-            disabled={testandoN8N}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: '#e0e7ff', color: '#4f46e5', border: '1px solid #c7d2fe', borderRadius: 6, cursor: testandoN8N ? 'not-allowed' : 'pointer' }}
-            title="Disparar teste para N8N"
-          >
-            {testandoN8N ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button 
+              onClick={() => {
+                setTestandoN8N(true)
+                startTransition(async () => {
+                  const res = await testN8NWebhook()
+                  setTestandoN8N(false)
+                  if (res.success) {
+                    setNotification({ type: 'success', title: 'Teste Abastecimento Enviado', message: 'Mensagem de teste de abastecimento enviada com sucesso!' })
+                  } else {
+                    setNotification({ type: 'error', title: 'Falha no Teste', message: res.error || 'Erro ao enviar o teste de abastecimento' })
+                  }
+                })
+              }}
+              disabled={testandoN8N}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: '#e0e7ff', color: '#4f46e5', border: '1px solid #c7d2fe', borderRadius: 6, cursor: testandoN8N ? 'not-allowed' : 'pointer' }}
+              title="Disparar teste de Abastecimento para N8N"
+            >
+              {testandoN8N ? <Loader2 size={16} className="animate-spin" /> : <Fuel size={16} />}
+            </button>
+
+            <button 
+              onClick={() => {
+                setTestandoN8N(true)
+                startTransition(async () => {
+                  const { testN8NMetasWebhook } = await import('@/app/actions/metas')
+                  const res = await testN8NMetasWebhook()
+                  setTestandoN8N(false)
+                  if (res.success) {
+                    setNotification({ type: 'success', title: 'Teste Metas Enviado', message: 'Mensagem de teste de metas enviada com sucesso!' })
+                  } else {
+                    setNotification({ type: 'error', title: 'Falha no Teste', message: res.error || 'Erro ao enviar o teste de metas' })
+                  }
+                })
+              }}
+              disabled={testandoN8N}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: '#dcfce7', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 6, cursor: testandoN8N ? 'not-allowed' : 'pointer' }}
+              title="Disparar teste de Metas (DSS) para N8N"
+            >
+              {testandoN8N ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+            </button>
+          </div>
 
           <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 6 }}>
             <select value={mes} onChange={e => setMes(Number(e.target.value))} style={{ padding: '4px 8px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
