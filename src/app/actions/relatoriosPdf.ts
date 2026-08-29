@@ -70,7 +70,16 @@ export async function uploadRelatorioPdf(formData: FormData) {
 
 export async function getRelatoriosPdf() {
   try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const role = (session.user as any).role
+    const tecnicoId = (session.user as any).tecnicoId
+
+    const where = role === 'TST' ? { tecnicoId } : {}
+
     const relatorios = await db.relatorioPdf.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         tecnico: true

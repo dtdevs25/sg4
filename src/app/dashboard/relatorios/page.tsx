@@ -639,9 +639,11 @@ export default function RelatoriosAtividadesPage() {
                       <button onClick={() => openEdit(a)} style={{ background: 'transparent', border: 'none', color: '#660099', cursor: 'pointer', padding: 4 }} title="Editar">
                         <Edit3 size={16} />
                       </button>
-                      <button onClick={() => setShowDeleteModal(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
-                        <Trash2 size={16} />
-                      </button>
+                      {role !== 'TST' && (
+                        <button onClick={() => setShowDeleteModal(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -732,9 +734,11 @@ export default function RelatoriosAtividadesPage() {
                           <a href={r.url} target="_blank" rel="noreferrer" style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 4 }} title="Visualizar">
                             <Eye size={16} />
                           </a>
-                          <button onClick={() => setShowDeletePdfModal(r.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
-                            <Trash2 size={16} />
-                          </button>
+                          {role !== 'TST' && (
+                            <button onClick={() => setShowDeletePdfModal(r.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                              <Trash2 size={16} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
