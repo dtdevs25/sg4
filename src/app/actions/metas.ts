@@ -10,6 +10,20 @@ import { prisma } from '@/lib/db'
  * @param realizado Quantidade já feita no mês
  * @param meta Quantidade alvo
  */
+function formatWhatsAppNumber(phone: string | null | undefined): string | null {
+  if (!phone) return null
+  const numbersOnly = phone.replace(/\D/g, '')
+  if (numbersOnly.length < 10) return null // Inválido se for muito curto
+  if (numbersOnly.startsWith('55')) return numbersOnly
+  return `55${numbersOnly}`
+}
+
+function getMetaMessage(nome: string, tipo: string, mesAno: string, realizado: number, meta: number) {
+  const primeiroNome = nome.split(' ')[0]
+  const emoji = tipo === 'DSS' ? '🗣️' : '📋'
+  return `Olá *${primeiroNome}*! 🎉\n\nPassando para parabenizar você: sua meta de *${tipo}* do mês de ${mesAno} foi atingida com sucesso!\n\nVocê realizou *${realizado}* ${emoji} (a meta era ${meta}).\n\nContinue com o excelente trabalho! 🚀`
+}
+
 export async function checkAndTriggerMetaNotification(
   tecnicoId: string,
   tipo: 'DSS' | 'INSPECAO',
@@ -49,10 +63,12 @@ export async function checkAndTriggerMetaNotification(
           tecnicoId: tecnico.id,
           nome: tecnico.nome,
           telefone: tecnico.telefone,
+          telefoneFormatado: formatWhatsAppNumber(tecnico.telefone),
           tipo,
           mesAno,
           realizado,
-          meta
+          meta,
+          mensagemSugerida: getMetaMessage(tecnico.nome, tipo, mesAno, realizado, meta)
         }
         
         // Timeout de segurança
@@ -103,14 +119,19 @@ export async function testN8NMetasWebhook(telefoneDestino?: string) {
       select: { id: true, nome: true, telefone: true }
     })
 
+    const nomeTecnico = tec?.nome || 'Técnico Teste (DSS/Inspeções)'
+    const telefoneFinal = telefoneDestino || tec?.telefone || '11999999999'
+
     const payload = {
       tecnicoId: tec?.id || 'teste-metas-123',
-      nome: tec?.nome || 'Técnico Teste (DSS/Inspeções)',
-      telefone: telefoneDestino || tec?.telefone || '11999999999',
+      nome: nomeTecnico,
+      telefone: telefoneFinal,
+      telefoneFormatado: formatWhatsAppNumber(telefoneFinal),
       tipo: 'DSS',
       mesAno: '08/2026',
       realizado: 8,
-      meta: 8
+      meta: 8,
+      mensagemSugerida: getMetaMessage(nomeTecnico, 'DSS', '08/2026', 8, 8)
     }
 
     const res = await fetch(webhookUrl, {
