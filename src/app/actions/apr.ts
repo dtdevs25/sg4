@@ -420,9 +420,37 @@ export async function getAprs(filters?: {
     // Cities: only when a state is selected (avoids full-table groupBy)
     let availableCities: { name: string; count: number }[] = []
     if (state.trim()) {
+      // Build a specific where clause for the cities dropdown that EXCLUDES the city filter itself
+      const whereCities: any = { AND: [] }
+      if (year !== 'ALL') {
+        const yr = Number(year)
+        whereCities.AND.push({
+          OR: [
+            { anoAbertura: yr },
+            { AND: [{ anoAbertura: null }, { OR: [{ dataAbertura: { contains: String(yr), mode: 'insensitive' } }, { dataChecklist: { contains: String(yr), mode: 'insensitive' } }] }] }
+          ]
+        })
+      }
+      if (months.length > 0 && months.length < 12) {
+        const monthConditions: any[] = []
+        for (const m of months) {
+          const mm = String(m).padStart(2, '0')
+          monthConditions.push({ dataAbertura: { contains: `/${mm}/` } }, { dataAbertura: { contains: `-${mm}-` } }, { dataChecklist: { contains: `/${mm}/` } }, { dataChecklist: { contains: `-${mm}-` } })
+        }
+        whereCities.AND.push({ OR: monthConditions })
+      }
+      if (tecnicos.length > 0) whereCities.AND.push({ OR: tecnicos.map(t => ({ nomeAuditor: { contains: t.trim(), mode: 'insensitive' } })) })
+      if (atividade.trim()) whereCities.AND.push({ nomeQuestionario: { contains: atividade.trim(), mode: 'insensitive' } })
+      whereCities.AND.push({ localidadeObjeto: { startsWith: state.trim(), mode: 'insensitive' } })
+      if (search.trim()) {
+        whereCities.AND.push({ OR: [{ numero: { contains: search.trim(), mode: 'insensitive' } }, { nomeAuditor: { contains: search.trim(), mode: 'insensitive' } }, { localidadeObjeto: { contains: search.trim(), mode: 'insensitive' } }, { nomeQuestionario: { contains: search.trim(), mode: 'insensitive' } }] })
+      }
+
+      if (whereCities.AND.length === 0) delete whereCities.AND
+
       const groupLocalidades = await prisma.aprArkium.groupBy({
         by: ['localidadeObjeto'],
-        where,
+        where: whereCities,
         _count: { _all: true },
         orderBy: { _count: { localidadeObjeto: 'desc' } },
         take: 200
