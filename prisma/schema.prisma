@@ -620,3 +620,8 @@ model NotificacaoMeta {
   @@index([tecnicoId])
   @@map("notificacao_metas")
 }
+model ConfiguracaoGlobal {
+  id String @id @default("GLOBAL")
+  permitirUploadFotoKm Boolean @default(true)
+  @@map("config_global")
+}

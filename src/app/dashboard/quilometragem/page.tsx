@@ -11,6 +11,7 @@ import {
   getQuilometragens, createQuilometragem, fecharQuilometragem, deleteQuilometragem, updateQuilometragem,
   getAbastecimentos, createAbastecimento, deleteAbastecimento, updateAbastecimento, uploadFotoKm
 } from '@/app/actions/quilometragem'
+import { getConfiguracaoGlobal } from '@/app/actions/config'
 import { getAnosComDados } from '@/app/actions/anos'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getManutencoes, registrarManutencao, excluirManutencao } from '@/app/actions/manutencao'
@@ -56,6 +57,7 @@ export default function QuilometragemPage() {
   const [itemsPerPageKm, setItemsPerPageKm] = useState(10)
   const [currentPageAbs, setCurrentPageAbs] = useState(1)
   const [itemsPerPageAbs, setItemsPerPageAbs] = useState(10)
+  const [permitirUploadGaleria, setPermitirUploadGaleria] = useState(true)
 
   const MONTHS_LIST = [
     { key: 1, label: 'Jan' }, { key: 2, label: 'Fev' },
@@ -105,17 +107,20 @@ export default function QuilometragemPage() {
 
   async function loadData() {
     setLoading(true)
-    const [anos, resKm, resAbs, resTec, resMan] = await Promise.all([
+    const [anos, resKm, resAbs, resTec, resMan, resConfig] = await Promise.all([
       getAnosComDados(),
       getQuilometragens(selectedYear === 'ALL' ? undefined : selectedYear),
       getAbastecimentos(selectedYear === 'ALL' ? undefined : selectedYear),
       getTecnicos(),
-      getManutencoes(selectedYear === 'ALL' ? undefined : selectedYear)
+      getManutencoes(selectedYear === 'ALL' ? undefined : selectedYear),
+      getConfiguracaoGlobal()
     ])
     setAnosDisponiveis(anos)
     if (resKm.success && resKm.data) setKms(resKm.data)
     if (resAbs.success && resAbs.data) setAbastecimentos(resAbs.data)
     if (resMan.success && resMan.data) setManutencoes(resMan.data)
+    if (resConfig?.success && resConfig.data) setPermitirUploadGaleria(resConfig.data.permitirUploadFotoKm)
+    
     if (resTec.success && resTec.data) {
       setTecnicos(resTec.data)
       if (resTec.data.length > 0 && !formStart.tecnicoId) {
@@ -148,17 +153,57 @@ export default function QuilometragemPage() {
   }
 
   // File Handlers
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, setForm: React.Dispatch<React.SetStateAction<any>>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>, setForm: React.Dispatch<React.SetStateAction<any>>) {
     const file = e.target.files?.[0]
     if (!file) return
+
+    let locationStr = 'Localização não disponível'
+    try {
+      if ('geolocation' in navigator) {
+        const pos: any = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true })
+        })
+        locationStr = `Lat: ${pos.coords.latitude.toFixed(6)}, Lng: ${pos.coords.longitude.toFixed(6)}`
+      }
+    } catch (err) {
+      console.warn('Geolocation failed', err)
+    }
+
     const reader = new FileReader()
     reader.onload = (event) => {
-      setForm((p: any) => ({
-        ...p,
-        fotoBase64: event.target?.result as string,
-        fileName: file.name,
-        contentType: file.type
-      }))
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width
+        canvas.height = img.height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        
+        ctx.drawImage(img, 0, 0)
+        
+        const barHeight = Math.max(80, img.height * 0.08)
+        const fontSize = Math.max(20, Math.floor(barHeight * 0.4))
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'
+        ctx.fillRect(0, img.height - barHeight, img.width, barHeight)
+        
+        ctx.fillStyle = 'white'
+        ctx.font = `${fontSize}px Arial`
+        const dateStr = new Date().toLocaleString('pt-BR')
+        
+        ctx.fillText(`Data: ${dateStr}`, 20, img.height - barHeight + fontSize + 5)
+        ctx.fillText(`Local: ${locationStr}`, 20, img.height - 15)
+
+        const stampedBase64 = canvas.toDataURL('image/jpeg', 0.8)
+
+        setForm((p: any) => ({
+          ...p,
+          fotoBase64: stampedBase64,
+          fileName: file.name,
+          contentType: 'image/jpeg'
+        }))
+      }
+      img.src = event.target?.result as string
     }
     reader.readAsDataURL(file)
   }
@@ -985,9 +1030,11 @@ export default function QuilometragemPage() {
                     <button type="button" onClick={() => fileInputRefStartCam.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                       <Camera size={20} /> Tirar Foto
                     </button>
-                    <button type="button" onClick={() => fileInputRefStartGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <UploadCloud size={20} /> Galeria
-                    </button>
+                    {permitirUploadGaleria && (
+                      <button type="button" onClick={() => fileInputRefStartGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <UploadCloud size={20} /> Galeria
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1044,9 +1091,11 @@ export default function QuilometragemPage() {
                     <button type="button" onClick={() => fileInputRefEndCam.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                       <Camera size={20} /> Tirar Foto
                     </button>
-                    <button type="button" onClick={() => fileInputRefEndGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <UploadCloud size={20} /> Galeria
-                    </button>
+                    {permitirUploadGaleria && (
+                      <button type="button" onClick={() => fileInputRefEndGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <UploadCloud size={20} /> Galeria
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1155,9 +1204,11 @@ export default function QuilometragemPage() {
                     <button type="button" onClick={() => fileInputRefAbsCam.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                       <Camera size={20} /> Tirar Foto
                     </button>
-                    <button type="button" onClick={() => fileInputRefAbsGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <UploadCloud size={20} /> Galeria
-                    </button>
+                    {permitirUploadGaleria && (
+                      <button type="button" onClick={() => fileInputRefAbsGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <UploadCloud size={20} /> Galeria
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1404,9 +1455,11 @@ export default function QuilometragemPage() {
                     <button type="button" onClick={() => fileInputRefMaintCam.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                       <Camera size={20} /> Tirar Foto
                     </button>
-                    <button type="button" onClick={() => fileInputRefMaintGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <UploadCloud size={20} /> Galeria
-                    </button>
+                    {permitirUploadGaleria && (
+                      <button type="button" onClick={() => fileInputRefMaintGal.current?.click()} style={{ flex: 1, padding: '12px 8px', borderRadius: 8, border: '2px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <UploadCloud size={20} /> Galeria
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
