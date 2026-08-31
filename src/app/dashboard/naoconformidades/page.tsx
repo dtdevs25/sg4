@@ -2573,9 +2573,21 @@ export default function NaoConformidadesPage() {
                         <span style={{ fontSize: 10, fontWeight: 800, color: d.count > 0 ? '#1e293b' : '#cbd5e1' }}>{d.count > 0 ? d.count : ''}</span>
                         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: 4, opacity: isFiltered ? 1 : 0.4 }}>
                           {/* Stacked bars (from top to bottom: Outras, Abertas, Fechadas) */}
-                          {d.outras > 0 && <div style={{ height: hOutras || 2, background: '#ef4444', borderRadius: (d.abertas === 0 && d.fechadas === 0) ? '4px 4px 0 0' : '0' }} title={`Vencidas: ${d.outras}`} />}
-                          {d.abertas > 0 && <div style={{ height: hAbertas || 2, background: '#3b82f6', borderRadius: (d.outras === 0 && d.fechadas === 0) ? '4px 4px 0 0' : '0' }} title={`Em Aberto: ${d.abertas}`} />}
-                          {d.fechadas > 0 && <div style={{ height: hFechadas || 2, background: '#10b981', borderRadius: (d.outras === 0 && d.abertas === 0) ? '4px 4px 0 0' : '0' }} title={`Fechadas: ${d.fechadas}`} />}
+                          {d.outras > 0 && (
+                            <div style={{ height: hOutras || 2, background: '#ef4444', borderRadius: (d.abertas === 0 && d.fechadas === 0) ? '4px 4px 0 0' : '0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 800, overflow: 'hidden' }} title={`Vencidas: ${d.outras}`}>
+                              {hOutras > 12 ? d.outras : ''}
+                            </div>
+                          )}
+                          {d.abertas > 0 && (
+                            <div style={{ height: hAbertas || 2, background: '#3b82f6', borderRadius: (d.outras === 0 && d.fechadas === 0) ? '4px 4px 0 0' : '0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 800, overflow: 'hidden' }} title={`Em Aberto: ${d.abertas}`}>
+                              {hAbertas > 12 ? d.abertas : ''}
+                            </div>
+                          )}
+                          {d.fechadas > 0 && (
+                            <div style={{ height: hFechadas || 2, background: '#10b981', borderRadius: (d.outras === 0 && d.abertas === 0) ? '4px 4px 0 0' : '0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 800, overflow: 'hidden' }} title={`Fechadas: ${d.fechadas}`}>
+                              {hFechadas > 12 ? d.fechadas : ''}
+                            </div>
+                          )}
                           {d.count === 0 && <div style={{ height: 4, background: '#e2e8f0', borderRadius: '4px 4px 0 0' }} />}
                         </div>
                       </div>

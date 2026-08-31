@@ -111,6 +111,7 @@ export default function DialogosPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [currentPageConsolidado, setCurrentPageConsolidado] = useState(1)
   const [itemsPerPageConsolidado, setItemsPerPageConsolidado] = useState(10)
+  const [showGraficoModal, setShowGraficoModal] = useState(false)
 
   const totalsTecnicos = useMemo(() => {
     return {
@@ -934,16 +935,21 @@ export default function DialogosPage() {
             </div>
 
             {/* Card de Estatística */}
-            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div 
+              onClick={() => setShowGraficoModal(true)}
+              style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(102,0,153,0.15)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)')}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Atingimento do Período</span>
                 <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
                   {selectedMonths.length} MÊS(ES)
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalRealizado}</span>
-                <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>/ {totalMeta} DSS</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 12 }}>
+                <span style={{ fontSize: 36, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalRealizado}</span>
+                <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>/ {totalMeta} DSS</span>
               </div>
               <div style={{ background: '#f1f5f9', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 8 }}>
                 <div style={{ background: '#660099', height: '100%', width: `${Math.min(pctRealizado, 100)}%`, transition: 'width 0.3s' }} />
@@ -952,6 +958,7 @@ export default function DialogosPage() {
                 <span>Atingimento: <b style={{ color: '#1e293b' }}>{pctRealizado}%</b></span>
                 <span>Meta: {targetMeta} / técnico</span>
               </div>
+              <span style={{ display: 'block', fontSize: 10, color: '#94a3b8', marginTop: 12, fontWeight: 600, textAlign: 'center' }}>📊 Clique para ver gráfico mês a mês</span>
             </div>
           </div>
 
@@ -1653,8 +1660,85 @@ export default function DialogosPage() {
               </div>
             </div>
           </div>
+      })()}
+
+      {/* Modal Gráfico Mês a Mês */}
+      {showGraficoModal && (() => {
+        // Compute monthly data
+        const dadosPorMes = MONTHS_LIST.map((m, i) => {
+          let realizados = 0;
+          
+          filtered.forEach((t: any) => {
+             realizados += t[m.key] || 0;
+          });
+
+          return { label: m.label, key: m.key, count: realizados };
+        });
+
+        const maxContagem = Math.max(...dadosPorMes.map(d => d.count), 1);
+        const totalGeral = dadosPorMes.reduce((acc, curr) => acc + curr.count, 0);
+
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
+            <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 700, display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden' }}>
+              {/* Header */}
+              <div style={{ background: '#660099', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div>
+                    <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>📊 Evolução Mês a Mês</h2>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>DSS por mês em {selectedYear === 'ALL' ? 'Todos os Anos' : selectedYear}</span>
+                  </div>
+                </div>
+                <button onClick={() => setShowGraficoModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 20, fontWeight: 'bold', lineHeight: 1 }}>×</button>
+              </div>
+
+              {/* Chart Body */}
+              <div style={{ padding: 24, overflowY: 'auto' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 200, marginBottom: 8 }}>
+                  {dadosPorMes.map((d, i) => {
+                    const isFiltered = selectedMonths.includes(d.key as MesKey);
+                    const h = maxContagem > 0 ? Math.round((d.count / maxContagem) * 180) : 0;
+                    
+                    return (
+                      <div key={d.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: d.count > 0 ? '#1e293b' : '#cbd5e1' }}>{d.count > 0 ? d.count : ''}</span>
+                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: 4, opacity: isFiltered ? 1 : 0.4 }}>
+                          {d.count > 0 && (
+                            <div style={{ height: h || 2, background: '#660099', borderRadius: '4px 4px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 800, overflow: 'hidden' }} title={`Realizado: ${d.count}`}>
+                              {h > 12 ? d.count : ''}
+                            </div>
+                          )}
+                          {d.count === 0 && <div style={{ height: 4, background: '#e2e8f0', borderRadius: '4px 4px 0 0' }} />}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                
+                {/* Labels dos Meses */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                  {dadosPorMes.map((d) => (
+                    <div key={d.label} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, color: selectedMonths.includes(d.key as MesKey) ? '#660099' : '#94a3b8' }}>{d.label}</div>
+                  ))}
+                </div>
+                
+                {/* Legenda do Gráfico */}
+                <div style={{ display: 'flex', gap: 16, justifyContent: 'center', fontSize: 11, color: '#64748b', fontWeight: 600, flexWrap: 'wrap' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 12, height: 12, borderRadius: 2, background: '#660099', display: 'inline-block' }} />Realizados</span>
+                </div>
+                
+                {/* Total Stats */}
+                <div style={{ marginTop: 24, padding: 16, background: '#f8fafc', borderRadius: 10, border: '1px solid #f1f5f9', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, textAlign: 'center' }}>
+                  <div><div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{totalRealizado}</div><div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Total Realizado</div></div>
+                  <div><div style={{ fontSize: 22, fontWeight: 800, color: '#660099' }}>{pctRealizado}%</div><div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Atingimento Geral</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
         )
       })()}
+
     </div>
   )
 }
