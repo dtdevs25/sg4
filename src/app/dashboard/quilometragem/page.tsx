@@ -172,8 +172,14 @@ export default function QuilometragemPage() {
       }
     } catch (err: any) {
       console.warn('Geolocation failed', err)
-      if (err.code === 1) locationStr = 'Local: Permissão Negada (Habilite no navegador)'
-      else if (err.code === 2) locationStr = 'Local: Sinal GPS Inativo ou sem rede'
+      if (err.code === 1) {
+        locationStr = 'Local: Permissão Negada'
+        alert('ATENÇÃO: Você bloqueou o acesso ao seu GPS!\n\nPara o envio funcionar corretamente:\n1. Clique no "cadeado" (ou ícone de configurações) ao lado do endereço do site lá no topo da tela.\n2. Vá em "Permissões" ou "Configurações do Site".\n3. Habilite a permissão de "Localização".\n4. Recarregue a página e tente novamente.')
+      }
+      else if (err.code === 2) {
+        locationStr = 'Local: Sinal GPS Inativo'
+        alert('Seu GPS está desligado ou sem sinal. Por favor, ative a localização do aparelho.')
+      }
       else if (err.code === 3) locationStr = 'Local: Tempo Esgotado (Sinal Fraco)'
       else locationStr = 'Local: Erro desconhecido'
     }
