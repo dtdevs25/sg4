@@ -157,16 +157,25 @@ export default function QuilometragemPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    let locationStr = 'Localização não disponível'
+    let locationStr = 'Local: Não disponível'
     try {
       if ('geolocation' in navigator) {
-        const pos: any = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: true })
-        })
-        locationStr = `Lat: ${pos.coords.latitude.toFixed(6)}, Lng: ${pos.coords.longitude.toFixed(6)}`
+        const getPos = (opts: PositionOptions) => new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, opts));
+        try {
+          const pos: any = await getPos({ timeout: 5000, enableHighAccuracy: true, maximumAge: 0 });
+          locationStr = `Lat: ${pos.coords.latitude.toFixed(6)}, Lng: ${pos.coords.longitude.toFixed(6)}`
+        } catch (err: any) {
+          console.warn('Alta precisão falhou, tentando baixa...', err)
+          const pos: any = await getPos({ timeout: 10000, enableHighAccuracy: false, maximumAge: 60000 });
+          locationStr = `Lat: ${pos.coords.latitude.toFixed(6)}, Lng: ${pos.coords.longitude.toFixed(6)}`
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Geolocation failed', err)
+      if (err.code === 1) locationStr = 'Local: Permissão Negada (Habilite no navegador)'
+      else if (err.code === 2) locationStr = 'Local: Sinal GPS Inativo ou sem rede'
+      else if (err.code === 3) locationStr = 'Local: Tempo Esgotado (Sinal Fraco)'
+      else locationStr = 'Local: Erro desconhecido'
     }
 
     const reader = new FileReader()
