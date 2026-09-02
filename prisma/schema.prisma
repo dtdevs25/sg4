@@ -575,6 +575,8 @@ model RecargaAbastecimento {
   data        DateTime @default(now())
   valor       Float
   observacao  String?
+  userId      String?
+  userName    String?
 
   @@index([tecnicoId])
   @@map("recargas_abastecimento")

@@ -5,131 +5,169 @@ import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { getBusinessDaysInMonth, getBusinessDaysPassedInMonth, getValidMonthsCount } from '@/lib/businessDays'
 
-export async function getResumoOrcamentoMes(ano: number, mes: number) {
+export async function getResumoOrcamentoMes(ano: number, meses: number[]) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
     
-    // Busca todos os técnicos ativos
     const tecnicos = await prisma.tecnico.findMany({
       where: { ativo: true },
       select: { id: true, nome: true, fotoUrl: true, orcamentoAbastecimento: true, admissao: true }
     })
 
-    const isConsolidado = ano === 0;
+    const isConsolidado = ano === 0 || meses.length === 0
+    const currentYear = new Date().getFullYear()
+    const currentMonth = new Date().getMonth() + 1
+    const targetAno = isConsolidado ? currentYear : ano
+    const targetMeses = isConsolidado ? Array.from({ length: currentMonth }, (_, i) => i + 1) : meses
 
-    // Se for consolidado, o alvo é o mês atual. Senão, é o mês selecionado.
-    const targetAno = isConsolidado ? new Date().getFullYear() : ano;
-    const targetMes = isConsolidado ? new Date().getMonth() + 1 : mes;
-
-    const startDate = new Date(2026, 6, 1) // Marco zero global: Julho 2026
-    const endDate = new Date(targetAno, targetMes, 0, 23, 59, 59)
-    const mesAnoStr = `${String(targetMes).padStart(2, '0')}/${targetAno}`
+    // Marco zero: julho/2026
+    const startDate = new Date(2026, 6, 1)
 
     const resumos = []
 
     for (const tec of tecnicos) {
-      // Pega soma de TODOS os abastecimentos desde o marco zero até o fim do mês alvo
-      const abastecimentos = await prisma.abastecimento.findMany({
-        where: {
-          tecnicoId: tec.id,
-          data: { gte: startDate, lte: endDate }
-        }
-      })
-      const gastoTotalAcumulado = abastecimentos.reduce((acc, curr) => acc + curr.valor, 0)
+      // ── por mês selecionado ──────────────────────────────────────────────
+      const dadosPorMes: Array<{
+        mes: number
+        orcamento: number
+        gastoMes: number
+        recargasMes: number
+        saldoMes: number           // inclui carry-over do mês anterior
+        saldoAcumulado: number
+      }> = []
 
-      // Busca recargas extras do período (a partir do marco zero Julho 2026)
-      const recargas = await prisma.recargaAbastecimento.findMany({
-        where: {
-          tecnicoId: tec.id,
-          data: { gte: startDate, lte: endDate }
-        }
-      })
-      const recargasTotalAcumulado = recargas.reduce((acc, curr) => acc + curr.valor, 0)
+      // Para carry-over precisamos processar em ordem cronológica desde julho/2026
+      // até o maior mês selecionado
+      const maxMes = Math.max(...targetMeses)
+      const endDate = new Date(targetAno, maxMes, 0, 23, 59, 59)
 
-      // Calcula os meses válidos de orçamento para esse TST
-      const mesesValidos = getValidMonthsCount(tec.admissao, targetAno, targetMes);
-      
-      // O orcamento acumulado agora inclui as recargas extras
-      const orcamentoAcumulado = (tec.orcamentoAbastecimento * mesesValidos) + recargasTotalAcumulado;
-      
-      const saldoAcumulado = orcamentoAcumulado - gastoTotalAcumulado
-      
+      const [todosAbastecimentos, todasRecargas] = await Promise.all([
+        prisma.abastecimento.findMany({
+          where: { tecnicoId: tec.id, data: { gte: startDate, lte: endDate } }
+        }),
+        prisma.recargaAbastecimento.findMany({
+          where: { tecnicoId: tec.id, data: { gte: startDate, lte: endDate } },
+          orderBy: { data: 'asc' }
+        })
+      ])
+
+      // Calcula saldo acumulado até o mês anterior ao primeiro selecionado
+      // para carry-over correto de saldo negativo
+      const minMes = Math.min(...targetMeses)
+      const inicioJaneiro = new Date(targetAno, 0, 1)
+      const fimMesAnterior = minMes > 1 ? new Date(targetAno, minMes - 2, 31, 23, 59, 59) : new Date(targetAno - 1, 11, 31, 23, 59, 59)
+
+      // Gastos e recargas ANTES do período selecionado (para saldo inicial)
+      const gastoAnterior = todosAbastecimentos
+        .filter(a => a.data >= startDate && a.data < new Date(targetAno, minMes - 1, 1))
+        .reduce((acc, c) => acc + c.valor, 0)
+      const recargaAnterior = todasRecargas
+        .filter(a => a.data >= startDate && a.data < new Date(targetAno, minMes - 1, 1))
+        .reduce((acc, c) => acc + c.valor, 0)
+      const mesesValidosAnterior = minMes > 1 ? getValidMonthsCount(tec.admissao, targetAno, minMes - 1) : 0
+      let carryOver = (tec.orcamentoAbastecimento * mesesValidosAnterior) + recargaAnterior - gastoAnterior
+
+      // Agora processa os meses selecionados em ordem
+      const mesesOrdenados = [...targetMeses].sort((a, b) => a - b)
+      for (const m of mesesOrdenados) {
+        const inicioMes = new Date(targetAno, m - 1, 1)
+        const fimMes = new Date(targetAno, m, 0, 23, 59, 59)
+        const mesAnoStr = `${String(m).padStart(2, '0')}/${targetAno}`
+
+        const gastoMes = todosAbastecimentos
+          .filter(a => a.data >= inicioMes && a.data <= fimMes)
+          .reduce((acc, c) => acc + c.valor, 0)
+        const recargasMes = todasRecargas
+          .filter(a => a.data >= inicioMes && a.data <= fimMes)
+          .reduce((acc, c) => acc + c.valor, 0)
+
+        // Orçamento deste mês (1 mês válido = 1x o valor base)
+        const mesesValidos = getValidMonthsCount(tec.admissao, targetAno, m) - getValidMonthsCount(tec.admissao, targetAno, m - 1)
+        const orcamentoMes = tec.orcamentoAbastecimento * Math.max(0, mesesValidos)
+
+        // Saldo deste mês: carry-over do anterior + orçamento + recargas - gastos
+        const saldoMes = carryOver + orcamentoMes + recargasMes - gastoMes
+        carryOver = saldoMes // saldo negativo é levado para o próximo mês
+
+        dadosPorMes.push({ mes: m, orcamento: orcamentoMes, gastoMes, recargasMes, saldoMes, saldoAcumulado: saldoMes })
+      }
+
+      // Totais agregados dos meses selecionados
+      const gastoTotalPeriodo = dadosPorMes.reduce((acc, d) => acc + d.gastoMes, 0)
+      const recargasTotalPeriodo = dadosPorMes.reduce((acc, d) => acc + d.recargasMes, 0)
+      const orcamentoTotalPeriodo = dadosPorMes.reduce((acc, d) => acc + d.orcamento, 0)
+      const saldoFinal = dadosPorMes.length > 0 ? dadosPorMes[dadosPorMes.length - 1].saldoMes : 0
+
+      // Totais acumulados gerais (desde marco zero até o fim do período)
+      const gastoTotalAcumulado = todosAbastecimentos.reduce((acc, c) => acc + c.valor, 0)
+      const recargasTotalAcumulado = todasRecargas.reduce((acc, c) => acc + c.valor, 0)
+      const mesesValidosTotal = getValidMonthsCount(tec.admissao, targetAno, maxMes)
+      const orcamentoAcumulado = (tec.orcamentoAbastecimento * mesesValidosTotal) + recargasTotalAcumulado
+      const saldoAcumuladoTotal = orcamentoAcumulado - gastoTotalAcumulado
+
       let status = 'ADEQUADO'
-      let alerta = null;
-      let valorExtraDinamico = 0;
+      let alerta = null
+      let valorExtraDinamico = 0
 
-      // Vamos calcular também o gasto só desse mês isolado para exibição, caso o usuário queira saber
-      const inicioMesAtual = new Date(targetAno, targetMes - 1, 1)
-      const gastoApenasMesSelecionado = abastecimentos
-        .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
-        .reduce((acc, curr) => acc + curr.valor, 0)
-
-      if (saldoAcumulado <= 100) {
-        const diasUteisTotais = getBusinessDaysInMonth(targetAno, targetMes - 1)
+      if (saldoFinal <= 100 && !isConsolidado) {
+        const diasUteisTotais = getBusinessDaysInMonth(targetAno, maxMes - 1)
         const diaAtual = new Date().getDate()
         const mesAtualReal = new Date().getMonth() + 1
-        
-        let diasUteisPassados = getBusinessDaysPassedInMonth(targetAno, targetMes - 1, mesAtualReal === targetMes ? diaAtual : 31)
-        if (diasUteisPassados === 0) diasUteisPassados = 1 
-        
-        const mediaDiaria = gastoApenasMesSelecionado / diasUteisPassados
+        let diasUteisPassados = getBusinessDaysPassedInMonth(targetAno, maxMes - 1, mesAtualReal === maxMes ? diaAtual : 31)
+        if (diasUteisPassados === 0) diasUteisPassados = 1
+        const gastoUltimoMes = dadosPorMes[dadosPorMes.length - 1]?.gastoMes || 0
+        const mediaDiaria = gastoUltimoMes / diasUteisPassados
         const diasRestantes = diasUteisTotais - diasUteisPassados
-        
-        valorExtraDinamico = (mediaDiaria * diasRestantes) - saldoAcumulado
-        if (valorExtraDinamico < 0) valorExtraDinamico = 0
-        valorExtraDinamico = Number(valorExtraDinamico.toFixed(2))
+        valorExtraDinamico = Math.max(0, Number(((mediaDiaria * diasRestantes) - saldoFinal).toFixed(2)))
       }
 
       if (!isConsolidado) {
+        const mesAnoStr = `${String(maxMes).padStart(2, '0')}/${targetAno}`
         alerta = await prisma.alertaAbastecimento.findUnique({
-          where: {
-            tecnicoId_mesAno: {
-              tecnicoId: tec.id,
-              mesAno: mesAnoStr
-            }
-          }
+          where: { tecnicoId_mesAno: { tecnicoId: tec.id, mesAno: mesAnoStr } }
         })
-
-        // Se por acaso excluíram o abastecimento e o saldo voltou a ficar positivo, a gente limpa o alerta falso do banco
-        if (saldoAcumulado > 100 && alerta) {
+        if (saldoFinal > 100 && alerta) {
           await prisma.alertaAbastecimento.delete({ where: { id: alerta.id } })
-          alerta = null;
+          alerta = null
         }
-
-        if (saldoAcumulado <= 100) {
+        if (saldoFinal <= 100) {
           status = alerta ? 'ALERTA_ENVIADO' : 'ALERTA_PENDENTE'
         }
       }
 
-      const recargasApenasMesSelecionado = recargas
-        .filter(a => a.data >= inicioMesAtual && a.data <= endDate)
-        .reduce((acc, curr) => acc + curr.valor, 0)
-
-      // Não filtra no backend para permitir que a interface tenha um botão de "Exibir ocultos"
-      // para restaurar técnicos zerados.
+      // Histórico de recargas com info do usuário para exibição
+      const recargasHistorico = todasRecargas.map(r => ({
+        id: r.id,
+        data: r.data,
+        valor: r.valor,
+        observacao: r.observacao,
+        userName: (r as any).userName || null,
+      }))
 
       resumos.push({
         tecnico: tec,
         orcamento: tec.orcamentoAbastecimento,
         orcamentoAcumulado,
+        orcamentoTotalPeriodo,
         recargasTotalAcumulado,
-        recargasMesSelecionado: recargasApenasMesSelecionado,
-        mesesValidos,
+        recargasTotalPeriodo,
+        mesesValidos: mesesValidosTotal,
         gastoTotalAcumulado,
-        gastoMesSelecionado: gastoApenasMesSelecionado,
-        saldo: saldoAcumulado,
+        gastoTotalPeriodo,
+        saldo: saldoFinal,
+        saldoAcumuladoTotal,
+        dadosPorMes,
         status,
         alertaEnviadoEm: alerta?.enviadoEm || null,
-        valorExtraCalculado: valorExtraDinamico
+        valorExtraCalculado: valorExtraDinamico,
+        recargasHistorico,
       })
     }
 
-    // Ordena de forma que quem está em ALERTA apareça primeiro, depois pelo nome
     resumos.sort((a, b) => {
       const isAlertaA = a.status === 'ALERTA_PENDENTE' || a.status === 'ALERTA_ENVIADO'
       const isAlertaB = b.status === 'ALERTA_PENDENTE' || b.status === 'ALERTA_ENVIADO'
-      
       if (isAlertaA && !isAlertaB) return -1
       if (!isAlertaA && isAlertaB) return 1
       return a.tecnico.nome.localeCompare(b.tecnico.nome)
@@ -330,12 +368,15 @@ export async function createRecargaExtra(tecnicoId: string, valor: number, obser
     if (!session?.user) return { success: false, error: 'Não autorizado' }
 
     const userId = (session.user as any).id
+    const userName = (session.user as any).name || (session.user as any).email || 'Usuário'
 
     await prisma.recargaAbastecimento.create({
       data: {
         tecnicoId,
         valor,
-        observacao
+        observacao,
+        userId,
+        userName,
       }
     })
 
@@ -344,7 +385,7 @@ export async function createRecargaExtra(tecnicoId: string, valor: number, obser
       action: 'CRIAR_RECARGA_ABASTECIMENTO',
       entity: 'RecargaAbastecimento',
       entityId: tecnicoId,
-      details: { valor, observacao }
+      details: { valor, observacao, userName }
     })
 
     return { success: true }
