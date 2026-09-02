@@ -52,45 +52,53 @@ export async function getResumoOrcamentoMes(ano: number, meses: number[]) {
         })
       ])
 
-      // Calcula saldo acumulado até o mês anterior ao primeiro selecionado
-      // para carry-over correto de saldo negativo
       const minMes = Math.min(...targetMeses)
-      const inicioJaneiro = new Date(targetAno, 0, 1)
-      const fimMesAnterior = minMes > 1 ? new Date(targetAno, minMes - 2, 31, 23, 59, 59) : new Date(targetAno - 1, 11, 31, 23, 59, 59)
-
-      // Gastos e recargas ANTES do período selecionado (para saldo inicial)
-      const gastoAnterior = todosAbastecimentos
-        .filter(a => a.data >= startDate && a.data < new Date(targetAno, minMes - 1, 1))
-        .reduce((acc, c) => acc + c.valor, 0)
-      const recargaAnterior = todasRecargas
-        .filter(a => a.data >= startDate && a.data < new Date(targetAno, minMes - 1, 1))
-        .reduce((acc, c) => acc + c.valor, 0)
-      const mesesValidosAnterior = minMes > 1 ? getValidMonthsCount(tec.admissao, targetAno, minMes - 1) : 0
-      let carryOver = (tec.orcamentoAbastecimento * mesesValidosAnterior) + recargaAnterior - gastoAnterior
-
-      // Agora processa os meses selecionados em ordem
-      const mesesOrdenados = [...targetMeses].sort((a, b) => a - b)
-      for (const m of mesesOrdenados) {
-        const inicioMes = new Date(targetAno, m - 1, 1)
-        const fimMes = new Date(targetAno, m, 0, 23, 59, 59)
-        const mesAnoStr = `${String(m).padStart(2, '0')}/${targetAno}`
+      let carryOver = 0
+      let saldoAcumuladoTotal = 0
+      
+      let curYear = 2026
+      let curMonth = 7 // Marco zero
+      
+      while (curYear < targetAno || (curYear === targetAno && curMonth <= maxMes)) {
+        const inicioMes = new Date(curYear, curMonth - 1, 1)
+        const fimMes = new Date(curYear, curMonth, 0, 23, 59, 59)
 
         const gastoMes = todosAbastecimentos
           .filter(a => a.data >= inicioMes && a.data <= fimMes)
           .reduce((acc, c) => acc + c.valor, 0)
+          
         const recargasMes = todasRecargas
-          .filter(a => a.data >= inicioMes && a.data <= fimMes)
+          .filter(a => !a.isOverride && a.data >= inicioMes && a.data <= fimMes)
           .reduce((acc, c) => acc + c.valor, 0)
 
-        // Orçamento deste mês (1 mês válido = 1x o valor base)
-        const mesesValidos = getValidMonthsCount(tec.admissao, targetAno, m) - getValidMonthsCount(tec.admissao, targetAno, m - 1)
-        const orcamentoMes = tec.orcamentoAbastecimento * Math.max(0, mesesValidos)
+        const overridesMes = todasRecargas
+          .filter(a => a.isOverride && a.data >= inicioMes && a.data <= fimMes)
+          
+        let orcamentoMes = 0
+        
+        const mesesValidos = getValidMonthsCount(tec.admissao, curYear, curMonth) - getValidMonthsCount(tec.admissao, curYear, curMonth - 1)
+        
+        if (overridesMes.length > 0) {
+          // Se teve override, pega o mais recente no mês
+          orcamentoMes = overridesMes[overridesMes.length - 1].valor
+        } else {
+          orcamentoMes = tec.orcamentoAbastecimento * Math.max(0, mesesValidos)
+        }
 
-        // Saldo deste mês: carry-over do anterior + orçamento + recargas - gastos
         const saldoMes = carryOver + orcamentoMes + recargasMes - gastoMes
-        carryOver = saldoMes // saldo negativo é levado para o próximo mês
+        carryOver = saldoMes 
+        saldoAcumuladoTotal = saldoMes
 
-        dadosPorMes.push({ mes: m, orcamento: orcamentoMes, gastoMes, recargasMes, saldoMes, saldoAcumulado: saldoMes })
+        // Só empurra para dadosPorMes se estiver no targetAno e dentro dos meses selecionados
+        if (curYear === targetAno && targetMeses.includes(curMonth)) {
+          dadosPorMes.push({ mes: curMonth, orcamento: orcamentoMes, gastoMes, recargasMes, saldoMes, saldoAcumulado: saldoMes })
+        }
+        
+        curMonth++
+        if (curMonth > 12) {
+          curMonth = 1
+          curYear++
+        }
       }
 
       // Totais agregados dos meses selecionados
@@ -101,10 +109,25 @@ export async function getResumoOrcamentoMes(ano: number, meses: number[]) {
 
       // Totais acumulados gerais (desde marco zero até o fim do período)
       const gastoTotalAcumulado = todosAbastecimentos.reduce((acc, c) => acc + c.valor, 0)
-      const recargasTotalAcumulado = todasRecargas.reduce((acc, c) => acc + c.valor, 0)
+      const recargasTotalAcumulado = todasRecargas.filter(a => !a.isOverride).reduce((acc, c) => acc + c.valor, 0)
+      
+      let orcamentoAcumulado = 0
+      let cy = 2026, cm = 7
+      while (cy < targetAno || (cy === targetAno && cm <= maxMes)) {
+        const ini = new Date(cy, cm - 1, 1)
+        const fim = new Date(cy, cm, 0, 23, 59, 59)
+        const over = todasRecargas.filter(a => a.isOverride && a.data >= ini && a.data <= fim)
+        if (over.length > 0) {
+          orcamentoAcumulado += over[over.length - 1].valor
+        } else {
+          const mvs = getValidMonthsCount(tec.admissao, cy, cm) - getValidMonthsCount(tec.admissao, cy, cm - 1)
+          orcamentoAcumulado += tec.orcamentoAbastecimento * Math.max(0, mvs)
+        }
+        cm++
+        if (cm > 12) { cm = 1; cy++ }
+      }
+      
       const mesesValidosTotal = getValidMonthsCount(tec.admissao, targetAno, maxMes)
-      const orcamentoAcumulado = (tec.orcamentoAbastecimento * mesesValidosTotal) + recargasTotalAcumulado
-      const saldoAcumuladoTotal = orcamentoAcumulado - gastoTotalAcumulado
 
       let status = 'ADEQUADO'
       let alerta = null
@@ -136,13 +159,14 @@ export async function getResumoOrcamentoMes(ano: number, meses: number[]) {
         }
       }
 
-      // Histórico de recargas com info do usuário para exibição
+      // Histórico de recargas com info do usuário para exibição (apenas as normais, ou inclui override mas com texto claro)
       const recargasHistorico = todasRecargas.map(r => ({
         id: r.id,
         data: r.data,
         valor: r.valor,
-        observacao: r.observacao,
+        observacao: r.isOverride ? `OVERRIDE MENSAL: ${r.observacao}` : r.observacao,
         userName: (r as any).userName || null,
+        isOverride: r.isOverride
       }))
 
       resumos.push({
@@ -362,7 +386,7 @@ export async function testN8NWebhook() {
   }
 }
 
-export async function createRecargaExtra(tecnicoId: string, valor: number, observacao: string, dataCustomizada?: Date) {
+export async function createRecargaExtra(tecnicoId: string, valor: number, observacao: string, dataCustomizada?: Date, isOverride: boolean = false) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -377,16 +401,17 @@ export async function createRecargaExtra(tecnicoId: string, valor: number, obser
         observacao,
         userId,
         userName,
+        isOverride,
         ...(dataCustomizada ? { data: dataCustomizada } : {})
       }
     })
 
     await audit({
       userId,
-      action: 'CRIAR_RECARGA_ABASTECIMENTO',
+      action: isOverride ? 'OVERRIDE_ORCAMENTO_MENSAL' : 'CRIAR_RECARGA_ABASTECIMENTO',
       entity: 'RecargaAbastecimento',
       entityId: tecnicoId,
-      details: { valor, observacao, userName, dataCustomizada }
+      details: { valor, observacao, userName, dataCustomizada, isOverride }
     })
 
     return { success: true }

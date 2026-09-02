@@ -577,6 +577,7 @@ model RecargaAbastecimento {
   observacao  String?
   userId      String?
   userName    String?
+  isOverride  Boolean  @default(false)
 
   @@index([tecnicoId])
   @@map("recargas_abastecimento")

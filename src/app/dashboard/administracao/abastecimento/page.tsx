@@ -86,19 +86,13 @@ export default function AbastecimentoOrcamentoPage() {
           setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao atualizar orçamento' })
         }
       } else {
-        const diferenca = valor - editModal.orcamentoEfetivo
-        if (diferenca === 0) {
-          setEditModal(null)
-          return
-        }
-        
-        const res = await createRecargaExtra(editModal.id, diferenca, `Ajuste manual de orçamento do período (de R$ ${editModal.orcamentoEfetivo} para R$ ${valor})`, dataDestino)
+        const res = await createRecargaExtra(editModal.id, valor, `Ajuste manual (substituição) da verba base do mês`, dataDestino, true)
         if (res.success) {
           setEditModal(null)
-          setNotification({ type: 'success', title: 'Sucesso', message: `Ajuste aplicado apenas para o mês selecionado (${MESES_NOME[maxMesSelecionado-1]})!` })
+          setNotification({ type: 'success', title: 'Sucesso', message: `Base alterada apenas para o mês selecionado (${MESES_NOME[maxMesSelecionado-1]})!` })
           load()
         } else {
-          setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao ajustar orçamento do mês' })
+          setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao alterar base do mês' })
         }
       }
     })
