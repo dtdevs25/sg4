@@ -14,7 +14,7 @@ export default function AbastecimentoOrcamentoPage() {
   const [isPending, startTransition] = useTransition()
 
   // Modal de edição de orçamento
-  const [editModal, setEditModal] = useState<{ id: string, nome: string, orcamentoAtual: number } | null>(null)
+  const [editModal, setEditModal] = useState<{ id: string, nome: string, orcamentoBase: number, orcamentoEfetivo: number } | null>(null)
   const [novoValor, setNovoValor] = useState('')
   const [tipoEdicao, setTipoEdicao] = useState<'mes' | 'definitivo'>('mes')
 
@@ -86,13 +86,13 @@ export default function AbastecimentoOrcamentoPage() {
           setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao atualizar orçamento' })
         }
       } else {
-        const diferenca = valor - editModal.orcamentoAtual
+        const diferenca = valor - editModal.orcamentoEfetivo
         if (diferenca === 0) {
           setEditModal(null)
           return
         }
         
-        const res = await createRecargaExtra(editModal.id, diferenca, `Ajuste manual de orçamento (de R$ ${editModal.orcamentoAtual} para R$ ${valor})`, dataDestino)
+        const res = await createRecargaExtra(editModal.id, diferenca, `Ajuste manual de orçamento do período (de R$ ${editModal.orcamentoEfetivo} para R$ ${valor})`, dataDestino)
         if (res.success) {
           setEditModal(null)
           setNotification({ type: 'success', title: 'Sucesso', message: `Ajuste aplicado apenas para o mês selecionado (${MESES_NOME[maxMesSelecionado-1]})!` })
@@ -321,8 +321,10 @@ export default function AbastecimentoOrcamentoPage() {
                       </button>
                       <button
                         onClick={() => {
-                          setEditModal({ id: item.tecnico.id, nome: item.tecnico.nome, orcamentoAtual: item.orcamento })
-                          setNovoValor(item.orcamento.toString())
+                          const orcEfetivo = mesesSelecionados.length > 0 ? (item.orcamentoTotalPeriodo + item.recargasTotalPeriodo) : item.orcamentoAcumulado
+                          setEditModal({ id: item.tecnico.id, nome: item.tecnico.nome, orcamentoBase: item.orcamento, orcamentoEfetivo: orcEfetivo })
+                          setNovoValor(orcEfetivo.toString())
+                          setTipoEdicao('mes') // Padrão
                         }}
                         style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: 10, color: '#475569', cursor: 'pointer', transition: 'all 0.2s' }}
                         title="Editar Orçamento Base"
@@ -412,7 +414,7 @@ export default function AbastecimentoOrcamentoPage() {
             <form onSubmit={handleSalvarEdicao} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <p style={{ margin: 0, fontSize: 14, color: '#475569', lineHeight: 1.5 }}>
                 Ajustando a verba de abastecimento para <strong>{editModal.nome}</strong>.<br/>
-                Valor recorrente: <strong>R$ {editModal.orcamentoAtual.toFixed(2)}</strong>.
+                Valor recorrente: <strong>R$ {editModal.orcamentoBase.toFixed(2)}</strong>.
               </p>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
@@ -421,20 +423,26 @@ export default function AbastecimentoOrcamentoPage() {
                     type="radio" 
                     name="tipoEdicao" 
                     checked={tipoEdicao === 'mes'} 
-                    onChange={() => setTipoEdicao('mes')} 
+                    onChange={() => {
+                      setTipoEdicao('mes')
+                      setNovoValor(editModal.orcamentoEfetivo.toString())
+                    }} 
                     style={{ accentColor: '#660099' }}
                   />
-                  Apenas este mês (Ajuste pontual)
+                  Apenas este mês (Atual: R$ {editModal.orcamentoEfetivo.toFixed(2)})
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#334155', cursor: 'pointer', fontWeight: tipoEdicao === 'definitivo' ? 700 : 500 }}>
                   <input 
                     type="radio" 
                     name="tipoEdicao" 
                     checked={tipoEdicao === 'definitivo'} 
-                    onChange={() => setTipoEdicao('definitivo')}
+                    onChange={() => {
+                      setTipoEdicao('definitivo')
+                      setNovoValor(editModal.orcamentoBase.toString())
+                    }}
                     style={{ accentColor: '#660099' }}
                   />
-                  Definitivo (Muda a base para todos os meses)
+                  Definitivo (Muda a base recorrente)
                 </label>
               </div>
 
