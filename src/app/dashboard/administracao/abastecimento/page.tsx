@@ -71,6 +71,11 @@ export default function AbastecimentoOrcamentoPage() {
     if (isNaN(valor) || valor < 0) return setNotification({ type: 'error', title: 'Valor Inválido', message: 'O valor não pode ser negativo.' })
     
     startTransition(async () => {
+      // Define a data baseada no mês que o usuário está visualizando (o maior selecionado, ou o mês atual)
+      const maxMesSelecionado = mesesSelecionados.length > 0 ? Math.max(...mesesSelecionados) : new Date().getMonth() + 1
+      const anoSelecionado = ano === 0 ? new Date().getFullYear() : ano
+      const dataDestino = new Date(anoSelecionado, maxMesSelecionado - 1, 15) // Dia 15 para garantir que cai no meio do mês
+      
       if (tipoEdicao === 'definitivo') {
         const res = await updateOrcamentoTecnico(editModal.id, valor)
         if (res.success) {
@@ -87,10 +92,10 @@ export default function AbastecimentoOrcamentoPage() {
           return
         }
         
-        const res = await createRecargaExtra(editModal.id, diferenca, `Ajuste manual de orçamento (de R$ ${editModal.orcamentoAtual} para R$ ${valor})`)
+        const res = await createRecargaExtra(editModal.id, diferenca, `Ajuste manual de orçamento (de R$ ${editModal.orcamentoAtual} para R$ ${valor})`, dataDestino)
         if (res.success) {
           setEditModal(null)
-          setNotification({ type: 'success', title: 'Sucesso', message: 'Ajuste aplicado apenas para este mês!' })
+          setNotification({ type: 'success', title: 'Sucesso', message: `Ajuste aplicado apenas para o mês selecionado (${MESES_NOME[maxMesSelecionado-1]})!` })
           load()
         } else {
           setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao ajustar orçamento do mês' })
@@ -106,12 +111,16 @@ export default function AbastecimentoOrcamentoPage() {
     if (isNaN(valor) || valor <= 0) return setNotification({ type: 'error', title: 'Valor Inválido', message: 'A recarga precisa ser maior que zero.' })
     
     startTransition(async () => {
-      const res = await createRecargaExtra(recargaModal.id, valor, recargaObs)
+      const maxMesSelecionado = mesesSelecionados.length > 0 ? Math.max(...mesesSelecionados) : new Date().getMonth() + 1
+      const anoSelecionado = ano === 0 ? new Date().getFullYear() : ano
+      const dataDestino = new Date(anoSelecionado, maxMesSelecionado - 1, 15)
+
+      const res = await createRecargaExtra(recargaModal.id, valor, recargaObs, dataDestino)
       if (res.success) {
         setRecargaModal(null)
         setRecargaValor('')
         setRecargaObs('')
-        setNotification({ type: 'success', title: 'Sucesso', message: 'Recarga extra lançada com sucesso!' })
+        setNotification({ type: 'success', title: 'Sucesso', message: `Recarga extra lançada no mês de ${MESES_NOME[maxMesSelecionado-1]}!` })
         load()
       } else {
         setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao registrar recarga extra' })

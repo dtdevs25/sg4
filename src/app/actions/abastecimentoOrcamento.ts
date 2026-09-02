@@ -362,7 +362,7 @@ export async function testN8NWebhook() {
   }
 }
 
-export async function createRecargaExtra(tecnicoId: string, valor: number, observacao: string) {
+export async function createRecargaExtra(tecnicoId: string, valor: number, observacao: string, dataCustomizada?: Date) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
@@ -377,6 +377,7 @@ export async function createRecargaExtra(tecnicoId: string, valor: number, obser
         observacao,
         userId,
         userName,
+        ...(dataCustomizada ? { data: dataCustomizada } : {})
       }
     })
 
@@ -385,7 +386,7 @@ export async function createRecargaExtra(tecnicoId: string, valor: number, obser
       action: 'CRIAR_RECARGA_ABASTECIMENTO',
       entity: 'RecargaAbastecimento',
       entityId: tecnicoId,
-      details: { valor, observacao, userName }
+      details: { valor, observacao, userName, dataCustomizada }
     })
 
     return { success: true }
