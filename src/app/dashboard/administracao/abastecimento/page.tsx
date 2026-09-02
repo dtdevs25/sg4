@@ -240,11 +240,18 @@ export default function AbastecimentoOrcamentoPage() {
                       <h3 style={{ margin: '0 0 4px 0', fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{item.tecnico.nome}</h3>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>
-                          Base Mensal: <strong style={{ color: '#334155' }}>R$ {item.orcamento.toFixed(2)}</strong>
+                          Base do Período: <strong style={{ color: '#334155' }}>
+                            R$ {(mesesSelecionados.length > 0 ? item.orcamentoTotalPeriodo + item.recargasTotalPeriodo : item.orcamentoAcumulado).toFixed(2)}
+                          </strong>
                         </span>
                         <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
-                          ({item.mesesValidos} meses apurados)
+                          ({mesesSelecionados.length > 0 ? mesesSelecionados.length : item.mesesValidos} meses exibidos)
                         </span>
+                        {mesesSelecionados.length > 0 && item.orcamentoTotalPeriodo + item.recargasTotalPeriodo !== item.orcamento * mesesSelecionados.length && (
+                           <span style={{ fontSize: 10, color: '#660099', fontWeight: 700 }}>
+                             *Inclui ajustes/recargas do mês
+                           </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -266,7 +273,7 @@ export default function AbastecimentoOrcamentoPage() {
                         R$ {(mesesSelecionados.length > 0 ? item.saldo : item.saldoAcumuladoTotal).toFixed(2)}
                       </div>
                       <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', marginTop: 4 }}>
-                        (Teto: R$ {(mesesSelecionados.length > 0 ? item.orcamentoTotalPeriodo + item.recargasTotalPeriodo : item.orcamentoAcumulado).toFixed(2)})
+                        (Restante p/ uso)
                       </div>
                     </div>
                   </div>
@@ -405,7 +412,7 @@ export default function AbastecimentoOrcamentoPage() {
             <form onSubmit={handleSalvarEdicao} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <p style={{ margin: 0, fontSize: 14, color: '#475569', lineHeight: 1.5 }}>
                 Ajustando a verba de abastecimento para <strong>{editModal.nome}</strong>.<br/>
-                Valor base atual: <strong>R$ {editModal.orcamentoAtual.toFixed(2)}</strong>.
+                Valor recorrente: <strong>R$ {editModal.orcamentoAtual.toFixed(2)}</strong>.
               </p>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
