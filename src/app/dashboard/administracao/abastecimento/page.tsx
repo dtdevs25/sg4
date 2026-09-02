@@ -16,6 +16,7 @@ export default function AbastecimentoOrcamentoPage() {
   // Modal de edição de orçamento
   const [editModal, setEditModal] = useState<{ id: string, nome: string, orcamentoAtual: number } | null>(null)
   const [novoValor, setNovoValor] = useState('')
+  const [tipoEdicao, setTipoEdicao] = useState<'mes' | 'definitivo'>('mes')
 
   // Modal de Recarga
   const [recargaModal, setRecargaModal] = useState<{ id: string, nome: string } | null>(null)
@@ -70,13 +71,30 @@ export default function AbastecimentoOrcamentoPage() {
     if (isNaN(valor) || valor < 0) return setNotification({ type: 'error', title: 'Valor Inválido', message: 'O valor não pode ser negativo.' })
     
     startTransition(async () => {
-      const res = await updateOrcamentoTecnico(editModal.id, valor)
-      if (res.success) {
-        setEditModal(null)
-        setNotification({ type: 'success', title: 'Sucesso', message: 'Orçamento atualizado com sucesso!' })
-        load()
+      if (tipoEdicao === 'definitivo') {
+        const res = await updateOrcamentoTecnico(editModal.id, valor)
+        if (res.success) {
+          setEditModal(null)
+          setNotification({ type: 'success', title: 'Sucesso', message: 'Orçamento atualizado para todos os meses!' })
+          load()
+        } else {
+          setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao atualizar orçamento' })
+        }
       } else {
-        setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao atualizar orçamento' })
+        const diferenca = valor - editModal.orcamentoAtual
+        if (diferenca === 0) {
+          setEditModal(null)
+          return
+        }
+        
+        const res = await createRecargaExtra(editModal.id, diferenca, `Ajuste manual de orçamento (de R$ ${editModal.orcamentoAtual} para R$ ${valor})`)
+        if (res.success) {
+          setEditModal(null)
+          setNotification({ type: 'success', title: 'Sucesso', message: 'Ajuste aplicado apenas para este mês!' })
+          load()
+        } else {
+          setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao ajustar orçamento do mês' })
+        }
       }
     })
   }
@@ -377,9 +395,33 @@ export default function AbastecimentoOrcamentoPage() {
             </div>
             <form onSubmit={handleSalvarEdicao} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <p style={{ margin: 0, fontSize: 14, color: '#475569', lineHeight: 1.5 }}>
-                Alterando a verba mensal para <strong>{editModal.nome}</strong>. <br/>
-                O padrão do sistema é R$ 800,00.
+                Ajustando a verba de abastecimento para <strong>{editModal.nome}</strong>.<br/>
+                Valor base atual: <strong>R$ {editModal.orcamentoAtual.toFixed(2)}</strong>.
               </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#334155', cursor: 'pointer', fontWeight: tipoEdicao === 'mes' ? 700 : 500 }}>
+                  <input 
+                    type="radio" 
+                    name="tipoEdicao" 
+                    checked={tipoEdicao === 'mes'} 
+                    onChange={() => setTipoEdicao('mes')} 
+                    style={{ accentColor: '#660099' }}
+                  />
+                  Apenas este mês (Ajuste pontual)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#334155', cursor: 'pointer', fontWeight: tipoEdicao === 'definitivo' ? 700 : 500 }}>
+                  <input 
+                    type="radio" 
+                    name="tipoEdicao" 
+                    checked={tipoEdicao === 'definitivo'} 
+                    onChange={() => setTipoEdicao('definitivo')}
+                    style={{ accentColor: '#660099' }}
+                  />
+                  Definitivo (Muda a base para todos os meses)
+                </label>
+              </div>
+
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>NOVO VALOR (R$)</label>
                 <input 
