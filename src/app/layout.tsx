@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/Providers'
 import { DeployWatcher } from '@/components/DeployWatcher'
+import { InactivityWatcher } from '@/components/InactivityWatcher'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           {children}
           <DeployWatcher />
+          <InactivityWatcher />
         </Providers>
       </body>
     </html>
