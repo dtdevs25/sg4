@@ -46,8 +46,10 @@ export async function checkAndTriggerMetaNotification(
       where: { id: tecnicoId }
     })
     
-    // Se o técnico não existe ou não conta para metas, sai
-    if (!tecnico || tecnico.contaMeta === false) return { success: true, triggered: false }
+    // Se o técnico não existe, não conta para metas, OU está inativo → sai
+    if (!tecnico || tecnico.contaMeta === false || tecnico.ativo === false) {
+      return { success: true, triggered: false, reason: tecnico?.ativo === false ? 'Tecnico inativo' : 'Nao conta meta' }
+    }
 
     // Verifica se já notificou
     const jaNotificou = await prisma.notificacaoMeta.findUnique({
@@ -61,6 +63,18 @@ export async function checkAndTriggerMetaNotification(
     })
 
     if (jaNotificou) return { success: true, triggered: false, reason: 'Already notified' }
+
+    // Verifica horário comercial do Brasil (UTC-3): 08:00 às 17:00
+    const agora = new Date()
+    const horaBrasil = new Date(agora.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
+    const hora = horaBrasil.getHours()
+    const isHorarioComercial = hora >= 8 && hora < 17
+
+    if (!isHorarioComercial) {
+      // Fora do horário comercial: NÃO dispara webhook, NÃO registra no BD
+      // Assim a próxima vez que alguém acessar dentro do horário, o disparo será feito
+      return { success: true, triggered: false, reason: `Fora do horario comercial (${hora}h Brasil)` }
+    }
 
     // Dispara webhook
     const webhookUrl = process.env.N8N_WEBHOOK_METAS

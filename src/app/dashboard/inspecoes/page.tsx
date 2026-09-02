@@ -267,7 +267,7 @@ export default function InspecoesPage() {
         const mesAno = `${String(currentMonthIdx + 1).padStart(2, '0')}/${currentJsDate.getFullYear()}`
         
         newData.forEach((t: any) => {
-          if (t[currentMonthKey] >= targetMeta && t.contaMeta !== false) {
+          if (t[currentMonthKey] >= targetMeta && t.contaMeta !== false && t.ativo !== false) {
              checkAndTriggerMetaNotification(t.id, 'INSPECAO', mesAno, t[currentMonthKey], targetMeta).catch(console.error)
           }
         })
