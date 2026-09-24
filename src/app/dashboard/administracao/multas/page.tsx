@@ -131,6 +131,11 @@ export default function MultasAvariasPage() {
   const [anoFiltro, setAnoFiltro] = useState<number | 'ALL'>(new Date().getFullYear())
   const [mesFiltro, setMesFiltro] = useState<string>('ALL')
 
+  // Picker de técnico no modal
+  const [showTecnicoPicker, setShowTecnicoPicker] = useState(false)
+  const [tecnicoPickerSearch, setTecnicoPickerSearch] = useState('')
+  const [mostrarInativos, setMostrarInativos] = useState(false)
+
   // Modais
   const [modalAberto, setModalAberto] = useState(false)
   const [itemEdicao, setItemEdicao] = useState<MultaAvariaItem | null>(null)
@@ -226,6 +231,9 @@ export default function MultasAvariasPage() {
     setFotoFileName(null)
     setFotoFileType(null)
     setFotoUrlExistente(null)
+    setShowTecnicoPicker(false)
+    setTecnicoPickerSearch('')
+    setMostrarInativos(false)
     setModalAberto(true)
   }
 
@@ -246,6 +254,9 @@ export default function MultasAvariasPage() {
     setFotoFileName(null)
     setFotoFileType(null)
     setFotoUrlExistente(item.fotoUrl || item.comprovanteUrl || null)
+    setShowTecnicoPicker(false)
+    setTecnicoPickerSearch('')
+    setMostrarInativos(false)
     setModalAberto(true)
   }
 
@@ -503,39 +514,31 @@ export default function MultasAvariasPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-          gap: 16,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))',
+          gap: 12,
         }}
       >
         {/* Total Ocorrências */}
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #f1f5f9',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #64748b',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#64748b',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-              }}
-            >
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Total Geral
             </span>
-            <FileText size={18} color="#64748b" />
+            <FileText size={16} color="#64748b" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#1e293b' }}>{stats.total}</div>
-          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{stats.total}</div>
+          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>
             R$ {stats.valorTotalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </span>
         </div>
@@ -544,31 +547,23 @@ export default function MultasAvariasPage() {
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #fef3c7',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #f59e0b',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#b45309',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-              }}
-            >
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Multas
             </span>
-            <AlertTriangle size={18} color="#f59e0b" />
+            <AlertTriangle size={16} color="#f59e0b" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#b45309' }}>{stats.qtdMultas}</div>
-          <span style={{ fontSize: 11, color: '#b45309', fontWeight: 700 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#b45309' }}>{stats.qtdMultas}</div>
+          <span style={{ fontSize: 10, color: '#b45309', fontWeight: 700 }}>
             R$ {stats.valorMultas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </span>
         </div>
@@ -577,31 +572,23 @@ export default function MultasAvariasPage() {
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #fee2e2',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #ef4444',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#b91c1c',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-              }}
-            >
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Avarias
             </span>
-            <Car size={18} color="#ef4444" />
+            <Car size={16} color="#ef4444" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#ef4444' }}>{stats.qtdAvarias}</div>
-          <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 700 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#ef4444' }}>{stats.qtdAvarias}</div>
+          <span style={{ fontSize: 10, color: '#ef4444', fontWeight: 700 }}>
             R$ {stats.valorAvarias.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </span>
         </div>
@@ -610,62 +597,46 @@ export default function MultasAvariasPage() {
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #fed7aa',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #ea580c',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#ea580c',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-              }}
-            >
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#ea580c', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Pendentes
             </span>
-            <Clock size={18} color="#ea580c" />
+            <Clock size={16} color="#ea580c" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#ea580c' }}>{stats.pendentes}</div>
-          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Aguardando ação</span>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#ea580c' }}>{stats.pendentes}</div>
+          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>Aguardando ação</span>
         </div>
 
         {/* Concluídos */}
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #dcfce7',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #10b981',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#15803d',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5,
-              }}
-            >
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Concluídos / Pagos
             </span>
-            <CheckCircle2 size={18} color="#10b981" />
+            <CheckCircle2 size={16} color="#10b981" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#10b981' }}>{stats.concluidos}</div>
-          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Liquidados ou resolvidos</span>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }}>{stats.concluidos}</div>
+          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>Liquidados ou resolvidos</span>
         </div>
       </div>
 
@@ -1190,24 +1161,25 @@ export default function MultasAvariasPage() {
               flexDirection: 'column',
             }}
           >
-            {/* Header Modal */}
+            {/* Header Modal - Roxo */}
             <div
               style={{
-                padding: '20px 24px',
-                borderBottom: '1px solid #e2e8f0',
+                padding: '18px 24px',
+                background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+                borderRadius: '16px 16px 0 0',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div
                   style={{
                     width: 36,
                     height: 36,
                     borderRadius: 8,
-                    background: PURPLE_BG,
-                    color: PURPLE,
+                    background: 'rgba(255,255,255,0.15)',
+                    color: '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1215,13 +1187,18 @@ export default function MultasAvariasPage() {
                 >
                   <Car size={20} />
                 </div>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1e293b' }}>
-                  {itemEdicao ? 'Editar Ocorrência' : 'Cadastrar Nova Ocorrência'}
-                </h3>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                    {itemEdicao ? 'Editar Ocorrência' : 'Cadastrar Nova Ocorrência'}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+                    Multas e Avarias de Veículos
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setModalAberto(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: '#fff', borderRadius: 6, padding: 4, display: 'flex', alignItems: 'center' }}
               >
                 <X size={20} />
               </button>
@@ -1282,34 +1259,123 @@ export default function MultasAvariasPage() {
                 </div>
               </div>
 
-              {/* Técnico Responsável */}
+              {/* Técnico Responsável — Custom Picker com Avatar */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                  TÉCNICO RESPONSÁVEL *
-                </label>
-                <select
-                  value={formTecnicoId}
-                  onChange={(e) => handleSelectTecnico(e.target.value)}
-                  required
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>
+                    TÉCNICO RESPONSÁVEL *
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748b', cursor: 'pointer', fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={mostrarInativos}
+                      onChange={(e) => setMostrarInativos(e.target.checked)}
+                      style={{ accentColor: PURPLE }}
+                    />
+                    Incluir inativos
+                  </label>
+                </div>
+
+                {/* Campo de seleção atual */}
+                <button
+                  type="button"
+                  onClick={() => setShowTecnicoPicker(!showTecnicoPicker)}
                   style={{
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: 8,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: '#1e293b',
-                    outline: 'none',
+                    border: showTecnicoPicker ? `2px solid ${PURPLE}` : '1px solid #cbd5e1',
                     background: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    cursor: 'pointer',
+                    textAlign: 'left',
                   }}
                 >
-                  <option value="">Selecione o técnico...</option>
-                  {tecnicos.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nome} {t.veiculo ? `— [Veículo: ${t.veiculo}]` : ''} {t.ativo === false ? '(Inativo)' : ''}
-                    </option>
-                  ))}
-                </select>
+                  {formTecnicoId ? (() => {
+                    const t = tecnicos.find(x => x.id === formTecnicoId)
+                    return t ? (
+                      <>
+                        {t.fotoUrl ? (
+                          <img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: PURPLE_BG, color: PURPLE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
+                            {t.nome.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                          {t.veiculo && <div style={{ fontSize: 11, color: '#64748b' }}>{t.veiculo}</div>}
+                        </div>
+                        {!t.ativo && <span style={{ fontSize: 10, background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>Inativo</span>}
+                      </>
+                    ) : null
+                  })() : (
+                    <span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione o técnico responsável...</span>
+                  )}
+                  <ChevronDown size={16} color="#94a3b8" style={{ marginLeft: 'auto', flexShrink: 0, transform: showTecnicoPicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                </button>
+
+                {/* Dropdown de seleção */}
+                {showTecnicoPicker && (
+                  <div style={{
+                    border: `1px solid ${PURPLE}`,
+                    borderTop: 'none',
+                    borderRadius: '0 0 8px 8px',
+                    background: '#fff',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    maxHeight: 260,
+                    overflowY: 'auto',
+                    zIndex: 100,
+                  }}>
+                    <div style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, background: '#fff' }}>
+                      <input
+                        type="text"
+                        placeholder="Buscar técnico..."
+                        value={tecnicoPickerSearch}
+                        onChange={(e) => setTecnicoPickerSearch(e.target.value)}
+                        autoFocus
+                        style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, outline: 'none' }}
+                      />
+                    </div>
+                    {tecnicos
+                      .filter(t => mostrarInativos ? true : t.ativo !== false)
+                      .filter(t => t.nome.toLowerCase().includes(tecnicoPickerSearch.toLowerCase()))
+                      .map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => { handleSelectTecnico(t.id); setShowTecnicoPicker(false); setTecnicoPickerSearch('') }}
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            background: formTecnicoId === t.id ? PURPLE_BG : 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            borderBottom: '1px solid #f8fafc',
+                          }}
+                        >
+                          {t.fotoUrl ? (
+                            <img src={t.fotoUrl} alt={t.nome} style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 34, height: 34, borderRadius: '50%', background: PURPLE_BG, color: PURPLE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
+                              {t.nome.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: formTecnicoId === t.id ? PURPLE : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                            {t.veiculo && <div style={{ fontSize: 11, color: '#64748b' }}>{t.veiculo}</div>}
+                          </div>
+                          {!t.ativo && <span style={{ fontSize: 10, background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>Inativo</span>}
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
 
               {/* Linha dupla: Placa/Veículo + Data */}

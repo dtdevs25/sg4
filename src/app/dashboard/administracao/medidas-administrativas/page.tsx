@@ -174,6 +174,11 @@ export default function MedidasAdministrativasPage() {
   const [anoFiltro, setAnoFiltro] = useState<number | 'ALL'>(new Date().getFullYear())
   const [mesFiltro, setMesFiltro] = useState<string>('ALL')
 
+  // Picker de colaborador no modal
+  const [showTecnicoPicker, setShowTecnicoPicker] = useState(false)
+  const [tecnicoPickerSearch, setTecnicoPickerSearch] = useState('')
+  const [mostrarInativos, setMostrarInativos] = useState(false)
+
   // Modais
   const [modalAberto, setModalAberto] = useState(false)
   const [itemEdicao, setItemEdicao] = useState<MedidaItem | null>(null)
@@ -276,6 +281,9 @@ export default function MedidasAdministrativasPage() {
     setDocFileType(null)
     setDocUrlExistente(null)
     setMultasDisponiveis([])
+    setShowTecnicoPicker(false)
+    setTecnicoPickerSearch('')
+    setMostrarInativos(false)
     setModalAberto(true)
   }
 
@@ -296,6 +304,9 @@ export default function MedidasAdministrativasPage() {
     setDocFileName(null)
     setDocFileType(null)
     setDocUrlExistente(item.documentoUrl || null)
+    setShowTecnicoPicker(false)
+    setTecnicoPickerSearch('')
+    setMostrarInativos(false)
 
     if (item.tecnicoId) {
       carregarMultasDoTecnico(item.tecnicoId)
@@ -548,123 +559,123 @@ export default function MedidasAdministrativasPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 16,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))',
+          gap: 12,
         }}
       >
         {/* Total Geral */}
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #f1f5f9',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #64748b',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
               Total de Medidas
             </span>
-            <FileText size={18} color="#64748b" />
+            <FileText size={16} color="#64748b" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#1e293b' }}>{stats.total}</div>
-          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Registros no período</span>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#1e293b' }}>{stats.total}</div>
+          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>Registros no período</span>
         </div>
 
         {/* Advertências Escritas */}
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #fee2e2',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #dc2626',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase' }}>
               Escritas
             </span>
-            <FileCheck size={18} color="#dc2626" />
+            <FileCheck size={16} color="#dc2626" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#dc2626' }}>{stats.escritas}</div>
-          <span style={{ fontSize: 11, color: '#991b1b', fontWeight: 600 }}>Advertências formais</span>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#dc2626' }}>{stats.escritas}</div>
+          <span style={{ fontSize: 10, color: '#991b1b', fontWeight: 600 }}>Advertências formais</span>
         </div>
 
         {/* Advertências Verbais */}
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #fef3c7',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #d97706',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#92400e', textTransform: 'uppercase' }}>
               Verbais
             </span>
-            <AlertTriangle size={18} color="#d97706" />
+            <AlertTriangle size={16} color="#d97706" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#d97706' }}>{stats.verbais}</div>
-          <span style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>Registros de alinhamento</span>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#d97706' }}>{stats.verbais}</div>
+          <span style={{ fontSize: 10, color: '#92400e', fontWeight: 600 }}>Registros de alinhamento</span>
         </div>
 
         {/* Suspensões */}
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #f3e8ff',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #9333ea',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#6b21a8', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#6b21a8', textTransform: 'uppercase' }}>
               Suspensões
             </span>
-            <ShieldAlert size={18} color="#9333ea" />
+            <ShieldAlert size={16} color="#9333ea" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#9333ea' }}>{stats.suspensoes}</div>
-          <span style={{ fontSize: 11, color: '#6b21a8', fontWeight: 600 }}>Casos gravíssimos</span>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#9333ea' }}>{stats.suspensoes}</div>
+          <span style={{ fontSize: 10, color: '#6b21a8', fontWeight: 600 }}>Casos gravíssimos</span>
         </div>
 
         {/* Vinculadas a Multas */}
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
+            borderRadius: 10,
             border: '1px solid #dbeafe',
-            padding: '18px 20px',
+            padding: '14px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
             borderLeft: '4px solid #2563eb',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e40af', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#1e40af', textTransform: 'uppercase' }}>
               Com Multa / Trânsito
             </span>
-            <Car size={18} color="#2563eb" />
+            <Car size={16} color="#2563eb" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#2563eb' }}>{stats.comMulta}</div>
-          <span style={{ fontSize: 11, color: '#1e40af', fontWeight: 600 }}>Infrações com veículo</span>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#2563eb' }}>{stats.comMulta}</div>
+          <span style={{ fontSize: 10, color: '#1e40af', fontWeight: 600 }}>Infrações com veículo</span>
         </div>
       </div>
 
@@ -1194,24 +1205,25 @@ export default function MedidasAdministrativasPage() {
               flexDirection: 'column',
             }}
           >
-            {/* Header Modal */}
+            {/* Header Modal - Roxo */}
             <div
               style={{
-                padding: '20px 24px',
-                borderBottom: '1px solid #e2e8f0',
+                padding: '18px 24px',
+                background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+                borderRadius: '16px 16px 0 0',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div
                   style={{
                     width: 36,
                     height: 36,
                     borderRadius: 8,
-                    background: PURPLE_BG,
-                    color: PURPLE,
+                    background: 'rgba(255,255,255,0.15)',
+                    color: '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1219,13 +1231,18 @@ export default function MedidasAdministrativasPage() {
                 >
                   <ShieldAlert size={20} />
                 </div>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1e293b' }}>
-                  {itemEdicao ? 'Editar Medida Administrativa' : 'Aplicar Medida Administrativa'}
-                </h3>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                    {itemEdicao ? 'Editar Medida Administrativa' : 'Aplicar Medida Administrativa'}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+                    Controle Disciplinar de Colaboradores
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setModalAberto(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: '#fff', borderRadius: 6, padding: 4, display: 'flex', alignItems: 'center' }}
               >
                 <X size={20} />
               </button>
@@ -1310,34 +1327,123 @@ export default function MedidasAdministrativasPage() {
                 </div>
               </div>
 
-              {/* Colaborador / Técnico */}
+              {/* Colaborador / Técnico — Custom Picker com Avatar */}
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                  COLABORADOR / TÉCNICO *
-                </label>
-                <select
-                  value={formTecnicoId}
-                  onChange={(e) => handleSelectTecnico(e.target.value)}
-                  required
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>
+                    COLABORADOR / TÉCNICO *
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748b', cursor: 'pointer', fontWeight: 600 }}>
+                    <input
+                      type="checkbox"
+                      checked={mostrarInativos}
+                      onChange={(e) => setMostrarInativos(e.target.checked)}
+                      style={{ accentColor: PURPLE }}
+                    />
+                    Incluir inativos
+                  </label>
+                </div>
+
+                {/* Botão de seleção atual */}
+                <button
+                  type="button"
+                  onClick={() => setShowTecnicoPicker(!showTecnicoPicker)}
                   style={{
                     width: '100%',
                     padding: '10px 14px',
                     borderRadius: 8,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: '#1e293b',
-                    outline: 'none',
+                    border: showTecnicoPicker ? `2px solid ${PURPLE}` : '1px solid #cbd5e1',
                     background: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    cursor: 'pointer',
+                    textAlign: 'left',
                   }}
                 >
-                  <option value="">Selecione o colaborador...</option>
-                  {tecnicos.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.nome} {t.veiculo ? `— [Veículo: ${t.veiculo}]` : ''} {t.ativo === false ? '(Inativo)' : ''}
-                    </option>
-                  ))}
-                </select>
+                  {formTecnicoId ? (() => {
+                    const t = tecnicos.find((x: any) => x.id === formTecnicoId)
+                    return t ? (
+                      <>
+                        {t.fotoUrl ? (
+                          <img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: PURPLE_BG, color: PURPLE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
+                            {t.nome.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                          {t.veiculo && <div style={{ fontSize: 11, color: '#64748b' }}>{t.veiculo}</div>}
+                        </div>
+                        {t.ativo === false && <span style={{ fontSize: 10, background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>Inativo</span>}
+                      </>
+                    ) : null
+                  })() : (
+                    <span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione o colaborador...</span>
+                  )}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{ marginLeft: 'auto', flexShrink: 0, transform: showTecnicoPicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9" /></svg>
+                </button>
+
+                {/* Dropdown de seleção */}
+                {showTecnicoPicker && (
+                  <div style={{
+                    border: `1px solid ${PURPLE}`,
+                    borderTop: 'none',
+                    borderRadius: '0 0 8px 8px',
+                    background: '#fff',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    maxHeight: 260,
+                    overflowY: 'auto',
+                    zIndex: 100,
+                  }}>
+                    <div style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, background: '#fff' }}>
+                      <input
+                        type="text"
+                        placeholder="Buscar colaborador..."
+                        value={tecnicoPickerSearch}
+                        onChange={(e) => setTecnicoPickerSearch(e.target.value)}
+                        autoFocus
+                        style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, outline: 'none' }}
+                      />
+                    </div>
+                    {tecnicos
+                      .filter((t: any) => mostrarInativos ? true : t.ativo !== false)
+                      .filter((t: any) => t.nome.toLowerCase().includes(tecnicoPickerSearch.toLowerCase()))
+                      .map((t: any) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => { handleSelectTecnico(t.id); setShowTecnicoPicker(false); setTecnicoPickerSearch('') }}
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            background: formTecnicoId === t.id ? PURPLE_BG : 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            borderBottom: '1px solid #f8fafc',
+                          }}
+                        >
+                          {t.fotoUrl ? (
+                            <img src={t.fotoUrl} alt={t.nome} style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 34, height: 34, borderRadius: '50%', background: PURPLE_BG, color: PURPLE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, flexShrink: 0 }}>
+                              {t.nome.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: formTecnicoId === t.id ? PURPLE : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                            {t.veiculo && <div style={{ fontSize: 11, color: '#64748b' }}>{t.veiculo}</div>}
+                          </div>
+                          {t.ativo === false && <span style={{ fontSize: 10, background: '#fee2e2', color: '#ef4444', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>Inativo</span>}
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
 
               {/* Data e Quem Aplicou */}
