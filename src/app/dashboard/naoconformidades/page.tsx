@@ -499,7 +499,9 @@ export default function NaoConformidadesPage() {
       total += t.total
     })
 
-    return { pendentesVencidas, pendentesNaoVencidas, emProcessamento, resolvidos, total }
+    const percentualAtingido = total > 0 ? Math.round((resolvidos / total) * 100) : 0
+
+    return { pendentesVencidas, pendentesNaoVencidas, emProcessamento, resolvidos, total, percentualAtingido }
   }, [consolidadoData])
 
   // Pagination for Consolidado
@@ -1030,7 +1032,7 @@ export default function NaoConformidadesPage() {
                   {selectedMonths.length} MÊS(ES)
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 12 }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Pendentes Vencidas</span>
                   <span style={{ fontSize: 22, fontWeight: 800, color: '#ef4444' }}>{statsConsolidado.pendentesVencidas}</span>
@@ -1050,6 +1052,10 @@ export default function NaoConformidadesPage() {
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Total Geral</span>
                   <span style={{ fontSize: 22, fontWeight: 800, color: '#334155' }}>{statsConsolidado.total}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>% Atingido</span>
+                  <span style={{ fontSize: 22, fontWeight: 800, color: PURPLE }}>{statsConsolidado.percentualAtingido}%</span>
                 </div>
               </div>
               <span style={{ display: 'block', fontSize: 10, color: '#94a3b8', marginTop: 12, fontWeight: 600, textAlign: 'center' }}>📊 Clique para ver gráfico mês a mês</span>
