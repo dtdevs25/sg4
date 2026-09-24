@@ -24,11 +24,38 @@ function getMetaMessage(nome: string, tipo: string, mesAno: string, realizado: n
   return `Olá *${primeiroNome}*! 🎉\n\nPassando para parabenizar você: sua meta de *${tipo}* do mês de ${mesAno} foi atingida com sucesso!\n\nVocê realizou *${realizado}* ${emoji} (a meta era ${meta}).\n\nContinue com o excelente trabalho! 🚀`
 }
 
-function getSaudacao() {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'Bom dia'
-  if (hour < 18) return 'Boa tarde'
-  return 'Boa noite'
+/**
+ * Retorna o horário de Brasília (UTC-3) independente do fuso do servidor/Docker.
+ * Garante verificação de dia útil (Segunda a Sexta), horário comercial (08h às 17h) e saudação exata.
+ */
+function getHorarioBrasilia() {
+  const agora = new Date()
+  // Fuso horário oficial de Brasília: UTC - 3 horas (-180 minutos)
+  const brasiliaOffsetMs = -3 * 60 * 60 * 1000
+  const utcMs = agora.getTime() + agora.getTimezoneOffset() * 60 * 1000
+  const dataBrasil = new Date(utcMs + brasiliaOffsetMs)
+
+  const diaSemana = dataBrasil.getDay() // 0 = Domingo, 1 = Segunda, ..., 5 = Sexta, 6 = Sábado
+  const hora = dataBrasil.getHours()
+
+  const isDiaUtil = diaSemana >= 1 && diaSemana <= 5 // Apenas de Segunda a Sexta
+  const isHorarioComercial = isDiaUtil && hora >= 8 && hora < 17
+
+  // Saudação calculada com base na hora real de Brasília no momento exato do disparo:
+  let saudacao = 'Bom dia'
+  if (hora >= 12 && hora < 18) {
+    saudacao = 'Boa tarde'
+  } else if (hora >= 18 || hora < 5) {
+    saudacao = 'Boa noite'
+  }
+
+  return {
+    diaSemana,
+    hora,
+    isDiaUtil,
+    isHorarioComercial,
+    saudacao,
+  }
 }
 
 export async function checkAndTriggerMetaNotification(
@@ -39,86 +66,101 @@ export async function checkAndTriggerMetaNotification(
   meta: number
 ) {
   try {
-    // Se não bateu a meta, não faz nada
+    // 1. Se não bateu a meta, não faz nada
     if (realizado < meta) return { success: true, triggered: false }
 
     const tecnico = await prisma.tecnico.findUnique({
-      where: { id: tecnicoId }
+      where: { id: tecnicoId },
     })
-    
+
     // Se o técnico não existe, não conta para metas, OU está inativo → sai
     if (!tecnico || tecnico.contaMeta === false || tecnico.ativo === false) {
-      return { success: true, triggered: false, reason: tecnico?.ativo === false ? 'Tecnico inativo' : 'Nao conta meta' }
+      return {
+        success: true,
+        triggered: false,
+        reason: tecnico?.ativo === false ? 'Tecnico inativo' : 'Nao conta meta',
+      }
     }
 
-    // Verifica se já notificou
-    const jaNotificou = await prisma.notificacaoMeta.findUnique({
-      where: {
-        tecnicoId_tipo_mesAno: {
-          tecnicoId,
-          tipo,
-          mesAno
-        }
-      }
-    })
+    // Normaliza mesAno para "MM/YYYY" sempre (ex: "9/2026" -> "09/2026")
+    const partesMesAno = mesAno.split('/')
+    const mesNorm = partesMesAno[0].padStart(2, '0')
+    const anoNorm = partesMesAno[1] || String(new Date().getFullYear())
+    const mesAnoNorm = `${mesNorm}/${anoNorm}`
 
-    if (jaNotificou) return { success: true, triggered: false, reason: 'Already notified' }
-
-    // Verifica horário comercial do Brasil (UTC-3): 08:00 às 17:00
-    const agora = new Date()
-    const horaBrasil = new Date(agora.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
-    const hora = horaBrasil.getHours()
-    const isHorarioComercial = hora >= 8 && hora < 17
+    // 2. Validação de Dia Útil e Horário Comercial (Segunda a Sexta, 08:00 às 17:00 em Brasília)
+    const { isHorarioComercial, isDiaUtil, hora, saudacao } = getHorarioBrasilia()
 
     if (!isHorarioComercial) {
-      // Fora do horário comercial: NÃO dispara webhook, NÃO registra no BD
-      // Assim a próxima vez que alguém acessar dentro do horário, o disparo será feito
-      return { success: true, triggered: false, reason: `Fora do horario comercial (${hora}h Brasil)` }
+      // Fora do horário ou fim de semana: NÃO dispara webhook, NÃO registra no BD.
+      // Assim, o envio ocorrerá no próximo dia útil entre 08h e 17h quando o sistema for acessado.
+      return {
+        success: true,
+        triggered: false,
+        reason: !isDiaUtil
+          ? 'Final de semana (mensagens só são enviadas de segunda a sexta-feira)'
+          : `Fora do horário comercial (${hora}h Brasília). Mensagem será enviada no próximo horário útil.`,
+      }
     }
 
-    // Dispara webhook
+    // 3. Prevenção rigorosa de duplicidade (Lock Atômico no PostgreSQL):
+    // Tenta registrar a notificação ANTES de disparar o webhook.
+    // Como a tabela tem @@unique([tecnicoId, tipo, mesAno]), o PostgreSQL garante
+    // que apenas UMA chamada conseguirá inserir. Qualquer requisição concorrente
+    // falhará com erro P2002 e será abortada imediatamente sem disparar o webhook.
+    try {
+      await prisma.notificacaoMeta.create({
+        data: {
+          tecnicoId,
+          tipo,
+          mesAno: mesAnoNorm,
+        },
+      })
+    } catch (e: any) {
+      // Se já existe (P2002 = Unique constraint violation), significa que já foi notificado
+      if (e?.code === 'P2002') {
+        return {
+          success: true,
+          triggered: false,
+          reason: `Já notificado para meta de ${tipo} em ${mesAnoNorm}`,
+        }
+      }
+      throw e
+    }
+
+    // 4. Dispara webhook para o N8N com a saudação atualizada (sempre 'Bom dia' ou 'Boa tarde')
     const webhookUrl = process.env.N8N_WEBHOOK_METAS
     if (webhookUrl) {
       try {
         const payload = {
           tecnicoId: tecnico.id,
-          nome: tecnico.nome.split(' ')[0], // Envia só o primeiro nome como na sua mensagem
+          nome: tecnico.nome.split(' ')[0], // Envia só o primeiro nome
           NumeroDestino: formatWhatsAppNumber(tecnico.telefone),
-          saudacao: getSaudacao(),
+          saudacao, // Sempre 'Bom dia' (08h-11h59) ou 'Boa tarde' (12h-16h59)
           tipoMeta: tipo,
-          mesAno,
+          mesAno: mesAnoNorm,
           realizado,
           meta,
-          percentual: (realizado / meta * 100).toFixed(0) + '%'
+          percentual: (realizado / meta * 100).toFixed(0) + '%',
         }
-        
+
         // Timeout de segurança
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
-        
+        const timeoutId = setTimeout(() => controller.abort(), 8000)
+
         await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-          signal: controller.signal
+          signal: controller.signal,
         })
-        
+
         clearTimeout(timeoutId)
       } catch (err) {
         console.error(`Falha ao disparar N8N Meta para ${tecnico.nome}:`, err)
-        // Optamos por registrar a notificação no BD igual, 
-        // para não ficar retentando em loop na mesma sincronização
+        // Mantém registrado no banco para não gerar loop de spam se o N8N demorar a responder
       }
     }
-
-    // Registra que a notificação foi enviada (ou processada)
-    await prisma.notificacaoMeta.create({
-      data: {
-        tecnicoId,
-        tipo,
-        mesAno
-      }
-    })
 
     return { success: true, triggered: true }
   } catch (error) {
@@ -134,11 +176,11 @@ export async function testN8NMetasWebhook(telefoneDestino?: string, tecnicoId?: 
       return { success: false, error: 'A variável de ambiente N8N_WEBHOOK_METAS não está configurada no servidor.' }
     }
 
-    let tec;
+    let tec
     if (tecnicoId) {
       tec = await prisma.tecnico.findUnique({
         where: { id: tecnicoId },
-        select: { id: true, nome: true, telefone: true }
+        select: { id: true, nome: true, telefone: true },
       })
     }
 
@@ -146,29 +188,30 @@ export async function testN8NMetasWebhook(telefoneDestino?: string, tecnicoId?: 
     if (!tec) {
       tec = await prisma.tecnico.findFirst({
         where: { ativo: true },
-        select: { id: true, nome: true, telefone: true }
+        select: { id: true, nome: true, telefone: true },
       })
     }
 
     const nomeTecnico = tec?.nome || 'Técnico Teste'
     const telefoneFinal = telefoneDestino || tec?.telefone || '11999999999'
+    const { saudacao } = getHorarioBrasilia()
 
     const payload = {
       tecnicoId: tec?.id || 'teste-metas-123',
       nome: nomeTecnico.split(' ')[0], // Envia só o primeiro nome
       NumeroDestino: formatWhatsAppNumber(telefoneFinal),
-      saudacao: getSaudacao(),
+      saudacao,
       tipoMeta: 'DSS',
       mesAno: '08/2026',
       realizado: 8,
       meta: 8,
-      percentual: '100%'
+      percentual: '100%',
     }
 
     const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     })
 
     if (!res.ok) {
@@ -181,4 +224,3 @@ export async function testN8NMetasWebhook(telefoneDestino?: string, tecnicoId?: 
     return { success: false, error: 'Falha ao conectar na URL do webhook.' }
   }
 }
-
