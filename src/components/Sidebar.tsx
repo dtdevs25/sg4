@@ -42,6 +42,8 @@ const NAV: NavItemType[] = [
     label: 'Administração', icon: ShieldAlert,
     subItems: [
       { href: '/dashboard/administracao/abastecimento', label: 'Abastecimento' },
+      { href: '/dashboard/administracao/multas', label: 'Multas e Avarias' },
+      { href: '/dashboard/administracao/medidas-administrativas', label: 'Medidas Administrativas' },
       { href: '/dashboard/administracao/logs', label: 'Logs' },
       // { href: '/dashboard/administracao/programacao', label: 'Programação' },
       { href: '/dashboard/administracao/relatorios', label: 'Relatórios' },

@@ -1,0 +1,1843 @@
+'use client'
+
+import { useState, useEffect, useMemo, useTransition, useRef } from 'react'
+import {
+  ShieldAlert,
+  FileText,
+  AlertTriangle,
+  Search,
+  PlusCircle,
+  Clock,
+  CheckCircle2,
+  Calendar,
+  Eye,
+  Trash2,
+  Edit2,
+  Loader2,
+  X,
+  UploadCloud,
+  Car,
+  Link as LinkIcon,
+  User,
+  HelpCircle,
+  FileCheck
+} from 'lucide-react'
+import {
+  getMedidasAdministrativas,
+  createMedidaAdministrativa,
+  updateMedidaAdministrativa,
+  deleteMedidaAdministrativa,
+  uploadDocumentoMedida,
+  getMultasParaVinculo
+} from '@/app/actions/medidasAdministrativas'
+import { getTecnicos } from '@/app/actions/tecnicos'
+
+const PURPLE = '#660099'
+const PURPLE_BG = 'rgba(102,0,153,0.08)'
+
+type MedidaItem = {
+  id: string
+  tecnicoId: string
+  tipo: 'ADVERTENCIA_VERBAL' | 'ADVERTENCIA_ESCRITA' | 'SUSPENSAO' | 'ORIENTACAO_FEEDBACK'
+  data: string
+  motivo: string
+  descricao: string | null
+  status: 'PENDENTE_ASSINATURA' | 'APLICADA' | 'CANCELADA'
+  aplicadoPor: string | null
+  multaAvariaId: string | null
+  documentoUrl: string | null
+  createdAt: string
+  tecnico?: {
+    id: string
+    nome: string
+    fotoUrl: string | null
+    veiculo: string | null
+    ativo: boolean
+  }
+  multaAvaria?: {
+    id: string
+    tipo: 'MULTA' | 'AVARIA'
+    dataOcorrencia: string
+    valor: number
+    placaVeiculo: string | null
+    descricao: string | null
+  } | null
+}
+
+type MultaOption = {
+  id: string
+  tipo: string
+  dataOcorrencia: string
+  valor: number
+  placaVeiculo: string | null
+  descricao: string | null
+  tecnico?: { nome: string }
+}
+
+const TIPO_CONFIG: Record<
+  string,
+  { label: string; bg: string; text: string; border: string; iconColor: string }
+> = {
+  ADVERTENCIA_ESCRITA: {
+    label: 'Advertência Escrita',
+    bg: '#fee2e2',
+    text: '#991b1b',
+    border: '#fca5a5',
+    iconColor: '#dc2626',
+  },
+  ADVERTENCIA_VERBAL: {
+    label: 'Advertência Verbal',
+    bg: '#fef3c7',
+    text: '#92400e',
+    border: '#fcd34d',
+    iconColor: '#d97706',
+  },
+  SUSPENSAO: {
+    label: 'Suspensão',
+    bg: '#f3e8ff',
+    text: '#6b21a8',
+    border: '#d8b4fe',
+    iconColor: '#9333ea',
+  },
+  ORIENTACAO_FEEDBACK: {
+    label: 'Orientação / Feedback',
+    bg: '#e0f2fe',
+    text: '#075985',
+    border: '#7dd3fc',
+    iconColor: '#0284c7',
+  },
+}
+
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; bg: string; text: string; border: string }
+> = {
+  APLICADA: {
+    label: 'Aplicada',
+    bg: '#dcfce7',
+    text: '#15803d',
+    border: '#86efac',
+  },
+  PENDENTE_ASSINATURA: {
+    label: 'Pendente de Assinatura',
+    bg: '#fef9c3',
+    text: '#854d0e',
+    border: '#fde047',
+  },
+  CANCELADA: {
+    label: 'Cancelada',
+    bg: '#f1f5f9',
+    text: '#64748b',
+    border: '#cbd5e1',
+  },
+}
+
+const MOTIVOS_COMUNS = [
+  'Infração de Trânsito',
+  'Excesso de Velocidade no Veículo da Empresa',
+  'Avaria no Veículo sem Comunicação Imediata',
+  'Uso Indevido do Veículo da Frota',
+  'Não Utilização de EPI Obrigatório',
+  'Descumprimento de Procedimento Operacional / Regras de Segurança',
+  'Ausência Injustificada ou Atraso Reiterado',
+  'Outro Motivo',
+]
+
+const MESES = [
+  { value: 'ALL', label: 'Todos os Meses' },
+  { value: '1', label: 'Janeiro' },
+  { value: '2', label: 'Fevereiro' },
+  { value: '3', label: 'Março' },
+  { value: '4', label: 'Abril' },
+  { value: '5', label: 'Maio' },
+  { value: '6', label: 'Junho' },
+  { value: '7', label: 'Julho' },
+  { value: '8', label: 'Agosto' },
+  { value: '9', label: 'Setembro' },
+  { value: '10', label: 'Outubro' },
+  { value: '11', label: 'Novembro' },
+  { value: '12', label: 'Dezembro' },
+]
+
+export default function MedidasAdministrativasPage() {
+  const [itens, setItens] = useState<MedidaItem[]>([])
+  const [tecnicos, setTecnicos] = useState<any[]>([])
+  const [multasDisponiveis, setMultasDisponiveis] = useState<MultaOption[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isPending, startTransition] = useTransition()
+
+  // Filtros
+  const [search, setSearch] = useState('')
+  const [tipoFiltro, setTipoFiltro] = useState<string>('ALL')
+  const [statusFiltro, setStatusFiltro] = useState<string>('ALL')
+  const [tecnicoFiltro, setTecnicoFiltro] = useState<string>('ALL')
+  const [anoFiltro, setAnoFiltro] = useState<number | 'ALL'>(new Date().getFullYear())
+  const [mesFiltro, setMesFiltro] = useState<string>('ALL')
+
+  // Modais
+  const [modalAberto, setModalAberto] = useState(false)
+  const [itemEdicao, setItemEdicao] = useState<MedidaItem | null>(null)
+  const [itemExclusao, setItemExclusao] = useState<MedidaItem | null>(null)
+  const [docVisualizar, setDocVisualizar] = useState<{ url: string; titulo: string } | null>(null)
+
+  // Formulário Modal
+  const [formTipo, setFormTipo] = useState<
+    'ADVERTENCIA_VERBAL' | 'ADVERTENCIA_ESCRITA' | 'SUSPENSAO' | 'ORIENTACAO_FEEDBACK'
+  >('ADVERTENCIA_ESCRITA')
+  const [formTecnicoId, setFormTecnicoId] = useState('')
+  const [formDataMedida, setFormDataMedida] = useState(new Date().toISOString().split('T')[0])
+  const [formMotivo, setFormMotivo] = useState(MOTIVOS_COMUNS[0])
+  const [formDescricao, setFormDescricao] = useState('')
+  const [formStatus, setFormStatus] = useState<'PENDENTE_ASSINATURA' | 'APLICADA' | 'CANCELADA'>('APLICADA')
+  const [formAplicadoPor, setFormAplicadoPor] = useState('')
+  const [formMultaAvariaId, setFormMultaAvariaId] = useState('')
+
+  // Upload Documento
+  const [docFileBase64, setDocFileBase64] = useState<string | null>(null)
+  const [docFileName, setDocFileName] = useState<string | null>(null)
+  const [docFileType, setDocFileType] = useState<string | null>(null)
+  const [docUrlExistente, setDocUrlExistente] = useState<string | null>(null)
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Toast
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    setToast({ type, message })
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  useEffect(() => {
+    carregarTecnicos()
+  }, [])
+
+  useEffect(() => {
+    carregarDados()
+  }, [anoFiltro, mesFiltro, tipoFiltro, statusFiltro, tecnicoFiltro])
+
+  async function carregarTecnicos() {
+    const res = await getTecnicos()
+    if (res.success && res.data) {
+      setTecnicos(res.data)
+    }
+  }
+
+  function carregarDados() {
+    setLoading(true)
+    startTransition(async () => {
+      const res = await getMedidasAdministrativas({
+        ano: anoFiltro === 'ALL' ? undefined : Number(anoFiltro),
+        mes: mesFiltro === 'ALL' ? undefined : Number(mesFiltro),
+        tipo: tipoFiltro,
+        status: statusFiltro,
+        tecnicoId: tecnicoFiltro,
+      })
+      if (res.success && res.data) {
+        setItens(res.data as any)
+      } else {
+        showToast(res.error || 'Erro ao carregar dados', 'error')
+      }
+      setLoading(false)
+    })
+  }
+
+  async function carregarMultasDoTecnico(tecnicoId?: string) {
+    const res = await getMultasParaVinculo(tecnicoId)
+    if (res.success && res.data) {
+      setMultasDisponiveis(res.data as any)
+    }
+  }
+
+  // Ao selecionar técnico no modal, buscar multas desse técnico
+  function handleSelectTecnico(tId: string) {
+    setFormTecnicoId(tId)
+    setFormMultaAvariaId('')
+    if (tId) {
+      carregarMultasDoTecnico(tId)
+    } else {
+      setMultasDisponiveis([])
+    }
+  }
+
+  // Abrir Modal para Criar
+  function handleAbrirCriar() {
+    setItemEdicao(null)
+    setFormTipo('ADVERTENCIA_ESCRITA')
+    setFormTecnicoId('')
+    setFormDataMedida(new Date().toISOString().split('T')[0])
+    setFormMotivo(MOTIVOS_COMUNS[0])
+    setFormDescricao('')
+    setFormStatus('APLICADA')
+    setFormAplicadoPor('')
+    setFormMultaAvariaId('')
+    setDocFileBase64(null)
+    setDocFileName(null)
+    setDocFileType(null)
+    setDocUrlExistente(null)
+    setMultasDisponiveis([])
+    setModalAberto(true)
+  }
+
+  // Abrir Modal para Editar
+  function handleAbrirEditar(item: MedidaItem) {
+    setItemEdicao(item)
+    setFormTipo(item.tipo)
+    setFormTecnicoId(item.tecnicoId)
+    setFormDataMedida(
+      item.data ? new Date(item.data).toISOString().split('T')[0] : ''
+    )
+    setFormMotivo(item.motivo || MOTIVOS_COMUNS[0])
+    setFormDescricao(item.descricao || '')
+    setFormStatus(item.status)
+    setFormAplicadoPor(item.aplicadoPor || '')
+    setFormMultaAvariaId(item.multaAvariaId || '')
+    setDocFileBase64(null)
+    setDocFileName(null)
+    setDocFileType(null)
+    setDocUrlExistente(item.documentoUrl || null)
+
+    if (item.tecnicoId) {
+      carregarMultasDoTecnico(item.tecnicoId)
+    }
+    setModalAberto(true)
+  }
+
+  // File Change
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('O documento selecionado é muito grande. O limite é 10MB.')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      setDocFileBase64(evt.target?.result as string)
+      setDocFileName(file.name)
+      setDocFileType(file.type)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Salvar
+  function handleSalvar(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formTecnicoId) {
+      alert('Selecione o colaborador/técnico.')
+      return
+    }
+    if (!formMotivo.trim()) {
+      alert('Informe o motivo da medida administrativa.')
+      return
+    }
+
+    startTransition(async () => {
+      let finalDocUrl = docUrlExistente
+
+      if (docFileBase64 && docFileName) {
+        setIsUploadingDoc(true)
+        const formData = new FormData()
+        formData.append('fileData', docFileBase64)
+        formData.append('fileName', docFileName)
+        formData.append('contentType', docFileType || 'application/pdf')
+
+        const uploadRes = await uploadDocumentoMedida(formData)
+        setIsUploadingDoc(false)
+
+        if (uploadRes.success && uploadRes.url) {
+          finalDocUrl = uploadRes.url
+        } else {
+          showToast(uploadRes.error || 'Erro ao enviar termo assinado para o bucket', 'error')
+          return
+        }
+      }
+
+      if (itemEdicao) {
+        // Atualizar
+        const res = await updateMedidaAdministrativa(itemEdicao.id, {
+          tecnicoId: formTecnicoId,
+          tipo: formTipo,
+          data: formDataMedida,
+          motivo: formMotivo,
+          descricao: formDescricao,
+          status: formStatus,
+          aplicadoPor: formAplicadoPor,
+          multaAvariaId: formMultaAvariaId || null,
+          documentoUrl: finalDocUrl || null,
+        })
+
+        if (res.success) {
+          showToast('Medida administrativa atualizada!')
+          setModalAberto(false)
+          carregarDados()
+        } else {
+          showToast(res.error || 'Erro ao atualizar', 'error')
+        }
+      } else {
+        // Criar
+        const res = await createMedidaAdministrativa({
+          tecnicoId: formTecnicoId,
+          tipo: formTipo,
+          data: formDataMedida,
+          motivo: formMotivo,
+          descricao: formDescricao,
+          status: formStatus,
+          aplicadoPor: formAplicadoPor,
+          multaAvariaId: formMultaAvariaId || undefined,
+          documentoUrl: finalDocUrl || undefined,
+        })
+
+        if (res.success) {
+          showToast('Medida administrativa registrada!')
+          setModalAberto(false)
+          carregarDados()
+        } else {
+          showToast(res.error || 'Erro ao registrar', 'error')
+        }
+      }
+    })
+  }
+
+  // Confirmar Exclusão
+  function handleConfirmarExclusao() {
+    if (!itemExclusao) return
+    startTransition(async () => {
+      const res = await deleteMedidaAdministrativa(itemExclusao.id)
+      if (res.success) {
+        showToast('Medida administrativa excluída com sucesso!')
+        setItemExclusao(null)
+        carregarDados()
+      } else {
+        showToast(res.error || 'Erro ao excluir', 'error')
+      }
+    })
+  }
+
+  // Filtrados por busca
+  const itensFiltrados = useMemo(() => {
+    return itens.filter((i) => {
+      const query = search.toLowerCase()
+      const matchesSearch =
+        (i.tecnico?.nome || '').toLowerCase().includes(query) ||
+        (i.motivo || '').toLowerCase().includes(query) ||
+        (i.descricao || '').toLowerCase().includes(query) ||
+        (i.aplicadoPor || '').toLowerCase().includes(query) ||
+        (i.multaAvaria?.placaVeiculo || '').toLowerCase().includes(query)
+      return matchesSearch
+    })
+  }, [itens, search])
+
+  // KPIs
+  const stats = useMemo(() => {
+    const total = itens.length
+    const escritas = itens.filter((i) => i.tipo === 'ADVERTENCIA_ESCRITA').length
+    const verbais = itens.filter((i) => i.tipo === 'ADVERTENCIA_VERBAL').length
+    const suspensoes = itens.filter((i) => i.tipo === 'SUSPENSAO').length
+    const comMulta = itens.filter((i) => !!i.multaAvariaId).length
+    const pendenteAssinatura = itens.filter((i) => i.status === 'PENDENTE_ASSINATURA').length
+
+    return {
+      total,
+      escritas,
+      verbais,
+      suspensoes,
+      comMulta,
+      pendenteAssinatura,
+    }
+  }, [itens])
+
+  const anosDisponiveis = [
+    new Date().getFullYear(),
+    new Date().getFullYear() - 1,
+    new Date().getFullYear() - 2,
+  ]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+      {/* Toast Notificação */}
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 24,
+            right: 24,
+            zIndex: 9999,
+            background: toast.type === 'success' ? '#10b981' : '#ef4444',
+            color: '#fff',
+            padding: '12px 20px',
+            borderRadius: 10,
+            boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+            fontSize: 13,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+          {toast.message}
+        </div>
+      )}
+
+      {/* Header */}
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+          padding: '20px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              background: PURPLE_BG,
+              color: PURPLE,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ShieldAlert size={26} />
+          </div>
+          <div>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+              Medidas Administrativas
+            </h1>
+            <p style={{ margin: '2px 0 0 0', fontSize: 13, color: '#64748b', fontWeight: 500 }}>
+              Controle de advertências verbais, escritas e suspensões por infrações de trânsito ou descumprimento de regras
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleAbrirCriar}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 20px',
+            borderRadius: 8,
+            background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
+            color: '#fff',
+            border: 'none',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
+          }}
+        >
+          <PlusCircle size={18} />
+          Nova Medida Administrativa
+        </button>
+      </div>
+
+      {/* KPI Cards */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 16,
+        }}
+      >
+        {/* Total Geral */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            border: '1px solid #f1f5f9',
+            padding: '18px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            borderLeft: '4px solid #64748b',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+              Total de Medidas
+            </span>
+            <FileText size={18} color="#64748b" />
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#1e293b' }}>{stats.total}</div>
+          <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Registros no período</span>
+        </div>
+
+        {/* Advertências Escritas */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            border: '1px solid #fee2e2',
+            padding: '18px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            borderLeft: '4px solid #dc2626',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#991b1b', textTransform: 'uppercase' }}>
+              Escritas
+            </span>
+            <FileCheck size={18} color="#dc2626" />
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#dc2626' }}>{stats.escritas}</div>
+          <span style={{ fontSize: 11, color: '#991b1b', fontWeight: 600 }}>Advertências formais</span>
+        </div>
+
+        {/* Advertências Verbais */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            border: '1px solid #fef3c7',
+            padding: '18px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            borderLeft: '4px solid #d97706',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase' }}>
+              Verbais
+            </span>
+            <AlertTriangle size={18} color="#d97706" />
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#d97706' }}>{stats.verbais}</div>
+          <span style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>Registros de alinhamento</span>
+        </div>
+
+        {/* Suspensões */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            border: '1px solid #f3e8ff',
+            padding: '18px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            borderLeft: '4px solid #9333ea',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#6b21a8', textTransform: 'uppercase' }}>
+              Suspensões
+            </span>
+            <ShieldAlert size={18} color="#9333ea" />
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#9333ea' }}>{stats.suspensoes}</div>
+          <span style={{ fontSize: 11, color: '#6b21a8', fontWeight: 600 }}>Casos gravíssimos</span>
+        </div>
+
+        {/* Vinculadas a Multas */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            border: '1px solid #dbeafe',
+            padding: '18px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            borderLeft: '4px solid #2563eb',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1e40af', textTransform: 'uppercase' }}>
+              Com Multa / Trânsito
+            </span>
+            <Car size={18} color="#2563eb" />
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#2563eb' }}>{stats.comMulta}</div>
+          <span style={{ fontSize: 11, color: '#1e40af', fontWeight: 600 }}>Infrações com veículo</span>
+        </div>
+      </div>
+
+      {/* Barra de Filtros */}
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          padding: '16px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          {/* Tabs por Tipo */}
+          <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setTipoFiltro('ALL')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700,
+                background: tipoFiltro === 'ALL' ? '#fff' : 'transparent',
+                color: tipoFiltro === 'ALL' ? PURPLE : '#64748b',
+                boxShadow: tipoFiltro === 'ALL' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              Todas ({itens.length})
+            </button>
+            <button
+              onClick={() => setTipoFiltro('ADVERTENCIA_ESCRITA')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700,
+                background: tipoFiltro === 'ADVERTENCIA_ESCRITA' ? '#fff' : 'transparent',
+                color: tipoFiltro === 'ADVERTENCIA_ESCRITA' ? '#dc2626' : '#64748b',
+                boxShadow: tipoFiltro === 'ADVERTENCIA_ESCRITA' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              Escritas ({stats.escritas})
+            </button>
+            <button
+              onClick={() => setTipoFiltro('ADVERTENCIA_VERBAL')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700,
+                background: tipoFiltro === 'ADVERTENCIA_VERBAL' ? '#fff' : 'transparent',
+                color: tipoFiltro === 'ADVERTENCIA_VERBAL' ? '#d97706' : '#64748b',
+                boxShadow: tipoFiltro === 'ADVERTENCIA_VERBAL' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              Verbais ({stats.verbais})
+            </button>
+            <button
+              onClick={() => setTipoFiltro('SUSPENSAO')}
+              style={{
+                padding: '6px 14px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700,
+                background: tipoFiltro === 'SUSPENSAO' ? '#fff' : 'transparent',
+                color: tipoFiltro === 'SUSPENSAO' ? '#9333ea' : '#64748b',
+                boxShadow: tipoFiltro === 'SUSPENSAO' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              Suspensões ({stats.suspensoes})
+            </button>
+          </div>
+
+          {/* Filtros Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <select
+              value={statusFiltro}
+              onChange={(e) => setStatusFiltro(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#334155',
+                outline: 'none',
+                background: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="ALL">Todos os Status</option>
+              <option value="APLICADA">Aplicada</option>
+              <option value="PENDENTE_ASSINATURA">Pendente de Assinatura</option>
+              <option value="CANCELADA">Cancelada</option>
+            </select>
+
+            <select
+              value={tecnicoFiltro}
+              onChange={(e) => setTecnicoFiltro(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#334155',
+                outline: 'none',
+                background: '#fff',
+                maxWidth: 200,
+                cursor: 'pointer',
+              }}
+            >
+              <option value="ALL">Todos os Colaboradores</option>
+              {tecnicos.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nome} {t.ativo === false ? '(Inativo)' : ''}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={anoFiltro}
+              onChange={(e) => setAnoFiltro(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+              style={{
+                padding: '7px 12px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#334155',
+                outline: 'none',
+                background: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="ALL">Todos os Anos</option>
+              {anosDisponiveis.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={mesFiltro}
+              onChange={(e) => setMesFiltro(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#334155',
+                outline: 'none',
+                background: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              {MESES.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Busca */}
+        <div style={{ position: 'relative', width: '100%' }}>
+          <Search size={16} style={{ position: 'absolute', left: 14, top: 12, color: '#94a3b8' }} />
+          <input
+            type="text"
+            placeholder="Buscar por colaborador, motivo da medida, descrição, quem aplicou..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 14px 10px 40px',
+              borderRadius: 8,
+              border: '1px solid #e2e8f0',
+              fontSize: 13,
+              outline: 'none',
+              background: '#f8fafc',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Tabela de Medidas */}
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Tipo de Medida
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Data
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Colaborador
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Motivo
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Vínculo com Multa
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Aplicado Por
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+                  Status
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>
+                  Termo / Anexo
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '60px 0', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                      <Loader2 size={32} color={PURPLE} style={{ animation: 'spin 1s linear infinite' }} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>
+                        Carregando registros...
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ) : itensFiltrados.length === 0 ? (
+                <tr>
+                  <td colSpan={9} style={{ padding: '60px 20px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                      <ShieldAlert size={40} color="#cbd5e1" />
+                      <span style={{ fontSize: 15, fontWeight: 700, color: '#334155' }}>
+                        Nenhuma medida administrativa encontrada
+                      </span>
+                      <p style={{ margin: 0, fontSize: 13, color: '#94a3b8' }}>
+                        Não há registros para os filtros selecionados. Clique em "Nova Medida Administrativa" para cadastrar.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                itensFiltrados.map((item) => {
+                  const tipoConf = TIPO_CONFIG[item.tipo] || TIPO_CONFIG.ADVERTENCIA_ESCRITA
+                  const statusConf = STATUS_CONFIG[item.status] || STATUS_CONFIG.APLICADA
+
+                  return (
+                    <tr
+                      key={item.id}
+                      style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {/* Tipo */}
+                      <td style={{ padding: '14px 20px' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '4px 10px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            background: tipoConf.bg,
+                            color: tipoConf.text,
+                            border: `1px solid ${tipoConf.border}`,
+                          }}
+                        >
+                          <FileCheck size={13} color={tipoConf.iconColor} />
+                          {tipoConf.label}
+                        </span>
+                      </td>
+
+                      {/* Data */}
+                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
+                        {item.data ? new Date(item.data).toLocaleDateString('pt-BR') : '-'}
+                      </td>
+
+                      {/* Colaborador */}
+                      <td style={{ padding: '14px 20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {item.tecnico?.fotoUrl ? (
+                            <img
+                              src={item.tecnico.fotoUrl}
+                              alt={item.tecnico.nome}
+                              style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: '50%',
+                                background: PURPLE_BG,
+                                color: PURPLE,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 12,
+                                fontWeight: 800,
+                              }}
+                            >
+                              {(item.tecnico?.nome || '??').slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                              {item.tecnico?.nome || 'Não Vinculado'}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                              {item.tecnico?.veiculo ? `Carro: ${item.tecnico.veiculo}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Motivo e Descrição */}
+                      <td style={{ padding: '14px 20px', maxWidth: 260 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                          {item.motivo}
+                        </div>
+                        {item.descricao && (
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: '#64748b',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              marginTop: 2,
+                            }}
+                            title={item.descricao}
+                          >
+                            {item.descricao}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Vínculo com Multa */}
+                      <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
+                        {item.multaAvaria ? (
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '4px 10px',
+                              borderRadius: 6,
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              color: '#1e40af',
+                              fontSize: 11,
+                              fontWeight: 700,
+                            }}
+                          >
+                            <Car size={13} />
+                            {item.multaAvaria.tipo === 'MULTA' ? 'Multa' : 'Avaria'}
+                            {item.multaAvaria.placaVeiculo ? ` (${item.multaAvaria.placaVeiculo})` : ''}
+                            {item.multaAvaria.valor > 0 ? ` - R$ ${item.multaAvaria.valor.toLocaleString('pt-BR')}` : ''}
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: 11, color: '#94a3b8' }}>Sem multa vinculada</span>
+                        )}
+                      </td>
+
+                      {/* Aplicado Por */}
+                      <td style={{ padding: '14px 20px', fontSize: 12, color: '#475569', fontWeight: 600 }}>
+                        {item.aplicadoPor || 'Gestão / TST'}
+                      </td>
+
+                      {/* Status */}
+                      <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            padding: '4px 10px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            background: statusConf.bg,
+                            color: statusConf.text,
+                            border: `1px solid ${statusConf.border}`,
+                          }}
+                        >
+                          {statusConf.label}
+                        </span>
+                      </td>
+
+                      {/* Documento / Termo */}
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        {item.documentoUrl ? (
+                          <button
+                            onClick={() =>
+                              setDocVisualizar({
+                                url: item.documentoUrl!,
+                                titulo: `${tipoConf.label} - ${item.tecnico?.nome || ''}`,
+                              })
+                            }
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: 6,
+                              background: PURPLE_BG,
+                              color: PURPLE,
+                              border: 'none',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <Eye size={13} />
+                            Ver Termo
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
+                            Sem anexo
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Ações */}
+                      <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <button
+                            onClick={() => handleAbrirEditar(item)}
+                            title="Editar"
+                            style={{
+                              padding: 6,
+                              borderRadius: 6,
+                              background: '#f1f5f9',
+                              color: '#334155',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                          <button
+                            onClick={() => setItemExclusao(item)}
+                            title="Excluir"
+                            style={{
+                              padding: 6,
+                              borderRadius: 6,
+                              background: '#fee2e2',
+                              color: '#ef4444',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Modal Criar / Editar Medida */}
+      {modalAberto && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(15,23,42,0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 620,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            {/* Header Modal */}
+            <div
+              style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    background: PURPLE_BG,
+                    color: PURPLE,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ShieldAlert size={20} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: '#1e293b' }}>
+                  {itemEdicao ? 'Editar Medida Administrativa' : 'Aplicar Medida Administrativa'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setModalAberto(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Formulário */}
+            <form onSubmit={handleSalvar} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Tipo de Medida */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
+                  TIPO DE MEDIDA DISCIPLINAR *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setFormTipo('ADVERTENCIA_ESCRITA')}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: formTipo === 'ADVERTENCIA_ESCRITA' ? '2px solid #dc2626' : '1px solid #e2e8f0',
+                      background: formTipo === 'ADVERTENCIA_ESCRITA' ? '#fee2e2' : '#f8fafc',
+                      color: formTipo === 'ADVERTENCIA_ESCRITA' ? '#991b1b' : '#64748b',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    📝 Advertência Escrita
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormTipo('ADVERTENCIA_VERBAL')}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: formTipo === 'ADVERTENCIA_VERBAL' ? '2px solid #d97706' : '1px solid #e2e8f0',
+                      background: formTipo === 'ADVERTENCIA_VERBAL' ? '#fef3c7' : '#f8fafc',
+                      color: formTipo === 'ADVERTENCIA_VERBAL' ? '#92400e' : '#64748b',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    🗣️ Advertência Verbal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormTipo('SUSPENSAO')}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: formTipo === 'SUSPENSAO' ? '2px solid #9333ea' : '1px solid #e2e8f0',
+                      background: formTipo === 'SUSPENSAO' ? '#f3e8ff' : '#f8fafc',
+                      color: formTipo === 'SUSPENSAO' ? '#6b21a8' : '#64748b',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    ⛔ Suspensão
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormTipo('ORIENTACAO_FEEDBACK')}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: formTipo === 'ORIENTACAO_FEEDBACK' ? '2px solid #0284c7' : '1px solid #e2e8f0',
+                      background: formTipo === 'ORIENTACAO_FEEDBACK' ? '#e0f2fe' : '#f8fafc',
+                      color: formTipo === 'ORIENTACAO_FEEDBACK' ? '#075985' : '#64748b',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    💡 Orientação / Feedback
+                  </button>
+                </div>
+              </div>
+
+              {/* Colaborador / Técnico */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  COLABORADOR / TÉCNICO *
+                </label>
+                <select
+                  value={formTecnicoId}
+                  onChange={(e) => handleSelectTecnico(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    outline: 'none',
+                    background: '#fff',
+                  }}
+                >
+                  <option value="">Selecione o colaborador...</option>
+                  {tecnicos.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome} {t.veiculo ? `— [Veículo: ${t.veiculo}]` : ''} {t.ativo === false ? '(Inativo)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Data e Quem Aplicou */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    DATA DA MEDIDA *
+                  </label>
+                  <input
+                    type="date"
+                    value={formDataMedida}
+                    onChange={(e) => setFormDataMedida(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    APLICADO POR (LÍDER/GESTOR)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Carlos (Coordenador de SST)"
+                    value={formAplicadoPor}
+                    onChange={(e) => setFormAplicadoPor(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Motivo Principal */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  MOTIVO PRINCIPAL DA MEDIDA *
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <select
+                    value={MOTIVOS_COMUNS.includes(formMotivo) ? formMotivo : 'Outro Motivo'}
+                    onChange={(e) => {
+                      if (e.target.value !== 'Outro Motivo') {
+                        setFormMotivo(e.target.value)
+                      } else {
+                        setFormMotivo('')
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#1e293b',
+                      outline: 'none',
+                      background: '#fff',
+                    }}
+                  >
+                    {MOTIVOS_COMUNS.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+
+                  {(!MOTIVOS_COMUNS.includes(formMotivo) || formMotivo === 'Outro Motivo') && (
+                    <input
+                      type="text"
+                      placeholder="Especifique o motivo personalizado..."
+                      value={formMotivo === 'Outro Motivo' ? '' : formMotivo}
+                      onChange={(e) => setFormMotivo(e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: '1px solid #cbd5e1',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Vínculo com Multa / Ocorrência */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  VINCULAR A UMA MULTA / AVARIA (OPCIONAL)
+                </label>
+                <select
+                  value={formMultaAvariaId}
+                  onChange={(e) => setFormMultaAvariaId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: formMultaAvariaId ? '#1e40af' : '#64748b',
+                    outline: 'none',
+                    background: formMultaAvariaId ? '#eff6ff' : '#fff',
+                  }}
+                >
+                  <option value="">Nenhuma multa vinculada</option>
+                  {multasDisponiveis.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      [{m.tipo}] {new Date(m.dataOcorrencia).toLocaleDateString('pt-BR')} - {m.placaVeiculo ? `Placa ${m.placaVeiculo}` : ''} {m.valor > 0 ? `(R$ ${m.valor.toLocaleString('pt-BR')})` : ''} - {m.descricao || 'Sem descrição'}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ display: 'block', fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                  Permite rastrear o motivo da advertência caso tenha sido originada por infração de trânsito ou sinistro.
+                </span>
+              </div>
+
+              {/* Descrição Detalhada */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  DESCRIÇÃO CIRCUNSTANCIADA DOS FATOS
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Relate detalhadamente o ocorrido, artigos ou regras descumpridas e compromissos acordados..."
+                  value={formDescricao}
+                  onChange={(e) => setFormDescricao(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    fontSize: 13,
+                    outline: 'none',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              {/* Status */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  STATUS DA MEDIDA
+                </label>
+                <select
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value as any)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    outline: 'none',
+                    background: '#fff',
+                  }}
+                >
+                  <option value="APLICADA">Aplicada</option>
+                  <option value="PENDENTE_ASSINATURA">Pendente de Assinatura pelo Colaborador</option>
+                  <option value="CANCELADA">Cancelada / Anulada</option>
+                </select>
+              </div>
+
+              {/* Anexo: Termo Assinado / Documento */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  TERMO ASSINADO / COMPROVANTE (BUCKET SG4-KM)
+                </label>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*,.pdf"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '10px 16px',
+                      borderRadius: 8,
+                      border: '1px dashed #cbd5e1',
+                      background: '#f8fafc',
+                      color: '#475569',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <UploadCloud size={18} color={PURPLE} />
+                    {docFileBase64 || docUrlExistente ? 'Trocar Termo / Documento' : 'Selecionar Documento / Foto'}
+                  </button>
+
+                  {(docFileBase64 || docUrlExistente) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDocFileBase64(null)
+                        setDocFileName(null)
+                        setDocUrlExistente(null)
+                        if (fileInputRef.current) fileInputRef.current.value = ''
+                      }}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        background: '#fee2e2',
+                        color: '#ef4444',
+                        border: 'none',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Remover
+                    </button>
+                  )}
+                </div>
+
+                {docFileName && (
+                  <span style={{ display: 'block', fontSize: 12, color: PURPLE, fontWeight: 700, marginTop: 6 }}>
+                    Arquivo pronto para envio: {docFileName}
+                  </span>
+                )}
+                {docUrlExistente && !docFileName && (
+                  <span style={{ display: 'block', fontSize: 12, color: '#15803d', fontWeight: 700, marginTop: 6 }}>
+                    ✓ Documento atual gravado no sistema
+                  </span>
+                )}
+              </div>
+
+              {/* Botões do Rodapé */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 12,
+                  marginTop: 10,
+                  paddingTop: 16,
+                  borderTop: '1px solid #f1f5f9',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setModalAberto(false)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    background: '#fff',
+                    color: '#475569',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending || isUploadingDoc}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 24px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: PURPLE,
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: isPending || isUploadingDoc ? 'not-allowed' : 'pointer',
+                    opacity: isPending || isUploadingDoc ? 0.7 : 1,
+                  }}
+                >
+                  {(isPending || isUploadingDoc) && (
+                    <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                  )}
+                  {itemEdicao ? 'Salvar Alterações' : 'Aplicar Medida'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Visualizador de Documento / Foto */}
+      {docVisualizar && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2000,
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+          onClick={() => setDocVisualizar(null)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '88vh',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              width: '100%',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                color: '#fff',
+                marginBottom: 12,
+              }}
+            >
+              <span style={{ fontSize: 15, fontWeight: 700 }}>{docVisualizar.titulo}</span>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <a
+                  href={docVisualizar.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    background: PURPLE,
+                    color: '#fff',
+                    textDecoration: 'none',
+                    padding: '6px 14px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  Abrir em Nova Aba
+                </a>
+                <button
+                  onClick={() => setDocVisualizar(null)}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    border: 'none',
+                    color: '#fff',
+                    borderRadius: '50%',
+                    width: 32,
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {docVisualizar.url.toLowerCase().endsWith('.pdf') ? (
+              <iframe
+                src={docVisualizar.url}
+                title="Documento PDF"
+                style={{
+                  width: '100%',
+                  height: '75vh',
+                  borderRadius: 10,
+                  background: '#fff',
+                  border: 'none',
+                }}
+              />
+            ) : (
+              <img
+                src={docVisualizar.url}
+                alt={docVisualizar.titulo}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '75vh',
+                  borderRadius: 10,
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                  objectFit: 'contain',
+                }}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmação de Exclusão */}
+      {itemExclusao && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1500,
+            background: 'rgba(15,23,42,0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 14,
+              width: '100%',
+              maxWidth: 420,
+              padding: 24,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              textAlign: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                background: '#fee2e2',
+                color: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px auto',
+              }}
+            >
+              <Trash2 size={24} />
+            </div>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: 17, fontWeight: 800, color: '#1e293b' }}>
+              Confirmar Exclusão
+            </h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+              Deseja realmente excluir este registro de medida administrativa do colaborador{' '}
+              <b>{itemExclusao.tecnico?.nome || 'Não vinculado'}</b>? Esta ação não pode ser desfeita.
+            </p>
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setItemExclusao(null)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  background: '#fff',
+                  color: '#475569',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmarExclusao}
+                disabled={isPending}
+                style={{
+                  padding: '10px 24px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: isPending ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isPending ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -123,6 +123,8 @@ model Tecnico {
   naoConformidades  NaoConformidade[]
   aprsArkium        AprArkium[]
   notificacaoMetas  NotificacaoMeta[]
+  multasAvarias     MultaAvaria[]
+  medidasAdministrativas MedidaAdministrativa[]
 
   @@map("tecnicos")
 }
@@ -623,3 +625,84 @@ model NotificacaoMeta {
   @@index([tecnicoId])
   @@map("notificacao_metas")
 }
+
+// ─── MULTAS E AVARIAS DE VEÍCULOS ──────────────────────────────────────────
+
+model MultaAvaria {
+  id             String            @id @default(cuid())
+  tecnicoId      String
+  tipo           TipoMultaAvaria   @default(MULTA)
+  placaVeiculo   String?
+  dataOcorrencia DateTime
+  valor          Float             @default(0)
+  status         StatusMultaAvaria @default(PENDENTE)
+  descricao      String?
+  localidade     String?
+  fotoUrl        String?
+  comprovanteUrl String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  tecnico        Tecnico           @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+  medidasAdministrativas MedidaAdministrativa[]
+
+  @@index([tecnicoId])
+  @@index([tipo])
+  @@index([status])
+  @@index([dataOcorrencia])
+  @@map("multas_avarias")
+}
+
+enum TipoMultaAvaria {
+  MULTA
+  AVARIA
+}
+
+enum StatusMultaAvaria {
+  PENDENTE
+  PAGO
+  DESCONTADO_FOLHA
+  EM_CONTESTACAO
+  CONCLUIDO
+}
+
+// ─── MEDIDAS ADMINISTRATIVAS / DISCIPLINARES ──────────────────────────────
+
+model MedidaAdministrativa {
+  id             String                @id @default(cuid())
+  tecnicoId      String
+  tipo           TipoMedidaAdmin       @default(ADVERTENCIA_ESCRITA)
+  data           DateTime              @default(now())
+  motivo         String
+  descricao      String?
+  documentoUrl   String?
+  status         StatusMedidaAdmin     @default(APLICADA)
+  aplicadoPor    String?
+  multaAvariaId  String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  tecnico        Tecnico               @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+  multaAvaria    MultaAvaria?          @relation(fields: [multaAvariaId], references: [id], onDelete: SetNull)
+
+  @@index([tecnicoId])
+  @@index([multaAvariaId])
+  @@index([tipo])
+  @@index([data])
+  @@map("medidas_administrativas")
+}
+
+enum TipoMedidaAdmin {
+  ADVERTENCIA_VERBAL
+  ADVERTENCIA_ESCRITA
+  SUSPENSAO
+  ORIENTACAO_FEEDBACK
+}
+
+enum StatusMedidaAdmin {
+  PENDENTE_ASSINATURA
+  APLICADA
+  CANCELADA
+}
+
+
