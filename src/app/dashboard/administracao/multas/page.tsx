@@ -482,7 +482,6 @@ export default function MultasAvariasPage() {
           .multas-td-desc::before { content: 'Descri\u00e7\u00e3o'; }
           .multas-td-valor::before { content: 'Valor'; }
           .multas-td-status::before { content: 'Status'; }
-          .multas-td-foto::before { content: 'Foto'; }
           .multas-td-acoes::before { content: 'A\u00e7\u00f5es'; }
         }
       `}</style>
@@ -989,14 +988,13 @@ export default function MultasAvariasPage() {
                 <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Descrição / Motivo</th>
                 <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Valor (R$)</th>
                 <th style={{ padding: '14px 12px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', width: 36, textAlign: 'center' }}>•</th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Comprovante</th>
                 <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '60px 0', textAlign: 'center' }}>
+                  <td colSpan={8} style={{ padding: '60px 0', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                       <Loader2 size={32} color={PURPLE} style={{ animation: 'spin 1s linear infinite' }} />
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>
@@ -1007,7 +1005,7 @@ export default function MultasAvariasPage() {
                 </tr>
               ) : itensFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '60px 20px', textAlign: 'center' }}>
+                  <td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                       <Car size={40} color="#cbd5e1" />
                       <span style={{ fontSize: 15, fontWeight: 700, color: '#334155' }}>
@@ -1148,41 +1146,30 @@ export default function MultasAvariasPage() {
                         </div>
                       </td>
 
-                      {/* Comprovante / Foto */}
-                      <td className="multas-td-foto" style={{ padding: '14px 20px', textAlign: 'center' }}>
-                        {fotoUrl ? (
-                          <button
-                            onClick={() =>
-                              setFotoVisualizar({
-                                url: fotoUrl,
-                                titulo: `${item.tipo === 'MULTA' ? 'Multa' : 'Avaria'} - ${item.tecnico?.nome || ''}`,
-                              })
-                            }
-                            style={{
-                              padding: '5px 10px',
-                              borderRadius: 6,
-                              background: PURPLE_BG,
-                              color: PURPLE,
-                              border: 'none',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                            }}
-                          >
-                            <Eye size={13} />
-                            Ver
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>—</span>
-                        )}
-                      </td>
-
                       {/* Ações */}
                       <td className="multas-td-acoes" style={{ padding: '14px 20px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {fotoUrl && (
+                            <button
+                              onClick={() =>
+                                setFotoVisualizar({
+                                  url: fotoUrl,
+                                  titulo: `${item.tipo === 'MULTA' ? 'Multa' : 'Avaria'} - ${item.tecnico?.nome || ''}`,
+                                })
+                              }
+                              title="Ver Comprovante"
+                              style={{
+                                padding: 6,
+                                borderRadius: 6,
+                                background: '#f8fafc',
+                                color: '#660099',
+                                border: '1px solid #e2e8f0',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <Eye size={15} />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleAbrirEditar(item)}
                             title="Editar"

@@ -919,9 +919,6 @@ export default function MedidasAdministrativasPage() {
                 <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
                   Status
                 </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>
-                  Termo / Anexo
-                </th>
                 <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>
                   Ações
                 </th>
@@ -930,7 +927,7 @@ export default function MedidasAdministrativasPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '60px 0', textAlign: 'center' }}>
+                  <td colSpan={8} style={{ padding: '60px 0', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                       <Loader2 size={32} color={PURPLE} style={{ animation: 'spin 1s linear infinite' }} />
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>
@@ -941,7 +938,7 @@ export default function MedidasAdministrativasPage() {
                 </tr>
               ) : itensFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '60px 20px', textAlign: 'center' }}>
+                  <td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                       <ShieldAlert size={40} color="#cbd5e1" />
                       <span style={{ fontSize: 15, fontWeight: 700, color: '#334155' }}>
@@ -1101,43 +1098,30 @@ export default function MedidasAdministrativasPage() {
                         </span>
                       </td>
 
-                      {/* Documento / Termo */}
-                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                        {item.documentoUrl ? (
-                          <button
-                            onClick={() =>
-                              setDocVisualizar({
-                                url: item.documentoUrl!,
-                                titulo: `${tipoConf.label} - ${item.tecnico?.nome || ''}`,
-                              })
-                            }
-                            style={{
-                              padding: '5px 10px',
-                              borderRadius: 6,
-                              background: PURPLE_BG,
-                              color: PURPLE,
-                              border: 'none',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 4,
-                            }}
-                          >
-                            <Eye size={13} />
-                            Ver Termo
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
-                            Sem anexo
-                          </span>
-                        )}
-                      </td>
-
                       {/* Ações */}
                       <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {item.documentoUrl && (
+                            <button
+                              onClick={() =>
+                                setDocVisualizar({
+                                  url: item.documentoUrl!,
+                                  titulo: `${tipoConf.label} - ${item.tecnico?.nome || ''}`,
+                                })
+                              }
+                              title="Ver Termo"
+                              style={{
+                                padding: 6,
+                                borderRadius: 6,
+                                background: '#f8fafc',
+                                color: '#660099',
+                                border: '1px solid #e2e8f0',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <Eye size={15} />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleAbrirEditar(item)}
                             title="Editar"
