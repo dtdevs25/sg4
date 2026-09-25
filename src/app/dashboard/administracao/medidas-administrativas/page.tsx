@@ -159,6 +159,34 @@ const MESES = [
   { value: '12', label: 'Dezembro' },
 ]
 
+// Funções de formatação de interface
+const formatarNomeAbreviado = (nome: string) => {
+  if (!nome) return '';
+  const partes = nome.trim().split(' ').filter(Boolean);
+  if (partes.length === 1) return partes[0];
+  const primeiro = partes[0];
+  let segundo = partes[1];
+  if (["da", "de", "di", "do", "du", "dos", "das"].includes(segundo.toLowerCase()) && partes.length > 2) {
+    segundo = partes[2];
+  }
+  return `${primeiro} ${segundo[0].toUpperCase()}.`;
+};
+
+const formatarVeiculo = (veiculoStr: string) => {
+  if (!veiculoStr) return '';
+  let limpo = veiculoStr.replace(/renault\s+kwid/ig, '').trim();
+  // Limpar hifens soltos ou espaços duplos
+  limpo = limpo.replace(/\s{2,}/g, ' ');
+  limpo = limpo.replace(/^\s*-\s*|\s*-\s*$/g, '');
+  if (limpo.indexOf('-') === -1 && limpo.length > 7) {
+      const partes = limpo.split(' ');
+      if (partes.length >= 2) {
+          limpo = `${partes[0]} - ${partes.slice(1).join(' ')}`;
+      }
+  }
+  return limpo || veiculoStr;
+};
+
 export default function MedidasAdministrativasPage() {
   const [itens, setItens] = useState<MedidaItem[]>([])
   const [tecnicos, setTecnicos] = useState<any[]>([])
@@ -811,7 +839,7 @@ export default function MedidasAdministrativasPage() {
               <option value="ALL">Todos os Colaboradores</option>
               {tecnicos.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.nome} {t.ativo === false ? '(Inativo)' : ''}
+                  {formatarNomeAbreviado(t.nome)} {t.ativo === false ? '(Inativo)' : ''}
                 </option>
               ))}
             </select>
@@ -1017,10 +1045,10 @@ export default function MedidasAdministrativasPage() {
                           )}
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
-                              {item.tecnico?.nome || 'Não Vinculado'}
+                              {item.tecnico?.nome ? formatarNomeAbreviado(item.tecnico.nome) : 'Não Vinculado'}
                             </div>
                             <div style={{ fontSize: 11, color: '#64748b' }}>
-                              {item.tecnico?.veiculo ? `Carro: ${item.tecnico.veiculo}` : ''}
+                              {item.tecnico?.veiculo ? `Carro: ${formatarVeiculo(item.tecnico.veiculo)}` : ''}
                             </div>
                           </div>
                         </div>

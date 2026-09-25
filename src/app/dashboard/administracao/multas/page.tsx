@@ -99,7 +99,33 @@ const STATUS_CONFIG: Record<
   },
 }
 
+// Funções de formatação de interface
+const formatarNomeAbreviado = (nome: string) => {
+  if (!nome) return '';
+  const partes = nome.trim().split(' ').filter(Boolean);
+  if (partes.length === 1) return partes[0];
+  const primeiro = partes[0];
+  let segundo = partes[1];
+  if (["da", "de", "di", "do", "du", "dos", "das"].includes(segundo.toLowerCase()) && partes.length > 2) {
+    segundo = partes[2];
+  }
+  return `${primeiro} ${segundo[0].toUpperCase()}.`;
+};
 
+const formatarVeiculo = (veiculoStr: string) => {
+  if (!veiculoStr) return '';
+  let limpo = veiculoStr.replace(/renault\s+kwid/ig, '').trim();
+  // Limpar hifens soltos ou espaços duplos
+  limpo = limpo.replace(/\s{2,}/g, ' ');
+  limpo = limpo.replace(/^\s*-\s*|\s*-\s*$/g, '');
+  if (limpo.indexOf('-') === -1 && limpo.length > 7) {
+      const partes = limpo.split(' ');
+      if (partes.length >= 2) {
+          limpo = `${partes[0]} - ${partes.slice(1).join(' ')}`;
+      }
+  }
+  return limpo || veiculoStr; // fallback se limpar tudo (ex: se era só "Renault Kwid")
+};
 
 export default function MultasAvariasPage() {
   const [itens, setItens] = useState<MultaAvariaItem[]>([])
@@ -545,9 +571,6 @@ export default function MultasAvariasPage() {
             <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
               Multas e Avarias de Veículos
             </h1>
-            <p style={{ margin: '2px 0 0 0', fontSize: 13, color: '#64748b', fontWeight: 500 }}>
-              Gestão de infrações de trânsito, avarias e sinistros da frota dos técnicos
-            </p>
           </div>
         </div>
 
@@ -569,8 +592,7 @@ export default function MultasAvariasPage() {
             transition: 'all 0.15s',
           }}
         >
-          <PlusCircle size={18} />
-          Nova Ocorrência
+          + Ocorrencia
         </button>
       </div>
 
@@ -931,8 +953,8 @@ export default function MultasAvariasPage() {
                           : <div style={{ width: 30, height: 30, borderRadius: '50%', background: PURPLE_BG, color: PURPLE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{t.nome.slice(0,2).toUpperCase()}</div>
                         }
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: tecnicoFiltro === t.id ? PURPLE : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
-                          {t.veiculo && <div style={{ fontSize: 10, color: '#64748b' }}>{t.veiculo}</div>}
+                          <div style={{ fontSize: 12, fontWeight: 700, color: tecnicoFiltro === t.id ? PURPLE : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatarNomeAbreviado(t.nome)}</div>
+                          {t.veiculo && <div style={{ fontSize: 10, color: '#64748b' }}>{formatarVeiculo(t.veiculo)}</div>}
                         </div>
                         {t.ativo === false && <span style={{ fontSize: 9, background: '#fee2e2', color: '#ef4444', padding: '2px 5px', borderRadius: 3, fontWeight: 700 }}>Inativo</span>}
                       </button>
@@ -1091,10 +1113,10 @@ export default function MultasAvariasPage() {
                           )}
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
-                              {item.tecnico?.nome || 'Técnico Não Vinculado'}
+                              {item.tecnico?.nome ? formatarNomeAbreviado(item.tecnico.nome) : 'Técnico Não Vinculado'}
                             </div>
                             <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
-                              {item.placaVeiculo ? `Placa/Carro: ${item.placaVeiculo}` : (item.tecnico?.veiculo || 'Sem placa')}
+                              {item.placaVeiculo ? formatarVeiculo(item.placaVeiculo) : (item.tecnico?.veiculo ? formatarVeiculo(item.tecnico.veiculo) : 'Sem placa')}
                             </div>
                           </div>
                         </div>
