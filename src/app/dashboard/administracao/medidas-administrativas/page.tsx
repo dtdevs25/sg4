@@ -510,6 +510,56 @@ export default function MedidasAdministrativasPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .multas-table-wrap { overflow-x: auto; }
+        .multas-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .multas-dot-tip { position: relative; display: inline-block; z-index: 1; }
+        .multas-dot-tip .tip-box {
+          visibility: hidden; opacity: 0;
+          position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+          background: #1e293b; color: #fff; font-size: 11px; font-weight: 700;
+          padding: 5px 10px; border-radius: 6px; white-space: nowrap;
+          pointer-events: none; transition: opacity 0.15s;
+          z-index: 99999;
+        }
+        .multas-dot-tip .tip-box::after {
+          content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+          border: 5px solid transparent; border-top-color: #1e293b;
+        }
+        .multas-dot-tip:hover { z-index: 999; }
+        .multas-dot-tip:hover .tip-box { visibility: visible; opacity: 1; }
+        @media (max-width: 768px) {
+          .multas-table-wrap table thead { display: none; }
+          .multas-table-wrap table tbody tr {
+            display: block;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            padding: 12px 16px;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+          }
+          .multas-table-wrap table tbody td {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0 !important;
+            font-size: 13px;
+            border-bottom: 1px solid #f8fafc;
+          }
+          .multas-table-wrap table tbody td:last-child { border-bottom: none; }
+          .multas-table-wrap table tbody td::before {
+            content: attr(data-label);
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            min-width: 100px;
+            flex-shrink: 0;
+          }
+        }
+      `}</style>
       {/* Toast Notificação */}
       {toast && (
         <div
@@ -716,76 +766,30 @@ export default function MedidasAdministrativasPage() {
             gap: 12,
           }}
         >
-          {/* Tabs por Tipo */}
-          <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setTipoFiltro('ALL')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 700,
-                background: tipoFiltro === 'ALL' ? '#fff' : 'transparent',
-                color: tipoFiltro === 'ALL' ? PURPLE : '#64748b',
-                boxShadow: tipoFiltro === 'ALL' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              Todas ({itens.length})
-            </button>
-            <button
-              onClick={() => setTipoFiltro('ADVERTENCIA_ESCRITA')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 700,
-                background: tipoFiltro === 'ADVERTENCIA_ESCRITA' ? '#fff' : 'transparent',
-                color: tipoFiltro === 'ADVERTENCIA_ESCRITA' ? '#dc2626' : '#64748b',
-                boxShadow: tipoFiltro === 'ADVERTENCIA_ESCRITA' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              Escritas ({stats.escritas})
-            </button>
-            <button
-              onClick={() => setTipoFiltro('ADVERTENCIA_VERBAL')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 700,
-                background: tipoFiltro === 'ADVERTENCIA_VERBAL' ? '#fff' : 'transparent',
-                color: tipoFiltro === 'ADVERTENCIA_VERBAL' ? '#d97706' : '#64748b',
-                boxShadow: tipoFiltro === 'ADVERTENCIA_VERBAL' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              Verbais ({stats.verbais})
-            </button>
-            <button
-              onClick={() => setTipoFiltro('SUSPENSAO')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 700,
-                background: tipoFiltro === 'SUSPENSAO' ? '#fff' : 'transparent',
-                color: tipoFiltro === 'SUSPENSAO' ? '#9333ea' : '#64748b',
-                boxShadow: tipoFiltro === 'SUSPENSAO' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              Suspensões ({stats.suspensoes})
-            </button>
-          </div>
-
           {/* Filtros Dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <select
+              value={tipoFiltro}
+              onChange={(e) => setTipoFiltro(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#334155',
+                outline: 'none',
+                background: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="ALL">Todos os Tipos</option>
+              <option value="ADVERTENCIA_ESCRITA">Advertência Escrita</option>
+              <option value="ADVERTENCIA_VERBAL">Advertência Verbal</option>
+              <option value="SUSPENSAO">Suspensão</option>
+              <option value="ORIENTACAO_FEEDBACK">Orientação / Feedback</option>
+            </select>
+
             <select
               value={statusFiltro}
               onChange={(e) => setStatusFiltro(e.target.value)}
@@ -947,8 +951,8 @@ export default function MedidasAdministrativasPage() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="multas-table-wrap">
+          <table className="multas-table">
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
@@ -1016,33 +1020,20 @@ export default function MedidasAdministrativasPage() {
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       {/* Tipo */}
-                      <td style={{ padding: '14px 20px' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            fontSize: 11,
-                            fontWeight: 800,
-                            background: tipoConf.bg,
-                            color: tipoConf.text,
-                            border: `1px solid ${tipoConf.border}`,
-                          }}
-                        >
-                          <FileCheck size={13} color={tipoConf.iconColor} />
-                          {tipoConf.label}
-                        </span>
+                      <td data-label="Tipo" style={{ padding: '14px 20px' }}>
+                        <div className="multas-dot-tip">
+                          <div style={{ width: 12, height: 12, borderRadius: '50%', background: tipoConf.iconColor }} />
+                          <div className="tip-box">{tipoConf.label}</div>
+                        </div>
                       </td>
 
                       {/* Data */}
-                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
+                      <td data-label="Data" style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
                         {item.data ? new Date(item.data).toLocaleDateString('pt-BR') : '-'}
                       </td>
 
                       {/* Colaborador */}
-                      <td style={{ padding: '14px 20px' }}>
+                      <td data-label="Colaborador" style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           {item.tecnico?.fotoUrl ? (
                             <img
@@ -1072,15 +1063,12 @@ export default function MedidasAdministrativasPage() {
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
                               {item.tecnico?.nome ? formatarNomeAbreviado(item.tecnico.nome) : 'Não Vinculado'}
                             </div>
-                            <div style={{ fontSize: 11, color: '#64748b' }}>
-                              {item.tecnico?.veiculo ? `Carro: ${formatarVeiculo(item.tecnico.veiculo)}` : ''}
-                            </div>
                           </div>
                         </div>
                       </td>
 
                       {/* Motivo e Descrição */}
-                      <td style={{ padding: '14px 20px', maxWidth: 260 }}>
+                      <td data-label="Motivo" style={{ padding: '14px 20px', maxWidth: 260 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
                           {item.motivo}
                         </div>
@@ -1102,7 +1090,7 @@ export default function MedidasAdministrativasPage() {
                       </td>
 
                       {/* Vínculo com Multa */}
-                      <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
+                      <td data-label="Vínculo" style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
                         {item.multaAvaria ? (
                           <div
                             style={{
@@ -1120,7 +1108,7 @@ export default function MedidasAdministrativasPage() {
                           >
                             <Car size={13} />
                             {item.multaAvaria.tipo === 'MULTA' ? 'Multa' : 'Avaria'}
-                            {item.multaAvaria.placaVeiculo ? ` (${item.multaAvaria.placaVeiculo})` : ''}
+                            {item.multaAvaria.placaVeiculo ? ` (${formatarVeiculo(item.multaAvaria.placaVeiculo)})` : ''}
                             {item.multaAvaria.valor > 0 ? ` - R$ ${item.multaAvaria.valor.toLocaleString('pt-BR')}` : ''}
                           </div>
                         ) : (
@@ -1129,30 +1117,20 @@ export default function MedidasAdministrativasPage() {
                       </td>
 
                       {/* Aplicado Por */}
-                      <td style={{ padding: '14px 20px', fontSize: 12, color: '#475569', fontWeight: 600 }}>
+                      <td data-label="Aplicado Por" style={{ padding: '14px 20px', fontSize: 12, color: '#475569', fontWeight: 600 }}>
                         {item.aplicadoPor || 'Gestão / TST'}
                       </td>
 
                       {/* Status */}
-                      <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            background: statusConf.bg,
-                            color: statusConf.text,
-                            border: `1px solid ${statusConf.border}`,
-                          }}
-                        >
-                          {statusConf.label}
-                        </span>
+                      <td data-label="Status" style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
+                        <div className="multas-dot-tip">
+                          <div style={{ width: 12, height: 12, borderRadius: '50%', background: statusConf.text }} />
+                          <div className="tip-box">{statusConf.label}</div>
+                        </div>
                       </td>
 
                       {/* Ações */}
-                      <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                      <td data-label="Ações" style={{ padding: '14px 20px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           {item.documentoUrl && (
                             <button
