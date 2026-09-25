@@ -6,8 +6,6 @@ import {
   Car,
   Search,
   PlusCircle,
-  Clock,
-  CheckCircle2,
   DollarSign,
   Calendar,
   MapPin,
@@ -101,21 +99,7 @@ const STATUS_CONFIG: Record<
   },
 }
 
-const MESES = [
-  { value: 'ALL', label: 'Todos os Meses' },
-  { value: '1', label: 'Janeiro' },
-  { value: '2', label: 'Fevereiro' },
-  { value: '3', label: 'Março' },
-  { value: '4', label: 'Abril' },
-  { value: '5', label: 'Maio' },
-  { value: '6', label: 'Junho' },
-  { value: '7', label: 'Julho' },
-  { value: '8', label: 'Agosto' },
-  { value: '9', label: 'Setembro' },
-  { value: '10', label: 'Outubro' },
-  { value: '11', label: 'Novembro' },
-  { value: '12', label: 'Dezembro' },
-]
+
 
 export default function MultasAvariasPage() {
   const [itens, setItens] = useState<MultaAvariaItem[]>([])
@@ -125,11 +109,19 @@ export default function MultasAvariasPage() {
 
   // Filtros
   const [search, setSearch] = useState('')
-  const [tipoFiltro, setTipoFiltro] = useState<'ALL' | 'MULTA' | 'AVARIA'>('ALL')
+  const [tipoFiltro, setTipoFiltro] = useState<'MULTA' | 'AVARIA'>('MULTA')
   const [statusFiltro, setStatusFiltro] = useState<string>('ALL')
   const [tecnicoFiltro, setTecnicoFiltro] = useState<string>('ALL')
   const [anoFiltro, setAnoFiltro] = useState<number | 'ALL'>(new Date().getFullYear())
-  const [mesFiltro, setMesFiltro] = useState<string>('ALL')
+  const [mesesFiltro, setMesesFiltro] = useState<number[]>([new Date().getMonth() + 1])
+
+  // Filtro de técnico com foto
+  const [showTecnicoFilter, setShowTecnicoFilter] = useState(false)
+  const [tecnicoFilterSearch, setTecnicoFilterSearch] = useState('')
+  const [filtroMostrarInativos, setFiltroMostrarInativos] = useState(false)
+
+  // Multi-month dropdown
+  const [mesesDropdownOpen, setMesesDropdownOpen] = useState(false)
 
   // Picker de técnico no modal
   const [showTecnicoPicker, setShowTecnicoPicker] = useState(false)
@@ -179,7 +171,7 @@ export default function MultasAvariasPage() {
 
   useEffect(() => {
     carregarDados()
-  }, [anoFiltro, mesFiltro, tipoFiltro, statusFiltro, tecnicoFiltro])
+  }, [anoFiltro, mesesFiltro, tipoFiltro, statusFiltro, tecnicoFiltro])
 
   async function carregarTecnicos() {
     const res = await getTecnicos()
@@ -191,20 +183,35 @@ export default function MultasAvariasPage() {
   function carregarDados() {
     setLoading(true)
     startTransition(async () => {
+      // Para multi-mes: se nenhum selecionado = todos
+      const primMes = mesesFiltro.length === 1 ? mesesFiltro[0] : undefined
       const res = await getMultasAvarias({
         ano: anoFiltro === 'ALL' ? undefined : Number(anoFiltro),
-        mes: mesFiltro === 'ALL' ? undefined : Number(mesFiltro),
-        tipo: tipoFiltro,
+        mes: primMes,
+        tipo: tipoFiltro === 'MULTA' ? 'MULTA' : 'AVARIA',
         status: statusFiltro,
         tecnicoId: tecnicoFiltro,
       })
       if (res.success && res.data) {
-        setItens(res.data as any)
+        // Filtrar por múltiplos meses no cliente
+        const dadosFiltrados = mesesFiltro.length === 0
+          ? (res.data as any[])
+          : (res.data as any[]).filter(i => {
+              const dt = new Date(i.dataOcorrencia)
+              return mesesFiltro.includes(dt.getMonth() + 1)
+            })
+        setItens(dadosFiltrados)
       } else {
         showToast(res.error || 'Erro ao carregar dados', 'error')
       }
       setLoading(false)
     })
+  }
+
+  function handleMesToggle(mes: number) {
+    setMesesFiltro(prev =>
+      prev.includes(mes) ? prev.filter(m => m !== mes) : [...prev, mes]
+    )
   }
 
   // Atualizar veículo ao selecionar técnico no formulário
@@ -396,10 +403,6 @@ export default function MultasAvariasPage() {
     const avarias = itens.filter((i) => i.tipo === 'AVARIA')
     const valorMultas = multas.reduce((acc, curr) => acc + (curr.valor || 0), 0)
     const valorAvarias = avarias.reduce((acc, curr) => acc + (curr.valor || 0), 0)
-    const pendentes = itens.filter((i) => i.status === 'PENDENTE').length
-    const concluidos = itens.filter(
-      (i) => i.status === 'PAGO' || i.status === 'CONCLUIDO' || i.status === 'DESCONTADO_FOLHA'
-    ).length
 
     return {
       total,
@@ -407,11 +410,11 @@ export default function MultasAvariasPage() {
       valorMultas,
       qtdAvarias: avarias.length,
       valorAvarias,
-      pendentes,
-      concluidos,
       valorTotalGeral: valorMultas + valorAvarias,
     }
   }, [itens])
+
+  const MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
   const anosDisponiveis = [
     new Date().getFullYear(),
@@ -510,11 +513,11 @@ export default function MultasAvariasPage() {
         </button>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards - apenas 3 */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 12,
         }}
       >
@@ -592,52 +595,6 @@ export default function MultasAvariasPage() {
             R$ {stats.valorAvarias.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </span>
         </div>
-
-        {/* Pendentes */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 10,
-            border: '1px solid #fed7aa',
-            padding: '14px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            borderLeft: '4px solid #ea580c',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#ea580c', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Pendentes
-            </span>
-            <Clock size={16} color="#ea580c" />
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#ea580c' }}>{stats.pendentes}</div>
-          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>Aguardando ação</span>
-        </div>
-
-        {/* Concluídos */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 10,
-            border: '1px solid #dcfce7',
-            padding: '14px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            borderLeft: '4px solid #10b981',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#15803d', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Concluídos / Pagos
-            </span>
-            <CheckCircle2 size={16} color="#10b981" />
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#10b981' }}>{stats.concluidos}</div>
-          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>Liquidados ou resolvidos</span>
-        </div>
       </div>
 
       {/* Barra de Filtros */}
@@ -662,29 +619,12 @@ export default function MultasAvariasPage() {
             gap: 12,
           }}
         >
-          {/* Seletor Tipo (Tabs) */}
+          {/* Tabs: apenas Multas e Avarias */}
           <div style={{ display: 'flex', background: '#f1f5f9', padding: 4, borderRadius: 8, gap: 4 }}>
-            <button
-              onClick={() => setTipoFiltro('ALL')}
-              style={{
-                padding: '6px 16px',
-                borderRadius: 6,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 700,
-                transition: 'all 0.15s',
-                background: tipoFiltro === 'ALL' ? '#fff' : 'transparent',
-                color: tipoFiltro === 'ALL' ? PURPLE : '#64748b',
-                boxShadow: tipoFiltro === 'ALL' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              Todos ({itens.length})
-            </button>
             <button
               onClick={() => setTipoFiltro('MULTA')}
               style={{
-                padding: '6px 16px',
+                padding: '6px 20px',
                 borderRadius: 6,
                 border: 'none',
                 cursor: 'pointer',
@@ -701,7 +641,7 @@ export default function MultasAvariasPage() {
             <button
               onClick={() => setTipoFiltro('AVARIA')}
               style={{
-                padding: '6px 16px',
+                padding: '6px 20px',
                 borderRadius: 6,
                 border: 'none',
                 cursor: 'pointer',
@@ -717,23 +657,13 @@ export default function MultasAvariasPage() {
             </button>
           </div>
 
-          {/* Filtros Dropdowns (Período, Técnico, Status) */}
+          {/* Filtros Dropdowns */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             {/* Status */}
             <select
               value={statusFiltro}
               onChange={(e) => setStatusFiltro(e.target.value)}
-              style={{
-                padding: '7px 12px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#334155',
-                outline: 'none',
-                background: '#fff',
-                cursor: 'pointer',
-              }}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#334155', outline: 'none', background: '#fff', cursor: 'pointer' }}
             >
               <option value="ALL">Todos os Status</option>
               <option value="PENDENTE">Pendente</option>
@@ -743,77 +673,209 @@ export default function MultasAvariasPage() {
               <option value="CONCLUIDO">Concluído</option>
             </select>
 
-            {/* Técnico */}
-            <select
-              value={tecnicoFiltro}
-              onChange={(e) => setTecnicoFiltro(e.target.value)}
-              style={{
-                padding: '7px 12px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#334155',
-                outline: 'none',
-                background: '#fff',
-                maxWidth: 200,
-                cursor: 'pointer',
-              }}
-            >
-              <option value="ALL">Todos os Técnicos</option>
-              {tecnicos.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome} {t.ativo === false ? '(Inativo)' : ''}
-                </option>
-              ))}
-            </select>
-
             {/* Ano */}
             <select
               value={anoFiltro}
               onChange={(e) => setAnoFiltro(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
-              style={{
-                padding: '7px 12px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#334155',
-                outline: 'none',
-                background: '#fff',
-                cursor: 'pointer',
-              }}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#334155', outline: 'none', background: '#fff', cursor: 'pointer' }}
             >
               <option value="ALL">Todos os Anos</option>
               {anosDisponiveis.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
+                <option key={a} value={a}>{a}</option>
               ))}
             </select>
 
-            {/* Mês */}
-            <select
-              value={mesFiltro}
-              onChange={(e) => setMesFiltro(e.target.value)}
-              style={{
-                padding: '7px 12px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#334155',
-                outline: 'none',
-                background: '#fff',
-                cursor: 'pointer',
-              }}
-            >
-              {MESES.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+            {/* Multi-Month Dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setMesesDropdownOpen(v => !v)}
+                style={{
+                  padding: '7px 12px',
+                  borderRadius: 8,
+                  border: `1px solid ${mesesDropdownOpen ? PURPLE : '#e2e8f0'}`,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: mesesFiltro.length > 0 ? PURPLE : '#334155',
+                  background: mesesFiltro.length > 0 ? PURPLE_BG : '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Calendar size={14} />
+                {mesesFiltro.length === 0
+                  ? 'Todos os Meses'
+                  : mesesFiltro.length === 1
+                    ? MESES_NOME[mesesFiltro[0] - 1]
+                    : `${mesesFiltro.length} meses`}
+                <ChevronDown size={13} style={{ transform: mesesDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
+              {mesesDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '110%',
+                  left: 0,
+                  zIndex: 200,
+                  background: '#fff',
+                  borderRadius: 10,
+                  border: `1px solid ${PURPLE}`,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.13)',
+                  padding: '10px 12px',
+                  minWidth: 200,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>SELECIONE OS MESES</span>
+                    <button onClick={() => setMesesFiltro([])} style={{ fontSize: 11, background: 'none', border: 'none', color: PURPLE, cursor: 'pointer', fontWeight: 700 }}>Limpar</button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                    {MESES_NOME.map((nome, idx) => (
+                      <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155', cursor: 'pointer', padding: '4px 0' }}>
+                        <input
+                          type="checkbox"
+                          checked={mesesFiltro.includes(idx + 1)}
+                          onChange={() => handleMesToggle(idx + 1)}
+                          style={{ accentColor: PURPLE, cursor: 'pointer' }}
+                        />
+                        {nome}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Filtro Técnico com foto */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowTecnicoFilter(v => !v)}
+                style={{
+                  padding: '7px 12px',
+                  borderRadius: 8,
+                  border: `1px solid ${showTecnicoFilter ? PURPLE : '#e2e8f0'}`,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: tecnicoFiltro !== 'ALL' ? PURPLE : '#334155',
+                  background: tecnicoFiltro !== 'ALL' ? PURPLE_BG : '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  whiteSpace: 'nowrap',
+                  maxWidth: 200,
+                }}
+              >
+                {tecnicoFiltro !== 'ALL' ? (() => {
+                  const t = tecnicos.find(x => x.id === tecnicoFiltro)
+                  return t ? (
+                    <>
+                      {t.fotoUrl
+                        ? <img src={t.fotoUrl} alt={t.nome} style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        : <div style={{ width: 18, height: 18, borderRadius: '50%', background: PURPLE, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, flexShrink: 0 }}>{t.nome.slice(0,2).toUpperCase()}</div>
+                      }
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>{t.nome.split(' ')[0]}</span>
+                    </>
+                  ) : <span>Técnico</span>
+                })() : <span>Todos os Técnicos</span>}
+                <ChevronDown size={13} style={{ marginLeft: 'auto', flexShrink: 0, transform: showTecnicoFilter ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
+
+              {showTecnicoFilter && (
+                <div style={{
+                  position: 'absolute',
+                  top: '110%',
+                  right: 0,
+                  zIndex: 200,
+                  background: '#fff',
+                  borderRadius: 10,
+                  border: `1px solid ${PURPLE}`,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.13)',
+                  width: 240,
+                  maxHeight: 300,
+                  overflowY: 'auto',
+                }}>
+                  {/* Header */}
+                  <div style={{ padding: '8px 12px', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, background: '#fff' }}>
+                    <input
+                      type="text"
+                      placeholder="Buscar técnico..."
+                      value={tecnicoFilterSearch}
+                      onChange={e => setTecnicoFilterSearch(e.target.value)}
+                      autoFocus
+                      style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, outline: 'none' }}
+                    />
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748b', cursor: 'pointer', fontWeight: 600, marginTop: 6 }}>
+                      <input
+                        type="checkbox"
+                        checked={filtroMostrarInativos}
+                        onChange={e => setFiltroMostrarInativos(e.target.checked)}
+                        style={{ accentColor: PURPLE }}
+                      />
+                      Incluir inativos
+                    </label>
+                  </div>
+                  {/* Opção Todos */}
+                  <button
+                    type="button"
+                    onClick={() => { setTecnicoFiltro('ALL'); setShowTecnicoFilter(false) }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      background: tecnicoFiltro === 'ALL' ? PURPLE_BG : 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      borderBottom: '1px solid #f8fafc',
+                      fontSize: 12,
+                      fontWeight: tecnicoFiltro === 'ALL' ? 700 : 600,
+                      color: tecnicoFiltro === 'ALL' ? PURPLE : '#334155',
+                    }}
+                  >
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Filter size={13} color="#64748b" />
+                    </div>
+                    Todos os Técnicos
+                  </button>
+                  {/* Lista de técnicos */}
+                  {tecnicos
+                    .filter(t => filtroMostrarInativos ? true : t.ativo !== false)
+                    .filter(t => t.nome.toLowerCase().includes(tecnicoFilterSearch.toLowerCase()))
+                    .map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => { setTecnicoFiltro(t.id); setShowTecnicoFilter(false); setTecnicoFilterSearch('') }}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          background: tecnicoFiltro === t.id ? PURPLE_BG : 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          borderBottom: '1px solid #f8fafc',
+                        }}
+                      >
+                        {t.fotoUrl
+                          ? <img src={t.fotoUrl} alt={t.nome} style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          : <div style={{ width: 30, height: 30, borderRadius: '50%', background: PURPLE_BG, color: PURPLE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, flexShrink: 0 }}>{t.nome.slice(0,2).toUpperCase()}</div>
+                        }
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: tecnicoFiltro === t.id ? PURPLE : '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                          {t.veiculo && <div style={{ fontSize: 10, color: '#64748b' }}>{t.veiculo}</div>}
+                        </div>
+                        {t.ativo === false && <span style={{ fontSize: 9, background: '#fee2e2', color: '#ef4444', padding: '2px 5px', borderRadius: 3, fontWeight: 700 }}>Inativo</span>}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
