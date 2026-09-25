@@ -424,6 +424,68 @@ export default function MultasAvariasPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .multas-table-wrap { overflow-x: auto; }
+        .multas-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .multas-dot-tip { position: relative; display: inline-block; }
+        .multas-dot-tip .tip-box {
+          visibility: hidden; opacity: 0;
+          position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+          background: #1e293b; color: #fff; font-size: 11px; font-weight: 700;
+          padding: 5px 10px; border-radius: 6px; white-space: nowrap;
+          pointer-events: none; transition: opacity 0.15s;
+          z-index: 1000;
+        }
+        .multas-dot-tip .tip-box::after {
+          content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+          border: 5px solid transparent; border-top-color: #1e293b;
+        }
+        .multas-dot-tip:hover .tip-box { visibility: visible; opacity: 1; }
+        @media (max-width: 768px) {
+          .multas-kpi-grid { grid-template-columns: 1fr !important; }
+          .multas-filter-bar { flex-direction: column !important; align-items: stretch !important; }
+          .multas-filter-row { flex-wrap: wrap !important; }
+          .multas-table-wrap table thead { display: none; }
+          .multas-table-wrap table tbody tr {
+            display: block;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            padding: 12px 16px;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+          }
+          .multas-table-wrap table tbody tr:last-child { margin-bottom: 0; }
+          .multas-table-wrap table tbody td {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0 !important;
+            font-size: 13px;
+            border-bottom: 1px solid #f8fafc;
+          }
+          .multas-table-wrap table tbody td:last-child { border-bottom: none; }
+          .multas-table-wrap table tbody td::before {
+            content: attr(data-label);
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            min-width: 90px;
+            flex-shrink: 0;
+          }
+          .multas-td-tipo::before { content: 'Tipo'; }
+          .multas-td-data::before { content: 'Data'; }
+          .multas-td-tecnico::before { content: 'T\u00e9cnico'; }
+          .multas-td-local::before { content: 'Localidade'; }
+          .multas-td-desc::before { content: 'Descri\u00e7\u00e3o'; }
+          .multas-td-valor::before { content: 'Valor'; }
+          .multas-td-status::before { content: 'Status'; }
+          .multas-td-foto::before { content: 'Foto'; }
+          .multas-td-acoes::before { content: 'A\u00e7\u00f5es'; }
+        }
+      `}</style>
       {/* Toast Notificação */}
       {toast && (
         <div
@@ -515,6 +577,7 @@ export default function MultasAvariasPage() {
 
       {/* KPI Cards - apenas 3 */}
       <div
+        className="multas-kpi-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
@@ -599,6 +662,7 @@ export default function MultasAvariasPage() {
 
       {/* Barra de Filtros */}
       <div
+        className="multas-filter-bar"
         style={{
           background: '#fff',
           borderRadius: 12,
@@ -611,6 +675,7 @@ export default function MultasAvariasPage() {
         }}
       >
         <div
+          className="multas-filter-row"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -913,37 +978,19 @@ export default function MultasAvariasPage() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+        <div className="multas-table-wrap">
+          <table className="multas-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                  Tipo
-                </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                  Data
-                </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                  Técnico / Veículo
-                </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                  Localidade
-                </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                  Descrição / Motivo
-                </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                  Valor (R$)
-                </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                  Status
-                </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>
-                  Comprovante
-                </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>
-                  Ações
-                </th>
+                <th style={{ padding: '14px 12px 14px 16px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', width: 36, textAlign: 'center' }}>•</th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Data</th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Técnico / Veículo</th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Localidade</th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Descrição / Motivo</th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Valor (R$)</th>
+                <th style={{ padding: '14px 12px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', width: 36, textAlign: 'center' }}>•</th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Comprovante</th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -987,62 +1034,43 @@ export default function MultasAvariasPage() {
                       onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
-                      {/* Tipo */}
-                      <td style={{ padding: '14px 20px' }}>
-                        {item.tipo === 'MULTA' ? (
-                          <span
+                      {/* Tipo — bolinha com tooltip */}
+                      <td className="multas-td-tipo" style={{ padding: '14px 12px 14px 16px', textAlign: 'center' }}>
+                        <div className="multas-dot-tip" style={{ display: 'inline-block' }}>
+                          <div
                             style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              fontSize: 11,
-                              fontWeight: 800,
-                              background: '#fef3c7',
-                              color: '#b45309',
-                              border: '1px solid #fde68a',
+                              width: 13,
+                              height: 13,
+                              borderRadius: '50%',
+                              background: item.tipo === 'MULTA' ? '#f59e0b' : '#ef4444',
+                              boxShadow: item.tipo === 'MULTA'
+                                ? '0 0 0 3px rgba(245,158,11,0.2)'
+                                : '0 0 0 3px rgba(239,68,68,0.2)',
+                              cursor: 'default',
+                              margin: '0 auto',
                             }}
-                          >
-                            <AlertTriangle size={13} />
-                            MULTA
+                          />
+                          <span className="tip-box">
+                            {item.tipo === 'MULTA' ? '⚠️ Multa de Trânsito' : '🚗 Avaria / Sinistro'}
                           </span>
-                        ) : (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              fontSize: 11,
-                              fontWeight: 800,
-                              background: '#fee2e2',
-                              color: '#b91c1c',
-                              border: '1px solid #fecaca',
-                            }}
-                          >
-                            <Car size={13} />
-                            AVARIA
-                          </span>
-                        )}
+                        </div>
                       </td>
 
                       {/* Data */}
-                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
+                      <td className="multas-td-data" style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
                         {item.dataOcorrencia
                           ? new Date(item.dataOcorrencia).toLocaleDateString('pt-BR')
                           : '-'}
                       </td>
 
                       {/* Técnico / Veículo */}
-                      <td style={{ padding: '14px 20px' }}>
+                      <td className="multas-td-tecnico" style={{ padding: '14px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           {item.tecnico?.fotoUrl ? (
                             <img
                               src={item.tecnico.fotoUrl}
                               alt={item.tecnico.nome}
-                              style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }}
+                              style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
                             />
                           ) : (
                             <div
@@ -1057,6 +1085,7 @@ export default function MultasAvariasPage() {
                                 justifyContent: 'center',
                                 fontSize: 12,
                                 fontWeight: 800,
+                                flexShrink: 0,
                               }}
                             >
                               {(item.tecnico?.nome || '??').slice(0, 2).toUpperCase()}
@@ -1074,12 +1103,12 @@ export default function MultasAvariasPage() {
                       </td>
 
                       {/* Localidade */}
-                      <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                      <td className="multas-td-local" style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
                         {item.localidade || '-'}
                       </td>
 
                       {/* Descrição */}
-                      <td style={{ padding: '14px 20px', fontSize: 13, color: '#334155', maxWidth: 280 }}>
+                      <td className="multas-td-desc" style={{ padding: '14px 20px', fontSize: 13, color: '#334155', maxWidth: 240 }}>
                         <div
                           style={{
                             overflow: 'hidden',
@@ -1095,32 +1124,32 @@ export default function MultasAvariasPage() {
                       </td>
 
                       {/* Valor */}
-                      <td style={{ padding: '14px 20px', fontSize: 14, fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                      <td className="multas-td-valor" style={{ padding: '14px 20px', fontSize: 14, fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap' }}>
                         {item.valor
                           ? `R$ ${item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
                           : 'R$ 0,00'}
                       </td>
 
-                      {/* Status */}
-                      <td style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            padding: '4px 10px',
-                            borderRadius: 6,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            background: statusConf.bg,
-                            color: statusConf.text,
-                            border: `1px solid ${statusConf.border}`,
-                          }}
-                        >
-                          {statusConf.label}
-                        </span>
+                      {/* Status — bolinha com tooltip */}
+                      <td className="multas-td-status" style={{ padding: '14px 12px', textAlign: 'center' }}>
+                        <div className="multas-dot-tip" style={{ display: 'inline-block' }}>
+                          <div
+                            style={{
+                              width: 13,
+                              height: 13,
+                              borderRadius: '50%',
+                              background: statusConf.text,
+                              boxShadow: `0 0 0 3px ${statusConf.bg}`,
+                              cursor: 'default',
+                              margin: '0 auto',
+                            }}
+                          />
+                          <span className="tip-box">{statusConf.label}</span>
+                        </div>
                       </td>
 
                       {/* Comprovante / Foto */}
-                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      <td className="multas-td-foto" style={{ padding: '14px 20px', textAlign: 'center' }}>
                         {fotoUrl ? (
                           <button
                             onClick={() =>
@@ -1144,17 +1173,15 @@ export default function MultasAvariasPage() {
                             }}
                           >
                             <Eye size={13} />
-                            Ver Foto
+                            Ver
                           </button>
                         ) : (
-                          <span style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
-                            Sem anexo
-                          </span>
+                          <span style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>—</span>
                         )}
                       </td>
 
                       {/* Ações */}
-                      <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                      <td className="multas-td-acoes" style={{ padding: '14px 20px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <button
                             onClick={() => handleAbrirEditar(item)}
