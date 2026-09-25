@@ -1244,7 +1244,7 @@ export default function MultasAvariasPage() {
               width: '100%',
               maxWidth: 620,
               maxHeight: '90vh',
-              overflowY: 'auto',
+              overflow: 'hidden',
               boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
               display: 'flex',
               flexDirection: 'column',
@@ -1294,9 +1294,10 @@ export default function MultasAvariasPage() {
             </div>
 
             {/* Formulário */}
-            <form onSubmit={handleSalvar} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {/* Seletor Tipo */}
-              <div>
+            <form onSubmit={handleSalvar} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
+                {/* Seletor Tipo */}
+                <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
                   TIPO DE OCORRÊNCIA *
                 </label>
@@ -1682,15 +1683,17 @@ export default function MultasAvariasPage() {
                 )}
               </div>
 
+              </div>
+
               {/* Botões do Rodapé */}
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'flex-end',
                   gap: 12,
-                  marginTop: 10,
-                  paddingTop: 16,
+                  padding: '16px 24px',
                   borderTop: '1px solid #f1f5f9',
+                  background: '#f8fafc',
                 }}
               >
                 <button
