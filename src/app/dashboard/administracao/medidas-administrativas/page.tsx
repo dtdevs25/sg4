@@ -20,7 +20,8 @@ import {
   Link as LinkIcon,
   User,
   HelpCircle,
-  FileCheck
+  FileCheck,
+  ChevronDown
 } from 'lucide-react'
 import {
   getMedidasAdministrativas,
