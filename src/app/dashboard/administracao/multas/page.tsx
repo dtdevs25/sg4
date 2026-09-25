@@ -127,6 +127,15 @@ const formatarVeiculo = (veiculoStr: string) => {
   return limpo || veiculoStr; // fallback se limpar tudo (ex: se era só "Renault Kwid")
 };
 
+const formatarMoedaInput = (valor: string) => {
+  let v = valor.replace(/\D/g, '');
+  if (v === '') return '';
+  v = (Number(v) / 100).toFixed(2);
+  v = v.replace('.', ',');
+  v = v.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return v;
+};
+
 export default function MultasAvariasPage() {
   const [itens, setItens] = useState<MultaAvariaItem[]>([])
   const [tecnicos, setTecnicos] = useState<TecnicoSimple[]>([])
@@ -279,7 +288,7 @@ export default function MultasAvariasPage() {
     setFormDataOcorrencia(
       item.dataOcorrencia ? new Date(item.dataOcorrencia).toISOString().split('T')[0] : ''
     )
-    setFormValor(item.valor ? String(item.valor) : '')
+    setFormValor(item.valor ? formatarMoedaInput((item.valor * 100).toFixed(0)) : '')
     setFormStatus(item.status)
     setFormDescricao(item.descricao || '')
     setFormLocalidade(item.localidade || '')
@@ -346,7 +355,8 @@ export default function MultasAvariasPage() {
         }
       }
 
-      const valorNumerico = formValor ? parseFloat(formValor.replace(',', '.')) : 0
+      const valorLimpo = formValor.replace(/\./g, '').replace(',', '.');
+      const valorNumerico = formValor ? parseFloat(valorLimpo) : 0;
 
       if (itemEdicao) {
         // Atualizar
@@ -454,19 +464,20 @@ export default function MultasAvariasPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         .multas-table-wrap { overflow-x: auto; }
         .multas-table { width: 100%; border-collapse: collapse; text-align: left; }
-        .multas-dot-tip { position: relative; display: inline-block; }
+        .multas-dot-tip { position: relative; display: inline-block; z-index: 1; }
         .multas-dot-tip .tip-box {
           visibility: hidden; opacity: 0;
           position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
           background: #1e293b; color: #fff; font-size: 11px; font-weight: 700;
           padding: 5px 10px; border-radius: 6px; white-space: nowrap;
           pointer-events: none; transition: opacity 0.15s;
-          z-index: 1000;
+          z-index: 99999;
         }
         .multas-dot-tip .tip-box::after {
           content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
           border: 5px solid transparent; border-top-color: #1e293b;
         }
+        .multas-dot-tip:hover { z-index: 999; }
         .multas-dot-tip:hover .tip-box { visibility: visible; opacity: 1; }
         @media (max-width: 768px) {
           .multas-kpi-grid { grid-template-columns: 1fr !important; }
@@ -1530,7 +1541,7 @@ export default function MultasAvariasPage() {
                     type="text"
                     placeholder="0,00"
                     value={formValor}
-                    onChange={(e) => setFormValor(e.target.value)}
+                    onChange={(e) => setFormValor(formatarMoedaInput(e.target.value))}
                     style={{
                       width: '100%',
                       padding: '10px 14px',
