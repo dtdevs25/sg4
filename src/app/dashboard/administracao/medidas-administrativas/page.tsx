@@ -200,7 +200,13 @@ export default function MedidasAdministrativasPage() {
   const [statusFiltro, setStatusFiltro] = useState<string>('ALL')
   const [tecnicoFiltro, setTecnicoFiltro] = useState<string>('ALL')
   const [anoFiltro, setAnoFiltro] = useState<number | 'ALL'>(new Date().getFullYear())
-  const [mesFiltro, setMesFiltro] = useState<string>('ALL')
+  const [mesesFiltro, setMesesFiltro] = useState<number[]>([new Date().getMonth() + 1])
+  const [mesesDropdownOpen, setMesesDropdownOpen] = useState(false)
+  const MESES_NOME = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+
+  const handleMesToggle = (m: number) => {
+    setMesesFiltro(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
+  }
 
   // Picker de colaborador no modal
   const [showTecnicoPicker, setShowTecnicoPicker] = useState(false)
@@ -247,7 +253,7 @@ export default function MedidasAdministrativasPage() {
 
   useEffect(() => {
     carregarDados()
-  }, [anoFiltro, mesFiltro, tipoFiltro, statusFiltro, tecnicoFiltro])
+  }, [anoFiltro, mesesFiltro, tipoFiltro, statusFiltro, tecnicoFiltro])
 
   async function carregarTecnicos() {
     const res = await getTecnicos()
@@ -259,15 +265,23 @@ export default function MedidasAdministrativasPage() {
   function carregarDados() {
     setLoading(true)
     startTransition(async () => {
+      const primMes = mesesFiltro.length === 1 ? mesesFiltro[0] : undefined
       const res = await getMedidasAdministrativas({
         ano: anoFiltro === 'ALL' ? undefined : Number(anoFiltro),
-        mes: mesFiltro === 'ALL' ? undefined : Number(mesFiltro),
+        mes: primMes,
         tipo: tipoFiltro,
         status: statusFiltro,
         tecnicoId: tecnicoFiltro,
       })
       if (res.success && res.data) {
-        setItens(res.data as any)
+        const dadosFiltrados = mesesFiltro.length === 0 || mesesFiltro.length === 1
+          ? (res.data as any[])
+          : (res.data as any[]).filter(i => {
+              if (!i.dataMedida) return false;
+              const dt = new Date(i.dataMedida)
+              return mesesFiltro.includes(dt.getUTCMonth() + 1)
+            })
+        setItens(dadosFiltrados as any)
       } else {
         showToast(res.error || 'Erro ao carregar dados', 'error')
       }
@@ -555,9 +569,6 @@ export default function MedidasAdministrativasPage() {
             <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
               Medidas Administrativas
             </h1>
-            <p style={{ margin: '2px 0 0 0', fontSize: 13, color: '#64748b', fontWeight: 500 }}>
-              Controle de advertências verbais, escritas e suspensões por infrações de trânsito ou descumprimento de regras
-            </p>
           </div>
         </div>
 
@@ -578,8 +589,7 @@ export default function MedidasAdministrativasPage() {
             boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
           }}
         >
-          <PlusCircle size={18} />
-          Nova Medida Administrativa
+          + Medida
         </button>
       </div>
 
@@ -681,29 +691,6 @@ export default function MedidasAdministrativasPage() {
           </div>
           <div style={{ fontSize: 22, fontWeight: 800, color: '#9333ea' }}>{stats.suspensoes}</div>
           <span style={{ fontSize: 10, color: '#6b21a8', fontWeight: 600 }}>Casos gravíssimos</span>
-        </div>
-
-        {/* Vinculadas a Multas */}
-        <div
-          style={{
-            background: '#fff',
-            borderRadius: 10,
-            border: '1px solid #dbeafe',
-            padding: '14px 16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            borderLeft: '4px solid #2563eb',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#1e40af', textTransform: 'uppercase' }}>
-              Com Multa / Trânsito
-            </span>
-            <Car size={16} color="#2563eb" />
-          </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: '#2563eb' }}>{stats.comMulta}</div>
-          <span style={{ fontSize: 10, color: '#1e40af', fontWeight: 600 }}>Infrações com veículo</span>
         </div>
       </div>
 
@@ -867,27 +854,65 @@ export default function MedidasAdministrativasPage() {
               ))}
             </select>
 
-            <select
-              value={mesFiltro}
-              onChange={(e) => setMesFiltro(e.target.value)}
-              style={{
-                padding: '7px 12px',
-                borderRadius: 8,
-                border: '1px solid #e2e8f0',
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#334155',
-                outline: 'none',
-                background: '#fff',
-                cursor: 'pointer',
-              }}
-            >
-              {MESES.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setMesesDropdownOpen(!mesesDropdownOpen)}
+                style={{
+                  padding: '7px 12px',
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#334155',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Calendar size={14} />
+                {mesesFiltro.length === 0
+                  ? 'Todos os Meses'
+                  : mesesFiltro.length === 1
+                    ? MESES_NOME[mesesFiltro[0] - 1]
+                    : `${mesesFiltro.length} meses`}
+                <ChevronDown size={13} style={{ transform: mesesDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
+              {mesesDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '110%',
+                  left: 0,
+                  zIndex: 200,
+                  background: '#fff',
+                  borderRadius: 10,
+                  border: `1px solid ${PURPLE}`,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.13)',
+                  padding: '10px 12px',
+                  minWidth: 200,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b' }}>SELECIONE OS MESES</span>
+                    <button onClick={() => setMesesFiltro([])} style={{ fontSize: 11, background: 'none', border: 'none', color: PURPLE, cursor: 'pointer', fontWeight: 700 }}>Limpar</button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px' }}>
+                    {MESES_NOME.map((nome, idx) => (
+                      <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#334155', cursor: 'pointer', padding: '4px 0' }}>
+                        <input
+                          type="checkbox"
+                          checked={mesesFiltro.includes(idx + 1)}
+                          onChange={() => handleMesToggle(idx + 1)}
+                          style={{ accentColor: PURPLE, cursor: 'pointer' }}
+                        />
+                        {nome}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
