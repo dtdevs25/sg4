@@ -80,6 +80,7 @@ model Tecnico {
   ativo     Boolean   @default(true)
   contaMeta Boolean   @default(true)
   recebeRelatorioProdutividade Boolean @default(false)
+  acessoRevisorIA Boolean @default(false)
   matriculaArkium String?
   matriculaVivo   String?
   numeroGaus      String?
