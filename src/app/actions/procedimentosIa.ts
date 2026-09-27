@@ -3,6 +3,7 @@
 import { PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
 import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/db'
 
 const BUCKET_NAME = 'sg4-km'
 const PREFIX = 'procedimentos-ia/'
@@ -16,6 +17,29 @@ async function ensureBucketExists() {
     } else {
       throw error
     }
+  }
+}
+
+export async function checkRevisorAccess() {
+  try {
+    const session = await auth()
+    if (!session?.user) return false
+    
+    const role = (session.user as any).role
+    if (role === 'MASTER' || role === 'ADMIN') return true
+
+    const tecnicoId = (session.user as any).tecnicoId
+    if (!tecnicoId) return false
+    
+    const tecnico = await prisma.tecnico.findUnique({
+      where: { id: tecnicoId },
+      select: { acessoRevisorIA: true }
+    })
+    
+    return !!tecnico?.acessoRevisorIA
+  } catch (error) {
+    console.error('Erro ao verificar acesso ao Revisor IA:', error)
+    return false
   }
 }
 

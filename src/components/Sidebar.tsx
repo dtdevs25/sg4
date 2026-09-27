@@ -9,8 +9,10 @@ import {
   Activity, Calendar, CalendarCheck, FileCheck,
   ChevronLeft, ChevronRight, Menu, X, User as UserIcon,
   Settings, ShieldAlert, FileText, ChevronDown, Car, CalendarDays,
-  ShieldCheck, HardHat, AlertTriangle
+  ShieldCheck, HardHat, AlertTriangle, Brain
 } from 'lucide-react'
+
+import { checkRevisorAccess } from '@/app/actions/procedimentosIa'
 
 type NavItemType = {
   href?: string;
@@ -254,6 +256,20 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
     }
     return true
   })
+
+  const [showRevisor, setShowRevisor] = useState(false)
+  useEffect(() => {
+    checkRevisorAccess().then(setShowRevisor)
+  }, [session])
+
+  if (showRevisor) {
+    filteredNav.push({
+      label: 'Ferramentas', icon: Brain,
+      subItems: [
+        { href: '/dashboard/ferramentas/revisor-ia', label: 'Revisor IA' }
+      ]
+    })
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
