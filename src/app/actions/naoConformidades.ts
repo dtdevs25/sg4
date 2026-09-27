@@ -226,7 +226,8 @@ export async function addNaoConformidadeUpdatesBatch(
   text: string,
   newStatus?: string,
   actionDate?: string,
-  fotoUrl?: string
+  fotoUrl?: string,
+  fotoUrls?: string[]
 ) {
   try {
     const session = await auth()
@@ -246,7 +247,8 @@ export async function addNaoConformidadeUpdatesBatch(
       text,
       author,
       actionDate: actionDate || new Date().toISOString().split('T')[0],
-      fotoUrl: fotoUrl || null
+      fotoUrl: fotoUrl || null,
+      fotoUrls: fotoUrls || []
     }
 
     const updatesPromises = items.map(item => {
@@ -272,7 +274,7 @@ export async function addNaoConformidadeUpdatesBatch(
       userId,
       action: 'ATUALIZAR_NAO_CONFORMIDADES_EM_LOTE',
       entity: 'NaoConformidade',
-      details: { ids, text, status: newStatus || 'sem alteração', actionDate, fotoUrl }
+      details: { ids, text, status: newStatus || 'sem alteração', actionDate, fotoUrl, fotoUrls }
     })
 
     revalidatePath('/dashboard/naoconformidades')
@@ -288,7 +290,8 @@ export async function addNaoConformidadeUpdate(
   text: string,
   newStatus?: string,
   actionDate?: string,
-  fotoUrl?: string
+  fotoUrl?: string,
+  fotoUrls?: string[]
 ) {
   try {
     const session = await auth()
@@ -313,7 +316,8 @@ export async function addNaoConformidadeUpdate(
       text,
       author,
       actionDate: actionDate || new Date().toISOString().split('T')[0],
-      fotoUrl: fotoUrl || null
+      fotoUrl: fotoUrl || null,
+      fotoUrls: fotoUrls || []
     }
 
     const updatedUpdates = [...currentUpdates, newUpdate]
@@ -332,7 +336,7 @@ export async function addNaoConformidadeUpdate(
       action: 'ATUALIZAR_NAO_CONFORMIDADE',
       entity: 'NaoConformidade',
       entityId: id,
-      details: { text, status: updatedStatus, actionDate, fotoUrl }
+      details: { text, status: updatedStatus, actionDate, fotoUrl, fotoUrls }
     })
 
     revalidatePath('/dashboard/naoconformidades')

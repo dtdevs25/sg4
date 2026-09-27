@@ -48,6 +48,7 @@ type UpdateItem = {
   author: string
   actionDate?: string
   fotoUrl?: string | null
+  fotoUrls?: string[]
 }
 
 type NaoConformidadeItem = {
@@ -209,9 +210,8 @@ export default function NaoConformidadesPage() {
 
   // Evidence upload & action date states
   const [actionDate, setActionDate] = useState(new Date().toISOString().split('T')[0])
-  const [fotoBase64, setFotoBase64] = useState<string | null>(null)
-  const [fotoName, setFotoName] = useState<string | null>(null)
-  const [fotoType, setFotoType] = useState<string | null>(null)
+  type FileUploadType = { base64: string, name: string, type: string };
+  const [fotosUpload, setFotosUpload] = useState<FileUploadType[]>([])
   const [isUploading, setIsUploading] = useState(false)
 
   // Custom technician filter dropdown states
@@ -672,19 +672,27 @@ export default function NaoConformidadesPage() {
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      alert("A imagem não deve exceder 5MB.")
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = (evt) => {
-      setFotoBase64(evt.target?.result as string)
-      setFotoName(file.name)
-      setFotoType(file.type)
-    }
-    reader.readAsDataURL(file)
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    
+    Array.from(files).forEach(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`A imagem ${file.name} excede 5MB.`)
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = (evt) => {
+        setFotosUpload(prev => [...prev, {
+          base64: evt.target?.result as string,
+          name: file.name,
+          type: file.type
+        }])
+      }
+      reader.readAsDataURL(file)
+    })
+    
+    // Clear input value so same files or multiple actions can trigger onChange again
+    e.target.value = ''
   }
 
   // Handle updates modal
@@ -693,30 +701,31 @@ export default function NaoConformidadesPage() {
     if (!selectedItem || !newUpdateText.trim()) return
 
     startTransition(async () => {
-      let uploadedUrl = ''
-      if (fotoBase64) {
+      let uploadedUrls: string[] = []
+      if (fotosUpload.length > 0) {
         setIsUploading(true)
-        const formData = new FormData()
-        formData.append('fileData', fotoBase64)
-        formData.append('fileName', fotoName || 'foto.jpg')
-        formData.append('contentType', fotoType || 'image/jpeg')
-        const uploadRes = await uploadNaoConformidadeEvidencia(formData)
-        setIsUploading(false)
-        if (uploadRes.success && uploadRes.url) {
-          uploadedUrl = uploadRes.url
-        } else {
-          alert("Erro ao fazer upload da foto: " + uploadRes.error)
-          return
+        for (const foto of fotosUpload) {
+          const formData = new FormData()
+          formData.append('fileData', foto.base64)
+          formData.append('fileName', foto.name)
+          formData.append('contentType', foto.type)
+          const uploadRes = await uploadNaoConformidadeEvidencia(formData)
+          if (uploadRes.success && uploadRes.url) {
+            uploadedUrls.push(uploadRes.url)
+          } else {
+            alert("Erro ao fazer upload da foto " + foto.name + ": " + uploadRes.error)
+            setIsUploading(false)
+            return
+          }
         }
+        setIsUploading(false)
       }
 
-      const res = await addNaoConformidadeUpdate(selectedItem.id, newUpdateText, modalStatus, actionDate, uploadedUrl)
+      const res = await addNaoConformidadeUpdate(selectedItem.id, newUpdateText, modalStatus, actionDate, undefined, uploadedUrls.length > 0 ? uploadedUrls : undefined)
       if (res.success && res.data) {
         setSelectedItem(res.data as any)
         setNewUpdateText('')
-        setFotoBase64(null)
-        setFotoName(null)
-        setFotoType(null)
+        setFotosUpload([])
         setActionDate(new Date().toISOString().split('T')[0])
         await loadData()
       } else {
@@ -730,21 +739,24 @@ export default function NaoConformidadesPage() {
     if (selectedIds.length === 0 || !batchUpdateText.trim()) return
 
     startTransition(async () => {
-      let uploadedUrl = ''
-      if (fotoBase64) {
+      let uploadedUrls: string[] = []
+      if (fotosUpload.length > 0) {
         setIsUploading(true)
-        const formData = new FormData()
-        formData.append('fileData', fotoBase64)
-        formData.append('fileName', fotoName || 'foto.jpg')
-        formData.append('contentType', fotoType || 'image/jpeg')
-        const uploadRes = await uploadNaoConformidadeEvidencia(formData)
-        setIsUploading(false)
-        if (uploadRes.success && uploadRes.url) {
-          uploadedUrl = uploadRes.url
-        } else {
-          alert("Erro ao fazer upload da foto: " + uploadRes.error)
-          return
+        for (const foto of fotosUpload) {
+          const formData = new FormData()
+          formData.append('fileData', foto.base64)
+          formData.append('fileName', foto.name)
+          formData.append('contentType', foto.type)
+          const uploadRes = await uploadNaoConformidadeEvidencia(formData)
+          if (uploadRes.success && uploadRes.url) {
+            uploadedUrls.push(uploadRes.url)
+          } else {
+            alert("Erro ao fazer upload da foto " + foto.name + ": " + uploadRes.error)
+            setIsUploading(false)
+            return
+          }
         }
+        setIsUploading(false)
       }
 
       const res = await addNaoConformidadeUpdatesBatch(
@@ -752,14 +764,13 @@ export default function NaoConformidadesPage() {
         batchUpdateText,
         batchStatus || undefined,
         batchActionDate,
-        uploadedUrl
+        undefined,
+        uploadedUrls.length > 0 ? uploadedUrls : undefined
       )
 
       if (res.success) {
         setBatchUpdateText('')
-        setFotoBase64(null)
-        setFotoName(null)
-        setFotoType(null)
+        setFotosUpload([])
         setBatchStatus('')
         setBatchActionDate(new Date().toISOString().split('T')[0])
         setSelectedIds([])
@@ -2025,6 +2036,27 @@ export default function NaoConformidadesPage() {
                             />
                           </div>
                         )}
+                        {up.fotoUrls && up.fotoUrls.length > 0 && (
+                          <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {up.fotoUrls.map((url, idx) => (
+                              <img
+                                key={idx}
+                                src={url}
+                                alt="Evidência"
+                                style={{
+                                  maxWidth: '100%',
+                                  maxHeight: 180,
+                                  borderRadius: 8,
+                                  border: '1px solid #cbd5e1',
+                                  objectFit: 'contain',
+                                  cursor: 'pointer',
+                                  display: 'block'
+                                }}
+                                onClick={() => window.open(url, '_blank')}
+                              />
+                            ))}
+                          </div>
+                        )}
                         <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                           <span>Por <strong>{up.author}</strong> em {new Date(up.date).toLocaleString('pt-BR')}</span>
                           {up.actionDate && (
@@ -2134,48 +2166,50 @@ export default function NaoConformidadesPage() {
                       </label>
                       
                       <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
-                      <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+                      <input type="file" accept="image/*" multiple ref={galleryInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
 
-                      {fotoBase64 ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, border: '1px solid #10b981', background: 'rgba(16,185,129,0.05)', height: 38 }}>
-                          <img src={fotoBase64} alt="Preview" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }} />
-                          <div style={{ flex: 1, overflow: 'hidden', fontSize: 11, color: '#065f46', fontWeight: 600, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {fotoName}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
+                        {fotosUpload.map((foto, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, border: '1px solid #10b981', background: 'rgba(16,185,129,0.05)' }}>
+                            <img src={foto.base64} alt="Preview" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }} />
+                            <div style={{ flex: 1, overflow: 'hidden', fontSize: 11, color: '#065f46', fontWeight: 600, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {foto.name}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setFotosUpload(prev => prev.filter((_, i) => i !== idx))}
+                              style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => { setFotoBase64(null); setFotoName(null); setFotoType(null); }}
-                            style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button
-                            type="button"
-                            onClick={() => cameraInputRef.current?.click()}
-                            style={{
-                              flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px dashed #cbd5e1',
-                              background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
-                            }}
-                          >
-                            <Camera size={14} /> Foto
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => galleryInputRef.current?.click()}
-                            style={{
-                              flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px dashed #cbd5e1',
-                              background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
-                            }}
-                          >
-                            <UploadCloud size={14} /> Galeria
-                          </button>
-                        </div>
-                      )}
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => cameraInputRef.current?.click()}
+                          style={{
+                            flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px dashed #cbd5e1',
+                            background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
+                          }}
+                        >
+                          <Camera size={14} /> Adicionar Foto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => galleryInputRef.current?.click()}
+                          style={{
+                            flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px dashed #cbd5e1',
+                            background: '#fff', color: '#64748b', fontWeight: 700, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
+                          }}
+                        >
+                          <UploadCloud size={14} /> Adicionar da Galeria
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -2341,7 +2375,7 @@ export default function NaoConformidadesPage() {
                 </span>
               </div>
               <button
-                onClick={() => { setShowBatchModal(false); setFotoBase64(null); setFotoName(null); setFotoType(null); }}
+                onClick={() => { setShowBatchModal(false); setFotosUpload([]); }}
                 style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}
               >
                 <X size={20} />
@@ -2429,23 +2463,26 @@ export default function NaoConformidadesPage() {
                     </label>
                     
                     <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
-                    <input type="file" accept="image/*" ref={galleryInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+                    <input type="file" accept="image/*" multiple ref={galleryInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
 
-                    {fotoBase64 ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, border: '1px solid #10b981', background: 'rgba(16,185,129,0.05)', height: 38 }}>
-                        <img src={fotoBase64} alt="Preview" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }} />
-                        <div style={{ flex: 1, overflow: 'hidden', fontSize: 11, color: '#065f46', fontWeight: 600, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {fotoName}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => { setFotoBase64(null); setFotoName(null); setFotoType(null); }}
-                          style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 8 }}>
+                        {fotosUpload.map((foto, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, border: '1px solid #10b981', background: 'rgba(16,185,129,0.05)' }}>
+                            <img src={foto.base64} alt="Preview" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover' }} />
+                            <div style={{ flex: 1, overflow: 'hidden', fontSize: 11, color: '#065f46', fontWeight: 600, textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {foto.name}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setFotosUpload(prev => prev.filter((_, i) => i !== idx))}
+                              style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                    ) : (
+
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button
                           type="button"
@@ -2456,7 +2493,7 @@ export default function NaoConformidadesPage() {
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
                           }}
                         >
-                          <Camera size={14} /> Foto
+                          <Camera size={14} /> Adicionar Foto
                         </button>
                         <button
                           type="button"
@@ -2467,10 +2504,9 @@ export default function NaoConformidadesPage() {
                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, height: 38
                           }}
                         >
-                          <UploadCloud size={14} /> Galeria
+                          <UploadCloud size={14} /> Adicionar da Galeria
                         </button>
                       </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -2479,7 +2515,7 @@ export default function NaoConformidadesPage() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, borderTop: '1px solid #e2e8f0', paddingTop: 16 }}>
                 <button
                   type="button"
-                  onClick={() => { setShowBatchModal(false); setFotoBase64(null); setFotoName(null); setFotoType(null); }}
+                  onClick={() => { setShowBatchModal(false); setFotosUpload([]); }}
                   style={{
                     padding: '8px 18px', border: '1px solid #cbd5e1', borderRadius: 8,
                     fontSize: 13, fontWeight: 700, background: '#fff', color: '#475569', cursor: 'pointer'
