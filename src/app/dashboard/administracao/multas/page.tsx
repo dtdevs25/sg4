@@ -168,6 +168,7 @@ export default function MultasAvariasPage() {
   const [modalAberto, setModalAberto] = useState(false)
   const [itemEdicao, setItemEdicao] = useState<MultaAvariaItem | null>(null)
   const [itemExclusao, setItemExclusao] = useState<MultaAvariaItem | null>(null)
+  const [itemVisualizar, setItemVisualizar] = useState<MultaAvariaItem | null>(null)
   const [fotoVisualizar, setFotoVisualizar] = useState<{ url: string; titulo: string } | null>(null)
 
   // Formulário Modal
@@ -1101,7 +1102,7 @@ export default function MultasAvariasPage() {
                       {/* Data */}
                       <td className="multas-td-data" style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
                         {item.dataOcorrencia
-                          ? new Date(item.dataOcorrencia).toLocaleDateString('pt-BR')
+                          ? item.dataOcorrencia.substring(0, 10).split('-').reverse().join('/')
                           : '-'}
                       </td>
 
@@ -1193,27 +1194,20 @@ export default function MultasAvariasPage() {
                       {/* Ações */}
                       <td className="multas-td-acoes" style={{ padding: '14px 20px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          {fotoUrl && (
-                            <button
-                              onClick={() =>
-                                setFotoVisualizar({
-                                  url: fotoUrl,
-                                  titulo: `${item.tipo === 'MULTA' ? 'Multa' : 'Avaria'} - ${item.tecnico?.nome || ''}`,
-                                })
-                              }
-                              title="Ver Comprovante"
-                              style={{
-                                padding: 6,
-                                borderRadius: 6,
-                                background: '#f8fafc',
-                                color: '#660099',
-                                border: '1px solid #e2e8f0',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <Eye size={15} />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setItemVisualizar(item)}
+                            title="Visualizar Detalhes"
+                            style={{
+                              padding: 6,
+                              borderRadius: 6,
+                              background: '#f8fafc',
+                              color: '#660099',
+                              border: '1px solid #e2e8f0',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Eye size={15} />
+                          </button>
                           <button
                             onClick={() => handleAbrirEditar(item)}
                             title="Editar"
@@ -1760,81 +1754,122 @@ export default function MultasAvariasPage() {
         </div>
       )}
 
-      {/* Modal Visualizador de Foto */}
-      {fotoVisualizar && (
+      {/* Modal Visualização Detalhada */}
+      {itemVisualizar && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 2000,
-            background: 'rgba(0,0,0,0.85)',
-            backdropFilter: 'blur(6px)',
+            background: 'rgba(15,23,42,0.85)',
+            backdropFilter: 'blur(8px)',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             padding: 24,
           }}
-          onClick={() => setFotoVisualizar(null)}
+          onClick={() => setItemVisualizar(null)}
         >
           <div
             style={{
-              position: 'relative',
-              maxWidth: '90vw',
-              width: 800,
-              maxHeight: '85vh',
+              background: '#fff',
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 700,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                color: '#fff',
-                marginBottom: 12,
-              }}
-            >
-              <span style={{ fontSize: 15, fontWeight: 700 }}>{fotoVisualizar.titulo}</span>
+            {/* Header Modal */}
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1e293b' }}>
+                  {itemVisualizar.tipo === 'MULTA' ? 'Detalhes da Multa' : 'Detalhes da Avaria'}
+                </h2>
+                <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
+                  Registrado em {new Date(itemVisualizar.createdAt).toLocaleDateString('pt-BR')}
+                </p>
+              </div>
               <button
-                onClick={() => setFotoVisualizar(null)}
-                style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  border: 'none',
-                  color: '#fff',
-                  borderRadius: '50%',
-                  width: 32,
-                  height: 32,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
+                onClick={() => setItemVisualizar(null)}
+                style={{ background: '#f1f5f9', border: 'none', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
               >
                 <X size={18} />
               </button>
             </div>
-            
-            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', paddingRight: 8 }}>
-              {fotoVisualizar.url.split(',').filter(Boolean).map((u, i) => (
-                <div key={i} style={{ width: '100%', background: '#0f172a', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ padding: '8px 12px', background: '#1e293b', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Anexo {i + 1}</span>
-                    <a href={u} target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'none' }}>Abrir Aba ↗</a>
-                  </div>
-                  {u.toLowerCase().includes('.pdf') ? (
-                    <iframe src={u} style={{ width: '100%', height: '60vh', border: 'none' }} />
-                  ) : (
-                    <img src={u} alt={`Anexo ${i + 1}`} style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain' }} />
-                  )}
-                </div>
-              ))}
-            </div>
 
+            {/* Conteúdo */}
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {/* Grid de Informações */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Técnico</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.tecnico?.nome || 'Não vinculado'}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Veículo (Placa)</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.placaVeiculo || itemVisualizar.tecnico?.veiculo || '-'}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Data da Ocorrência</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.dataOcorrencia ? itemVisualizar.dataOcorrencia.substring(0, 10).split('-').reverse().join('/') : '-'}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Localidade</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.localidade || '-'}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Valor</span>
+                  <span style={{ fontSize: 16, fontWeight: 800, color: '#660099' }}>R$ {(itemVisualizar.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Status</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: STATUS_CONFIG[itemVisualizar.status]?.text || '#000' }}>{STATUS_CONFIG[itemVisualizar.status]?.label || itemVisualizar.status}</span>
+                </div>
+              </div>
+
+              {/* Descrição */}
+              {itemVisualizar.descricao && (
+                <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 8 }}>Descrição do Ocorrido</span>
+                  <p style={{ margin: 0, fontSize: 14, color: '#334155', lineHeight: 1.5 }}>{itemVisualizar.descricao}</p>
+                </div>
+              )}
+
+              {/* Anexos */}
+              {(itemVisualizar.fotoUrl || itemVisualizar.comprovanteUrl) && (
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>Anexos e Comprovantes</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {((itemVisualizar.fotoUrl || '') + (itemVisualizar.comprovanteUrl ? ',' + itemVisualizar.comprovanteUrl : '')).split(',').filter(Boolean).map((u, i) => (
+                      <div key={i} style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+                        <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Documento {i + 1}</span>
+                          <a href={u} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 12px', background: '#660099', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 700, borderRadius: 6 }}>
+                            Abrir em Nova Aba ↗
+                          </a>
+                        </div>
+                        <div style={{ background: '#f1f5f9', display: 'flex', justifyContent: 'center', padding: 16 }}>
+                          {u.toLowerCase().includes('.pdf') ? (
+                            <div style={{ textAlign: 'center', padding: '40px 20px', width: '100%' }}>
+                              <FileText size={48} color="#94a3b8" style={{ marginBottom: 12, margin: '0 auto' }} />
+                              <p style={{ margin: 0, color: '#475569', fontSize: 14, fontWeight: 600 }}>Visualização de PDF indisponível aqui.</p>
+                              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>Clique no botão "Abrir em Nova Aba" acima para ler o documento.</p>
+                            </div>
+                          ) : (
+                            <img src={u} alt={`Anexo ${i + 1}`} style={{ maxWidth: '100%', maxHeight: 400, objectFit: 'contain', borderRadius: 6 }} />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
