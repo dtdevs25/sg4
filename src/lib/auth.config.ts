@@ -14,6 +14,7 @@ export const authConfig = {
         token.id = user.id
         token.role = (user as any).role
         token.tecnicoId = (user as any).tecnicoId
+        token.acessoRevisorIA = (user as any).acessoRevisorIA
       }
       return token
     },
@@ -22,6 +23,7 @@ export const authConfig = {
         (session.user as any).id = token.id as string;
         (session.user as any).role = token.role as string;
         (session.user as any).tecnicoId = token.tecnicoId as string | undefined;
+        (session.user as any).acessoRevisorIA = token.acessoRevisorIA as boolean | undefined;
       }
       return session
     },

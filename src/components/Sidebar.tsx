@@ -12,8 +12,6 @@ import {
   ShieldCheck, HardHat, AlertTriangle, Brain
 } from 'lucide-react'
 
-import { checkRevisorAccess } from '@/app/actions/procedimentosIa'
-
 type NavItemType = {
   href?: string;
   label: string;
@@ -257,10 +255,7 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
     return true
   })
 
-  const [showRevisor, setShowRevisor] = useState(false)
-  useEffect(() => {
-    checkRevisorAccess().then(setShowRevisor)
-  }, [session])
+  const showRevisor = !!(session?.user as any)?.acessoRevisorIA
 
   if (showRevisor) {
     filteredNav.push({

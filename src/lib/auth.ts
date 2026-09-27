@@ -32,7 +32,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // 2. Buscar usuário com seu perfil de técnico
         const user = await prisma.user.findUnique({ 
           where: { email },
-          include: { tecnico: { select: { id: true } } }
+          include: { tecnico: { select: { id: true, acessoRevisorIA: true } } }
         })
         if (!user || !user.active) return null
 
@@ -71,6 +71,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           role: user.role,
           tecnicoId: user.tecnico?.id,
+          // MASTER e ADMIN têm acesso automático, técnicos dependem do campo
+          acessoRevisorIA: user.role === 'MASTER' || user.role === 'ADMIN' || !!user.tecnico?.acessoRevisorIA,
         }
       },
     }),
