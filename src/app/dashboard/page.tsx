@@ -185,7 +185,7 @@ function GroupDivider(props: any) {
 }
 
 /* ── Componentes de UI ── */
-function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark, onClick }: any) {
+function DualStatCard({ icon: Icon, label, value, valueLabel = 'Realizados', percent, percentLabel = 'Concluído', subtitle, bg, bgDark, onClick }: any) {
   return (
     <div 
       onClick={onClick}
@@ -205,19 +205,19 @@ function DualStatCard({ icon: Icon, label, value, percent, subtitle, bg, bgDark,
             {subtitle && (
               <>
                 <div style={{ width: 2, height: 14, background: 'rgba(255,255,255,0.4)' }} />
-                <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'clamp(10px, 1.5vw, 13px)', fontWeight: 600, whiteSpace: 'nowrap' }}>Meta: {subtitle}</span>
+                <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 'clamp(10px, 1.5vw, 13px)', fontWeight: 600, whiteSpace: 'nowrap' }}>{subtitle}</span>
               </>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(6px, 1.5vw, 12px)' }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ color: '#fff', fontSize: 'clamp(20px, 3vw, 28px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1, margin: 0 }}>{value}</h3>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(9px, 1.2vw, 11px)', fontWeight: 700, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>Realizados</span>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(9px, 1.2vw, 11px)', fontWeight: 700, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>{valueLabel}</span>
             </div>
             <div style={{ width: 2, height: 'clamp(22px, 3.5vw, 30px)', background: 'rgba(255,255,255,0.3)' }} />
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ color: '#fff', fontSize: 'clamp(20px, 3vw, 28px)', fontWeight: 800, lineHeight: 1, letterSpacing: -1 }}>{percent}%</span>
-              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(9px, 1.2vw, 11px)', fontWeight: 700, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>Concluído</span>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(9px, 1.2vw, 11px)', fontWeight: 700, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>{percentLabel}</span>
             </div>
           </div>
         </div>
@@ -566,9 +566,14 @@ export default function DashboardPage() {
 
   let ncFiltradasParaDisplay = ncFiltradas;
   let ncAbertasTotal = 0;
+  let ncResolvidas = 0;
+  let pctNc = 0;
   try {
     ncFiltradasParaDisplay = isConectadoTst ? ncFiltradas.filter(n => n?.tecnicoId === tecnicoConectado?.id) : ncFiltradas;
+    const totalNc = ncFiltradasParaDisplay.length;
     ncAbertasTotal = ncFiltradasParaDisplay.filter(n => n?.status && n.status !== 'RESOLVIDO' && n.status !== 'CERRADA' && n.status !== 'FECHADA').length;
+    ncResolvidas = totalNc - ncAbertasTotal;
+    pctNc = totalNc > 0 ? Math.round((ncResolvidas / totalNc) * 100) : 0;
   } catch(e) { console.error('Erro calculando ncAbertasTotal: ' + String(e)); }
 
   const tecnicosStats = (tecnicosDb || []).filter(t => isTecnicoActiveInPeriod(t, meses, ano || '')).map(t => {
@@ -965,9 +970,9 @@ export default function DashboardPage() {
 
       {/* ── 4 Stat cards — cores Vivo (Roxo/Violeta) ── */}
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={metaDssTotal} bg="#660099" bgDark="#4a0072" />
-        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={metaInspTotal} bg="#8e44ad" bgDark="#732d91" />
-        <StatCard onClick={() => router.push('/dashboard/naoconformidades')} icon={Target} label="Não Conform." value={ncAbertasTotal} subtitle="Em aberto da equipe" bg="#9c27b0" bgDark="#7b1fa2" />
+        <DualStatCard onClick={() => router.push('/dashboard/dialogos')} icon={ClipboardCheck} label="DSS" value={totalDss} percent={pctDss} subtitle={`Meta: ${metaDssTotal}`} bg="#660099" bgDark="#4a0072" />
+        <DualStatCard onClick={() => router.push('/dashboard/inspecoes')} icon={Clock} label="Inspeções" value={totalInsp} percent={pctInsp} subtitle={`Meta: ${metaInspTotal}`} bg="#8e44ad" bgDark="#732d91" />
+        <DualStatCard onClick={() => router.push('/dashboard/naoconformidades')} icon={Target} label="Não Conform." value={ncAbertasTotal} valueLabel="Abertas" percent={pctNc} percentLabel="Fechadas" subtitle={`Total: ${ncFiltradasParaDisplay.length}`} bg="#9c27b0" bgDark="#7b1fa2" />
         <StatCard onClick={() => router.push('/dashboard/quilometragem')} icon={TrendingUp} label="Média Km" value={`${mediaKm} km`} subtitle="Média por registro" bg="#673ab7" bgDark="#512da8" />
       </div>
 
