@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useChat } from '@ai-sdk/react'
-import { Brain, Upload, Loader2, Sparkles, Send, FileText, ChevronDown, User, Bot, Paperclip, X } from 'lucide-react'
+import { Brain, Loader2, Send, FileText, User, Bot, Paperclip, X } from 'lucide-react'
 import { getProcedimentosIa } from '@/app/actions/procedimentosIa'
 
 function getNomeAmigavel(nomeArquivo: string): string {
