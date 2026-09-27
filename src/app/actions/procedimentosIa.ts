@@ -4,7 +4,8 @@ import { PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, CreateBuck
 import s3Client from '@/lib/s3'
 import { auth } from '@/lib/auth'
 
-const BUCKET_NAME = 'sg4-procedimentos-ia'
+const BUCKET_NAME = 'sg4-km'
+const PREFIX = 'procedimentos-ia/'
 
 async function ensureBucketExists() {
   try {
@@ -33,7 +34,7 @@ export async function uploadProcedimentoIa(formData: FormData) {
     
     // Normalizar nome do arquivo: remover espaços, acentos, etc.
     const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.-]/g, '_')
-    const key = `${Date.now()}_${safeName}`
+    const key = `${PREFIX}${Date.now()}_${safeName}`
 
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
@@ -58,7 +59,8 @@ export async function getProcedimentosIa() {
     if (!session?.user) return { success: false, error: 'Não autorizado' }
 
     const command = new ListObjectsV2Command({
-      Bucket: BUCKET_NAME
+      Bucket: BUCKET_NAME,
+      Prefix: PREFIX
     })
 
     try {
@@ -78,7 +80,6 @@ export async function getProcedimentosIa() {
 
       return { success: true, data: arquivos }
     } catch (e: any) {
-      // Se o bucket não existir ainda, retorna lista vazia
       if (e.name === 'NoSuchBucket') {
         return { success: true, data: [] }
       }
@@ -95,6 +96,7 @@ export async function deleteProcedimentoIa(fileName: string) {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
 
+    // fileName já vem com o prefixo do frontend, pois é o Key que retornamos.
     const command = new DeleteObjectCommand({
       Bucket: BUCKET_NAME,
       Key: fileName
