@@ -44,7 +44,6 @@ const NAV: NavItemType[] = [
       { href: '/dashboard/administracao/abastecimento', label: 'Abastecimento' },
       { href: '/dashboard/administracao/multas', label: 'Multas e Avarias' },
       { href: '/dashboard/administracao/medidas-administrativas', label: 'Medidas Administrativas' },
-      { href: '/dashboard/administracao/procedimentos-ia', label: 'Procedimentos IA' },
       { href: '/dashboard/administracao/logs', label: 'Logs' },
       // { href: '/dashboard/administracao/programacao', label: 'Programação' },
       { href: '/dashboard/administracao/relatorios', label: 'Relatórios' },
@@ -256,15 +255,6 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
   })
 
   const showRevisor = !!(session?.user as any)?.acessoRevisorIA
-
-  if (showRevisor) {
-    filteredNav.push({
-      label: 'Ferramentas', icon: Brain,
-      subItems: [
-        { href: '/dashboard/ferramentas/revisor-ia', label: 'Revisor IA' }
-      ]
-    })
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
