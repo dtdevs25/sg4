@@ -28,7 +28,7 @@ export default function TecnicosPage() {
   
   // Form state
   const [form, setForm] = useState<{
-    nome: string; email: string; telefone: string; admissao: string; demissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null; contaMeta: boolean; ativo: boolean; acessoRevisorIA: boolean; matriculaArkium: string;
+    nome: string; email: string; telefone: string; admissao: string; demissao: string; fotoUrl: string; unidadeIds: string[]; baseFixaId: string | null; contaMeta: boolean; ativo: boolean; matriculaArkium: string;
     matriculaVivo: string; numeroGaus: string; dataNascimento: string; registroProfissional: string; cpf: string; rg: string; patrimonioCelular: string; patrimonioNotebook: string; veiculo: string; endereco: string;
   }>({
     nome: '', email: '', telefone: '',
@@ -39,7 +39,6 @@ export default function TecnicosPage() {
     baseFixaId: null,
     contaMeta: true,
     ativo: true,
-    acessoRevisorIA: false,
     matriculaArkium: '',
     matriculaVivo: '', numeroGaus: '', dataNascimento: '', registroProfissional: '', cpf: '', rg: '', patrimonioCelular: '', patrimonioNotebook: '', veiculo: '', endereco: ''
   })
@@ -81,7 +80,6 @@ export default function TecnicosPage() {
       baseFixaId: null,
       contaMeta: true,
       ativo: true,
-      acessoRevisorIA: false,
       matriculaArkium: '',
       matriculaVivo: '', numeroGaus: '', dataNascimento: '', registroProfissional: '', cpf: '', rg: '', patrimonioCelular: '', patrimonioNotebook: '', veiculo: '', endereco: ''
     })
@@ -102,7 +100,6 @@ export default function TecnicosPage() {
       baseFixaId: tecnico.baseFixaId || null,
       contaMeta: tecnico.contaMeta !== false,
       ativo: tecnico.ativo !== false,
-      acessoRevisorIA: tecnico.acessoRevisorIA || false,
       matriculaArkium: tecnico.matriculaArkium || '',
       matriculaVivo: tecnico.matriculaVivo || '',
       numeroGaus: tecnico.numeroGaus || '',
@@ -168,7 +165,6 @@ export default function TecnicosPage() {
         baseFixaId: form.baseFixaId,
         contaMeta: form.contaMeta,
         ativo: form.ativo,
-        acessoRevisorIA: form.acessoRevisorIA,
         matriculaArkium: form.matriculaArkium,
         matriculaVivo: form.matriculaVivo,
         numeroGaus: form.numeroGaus,
@@ -631,19 +627,6 @@ export default function TecnicosPage() {
                     <span>Contabiliza para Metas da Empresa</span>
                   </label>
                   <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0 28px' }}>Se desmarcado, as atividades deste técnico não somarão aos números globais do Dashboard, mesmo se ele for ativo.</p>
-                </div>
-
-                <div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#334155', cursor: 'pointer', background: form.acessoRevisorIA ? 'rgba(102,0,153,0.1)' : 'rgba(148,163,184,0.1)', padding: '12px 16px', borderRadius: 8, border: `1px solid ${form.acessoRevisorIA ? '#660099' : '#94a3b8'}`, transition: 'all 0.2s' }}>
-                    <input
-                      type="checkbox"
-                      checked={form.acessoRevisorIA}
-                      onChange={(e) => setForm(p => ({ ...p, acessoRevisorIA: e.target.checked }))}
-                      style={{ margin: 0, width: 16, height: 16, accentColor: form.acessoRevisorIA ? '#660099' : '#94a3b8' }}
-                    />
-                    <span>Acesso ao Revisor IA</span>
-                  </label>
-                  <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0 28px' }}>Se ativado, o técnico terá acesso à nova ferramenta "Revisor IA" baseada em documentos no painel de ferramentas.</p>
                 </div>
               </div>
 

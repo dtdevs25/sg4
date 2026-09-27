@@ -65,7 +65,7 @@ export async function uploadFotoTecnico(formData: FormData) {
   }
 }
 
-export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, demissao?: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null, contaMeta?: boolean, ativo?: boolean, acessoRevisorIA?: boolean, matriculaArkium?: string, matriculaVivo?: string, numeroGaus?: string, dataNascimento?: string, registroProfissional?: string, cpf?: string, rg?: string, patrimonioCelular?: string, patrimonioNotebook?: string, veiculo?: string, endereco?: string }) {
+export async function saveTecnico(data: { id?: string, nome: string, email: string, telefone: string, admissao: string, demissao?: string, fotoUrl?: string, unidadeIds?: string[], baseFixaId?: string | null, contaMeta?: boolean, ativo?: boolean, matriculaArkium?: string, matriculaVivo?: string, numeroGaus?: string, dataNascimento?: string, registroProfissional?: string, cpf?: string, rg?: string, patrimonioCelular?: string, patrimonioNotebook?: string, veiculo?: string, endereco?: string }) {
   try {
     const session = await auth()
     if (!session?.user || (session.user as any).role === 'TST') return { success: false, error: 'Não autorizado' }
@@ -99,7 +99,6 @@ export async function saveTecnico(data: { id?: string, nome: string, email: stri
       baseFixaId: data.baseFixaId || null,
       contaMeta: data.contaMeta !== undefined ? data.contaMeta : true,
       ativo: data.ativo !== undefined ? data.ativo : true,
-      acessoRevisorIA: data.acessoRevisorIA || false,
       matriculaArkium: data.matriculaArkium || null,
       matriculaVivo: data.matriculaVivo || null,
       numeroGaus: data.numeroGaus || null,
