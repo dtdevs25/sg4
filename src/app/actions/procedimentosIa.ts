@@ -1,10 +1,22 @@
 'use server'
 
-import { PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, CreateBucketCommand, HeadBucketCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
 import { auth } from '@/lib/auth'
 
 const BUCKET_NAME = 'sg4-procedimentos-ia'
+
+async function ensureBucketExists() {
+  try {
+    await s3Client.send(new HeadBucketCommand({ Bucket: BUCKET_NAME }))
+  } catch (error: any) {
+    if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+      await s3Client.send(new CreateBucketCommand({ Bucket: BUCKET_NAME }))
+    } else {
+      throw error
+    }
+  }
+}
 
 export async function uploadProcedimentoIa(formData: FormData) {
   try {
@@ -13,6 +25,8 @@ export async function uploadProcedimentoIa(formData: FormData) {
 
     const file = formData.get('file') as File
     if (!file) return { success: false, error: 'Arquivo inválido' }
+
+    await ensureBucketExists()
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
