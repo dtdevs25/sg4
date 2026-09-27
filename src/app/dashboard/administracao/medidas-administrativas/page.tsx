@@ -218,7 +218,7 @@ export default function MedidasAdministrativasPage() {
   const [modalAberto, setModalAberto] = useState(false)
   const [itemEdicao, setItemEdicao] = useState<MedidaItem | null>(null)
   const [itemExclusao, setItemExclusao] = useState<MedidaItem | null>(null)
-  const [docVisualizar, setDocVisualizar] = useState<{ url: string; titulo: string } | null>(null)
+  const [itemVisualizar, setItemVisualizar] = useState<MedidaItem | null>(null)
 
   // Formulário Modal
   const [formTipo, setFormTipo] = useState<
@@ -968,9 +968,7 @@ export default function MedidasAdministrativasPage() {
                 <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
                   Motivo
                 </th>
-                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                  Vínculo com Multa
-                </th>
+
                 <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
                   Aplicado Por
                 </th>
@@ -1030,7 +1028,7 @@ export default function MedidasAdministrativasPage() {
 
                       {/* Data */}
                       <td data-label="Data" style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
-                        {item.data ? new Date(item.data).toLocaleDateString('pt-BR') : '-'}
+                        {item.data ? item.data.substring(0, 10).split('-').reverse().join('/') : '-'}
                       </td>
 
                       {/* Colaborador */}
@@ -1090,32 +1088,7 @@ export default function MedidasAdministrativasPage() {
                         )}
                       </td>
 
-                      {/* Vínculo com Multa */}
-                      <td data-label="Vínculo" style={{ padding: '14px 20px', whiteSpace: 'nowrap' }}>
-                        {item.multaAvaria ? (
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              background: '#eff6ff',
-                              border: '1px solid #bfdbfe',
-                              color: '#1e40af',
-                              fontSize: 11,
-                              fontWeight: 700,
-                            }}
-                          >
-                            <Car size={13} />
-                            {item.multaAvaria.tipo === 'MULTA' ? 'Multa' : 'Avaria'}
-                            {item.multaAvaria.placaVeiculo ? ` (${formatarVeiculo(item.multaAvaria.placaVeiculo)})` : ''}
-                            {item.multaAvaria.valor > 0 ? ` - R$ ${item.multaAvaria.valor.toLocaleString('pt-BR')}` : ''}
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: 11, color: '#94a3b8' }}>Sem multa vinculada</span>
-                        )}
-                      </td>
+
 
                       {/* Aplicado Por */}
                       <td data-label="Aplicado Por" style={{ padding: '14px 20px', fontSize: 12, color: '#475569', fontWeight: 600 }}>
@@ -1133,27 +1106,20 @@ export default function MedidasAdministrativasPage() {
                       {/* Ações */}
                       <td data-label="Ações" style={{ padding: '14px 20px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          {item.documentoUrl && (
-                            <button
-                              onClick={() =>
-                                setDocVisualizar({
-                                  url: item.documentoUrl!,
-                                  titulo: `${tipoConf.label} - ${item.tecnico?.nome || ''}`,
-                                })
-                              }
-                              title="Ver Termo"
-                              style={{
-                                padding: 6,
-                                borderRadius: 6,
-                                background: '#f8fafc',
-                                color: '#660099',
-                                border: '1px solid #e2e8f0',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <Eye size={15} />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => setItemVisualizar(item)}
+                            title="Visualizar Detalhes"
+                            style={{
+                              padding: 6,
+                              borderRadius: 6,
+                              background: '#f8fafc',
+                              color: '#660099',
+                              border: '1px solid #e2e8f0',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Eye size={15} />
+                          </button>
                           <button
                             onClick={() => handleAbrirEditar(item)}
                             title="Editar"
@@ -1770,108 +1736,120 @@ export default function MedidasAdministrativasPage() {
         </div>
       )}
 
-      {/* Modal Visualizador de Documento / Foto */}
-      {docVisualizar && (
+      {/* Modal Visualização Detalhada */}
+      {itemVisualizar && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 2000,
-            background: 'rgba(0,0,0,0.85)',
-            backdropFilter: 'blur(6px)',
+            background: 'rgba(15,23,42,0.85)',
+            backdropFilter: 'blur(8px)',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             padding: 24,
           }}
-          onClick={() => setDocVisualizar(null)}
+          onClick={() => setItemVisualizar(null)}
         >
           <div
             style={{
-              position: 'relative',
-              maxWidth: '90vw',
-              maxHeight: '88vh',
+              background: '#fff',
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 700,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
-              width: '100%',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                color: '#fff',
-                marginBottom: 12,
-              }}
-            >
-              <span style={{ fontSize: 15, fontWeight: 700 }}>{docVisualizar.titulo}</span>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <a
-                  href={docVisualizar.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    background: PURPLE,
-                    color: '#fff',
-                    textDecoration: 'none',
-                    padding: '6px 14px',
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
-                >
-                  Abrir em Nova Aba
-                </a>
-                <button
-                  onClick={() => setDocVisualizar(null)}
-                  style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    border: 'none',
-                    color: '#fff',
-                    borderRadius: '50%',
-                    width: 32,
-                    height: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <X size={18} />
-                </button>
+            {/* Header Modal */}
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1e293b' }}>
+                  Detalhes da Medida Administrativa
+                </h2>
+                <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
+                  Registrado em {new Date(itemVisualizar.createdAt).toLocaleDateString('pt-BR')}
+                </p>
               </div>
+              <button
+                onClick={() => setItemVisualizar(null)}
+                style={{ background: '#f1f5f9', border: 'none', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            {docVisualizar.url.toLowerCase().endsWith('.pdf') ? (
-              <iframe
-                src={docVisualizar.url}
-                title="Documento PDF"
-                style={{
-                  width: '100%',
-                  height: '75vh',
-                  borderRadius: 10,
-                  background: '#fff',
-                  border: 'none',
-                }}
-              />
-            ) : (
-              <img
-                src={docVisualizar.url}
-                alt={docVisualizar.titulo}
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '75vh',
-                  borderRadius: 10,
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-                  objectFit: 'contain',
-                }}
-              />
-            )}
+            {/* Conteúdo */}
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+              {/* Grid de Informações */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Técnico</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.tecnico?.nome || 'Não vinculado'}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Tipo de Medida</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: TIPO_CONFIG[itemVisualizar.tipo]?.text || '#1e293b' }}>{TIPO_CONFIG[itemVisualizar.tipo]?.label || itemVisualizar.tipo}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Data</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.data ? itemVisualizar.data.substring(0, 10).split('-').reverse().join('/') : '-'}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Motivo</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.motivo || '-'}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Aplicado Por</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.aplicadoPor || 'Gestão / TST'}</span>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Status</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: STATUS_CONFIG[itemVisualizar.status]?.text || '#000' }}>{STATUS_CONFIG[itemVisualizar.status]?.label || itemVisualizar.status}</span>
+                </div>
+              </div>
+
+              {/* Descrição */}
+              {itemVisualizar.descricao && (
+                <div style={{ background: '#f8fafc', padding: 16, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 8 }}>Descrição Adicional</span>
+                  <p style={{ margin: 0, fontSize: 14, color: '#334155', lineHeight: 1.5 }}>{itemVisualizar.descricao}</p>
+                </div>
+              )}
+
+              {/* Anexos */}
+              {itemVisualizar.documentoUrl && (
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>Anexos e Documentos</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+                      <div style={{ background: '#f8fafc', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Termo da Medida</span>
+                        <a href={itemVisualizar.documentoUrl} target="_blank" rel="noopener noreferrer" style={{ padding: '6px 12px', background: '#660099', color: '#fff', textDecoration: 'none', fontSize: 12, fontWeight: 700, borderRadius: 6 }}>
+                          Abrir em Nova Aba ↗
+                        </a>
+                      </div>
+                      <div style={{ background: '#f1f5f9', display: 'flex', justifyContent: 'center', padding: 16 }}>
+                        {itemVisualizar.documentoUrl.toLowerCase().includes('.pdf') ? (
+                          <div style={{ textAlign: 'center', padding: '40px 20px', width: '100%' }}>
+                            <FileText size={48} color="#94a3b8" style={{ marginBottom: 12, margin: '0 auto' }} />
+                            <p style={{ margin: 0, color: '#475569', fontSize: 14, fontWeight: 600 }}>Visualização de PDF indisponível aqui.</p>
+                            <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: 13 }}>Clique no botão "Abrir em Nova Aba" acima para ler o documento.</p>
+                          </div>
+                        ) : (
+                          <img src={itemVisualizar.documentoUrl} alt={`Documento`} style={{ maxWidth: '100%', maxHeight: 400, objectFit: 'contain', borderRadius: 6 }} />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
