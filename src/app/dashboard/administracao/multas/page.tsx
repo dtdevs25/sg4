@@ -12,6 +12,7 @@ import {
   Camera,
   Eye,
   Trash2,
+  CheckCircle2,
   Edit2,
   Loader2,
   X,
