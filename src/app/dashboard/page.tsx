@@ -193,7 +193,7 @@ function DualStatCard({ icon: Icon, label, value, valueLabel = 'Realizados', per
         background: bg, borderRadius: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
         overflow: 'hidden', cursor: onClick ? 'pointer' : 'default',
         transition: 'transform .15s', display: 'flex', flexDirection: 'column',
-        justifyContent: 'space-between', flex: 1, minWidth: 260
+        justifyContent: 'space-between', flex: 1, minWidth: 220
       }}
       onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
       onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
@@ -242,7 +242,7 @@ function StatCard({ icon: Icon, label, value, bg, bgDark, subtitle, onClick }: a
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        flex: 1, minWidth: 200
+        flex: 1, minWidth: 180
       }}
       onMouseEnter={e => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
       onMouseLeave={e => onClick && (e.currentTarget.style.transform = 'scale(1)')}
