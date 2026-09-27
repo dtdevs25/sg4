@@ -183,11 +183,9 @@ export default function MultasAvariasPage() {
   const [formDescricao, setFormDescricao] = useState('')
   const [formLocalidade, setFormLocalidade] = useState('')
 
-  // Upload Foto
-  const [fotoFileBase64, setFotoFileBase64] = useState<string | null>(null)
-  const [fotoFileName, setFotoFileName] = useState<string | null>(null)
-  const [fotoFileType, setFotoFileType] = useState<string | null>(null)
-  const [fotoUrlExistente, setFotoUrlExistente] = useState<string | null>(null)
+  // Upload Arquivos
+  const [arquivosLocais, setArquivosLocais] = useState<{ base64: string; name: string; type: string }[]>([])
+  const [urlsExistentes, setUrlsExistentes] = useState<string[]>([])
   const [isUploadingFoto, setIsUploadingFoto] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -269,10 +267,8 @@ export default function MultasAvariasPage() {
     setFormStatus('PENDENTE')
     setFormDescricao('')
     setFormLocalidade('')
-    setFotoFileBase64(null)
-    setFotoFileName(null)
-    setFotoFileType(null)
-    setFotoUrlExistente(null)
+    setArquivosLocais([])
+    setUrlsExistentes([])
     setShowTecnicoPicker(false)
     setTecnicoPickerSearch('')
     setMostrarInativos(false)
@@ -292,10 +288,9 @@ export default function MultasAvariasPage() {
     setFormStatus(item.status)
     setFormDescricao(item.descricao || '')
     setFormLocalidade(item.localidade || '')
-    setFotoFileBase64(null)
-    setFotoFileName(null)
-    setFotoFileType(null)
-    setFotoUrlExistente(item.fotoUrl || item.comprovanteUrl || null)
+    const itemUrls = [item.fotoUrl, item.comprovanteUrl].filter(Boolean).join(',').split(',').filter(Boolean)
+    setUrlsExistentes(itemUrls)
+    setArquivosLocais([])
     setShowTecnicoPicker(false)
     setTecnicoPickerSearch('')
     setMostrarInativos(false)
@@ -304,21 +299,36 @@ export default function MultasAvariasPage() {
 
   // Upload Foto Handler
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert('A foto selecionada é muito grande. O limite é 8MB.')
-      return
-    }
+    let pending = files.length
+    const novosArquivos: { base64: string; name: string; type: string }[] = []
 
-    const reader = new FileReader()
-    reader.onload = (evt) => {
-      setFotoFileBase64(evt.target?.result as string)
-      setFotoFileName(file.name)
-      setFotoFileType(file.type)
-    }
-    reader.readAsDataURL(file)
+    files.forEach((file) => {
+      if (file.size > 8 * 1024 * 1024) {
+        alert(`O arquivo ${file.name} é muito grande. O limite é 8MB.`)
+        pending--
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (evt) => {
+        novosArquivos.push({
+          base64: evt.target?.result as string,
+          name: file.name,
+          type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream'),
+        })
+        pending--
+        if (pending === 0) {
+          setArquivosLocais(prev => [...prev, ...novosArquivos])
+        }
+      }
+      reader.readAsDataURL(file)
+    })
+    
+    // reset input
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   // Salvar (Criar ou Atualizar)
@@ -334,26 +344,26 @@ export default function MultasAvariasPage() {
     }
 
     startTransition(async () => {
-      let finalFotoUrl = fotoUrlExistente
+      let finalUrls = [...urlsExistentes]
 
-      // Se há um novo arquivo selecionado para upload
-      if (fotoFileBase64 && fotoFileName) {
+      if (arquivosLocais.length > 0) {
         setIsUploadingFoto(true)
-        const formData = new FormData()
-        formData.append('fileData', fotoFileBase64)
-        formData.append('fileName', fotoFileName)
-        formData.append('contentType', fotoFileType || 'image/jpeg')
+        for (const file of arquivosLocais) {
+          const formData = new FormData()
+          formData.append('fileData', file.base64)
+          formData.append('fileName', file.name)
+          formData.append('contentType', file.type)
 
-        const uploadRes = await uploadFotoMulta(formData)
-        setIsUploadingFoto(false)
-
-        if (uploadRes.success && uploadRes.url) {
-          finalFotoUrl = uploadRes.url
-        } else {
-          showToast(uploadRes.error || 'Erro ao enviar foto para o bucket', 'error')
-          return
+          const uploadRes = await uploadFotoMulta(formData)
+          if (uploadRes.success && uploadRes.url) {
+            finalUrls.push(uploadRes.url)
+          } else {
+            showToast(`Erro ao enviar arquivo ${file.name}`, 'error')
+          }
         }
+        setIsUploadingFoto(false)
       }
+      const combinedUrls = finalUrls.join(',')
 
       const valorLimpo = formValor.replace(/\./g, '').replace(',', '.');
       const valorNumerico = formValor ? parseFloat(valorLimpo) : 0;
@@ -369,7 +379,7 @@ export default function MultasAvariasPage() {
           status: formStatus,
           descricao: formDescricao,
           localidade: formLocalidade,
-          fotoUrl: finalFotoUrl || undefined,
+          fotoUrl: combinedUrls || undefined,
         })
 
         if (res.success) {
@@ -390,7 +400,7 @@ export default function MultasAvariasPage() {
           status: formStatus,
           descricao: formDescricao,
           localidade: formLocalidade,
-          fotoUrl: finalFotoUrl || undefined,
+          fotoUrl: combinedUrls || undefined,
         })
 
         if (res.success) {
@@ -1528,6 +1538,11 @@ export default function MultasAvariasPage() {
                       outline: 'none',
                     }}
                   />
+                  {formDataOcorrencia && (
+                    <div style={{ fontSize: 11, color: PURPLE, fontWeight: 700, marginTop: 4 }}>
+                      {new Date(formDataOcorrencia + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' }).replace(/^\w/, c => c.toUpperCase())}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1634,6 +1649,7 @@ export default function MultasAvariasPage() {
                   ref={fileInputRef}
                   accept="image/*,.pdf"
                   onChange={handleFileChange}
+                  multiple
                   style={{ display: 'none' }}
                 />
 
@@ -1656,49 +1672,31 @@ export default function MultasAvariasPage() {
                     }}
                   >
                     <UploadCloud size={18} color={PURPLE} />
-                    {fotoFileBase64 || fotoUrlExistente ? 'Trocar Foto' : 'Selecionar Foto / Documento'}
+                    Selecionar Foto(s) ou PDF(s)
                   </button>
-
-                  {(fotoFileBase64 || fotoUrlExistente) && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFotoFileBase64(null)
-                        setFotoFileName(null)
-                        setFotoUrlExistente(null)
-                        if (fileInputRef.current) fileInputRef.current.value = ''
-                      }}
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: 8,
-                        background: '#fee2e2',
-                        color: '#ef4444',
-                        border: 'none',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Remover
-                    </button>
-                  )}
                 </div>
 
-                {/* Preview Foto */}
-                {(fotoFileBase64 || fotoUrlExistente) && (
-                  <div style={{ marginTop: 12 }}>
-                    <img
-                      src={fotoFileBase64 || fotoUrlExistente!}
-                      alt="Preview"
-                      style={{
-                        width: '100%',
-                        maxHeight: 180,
-                        objectFit: 'contain',
-                        borderRadius: 8,
-                        background: '#0f172a',
-                        border: '1px solid #e2e8f0',
-                      }}
-                    />
+                {/* Lista de Arquivos */}
+                {(urlsExistentes.length > 0 || arquivosLocais.length > 0) && (
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {urlsExistentes.map((url, idx) => (
+                      <div key={`ext-${idx}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 8, border: '1px solid #e2e8f0', borderRadius: 8, background: '#f8fafc' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                          <FileText size={16} color={PURPLE} flexShrink={0} />
+                          <span style={{ fontSize: 12, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Anexo Salvo {idx + 1}</span>
+                        </div>
+                        <button type="button" onClick={() => setUrlsExistentes(prev => prev.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={16} /></button>
+                      </div>
+                    ))}
+                    {arquivosLocais.map((file, idx) => (
+                      <div key={`loc-${idx}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 8, border: '1px dashed #cbd5e1', borderRadius: 8, background: '#f1f5f9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                          <FileText size={16} color={PURPLE} flexShrink={0} />
+                          <span style={{ fontSize: 12, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
+                        </div>
+                        <button type="button" onClick={() => setArquivosLocais(prev => prev.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={16} /></button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1782,6 +1780,7 @@ export default function MultasAvariasPage() {
             style={{
               position: 'relative',
               maxWidth: '90vw',
+              width: 800,
               maxHeight: '85vh',
               display: 'flex',
               flexDirection: 'column',
@@ -1818,17 +1817,23 @@ export default function MultasAvariasPage() {
                 <X size={18} />
               </button>
             </div>
-            <img
-              src={fotoVisualizar.url}
-              alt={fotoVisualizar.titulo}
-              style={{
-                maxWidth: '100%',
-                maxHeight: '75vh',
-                borderRadius: 10,
-                boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-                objectFit: 'contain',
-              }}
-            />
+            
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', paddingRight: 8 }}>
+              {fotoVisualizar.url.split(',').filter(Boolean).map((u, i) => (
+                <div key={i} style={{ width: '100%', background: '#0f172a', borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ padding: '8px 12px', background: '#1e293b', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Anexo {i + 1}</span>
+                    <a href={u} target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', textDecoration: 'none' }}>Abrir Aba ↗</a>
+                  </div>
+                  {u.toLowerCase().includes('.pdf') ? (
+                    <iframe src={u} style={{ width: '100%', height: '60vh', border: 'none' }} />
+                  ) : (
+                    <img src={u} alt={`Anexo ${i + 1}`} style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain' }} />
+                  )}
+                </div>
+              ))}
+            </div>
+
           </div>
         </div>
       )}
