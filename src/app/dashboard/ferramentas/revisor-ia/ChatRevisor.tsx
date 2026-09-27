@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useChat } from '@ai-sdk/react'
-import { Brain, Loader2, Send, FileText, User, Bot, Paperclip, X } from 'lucide-react'
+import { Cpu, Loader2, Send, FileText, User, Upload, X } from 'lucide-react'
 import { getProcedimentosIa } from '@/app/actions/procedimentosIa'
 
 function getNomeAmigavel(nomeArquivo: string): string {
@@ -79,7 +79,7 @@ export default function ChatRevisor() {
       <div style={{ width: 320, background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
         <div style={{ padding: 20, borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
           <h2 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Brain size={20} color="#660099" />
+            <Cpu size={20} color="#660099" />
             Cérebro Especialista
           </h2>
           <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0 0' }}>Escolha o manual que a IA deve seguir para fazer a revisão.</p>
@@ -130,7 +130,7 @@ export default function ChatRevisor() {
           {messages.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', textAlign: 'center' }}>
               <div style={{ background: 'rgba(102,0,153,0.05)', padding: 24, borderRadius: '50%', marginBottom: 16 }}>
-                <Brain size={48} color="#660099" opacity={0.8} />
+                <Cpu size={48} color="#660099" opacity={0.8} />
               </div>
               <h3 style={{ fontSize: 20, fontWeight: 800, color: '#334155', margin: 0 }}>Olá! Como posso te ajudar hoje?</h3>
               <p style={{ maxWidth: 400, marginTop: 8 }}>Faça o upload do seu documento (APR, relatório, etc) e eu vou revisá-lo seguindo as regras do especialista selecionado ao lado.</p>
@@ -139,7 +139,7 @@ export default function ChatRevisor() {
             messages.map((m, idx) => (
               <div key={idx} style={{ display: 'flex', gap: 16, flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: m.role === 'user' ? '#f1f5f9' : 'rgba(102,0,153,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: m.role === 'user' ? '#64748b' : '#660099', flexShrink: 0 }}>
-                  {m.role === 'user' ? <User size={20} /> : <Bot size={20} />}
+                  {m.role === 'user' ? <User size={20} /> : <Cpu size={20} />}
                 </div>
                 <div style={{ background: m.role === 'user' ? '#660099' : '#f8fafc', color: m.role === 'user' ? '#fff' : '#334155', padding: '16px 20px', borderRadius: 16, borderTopRightRadius: m.role === 'user' ? 4 : 16, borderTopLeftRadius: m.role === 'assistant' ? 4 : 16, maxWidth: '80%', border: m.role === 'user' ? 'none' : '1px solid #e2e8f0', fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                   {m.experimental_attachments?.map((attachment, i) => (
@@ -156,7 +156,7 @@ export default function ChatRevisor() {
           {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
             <div style={{ display: 'flex', gap: 16, flexDirection: 'row' }}>
               <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(102,0,153,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#660099', flexShrink: 0 }}>
-                <Bot size={20} />
+                <Cpu size={20} />
               </div>
               <div style={{ background: '#f8fafc', padding: '16px 20px', borderRadius: 16, borderTopLeftRadius: 4, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Loader2 size={16} className="animate-spin" color="#660099" />
@@ -188,7 +188,7 @@ export default function ChatRevisor() {
             <div style={{ flex: 1, position: 'relative', background: '#fff', borderRadius: 12, border: '1px solid #cbd5e1', display: 'flex', alignItems: 'center', padding: '8px 12px', transition: 'border 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
               
               <button type="button" onClick={() => fileInputRef.current?.click()} style={{ background: '#f1f5f9', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
-                <Paperclip size={18} />
+                <Upload size={18} />
               </button>
               <input 
                 type="file" 
