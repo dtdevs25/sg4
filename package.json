@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.82",
+    "@ai-sdk/react": "^4.0.119",
     "@auth/prisma-adapter": "^2.11.2",
     "@aws-sdk/client-s3": "^3.1062.0",
     "@google/generative-ai": "^0.24.1",
@@ -22,6 +24,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@types/pg": "^8.20.0",
+    "ai": "^7.0.116",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
