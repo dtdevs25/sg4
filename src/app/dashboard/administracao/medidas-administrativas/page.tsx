@@ -1028,7 +1028,7 @@ export default function MedidasAdministrativasPage() {
 
                       {/* Data */}
                       <td data-label="Data" style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
-                        {item.data ? item.data.substring(0, 10).split('-').reverse().join('/') : '-'}
+                        {item.data ? new Date(item.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}
                       </td>
 
                       {/* Colaborador */}
@@ -1798,7 +1798,7 @@ export default function MedidasAdministrativasPage() {
                 </div>
                 <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
                   <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Data</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.data ? itemVisualizar.data.substring(0, 10).split('-').reverse().join('/') : '-'}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.data ? new Date(itemVisualizar.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</span>
                 </div>
                 <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
                   <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Motivo</span>

@@ -1102,7 +1102,7 @@ export default function MultasAvariasPage() {
                       {/* Data */}
                       <td className="multas-td-data" style={{ padding: '14px 20px', fontSize: 13, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}>
                         {item.dataOcorrencia
-                          ? item.dataOcorrencia.substring(0, 10).split('-').reverse().join('/')
+                          ? new Date(item.dataOcorrencia).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
                           : '-'}
                       </td>
 
@@ -1816,7 +1816,7 @@ export default function MultasAvariasPage() {
                 </div>
                 <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
                   <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Data da Ocorrência</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.dataOcorrencia ? itemVisualizar.dataOcorrencia.substring(0, 10).split('-').reverse().join('/') : '-'}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{itemVisualizar.dataOcorrencia ? new Date(itemVisualizar.dataOcorrencia).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}</span>
                 </div>
                 <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
                   <span style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 4 }}>Localidade</span>
