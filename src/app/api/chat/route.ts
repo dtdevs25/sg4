@@ -49,9 +49,7 @@ async function getProcedureText(procedureKey: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const { messages, data } = await req.json()
-    
-    const procedureKey = data?.procedureKey // e.g. "procedimentos-ia/arquivo.pdf"
+    const { messages, procedureKey } = await req.json()
     
     let systemPrompt = `Você é um Assistente Especialista e Revisor de Documentos da empresa SG4.
 Seu objetivo é ajudar os técnicos a revisarem e melhorarem seus documentos (como APRs, Investigações de Acidentes, etc).
