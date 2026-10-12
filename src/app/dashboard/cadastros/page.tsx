@@ -67,14 +67,14 @@ export default function CadastrosPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
-      {/* ─── CABEÇALHO DINÂMICO CONFORME A ABA ─── */}
+      {/* ─── CABEÇALHO FINO / PADRÃO QUILOMETRAGEM ─── */}
       <div
         style={{
           background: '#fff',
-          borderRadius: 12,
+          borderRadius: 10,
           border: '1px solid #f1f5f9',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-          padding: '20px 24px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          padding: '14px 20px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -82,26 +82,11 @@ export default function CadastrosPage() {
           gap: 16,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: PURPLE_BG,
-              color: PURPLE,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <IconeAtual size={26} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-              {configAba.titulo}
-            </h1>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <IconeAtual color={PURPLE} size={22} />
+            {configAba.titulo}
+          </h1>
         </div>
 
         <button
@@ -110,7 +95,7 @@ export default function CadastrosPage() {
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            padding: '10px 20px',
+            padding: '8px 18px',
             borderRadius: 8,
             background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
             color: '#fff',
@@ -118,7 +103,7 @@ export default function CadastrosPage() {
             fontSize: 13,
             fontWeight: 700,
             cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
+            boxShadow: '0 2px 8px rgba(102,0,153,0.2)',
             transition: 'all 0.15s',
           }}
         >
