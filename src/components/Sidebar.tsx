@@ -30,14 +30,7 @@ const NAV: NavItemType[] = [
   { href: '/dashboard/quilometragem',label: 'Quilometragem',icon: Car              },
   // { href: '/dashboard/epi',         label: 'EPI',         icon: HardHat          },
   { href: '/dashboard/relatorios',  label: 'Relatórios',  icon: FileText         },
-  { 
-    label: 'Cadastros', icon: UserIcon, 
-    subItems: [
-      { href: '/dashboard/cadastros/usuarios', label: 'Usuários' },
-      { href: '/dashboard/cadastros/tecnicos', label: 'Técnicos' },
-      { href: '/dashboard/cadastros/unidades', label: 'Unidades' },
-    ]
-  },
+  { href: '/dashboard/cadastros',   label: 'Cadastros',   icon: UserIcon         },
   {
     label: 'Administração', icon: ShieldAlert,
     subItems: [

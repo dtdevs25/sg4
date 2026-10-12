@@ -9,7 +9,7 @@ import { getTecnicos, saveTecnico, toggleTecnicoStatus, uploadFotoTecnico, delet
 import { getUnidades } from '@/app/actions/unidades'
 import { calcularDistanciasBase } from '@/app/actions/distancias'
 
-export default function TecnicosPage() {
+export default function TecnicosPage({ hideHeader = false }: { hideHeader?: boolean }) {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
@@ -268,51 +268,80 @@ export default function TecnicosPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
 
-      {/* ── Cabeçalho Padronizado ── */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Users color="#660099" size={22} />
-            Equipe de Técnicos
-          </h1>
+      {/* ── Cabeçalho / Barra de Ação ── */}
+      {!hideHeader ? (
+        <div style={{
+          background: '#fff',
+          borderRadius: 10,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Users color="#660099" size={22} />
+              Equipe de Técnicos
+            </h1>
+          </div>
+          
+          {role !== 'TST' && (
+            <button
+              onClick={handleOpenAdd}
+              disabled={pending}
+              style={{
+                background: '#660099',
+                color: '#fff',
+                border: 'none',
+                padding: '10px 18px',
+                borderRadius: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: pending ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 2px 4px rgba(102,0,153, 0.2)',
+                opacity: pending ? 0.7 : 1
+              }}
+            >
+              <UserPlus size={16} />
+              Novo Técnico
+            </button>
+          )}
         </div>
-        
-        {role !== 'TST' && (
-          <button
-            onClick={handleOpenAdd}
-            disabled={pending}
-            style={{
-              background: '#660099',
-              color: '#fff',
-              border: 'none',
-              padding: '10px 18px',
-              borderRadius: 8,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: pending ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              boxShadow: '0 2px 4px rgba(102,0,153, 0.2)',
-              opacity: pending ? 0.7 : 1
-            }}
-          >
-            <UserPlus size={16} />
-            Novo Técnico
-          </button>
-        )}
-      </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -8 }}>
+          {role !== 'TST' && (
+            <button
+              onClick={handleOpenAdd}
+              disabled={pending}
+              style={{
+                background: '#660099',
+                color: '#fff',
+                border: 'none',
+                padding: '9px 18px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: pending ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                boxShadow: '0 2px 4px rgba(102,0,153, 0.2)',
+                opacity: pending ? 0.7 : 1
+              }}
+            >
+              <UserPlus size={16} />
+              Novo Técnico
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>

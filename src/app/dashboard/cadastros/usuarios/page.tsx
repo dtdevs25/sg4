@@ -6,7 +6,7 @@ import { getUsuarios, toggleUserStatus, createUsuario, deleteUsuario, resendInvi
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { useSession } from 'next-auth/react'
 
-export default function UsuariosPage() {
+export default function UsuariosPage({ hideHeader = false }: { hideHeader?: boolean }) {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
@@ -150,39 +150,54 @@ export default function UsuariosPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
-      {/* ── Cabeçalho Padronizado ── */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Users color="#660099" size={22} />
-            Gestão de Usuários
-          </h1>
-          
-        </div>
+      {/* ── Cabeçalho Padronizado / Ação ── */}
+      {!hideHeader ? (
+        <div style={{
+          background: '#fff',
+          borderRadius: 10,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Users color="#660099" size={22} />
+              Gestão de Usuários
+            </h1>
+          </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          style={{
-            background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
-            fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-            boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
-          }}
-        >
-          <Plus size={16} />
-          Novo Usuário
-        </button>
-      </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+              fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
+            }}
+          >
+            <Plus size={16} />
+            Novo Usuário
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -8 }}>
+          <button
+            onClick={() => setShowAddModal(true)}
+            style={{
+              background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
+              fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
+            }}
+          >
+            <Plus size={16} />
+            Novo Usuário
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
         <div style={{ position: 'relative', width: 300 }}>

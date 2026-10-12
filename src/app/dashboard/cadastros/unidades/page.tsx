@@ -7,7 +7,7 @@ import {
 import { useSession } from 'next-auth/react'
 import { getUnidades, saveUnidade, deleteUnidade } from '@/app/actions/unidades'
 
-export default function UnidadesPage() {
+export default function UnidadesPage({ hideHeader = false }: { hideHeader?: boolean }) {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
@@ -102,48 +102,74 @@ export default function UnidadesPage() {
 
   return (
     <div style={{ paddingBottom: 40, maxWidth: 1000, margin: '0 auto' }}>
-      {/* ── Cabeçalho Padronizado ── */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16,
-        marginBottom: 24,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Building color="#660099" size={22} />
-            Unidades de Atendimento
-          </h1>
+      {/* ── Cabeçalho Padronizado / Ação ── */}
+      {!hideHeader ? (
+        <div style={{
+          background: '#fff',
+          borderRadius: 10,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16,
+          marginBottom: 24,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Building color="#660099" size={22} />
+              Unidades de Atendimento
+            </h1>
+          </div>
+          {!isTst && (
+            <button 
+              onClick={handleOpenAdd}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: '#660099',
+                color: '#fff',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
+              }}
+            >
+              <Plus size={16} /> Nova Unidade
+            </button>
+          )}
         </div>
-        {!isTst && (
-          <button 
-            onClick={handleOpenAdd}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background: '#660099',
-              color: '#fff',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: 8,
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
-            }}
-          >
-            <Plus size={16} /> Nova Unidade
-          </button>
-        )}
-      </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          {!isTst && (
+            <button 
+              onClick={handleOpenAdd}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: '#660099',
+                color: '#fff',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
+              }}
+            >
+              <Plus size={16} /> Nova Unidade
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Toolbar ── */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
