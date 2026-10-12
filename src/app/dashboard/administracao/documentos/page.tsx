@@ -330,105 +330,117 @@ export default function DocumentosTecnicosPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
       {/* ─── TOPO / CABEÇALHO ─── */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 12,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '16px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 44,
-            height: 44,
-            borderRadius: 10,
-            background: PURPLE_BG,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <FileCheck color={PURPLE} size={24} />
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+          padding: '20px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              background: PURPLE_BG,
+              color: PURPLE,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <FileCheck size={26} />
           </div>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
               Documentos dos Técnicos
             </h1>
-            <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
-              Gestão de Fichas de EPI, ASO, NRs e certificados com cálculo de vencimento e histórico
-            </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setModalNovoTipoAberto(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '9px 14px',
-              borderRadius: 8,
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              color: '#334155',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <Settings size={16} /> Tipos de Documentos
-          </button>
+        <button
+          onClick={() => {
+            limparFormUpload()
+            setModalUploadAberto(true)
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 20px',
+            borderRadius: 8,
+            background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
+            color: '#fff',
+            border: 'none',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
+            transition: 'all 0.15s',
+          }}
+        >
+          + Doc./Renovação
+        </button>
+      </div>
 
-          <button
-            onClick={handleDispararNotificacoes}
-            disabled={notificandoEmail}
-            title="Verifica vencimentos com 45 dias de antecedência e envia e-mail aos administradores"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '9px 14px',
-              borderRadius: 8,
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              color: '#334155',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: notificandoEmail ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {notificandoEmail ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} color={PURPLE} />}
-            Verificar & Notificar E-mails
-          </button>
+      {/* ─── BARRA DE GUIAS / AÇÕES AUXILIARES FORA DO TÍTULO ─── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 10,
+        flexWrap: 'wrap',
+      }}>
+        <button
+          onClick={() => setModalNovoTipoAberto(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 14px',
+            borderRadius: 8,
+            background: '#fff',
+            border: '1px solid #e2e8f0',
+            color: '#334155',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+          }}
+        >
+          <Settings size={15} color={PURPLE} /> Tipos de Documentos
+        </button>
 
-          <button
-            onClick={() => {
-              limparFormUpload()
-              setModalUploadAberto(true)
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '9px 16px',
-              borderRadius: 8,
-              background: PURPLE,
-              border: 'none',
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(102,0,153,0.25)',
-            }}
-          >
-            <PlusCircle size={18} /> Novo Documento / Renovação
-          </button>
-        </div>
+        <button
+          onClick={handleDispararNotificacoes}
+          disabled={notificandoEmail}
+          title="Verifica vencimentos com 45 dias de antecedência e envia e-mail aos administradores"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 14px',
+            borderRadius: 8,
+            background: '#fff',
+            border: '1px solid #e2e8f0',
+            color: '#334155',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: notificandoEmail ? 'not-allowed' : 'pointer',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+          }}
+        >
+          {notificandoEmail ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} color={PURPLE} />}
+          Verificar & Notificar E-mails
+        </button>
       </div>
 
       {/* ─── ALERTAS / FEEDBACK ─── */}
