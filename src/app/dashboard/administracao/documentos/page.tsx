@@ -22,7 +22,11 @@ import {
   Info,
   ChevronDown,
   Layers,
-  Settings
+  Settings,
+  Send,
+  Plus,
+  Shield,
+  HardHat
 } from 'lucide-react'
 import {
   getDocumentosTecnicos,
@@ -32,6 +36,7 @@ import {
   uploadArquivoDocumento,
   createTipoDocumento,
   verificarENotificarDocumentosVencendo,
+  enviarDocumentosDoTecnicoPorEmail,
 } from '@/app/actions/documentosTecnicos'
 import { getTecnicos } from '@/app/actions/tecnicos'
 
@@ -58,6 +63,13 @@ type TipoDocItem = {
   ativo: boolean
 }
 
+type ItemEpi = {
+  nome: string
+  validadeMeses: number
+  dataEntrega: string
+  dataVencimento: string
+}
+
 type HistoricoItem = {
   id: string
   arquivoUrl: string
@@ -82,6 +94,7 @@ type DocumentoItem = {
   dataVencimento: string | null
   status: 'VALIDO' | 'A_VENCER' | 'VENCIDO' | 'SEM_VALIDADE'
   observacoes: string | null
+  itensEpi?: ItemEpi[] | null
   cadastradoPor: string | null
   ultimoAlertaEmail: string | null
   createdAt: string
@@ -108,7 +121,12 @@ export default function DocumentosTecnicosPage() {
   const [modalHistoricoDoc, setModalHistoricoDoc] = useState<DocumentoItem | null>(null)
   const [modalNovoTipoAberto, setModalNovoTipoAberto] = useState(false)
   const [notificandoEmail, setNotificandoEmail] = useState(false)
+  const [enviandoDossieTecnicoId, setEnviandoDossieTecnicoId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null)
+
+  // Custom Picker de Técnico no Modal
+  const [showTecnicoPicker, setShowTecnicoPicker] = useState(false)
+  const [tecnicoPickerSearch, setTecnicoPickerSearch] = useState('')
 
   // Form Upload / Renovação
   const [selectedTecnicoId, setSelectedTecnicoId] = useState('')
@@ -121,6 +139,14 @@ export default function DocumentosTecnicosPage() {
   const [arquivoFile, setArquivoFile] = useState<File | null>(null)
   const [uploadProgress, setUploadProgress] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Itens da Ficha de EPI
+  const [itensEpi, setItensEpi] = useState<ItemEpi[]>([
+    { nome: 'Capacete de Segurança', validadeMeses: 24, dataEntrega: '', dataVencimento: '' },
+    { nome: 'Óculos de Segurança', validadeMeses: 6, dataEntrega: '', dataVencimento: '' },
+  ])
+  const [novoItemNome, setNovoItemNome] = useState('')
+  const [novoItemValidadeMeses, setNovoItemValidadeMeses] = useState<number>(12)
 
   // Form Novo Tipo
   const [novoTipoNome, setNovoTipoNome] = useState('')
@@ -142,7 +168,6 @@ export default function DocumentosTecnicosPage() {
       if (resDocs.success && resDocs.data) setDocumentos(resDocs.data as any)
       if (resTipos.success && resTipos.data) setTiposDocs(resTipos.data as any)
       if (resTecs.success && resTecs.data) {
-        // Apenas técnicos ativos conforme regra de negócio
         setTecnicos(resTecs.data.filter((t: any) => t.ativo) as any)
       }
     } catch (e) {
@@ -156,8 +181,41 @@ export default function DocumentosTecnicosPage() {
     carregarDados()
   }, [])
 
-  // Atualiza vencimento estimado quando altera tipo ou emissão
+  // Verifica se o tipo selecionado é Ficha de EPI
+  const isFichaEpi = useMemo(() => {
+    const tipo = tiposDocs.find(t => t.id === selectedTipoId)
+    return tipo?.nome?.toLowerCase().includes('epi') || false
+  }, [selectedTipoId, tiposDocs])
+
+  // Recalcula datas de vencimento dos itens de EPI se a data de emissão mudar
+  useEffect(() => {
+    if (dataEmissao && isFichaEpi) {
+      setItensEpi(prev => prev.map(item => {
+        const entrega = item.dataEntrega || dataEmissao
+        const d = new Date(entrega)
+        d.setMonth(d.getMonth() + item.validadeMeses)
+        return {
+          ...item,
+          dataEntrega: entrega,
+          dataVencimento: d.toISOString().split('T')[0],
+        }
+      }))
+    }
+  }, [dataEmissao, isFichaEpi])
+
+  // Vencimento estimado padrão ou o item de EPI que vence PRIMEIRO
   const vencimentoEstimado = useMemo(() => {
+    if (isFichaEpi && itensEpi.length > 0) {
+      const datasValidas = itensEpi
+        .map(i => i.dataVencimento ? new Date(i.dataVencimento).getTime() : null)
+        .filter((t): t is number => t !== null && !isNaN(t))
+
+      if (datasValidas.length > 0) {
+        const minDate = new Date(Math.min(...datasValidas))
+        return minDate.toISOString().split('T')[0]
+      }
+    }
+
     if (!dataEmissao) return ''
     const tipo = tiposDocs.find(t => t.id === selectedTipoId)
     if (!tipo || !tipo.validadeMeses) return ''
@@ -165,7 +223,49 @@ export default function DocumentosTecnicosPage() {
     const dt = new Date(dataEmissao)
     dt.setMonth(dt.getMonth() + tipo.validadeMeses)
     return dt.toISOString().split('T')[0]
-  }, [dataEmissao, selectedTipoId, tiposDocs])
+  }, [dataEmissao, selectedTipoId, tiposDocs, isFichaEpi, itensEpi])
+
+  // Helpers para manipular itens de EPI
+  const handleAtualizarItemEpi = (index: number, campo: keyof ItemEpi, valor: any) => {
+    setItensEpi(prev => {
+      const novo = [...prev]
+      novo[index] = { ...novo[index], [campo]: valor }
+
+      if (campo === 'dataEntrega' || campo === 'validadeMeses') {
+        const entrega = campo === 'dataEntrega' ? valor : novo[index].dataEntrega
+        const valMeses = campo === 'validadeMeses' ? Number(valor) : novo[index].validadeMeses
+        if (entrega && valMeses > 0) {
+          const d = new Date(entrega)
+          d.setMonth(d.getMonth() + valMeses)
+          novo[index].dataVencimento = d.toISOString().split('T')[0]
+        }
+      }
+      return novo
+    })
+  }
+
+  const handleAdicionarItemEpi = () => {
+    if (!novoItemNome.trim()) return
+    const entrega = dataEmissao || new Date().toISOString().split('T')[0]
+    const d = new Date(entrega)
+    d.setMonth(d.getMonth() + (novoItemValidadeMeses || 12))
+
+    setItensEpi(prev => [
+      ...prev,
+      {
+        nome: novoItemNome.trim(),
+        validadeMeses: novoItemValidadeMeses || 12,
+        dataEntrega: entrega,
+        dataVencimento: d.toISOString().split('T')[0],
+      }
+    ])
+    setNovoItemNome('')
+    setNovoItemValidadeMeses(12)
+  }
+
+  const handleRemoverItemEpi = (index: number) => {
+    setItensEpi(prev => prev.filter((_, i) => i !== index))
+  }
 
   // Contadores de estatísticas (Dashboard Cards)
   const contadores = useMemo(() => {
@@ -209,7 +309,6 @@ export default function DocumentosTecnicosPage() {
 
     setUploadProgress(true)
     try {
-      // 1. Converte para base64 para envio S3
       const reader = new FileReader()
       reader.readAsDataURL(arquivoFile)
       reader.onload = async () => {
@@ -226,7 +325,10 @@ export default function DocumentosTecnicosPage() {
           return
         }
 
-        // 2. Salva o registro e versiona no banco
+        const dataVencFinal = usarVencimentoManual && dataVencimentoManual
+          ? dataVencimentoManual
+          : (vencimentoEstimado || null)
+
         const saveRes = await salvarDocumentoTecnico({
           tecnicoId: selectedTecnicoId,
           tipoDocumentoId: selectedTipoId,
@@ -235,8 +337,9 @@ export default function DocumentosTecnicosPage() {
           arquivoNome: arquivoFile.name,
           arquivoTamanho: uploadRes.sizeBytes,
           dataEmissao,
-          dataVencimento: usarVencimentoManual && dataVencimentoManual ? dataVencimentoManual : (vencimentoEstimado || null),
+          dataVencimento: dataVencFinal,
           observacoes,
+          itensEpi: isFichaEpi ? itensEpi : undefined,
         })
 
         setUploadProgress(false)
@@ -264,6 +367,12 @@ export default function DocumentosTecnicosPage() {
     setUsarVencimentoManual(false)
     setObservacoes('')
     setArquivoFile(null)
+    setShowTecnicoPicker(false)
+    setTecnicoPickerSearch('')
+    setItensEpi([
+      { nome: 'Capacete de Segurança', validadeMeses: 24, dataEntrega: '', dataVencimento: '' },
+      { nome: 'Óculos de Segurança', validadeMeses: 6, dataEntrega: '', dataVencimento: '' },
+    ])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -324,6 +433,25 @@ export default function DocumentosTecnicosPage() {
       setFeedback({ tipo: 'erro', msg: 'Falha na comunicação com o servidor de e-mail.' })
     } finally {
       setNotificandoEmail(false)
+    }
+  }
+
+  // Enviar Dossiê com Todos os Documentos do Técnico por E-mail
+  const handleEnviarDossieTecnico = async (tecId: string, tecNome: string) => {
+    if (!confirm(`Deseja enviar por e-mail para os administradores todos os documentos atualizados de ${tecNome}?`)) return
+
+    setEnviandoDossieTecnicoId(tecId)
+    try {
+      const res = await enviarDocumentosDoTecnicoPorEmail(tecId)
+      if (res.success) {
+        setFeedback({ tipo: 'sucesso', msg: res.message || 'Dossiê enviado com sucesso!' })
+      } else {
+        setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao enviar documentos por e-mail.' })
+      }
+    } catch (e) {
+      setFeedback({ tipo: 'erro', msg: 'Falha ao enviar e-mail.' })
+    } finally {
+      setEnviandoDossieTecnicoId(null)
     }
   }
 
@@ -395,52 +523,87 @@ export default function DocumentosTecnicosPage() {
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'flex-end',
-        gap: 10,
+        justifyContent: 'space-between',
         flexWrap: 'wrap',
+        gap: 12,
       }}>
-        <button
-          onClick={() => setModalNovoTipoAberto(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 14px',
-            borderRadius: 8,
-            background: '#fff',
-            border: '1px solid #e2e8f0',
-            color: '#334155',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-          }}
-        >
-          <Settings size={15} color={PURPLE} /> Tipos de Documentos
-        </button>
+        {/* Envio rápido por Técnico */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {filtroTecnico !== 'todos' && (
+            <button
+              onClick={() => {
+                const tec = tecnicos.find(t => t.id === filtroTecnico)
+                if (tec) handleEnviarDossieTecnico(tec.id, tec.nome)
+              }}
+              disabled={enviandoDossieTecnicoId === filtroTecnico}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 14px',
+                borderRadius: 8,
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                color: '#166534',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: enviandoDossieTecnicoId ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {enviandoDossieTecnicoId === filtroTecnico ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Send size={15} color="#16a34a" />
+              )}
+              Enviar Documentos do Técnico por E-mail
+            </button>
+          )}
+        </div>
 
-        <button
-          onClick={handleDispararNotificacoes}
-          disabled={notificandoEmail}
-          title="Verifica vencimentos com 45 dias de antecedência e envia e-mail aos administradores"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 14px',
-            borderRadius: 8,
-            background: '#fff',
-            border: '1px solid #e2e8f0',
-            color: '#334155',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: notificandoEmail ? 'not-allowed' : 'pointer',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-          }}
-        >
-          {notificandoEmail ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} color={PURPLE} />}
-          Verificar & Notificar E-mails
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setModalNovoTipoAberto(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              color: '#334155',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+            }}
+          >
+            <Settings size={15} color={PURPLE} /> Tipos de Documentos & Validades
+          </button>
+
+          <button
+            onClick={handleDispararNotificacoes}
+            disabled={notificandoEmail}
+            title="Verifica vencimentos com 45 dias de antecedência e envia e-mail aos administradores"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              color: '#334155',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: notificandoEmail ? 'not-allowed' : 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+            }}
+          >
+            {notificandoEmail ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} color={PURPLE} />}
+            Verificar & Notificar E-mails
+          </button>
+        </div>
       </div>
 
       {/* ─── ALERTAS / FEEDBACK ─── */}
@@ -512,7 +675,7 @@ export default function DocumentosTecnicosPage() {
             <Clock size={18} color="#f59e0b" />
           </div>
           <div style={{ fontSize: 26, fontWeight: 800, color: '#1e293b' }}>{contadores.aVencer}</div>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Notificação disparada</span>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>Alerta de 45 dias</span>
         </div>
 
         <div style={{
@@ -645,7 +808,7 @@ export default function DocumentosTecnicosPage() {
             <FileText size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
             <p style={{ fontWeight: 600, fontSize: 15 }}>Nenhum documento encontrado.</p>
             <p style={{ fontSize: 13, color: '#94a3b8' }}>
-              Clique em "Novo Documento / Renovação" para anexar o primeiro arquivo.
+              Clique em "+ Doc./Renovação" para anexar o primeiro arquivo.
             </p>
           </div>
         ) : (
@@ -672,6 +835,8 @@ export default function DocumentosTecnicosPage() {
                   if (doc.status === 'A_VENCER') statusBadge = { bg: '#fffbeb', color: '#d97706', label: 'A Vencer' }
                   if (doc.status === 'VENCIDO') statusBadge = { bg: '#fef2f2', color: '#dc2626', label: 'Vencido' }
                   if (doc.status === 'SEM_VALIDADE') statusBadge = { bg: '#f1f5f9', color: '#475569', label: 'Sem Validade' }
+
+                  const temItensEpi = Array.isArray(doc.itensEpi) && (doc.itensEpi as any[]).length > 0
 
                   return (
                     <tr key={doc.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -708,6 +873,12 @@ export default function DocumentosTecnicosPage() {
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ fontWeight: 600, color: '#334155' }}>{doc.tipoDocumento?.nome}</div>
                         {doc.titulo && <div style={{ fontSize: 11, color: '#64748b' }}>{doc.titulo}</div>}
+                        {temItensEpi && (
+                          <div style={{ fontSize: 11, color: PURPLE, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <HardHat size={12} />
+                            {(doc.itensEpi as any[]).length} item(ns) de EPI controlados
+                          </div>
+                        )}
                       </td>
 
                       {/* Emissão */}
@@ -718,6 +889,9 @@ export default function DocumentosTecnicosPage() {
                       {/* Vencimento */}
                       <td style={{ padding: '14px 18px', fontWeight: doc.status === 'VENCIDO' ? 700 : 500, color: doc.status === 'VENCIDO' ? '#dc2626' : '#334155' }}>
                         {vencimentoFmt}
+                        {temItensEpi && (
+                          <div style={{ fontSize: 10, color: '#94a3b8' }}>Regido pelo item mais recente</div>
+                        )}
                       </td>
 
                       {/* Status */}
@@ -787,6 +961,22 @@ export default function DocumentosTecnicosPage() {
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
                           <button
+                            onClick={() => handleEnviarDossieTecnico(doc.tecnicoId, doc.tecnico?.nome)}
+                            title={`Enviar por e-mail todos os documentos de ${doc.tecnico?.nome} aos administradores`}
+                            disabled={enviandoDossieTecnicoId === doc.tecnicoId}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#16a34a',
+                              cursor: 'pointer',
+                              padding: 6,
+                              borderRadius: 4,
+                            }}
+                          >
+                            <Send size={16} />
+                          </button>
+
+                          <button
                             onClick={() => {
                               setSelectedTecnicoId(doc.tecnicoId)
                               setSelectedTipoId(doc.tipoDocumentoId)
@@ -830,12 +1020,13 @@ export default function DocumentosTecnicosPage() {
         )}
       </div>
 
-      {/* ─── MODAL UPLOAD / RENOVAÇÃO DE DOCUMENTO ─── */}
+      {/* ─── MODAL PADRÃO SG4: UPLOAD / RENOVAÇÃO DE DOCUMENTO ─── */}
       {modalUploadAberto && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.5)',
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -844,243 +1035,476 @@ export default function DocumentosTecnicosPage() {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: 14,
+            borderRadius: 16,
             width: '100%',
-            maxWidth: 580,
+            maxWidth: 620,
             maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+            display: 'flex',
+            flexDirection: 'column',
           }}>
+            {/* Header Modal - Gradiente Roxo Padrão SG4 */}
             <div style={{
               padding: '18px 24px',
-              borderBottom: '1px solid #e2e8f0',
+              background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+              borderRadius: '16px 16px 0 0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <UploadCloud color={PURPLE} size={20} />
-                Registrar / Renovar Documento
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  background: 'rgba(255,255,255,0.15)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <FileCheck size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                    Registrar / Renovar Documento
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+                    Gestão de Documentos SST & Ficha de EPI
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setModalUploadAberto(false)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#fff',
+                  borderRadius: 6,
+                  padding: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmitUpload} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* Seleção do Técnico */}
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  Técnico de Segurança (Ativo) *
-                </label>
-                <select
-                  required
-                  value={selectedTecnicoId}
-                  onChange={e => setSelectedTecnicoId(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 14,
-                    outline: 'none',
-                  }}
-                >
-                  <option value="">Selecione o técnico...</option>
-                  {tecnicos.map(t => (
-                    <option key={t.id} value={t.id}>{t.nome} ({t.cargo || 'TST'})</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Tipo de Documento */}
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  Tipo de Documento *
-                </label>
-                <select
-                  required
-                  value={selectedTipoId}
-                  onChange={e => setSelectedTipoId(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 14,
-                    outline: 'none',
-                  }}
-                >
-                  <option value="">Selecione o tipo...</option>
-                  {tiposDocs.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.nome} {t.validadeMeses ? `(${t.validadeMeses} meses de validade)` : '(sem validade periódica)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Título ou Observação Específica */}
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  Título / Identificador Adicional (Opcional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Treinamento NR-35 turma 2026 / Periódico Anual"
-                  value={tituloDoc}
-                  onChange={e => setTituloDoc(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 14,
-                    outline: 'none',
-                  }}
-                />
-              </div>
-
-              {/* Datas de Emissão e Vencimento */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            {/* Formulário com Scroll Interno */}
+            <form onSubmit={handleSubmitUpload} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
+                {/* Técnico Responsável — Custom Picker Padrão com Avatar */}
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                    Data de Emissão / Conclusão *
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    TÉCNICO DE SEGURANÇA (ATIVO) *
                   </label>
-                  <input
-                    type="date"
+                  <button
+                    type="button"
+                    onClick={() => setShowTecnicoPicker(!showTecnicoPicker)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: showTecnicoPicker ? `2px solid ${PURPLE}` : '1px solid #cbd5e1',
+                      background: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    {selectedTecnicoId ? (() => {
+                      const t = tecnicos.find(x => x.id === selectedTecnicoId)
+                      return t ? (
+                        <>
+                          {t.fotoUrl ? (
+                            <img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: PURPLE_BG, color: PURPLE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>
+                              {t.nome.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.nome}</div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>{t.cargo || 'TST'}</div>
+                          </div>
+                        </>
+                      ) : null
+                    })() : (
+                      <span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione o técnico...</span>
+                    )}
+                    <ChevronDown size={16} color="#94a3b8" style={{ marginLeft: 'auto', transform: showTecnicoPicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                  </button>
+
+                  {/* Dropdown de Técnicos */}
+                  {showTecnicoPicker && (
+                    <div style={{
+                      border: `1px solid ${PURPLE}`,
+                      borderTop: 'none',
+                      borderRadius: '0 0 8px 8px',
+                      background: '#fff',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                      maxHeight: 220,
+                      overflowY: 'auto',
+                      marginTop: 2,
+                    }}>
+                      <div style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, background: '#fff' }}>
+                        <input
+                          type="text"
+                          placeholder="Buscar técnico..."
+                          value={tecnicoPickerSearch}
+                          onChange={(e) => setTecnicoPickerSearch(e.target.value)}
+                          autoFocus
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, outline: 'none' }}
+                        />
+                      </div>
+                      {tecnicos
+                        .filter(t => t.nome.toLowerCase().includes(tecnicoPickerSearch.toLowerCase()))
+                        .map(t => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => { setSelectedTecnicoId(t.id); setShowTecnicoPicker(false); setTecnicoPickerSearch('') }}
+                            style={{
+                              width: '100%',
+                              padding: '10px 14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              background: selectedTecnicoId === t.id ? PURPLE_BG : 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                            }}
+                          >
+                            {t.fotoUrl ? (
+                              <img src={t.fotoUrl} alt={t.nome} style={{ width: 26, height: 26, borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ width: 26, height: 26, borderRadius: '50%', background: PURPLE_BG, color: PURPLE, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800 }}>
+                                {t.nome.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div>
+                              <div style={{ fontSize: 11, color: '#64748b' }}>{t.cargo}</div>
+                            </div>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Tipo de Documento */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    TIPO DE DOCUMENTO / CAPACITAÇÃO *
+                  </label>
+                  <select
                     required
-                    value={dataEmissao}
-                    onChange={e => setDataEmissao(e.target.value)}
+                    value={selectedTipoId}
+                    onChange={e => setSelectedTipoId(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
                       borderRadius: 8,
                       border: '1px solid #cbd5e1',
-                      fontSize: 14,
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="">Selecione o tipo de documento...</option>
+                    {tiposDocs.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.nome} {t.validadeMeses ? `(${t.validadeMeses} meses de validade padrão)` : '(sem validade periódica)'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Módulo Especial: Controle de Itens da Ficha de EPI */}
+                {isFichaEpi && (
+                  <div style={{
+                    background: '#faf5ff',
+                    border: '1px solid #e9d5ff',
+                    borderRadius: 10,
+                    padding: 16,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: PURPLE, fontSize: 13 }}>
+                        <HardHat size={16} />
+                        Itens da Ficha de EPI (Validade Individual)
+                      </div>
+                      <span style={{ fontSize: 11, color: '#7e22ce', fontWeight: 600 }}>
+                        Vence no item mais recente/próximo
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {itensEpi.map((item, idx) => (
+                        <div key={idx} style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1.5fr 1fr 1fr 1fr auto',
+                          gap: 8,
+                          alignItems: 'center',
+                          background: '#fff',
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          border: '1px solid #f3e8ff',
+                          fontSize: 12,
+                        }}>
+                          <div>
+                            <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.nome}</span>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Validade</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.validadeMeses}
+                              onChange={e => handleAtualizarItemEpi(idx, 'validadeMeses', e.target.value)}
+                              style={{ width: '100%', padding: '4px 6px', borderRadius: 4, border: '1px solid #cbd5e1' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Entrega</label>
+                            <input
+                              type="date"
+                              value={item.dataEntrega}
+                              onChange={e => handleAtualizarItemEpi(idx, 'dataEntrega', e.target.value)}
+                              style={{ width: '100%', padding: '4px 6px', borderRadius: 4, border: '1px solid #cbd5e1' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Vence em</label>
+                            <span style={{ fontWeight: 700, color: '#dc2626' }}>
+                              {item.dataVencimento ? new Date(item.dataVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoverItemEpi(idx)}
+                            style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Adicionar novo item de EPI à ficha */}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <input
+                        type="text"
+                        placeholder="Nome do EPI (ex: Bota de Segurança, Protetor Auricular...)"
+                        value={novoItemNome}
+                        onChange={e => setNovoItemNome(e.target.value)}
+                        style={{ flex: 2, padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Meses"
+                        value={novoItemValidadeMeses}
+                        onChange={e => setNovoItemValidadeMeses(Number(e.target.value))}
+                        style={{ width: 80, padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAdicionarItemEpi}
+                        style={{
+                          background: PURPLE,
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '0 12px',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Plus size={14} /> Adicionar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Título ou Observação Específica */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    TÍTULO / OBSERVAÇÃO ADICIONAL (OPCIONAL)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Treinamento NR-35 turma 2026 / Periódico Anual"
+                    value={tituloDoc}
+                    onChange={e => setTituloDoc(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
                       outline: 'none',
                     }}
                   />
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                    Vencimento {usarVencimentoManual ? '(Manual)' : '(Automático)'}
-                  </label>
-                  {usarVencimentoManual ? (
+                {/* Datas de Emissão e Vencimento */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                      DATA DE EMISSÃO / ENTREGA *
+                    </label>
                     <input
                       type="date"
-                      value={dataVencimentoManual}
-                      onChange={e => setDataVencimentoManual(e.target.value)}
+                      required
+                      value={dataEmissao}
+                      onChange={e => setDataEmissao(e.target.value)}
                       style={{
                         width: '100%',
                         padding: '10px 12px',
                         borderRadius: 8,
                         border: '1px solid #cbd5e1',
-                        fontSize: 14,
+                        fontSize: 13,
                         outline: 'none',
                       }}
                     />
-                  ) : (
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                      VENCIMENTO {usarVencimentoManual ? '(MANUAL)' : '(CALCULADO)'}
+                    </label>
+                    {usarVencimentoManual ? (
+                      <input
+                        type="date"
+                        value={dataVencimentoManual}
+                        onChange={e => setDataVencimentoManual(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: 8,
+                          border: '1px solid #cbd5e1',
+                          fontSize: 13,
+                          outline: 'none',
+                        }}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        readOnly
+                        disabled
+                        value={vencimentoEstimado ? new Date(vencimentoEstimado + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem validade padrão'}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          borderRadius: 8,
+                          border: '1px solid #e2e8f0',
+                          background: '#f8fafc',
+                          fontSize: 13,
+                          color: '#475569',
+                          fontWeight: 700,
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    id="chkManual"
+                    checked={usarVencimentoManual}
+                    onChange={e => setUsarVencimentoManual(e.target.checked)}
+                    style={{ accentColor: PURPLE }}
+                  />
+                  <label htmlFor="chkManual" style={{ fontSize: 12, color: '#475569', cursor: 'pointer' }}>
+                    Informar data de vencimento personalizada / diferente do cálculo
+                  </label>
+                </div>
+
+                {/* Upload do Arquivo (Bucket S3) */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    ARQUIVO DO DOCUMENTO (BUCKET sg4-docststs) *
+                  </label>
+                  <div style={{
+                    border: '2px dashed #cbd5e1',
+                    borderRadius: 10,
+                    padding: 18,
+                    textAlign: 'center',
+                    background: '#f8fafc',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  >
                     <input
-                      type="text"
-                      readOnly
-                      disabled
-                      value={vencimentoEstimado ? new Date(vencimentoEstimado + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem validade padrão'}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        borderRadius: 8,
-                        border: '1px solid #e2e8f0',
-                        background: '#f8fafc',
-                        fontSize: 14,
-                        color: '#64748b',
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        if (e.target.files && e.target.files[0]) {
+                          setArquivoFile(e.target.files[0])
+                        }
                       }}
                     />
-                  )}
+                    <UploadCloud size={30} color={PURPLE} style={{ margin: '0 auto 8px' }} />
+                    {arquivoFile ? (
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 13 }}>{arquivoFile.name}</div>
+                        <div style={{ fontSize: 11, color: '#64748b' }}>{(arquivoFile.size / 1024).toFixed(1)} KB</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#334155', fontSize: 13 }}>Clique para selecionar o arquivo</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8' }}>PDF, PNG, JPG (Armazenado com histórico)</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="checkbox"
-                  id="chkManual"
-                  checked={usarVencimentoManual}
-                  onChange={e => setUsarVencimentoManual(e.target.checked)}
-                />
-                <label htmlFor="chkManual" style={{ fontSize: 12, color: '#475569', cursor: 'pointer' }}>
-                  Informar data de vencimento personalizada / diferente do padrão
-                </label>
-              </div>
-
-              {/* Upload do Arquivo */}
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  Arquivo do Documento (PDF, Imagem ou DOC) *
-                </label>
-                <div style={{
-                  border: '2px dashed #cbd5e1',
-                  borderRadius: 10,
-                  padding: 20,
-                  textAlign: 'center',
-                  background: '#f8fafc',
-                  cursor: 'pointer',
-                }}
-                onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
-                    style={{ display: 'none' }}
-                    onChange={e => {
-                      if (e.target.files && e.target.files[0]) {
-                        setArquivoFile(e.target.files[0])
-                      }
+                {/* Observações */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    OBSERVAÇÕES (OPCIONAL)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ex: Renovação periódica, observações adicionais..."
+                    value={observacoes}
+                    onChange={e => setObservacoes(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      outline: 'none',
+                      resize: 'vertical',
                     }}
                   />
-                  <UploadCloud size={32} color={PURPLE} style={{ margin: '0 auto 8px' }} />
-                  {arquivoFile ? (
-                    <div>
-                      <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 14 }}>{arquivoFile.name}</div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>{(arquivoFile.size / 1024).toFixed(1)} KB</div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div style={{ fontWeight: 600, color: '#334155', fontSize: 14 }}>Clique para selecionar o arquivo</div>
-                      <div style={{ fontSize: 12, color: '#94a3b8' }}>PDF, PNG, JPG até 25MB (Upload para Bucket S3)</div>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              {/* Observações */}
-              <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  Observações / Motivo da Versão (Opcional)
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Ex: Renovação periódica do ASO após exames clínicos..."
-                  value={observacoes}
-                  onChange={e => setObservacoes(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 13,
-                    outline: 'none',
-                    resize: 'vertical',
-                  }}
-                />
-              </div>
-
-              {/* Botões do Rodapé */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
+              {/* Footer Modal Padrão SG4 */}
+              <div style={{
+                padding: '16px 24px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 12,
+              }}>
                 <button
                   type="button"
                   onClick={() => setModalUploadAberto(false)}
@@ -1088,11 +1512,11 @@ export default function DocumentosTecnicosPage() {
                   style={{
                     padding: '10px 18px',
                     borderRadius: 8,
-                    background: '#f1f5f9',
-                    border: 'none',
+                    background: '#fff',
+                    border: '1px solid #cbd5e1',
                     color: '#475569',
                     fontSize: 13,
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: 'pointer',
                   }}
                 >
@@ -1104,7 +1528,7 @@ export default function DocumentosTecnicosPage() {
                   style={{
                     padding: '10px 22px',
                     borderRadius: 8,
-                    background: PURPLE,
+                    background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
                     border: 'none',
                     color: '#fff',
                     fontSize: 13,
@@ -1113,6 +1537,7 @@ export default function DocumentosTecnicosPage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
+                    boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
                   }}
                 >
                   {uploadProgress ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
@@ -1129,7 +1554,8 @@ export default function DocumentosTecnicosPage() {
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.5)',
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1138,38 +1564,45 @@ export default function DocumentosTecnicosPage() {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: 14,
+            borderRadius: 16,
             width: '100%',
             maxWidth: 650,
             maxHeight: '90vh',
-            overflowY: 'auto',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+            display: 'flex',
+            flexDirection: 'column',
           }}>
             <div style={{
               padding: '18px 24px',
-              borderBottom: '1px solid #e2e8f0',
+              background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+              borderRadius: '16px 16px 0 0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
-              <div>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <History color={PURPLE} size={20} />
-                  Histórico de Versões
-                </h2>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-                  {modalHistoricoDoc.tipoDocumento?.nome} - {modalHistoricoDoc.tecnico?.nome}
-                </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.15)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <History size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                    Histórico de Versões
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+                    {modalHistoricoDoc.tipoDocumento?.nome} - {modalHistoricoDoc.tecnico?.nome}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setModalHistoricoDoc(null)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: '#fff', borderRadius: 6, padding: 4 }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto' }}>
               {/* Versão Atual Ativa */}
               <div style={{
                 background: '#f8fafc',
@@ -1178,10 +1611,10 @@ export default function DocumentosTecnicosPage() {
                 padding: 16,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: PURPLE, textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: PURPLE, textTransform: 'uppercase' }}>
                     Versão Atual Ativa
                   </span>
-                  <span style={{ fontSize: 12, color: '#64748b' }}>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>
                     Cadastrado em {new Date(modalHistoricoDoc.createdAt).toLocaleDateString('pt-BR')} por {modalHistoricoDoc.cadastradoPor || 'Admin'}
                   </span>
                 </div>
@@ -1216,7 +1649,7 @@ export default function DocumentosTecnicosPage() {
 
               {/* Versões Anteriores */}
               <div>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#334155', marginBottom: 12 }}>
+                <h3 style={{ fontSize: 13, fontWeight: 800, color: '#334155', marginBottom: 12, textTransform: 'uppercase' }}>
                   Versões Anteriores Preservadas ({modalHistoricoDoc.historico?.length || 0})
                 </h3>
 
@@ -1225,8 +1658,8 @@ export default function DocumentosTecnicosPage() {
                     Nenhuma versão anterior cadastrada. Esta é a primeira via do documento.
                   </p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {modalHistoricoDoc.historico?.map((hist, idx) => (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {modalHistoricoDoc.historico?.map((hist) => (
                       <div
                         key={hist.id}
                         style={{
@@ -1243,7 +1676,7 @@ export default function DocumentosTecnicosPage() {
                       >
                         <div>
                           <div style={{ fontWeight: 600, color: '#334155', fontSize: 13 }}>{hist.arquivoNome}</div>
-                          <div style={{ fontSize: 12, color: '#64748b' }}>
+                          <div style={{ fontSize: 11, color: '#64748b' }}>
                             Substituído em {new Date(hist.createdAt).toLocaleDateString('pt-BR')} por {hist.modificadoPor || 'Admin'}
                           </div>
                           {hist.motivoSubstituicao && (
@@ -1282,12 +1715,13 @@ export default function DocumentosTecnicosPage() {
         </div>
       )}
 
-      {/* ─── MODAL GERENCIAR / NOVO TIPO DE DOCUMENTO ─── */}
+      {/* ─── MODAL PADRÃO: CADASTRAR TIPO DE DOCUMENTO / VALIDADES ─── */}
       {modalNovoTipoAberto && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.5)',
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1296,25 +1730,36 @@ export default function DocumentosTecnicosPage() {
         }}>
           <div style={{
             background: '#fff',
-            borderRadius: 14,
+            borderRadius: 16,
             width: '100%',
             maxWidth: 520,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
           }}>
             <div style={{
               padding: '18px 24px',
-              borderBottom: '1px solid #e2e8f0',
+              background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+              borderRadius: '16px 16px 0 0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Settings color={PURPLE} size={20} />
-                Cadastrar Novo Tipo de Documento
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.15)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Settings size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                    Tipos de Treinamentos & Validades
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+                    Configuração de regras e prazos de vencimento
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setModalNovoTipoAberto(false)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: '#fff', borderRadius: 6, padding: 4 }}
               >
                 <X size={20} />
               </button>
@@ -1322,13 +1767,13 @@ export default function DocumentosTecnicosPage() {
 
             <form onSubmit={handleCriarTipo} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  Nome do Tipo de Documento *
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  NOME DO DOCUMENTO / TREINAMENTO *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Treinamento NR-18, ASO Admissional..."
+                  placeholder="Ex: Treinamento NR-35, Treinamento NR-33, ASO..."
                   value={novoTipoNome}
                   onChange={e => setNovoTipoNome(e.target.value)}
                   style={{
@@ -1336,19 +1781,19 @@ export default function DocumentosTecnicosPage() {
                     padding: '10px 12px',
                     borderRadius: 8,
                     border: '1px solid #cbd5e1',
-                    fontSize: 14,
+                    fontSize: 13,
                     outline: 'none',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  Descrição
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  DESCRIÇÃO DA NORMA / FINALIDADE
                 </label>
                 <input
                   type="text"
-                  placeholder="Finalidade ou detalhes da norma regulamentadora"
+                  placeholder="Ex: Certificado de capacitação periódica ou reciclagem"
                   value={novoTipoDescricao}
                   onChange={e => setNovoTipoDescricao(e.target.value)}
                   style={{
@@ -1356,7 +1801,7 @@ export default function DocumentosTecnicosPage() {
                     padding: '10px 12px',
                     borderRadius: 8,
                     border: '1px solid #cbd5e1',
-                    fontSize: 14,
+                    fontSize: 13,
                     outline: 'none',
                   }}
                 />
@@ -1364,8 +1809,8 @@ export default function DocumentosTecnicosPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                    Validade Padrão (Meses)
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    VALIDADE PADRÃO (MESES)
                   </label>
                   <input
                     type="number"
@@ -1378,16 +1823,16 @@ export default function DocumentosTecnicosPage() {
                       padding: '10px 12px',
                       borderRadius: 8,
                       border: '1px solid #cbd5e1',
-                      fontSize: 14,
+                      fontSize: 13,
                       outline: 'none',
                     }}
                   />
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>Deixe vazio se não tiver validade fixa</span>
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>Vazio = sem validade periódica</span>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                    Alerta Prévio (Dias)
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    ALERTA PRÉVIO (DIAS)
                   </label>
                   <input
                     type="number"
@@ -1399,7 +1844,7 @@ export default function DocumentosTecnicosPage() {
                       padding: '10px 12px',
                       borderRadius: 8,
                       border: '1px solid #cbd5e1',
-                      fontSize: 14,
+                      fontSize: 13,
                       outline: 'none',
                     }}
                   />
@@ -1407,18 +1852,26 @@ export default function DocumentosTecnicosPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 8 }}>
+              <div style={{
+                padding: '16px 24px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                margin: '12px -24px -24px -24px',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 12,
+              }}>
                 <button
                   type="button"
                   onClick={() => setModalNovoTipoAberto(false)}
                   style={{
                     padding: '10px 18px',
                     borderRadius: 8,
-                    background: '#f1f5f9',
-                    border: 'none',
+                    background: '#fff',
+                    border: '1px solid #cbd5e1',
                     color: '#475569',
                     fontSize: 13,
-                    fontWeight: 600,
+                    fontWeight: 700,
                     cursor: 'pointer',
                   }}
                 >
@@ -1430,15 +1883,16 @@ export default function DocumentosTecnicosPage() {
                   style={{
                     padding: '10px 22px',
                     borderRadius: 8,
-                    background: PURPLE,
+                    background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
                     border: 'none',
                     color: '#fff',
                     fontSize: 13,
                     fontWeight: 700,
                     cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
                   }}
                 >
-                  {isPending ? 'Salvando...' : 'Cadastrar Tipo'}
+                  {isPending ? 'Salvando...' : 'Salvar Tipo de Treinamento'}
                 </button>
               </div>
             </form>

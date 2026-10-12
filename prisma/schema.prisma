@@ -737,6 +737,7 @@ model DocumentoTecnico {
   dataVencimento    DateTime?
   status            StatusDocumento            @default(VALIDO)
   observacoes       String?
+  itensEpi          Json?                      // Array de itens para Ficha de EPI: [{ nome, validadeMeses, dataEntrega, dataVencimento }]
   cadastradoPor     String?
   ultimoAlertaEmail DateTime?
   createdAt         DateTime                   @default(now())

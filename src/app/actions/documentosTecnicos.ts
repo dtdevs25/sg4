@@ -301,6 +301,12 @@ export async function salvarDocumentoTecnico(dados: {
   dataEmissao: string
   dataVencimento?: string | null
   observacoes?: string
+  itensEpi?: Array<{
+    nome: string
+    validadeMeses: number
+    dataEntrega: string
+    dataVencimento: string
+  }>
 }) {
   try {
     const session = await auth()
@@ -323,11 +329,25 @@ export async function salvarDocumentoTecnico(dados: {
     const emissaoDate = new Date(dados.dataEmissao)
     let vencimentoDate: Date | null = null
 
-    if (dados.dataVencimento) {
-      vencimentoDate = new Date(dados.dataVencimento)
-    } else if (tipo.validadeMeses && tipo.validadeMeses > 0) {
-      vencimentoDate = new Date(emissaoDate)
-      vencimentoDate.setMonth(vencimentoDate.getMonth() + tipo.validadeMeses)
+    // Regra da Ficha de EPI: se tiver itens individuais de EPI, a ficha vence na data do item que vencer PRIMEIRO (menor data de vencimento)
+    if (dados.itensEpi && dados.itensEpi.length > 0) {
+      const datasItens = dados.itensEpi
+        .map(it => it.dataVencimento ? new Date(it.dataVencimento).getTime() : null)
+        .filter((t): t is number => t !== null && !isNaN(t))
+
+      if (datasItens.length > 0) {
+        const menorTimestamp = Math.min(...datasItens)
+        vencimentoDate = new Date(menorTimestamp)
+      }
+    }
+
+    if (!vencimentoDate) {
+      if (dados.dataVencimento) {
+        vencimentoDate = new Date(dados.dataVencimento)
+      } else if (tipo.validadeMeses && tipo.validadeMeses > 0) {
+        vencimentoDate = new Date(emissaoDate)
+        vencimentoDate.setMonth(vencimentoDate.getMonth() + tipo.validadeMeses)
+      }
     }
 
     const statusCalculado = calcularStatusDocumento(vencimentoDate, tipo.diasAlerta || 45)
@@ -369,8 +389,9 @@ export async function salvarDocumentoTecnico(dados: {
           dataVencimento: vencimentoDate,
           status: statusCalculado,
           observacoes: dados.observacoes?.trim() || null,
+          itensEpi: dados.itensEpi || undefined,
           cadastradoPor: userName,
-          ultimoAlertaEmail: null, // reseta o alerta pois é uma nova versão
+          ultimoAlertaEmail: null,
         },
         include: {
           tecnico: { select: { nome: true } },
@@ -403,6 +424,7 @@ export async function salvarDocumentoTecnico(dados: {
           dataVencimento: vencimentoDate,
           status: statusCalculado,
           observacoes: dados.observacoes?.trim() || null,
+          itensEpi: dados.itensEpi || undefined,
           cadastradoPor: userName,
         },
         include: {
@@ -428,6 +450,128 @@ export async function salvarDocumentoTecnico(dados: {
   } catch (error) {
     console.error('Erro ao salvar documento do técnico:', error)
     return { success: false, error: 'Erro ao salvar documento do técnico' }
+  }
+}
+
+// ─── ENVIAR TODOS OS DOCUMENTOS DO TÉCNICO POR E-MAIL PARA ADMINISTRADORES ───
+
+export async function enviarDocumentosDoTecnicoPorEmail(tecnicoId: string) {
+  try {
+    const session = await auth()
+    const role = (session?.user as any)?.role
+    if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Acesso negado' }
+
+    const tecnico = await prisma.tecnico.findUnique({
+      where: { id: tecnicoId },
+      include: {
+        documentos: {
+          include: { tipoDocumento: true },
+          orderBy: { dataVencimento: 'asc' },
+        },
+      },
+    })
+
+    if (!tecnico) return { success: false, error: 'Técnico não encontrado' }
+    if (tecnico.documentos.length === 0) {
+      return { success: false, error: 'Este técnico ainda não possui documentos cadastrados.' }
+    }
+
+    const admins = await prisma.user.findMany({
+      where: {
+        role: { in: ['ADMIN', 'MASTER'] },
+        active: true,
+      },
+      select: { email: true, name: true },
+    })
+
+    const emailsAdmins = admins.map(a => a.email).filter(Boolean)
+    if (emailsAdmins.length === 0) {
+      return { success: false, error: 'Nenhum administrador ativo com e-mail encontrado.' }
+    }
+
+    const linhasDocs = tecnico.documentos.map(doc => {
+      const emissao = doc.dataEmissao ? new Date(doc.dataEmissao).toLocaleDateString('pt-BR') : '-'
+      const venc = doc.dataVencimento ? new Date(doc.dataVencimento).toLocaleDateString('pt-BR') : 'Sem validade fixa'
+      let statusCor = '#10b981'
+      let statusTxt = 'Válido'
+      if (doc.status === 'A_VENCER') { statusCor = '#f59e0b'; statusTxt = 'A Vencer' }
+      if (doc.status === 'VENCIDO') { statusCor = '#ef4444'; statusTxt = 'Vencido' }
+
+      let extraItens = ''
+      if (Array.isArray(doc.itensEpi) && doc.itensEpi.length > 0) {
+        extraItens = `<div style="margin-top: 4px; font-size: 11px; color: #64748b;">Itens: ${(doc.itensEpi as any[]).map(i => `${i.nome} (Venc: ${i.dataVencimento ? new Date(i.dataVencimento).toLocaleDateString('pt-BR') : '-'})`).join(', ')}</div>`
+      }
+
+      return `
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 10px 12px; font-weight: 700; color: #1e293b;">
+            ${doc.tipoDocumento.nome}
+            ${extraItens}
+          </td>
+          <td style="padding: 10px 12px; color: #475569;">${emissao}</td>
+          <td style="padding: 10px 12px; color: #1e293b; font-weight: 600;">${venc}</td>
+          <td style="padding: 10px 12px;">
+            <span style="background: ${statusCor}; color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">
+              ${statusTxt}
+            </span>
+          </td>
+          <td style="padding: 10px 12px; text-align: right;">
+            <a href="${doc.arquivoUrl}" target="_blank" style="background: #660099; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block;">
+              Acessar Arquivo
+            </a>
+          </td>
+        </tr>
+      `
+    }).join('')
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+        <div style="background: linear-gradient(135deg, #660099, #4a0072); padding: 22px; color: #ffffff;">
+          <h2 style="margin: 0; font-size: 20px;">Dossiê de Documentos SST: ${tecnico.nome}</h2>
+          <p style="margin: 6px 0 0; opacity: 0.9; font-size: 13px;">
+            Cargo: ${tecnico.cargo} | Situação: ${tecnico.ativo ? 'Ativo' : 'Inativo'}
+          </p>
+        </div>
+        <div style="padding: 24px;">
+          <p style="color: #334155; font-size: 14px; margin-top: 0;">
+            Segue a listagem com todos os documentos atualizados e respectivos links de acesso dos arquivos armazenados:
+          </p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px;">
+            <thead>
+              <tr style="background: #f8fafc; text-align: left; color: #64748b; font-size: 11px; text-transform: uppercase;">
+                <th style="padding: 10px 12px;">Documento</th>
+                <th style="padding: 10px 12px;">Emissão</th>
+                <th style="padding: 10px 12px;">Vencimento</th>
+                <th style="padding: 10px 12px;">Status</th>
+                <th style="padding: 10px 12px; text-align: right;">Download</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${linhasDocs}
+            </tbody>
+          </table>
+          <div style="margin-top: 20px; font-size: 12px; color: #94a3b8; text-align: center;">
+            Disparado pelo sistema SG4 em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+          </div>
+        </div>
+      </div>
+    `
+
+    for (const email of emailsAdmins) {
+      await sendMail({
+        to: email,
+        subject: `📋 Dossiê de Documentos: ${tecnico.nome} (${tecnico.documentos.length} documento(s))`,
+        html,
+      })
+    }
+
+    return {
+      success: true,
+      message: `Documentos de ${tecnico.nome} enviados para ${emailsAdmins.length} administrador(es)!`,
+    }
+  } catch (error) {
+    console.error('Erro ao enviar documentos do técnico por e-mail:', error)
+    return { success: false, error: 'Erro ao enviar documentos do técnico por e-mail' }
   }
 }
 
