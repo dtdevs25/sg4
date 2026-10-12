@@ -102,23 +102,45 @@ export default function UnidadesPage() {
 
   return (
     <div style={{ paddingBottom: 40, maxWidth: 1000, margin: '0 auto' }}>
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Building size={28} color="#660099" />
+      {/* ── Cabeçalho Padronizado ── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: 10,
+        border: '1px solid #f1f5f9',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16,
+        marginBottom: 24,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Building color="#660099" size={22} />
             Unidades de Atendimento
           </h1>
-          <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>Gerencie as bases e unidades onde os técnicos atuam.</p>
         </div>
         {!isTst && (
           <button 
             onClick={handleOpenAdd}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#660099', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 12px rgba(102,0,153,0.3)', transition: 'transform 0.2s' }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: '#660099',
+              color: '#fff',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: 8,
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: 'pointer',
+              boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
+            }}
           >
-            <Plus size={18} /> Nova Unidade
+            <Plus size={16} /> Nova Unidade
           </button>
         )}
       </div>
