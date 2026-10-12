@@ -191,7 +191,7 @@ export async function uploadArquivoDocumento(formData: FormData) {
 
 // ─── CÁLCULO DE STATUS ───
 
-export function calcularStatusDocumento(dataVencimento: Date | null, diasAlerta: number = 45): 'VALIDO' | 'A_VENCER' | 'VENCIDO' | 'SEM_VALIDADE' {
+function calcularStatusDocumento(dataVencimento: Date | null, diasAlerta: number = 45): 'VALIDO' | 'A_VENCER' | 'VENCIDO' | 'SEM_VALIDADE' {
   if (!dataVencimento) return 'SEM_VALIDADE'
 
   const hoje = new Date()
