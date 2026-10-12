@@ -42,21 +42,47 @@ export async function getTiposDocumentos() {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
 
-    let tipos = await prisma.tipoDocumentoTecnico.findMany({
+    const tipos = await prisma.tipoDocumentoTecnico.findMany({
       orderBy: { nome: 'asc' },
     })
-
-    if (tipos.length === 0) {
-      await seedTiposDocumentosIniciais()
-      tipos = await prisma.tipoDocumentoTecnico.findMany({
-        orderBy: { nome: 'asc' },
-      })
-    }
 
     return { success: true, data: tipos }
   } catch (error) {
     console.error('Erro ao buscar tipos de documentos:', error)
     return { success: false, error: 'Erro ao buscar tipos de documentos' }
+  }
+}
+
+export async function deleteTipoDocumento(id: string) {
+  try {
+    const session = await auth()
+    const role = (session?.user as any)?.role
+    if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Acesso negado' }
+
+    // Verificar se há documentos usando este tipo
+    const emUso = await prisma.documentoTecnico.count({
+      where: { tipoDocumentoId: id }
+    })
+    if (emUso > 0) {
+      return { success: false, error: `Não é possível excluir: existem ${emUso} documento(s) associado(s) a este tipo.` }
+    }
+
+    const deletado = await prisma.tipoDocumentoTecnico.delete({
+      where: { id }
+    })
+
+    await audit({
+      userId: session?.user?.id,
+      action: 'EXCLUIR_TIPO_DOCUMENTO_TECNICO',
+      entity: 'TipoDocumentoTecnico',
+      entityId: id,
+      details: { nome: deletado.nome }
+    })
+
+    return { success: true, data: deletado }
+  } catch (error) {
+    console.error('Erro ao excluir tipo de documento:', error)
+    return { success: false, error: 'Erro ao excluir tipo de documento' }
   }
 }
 

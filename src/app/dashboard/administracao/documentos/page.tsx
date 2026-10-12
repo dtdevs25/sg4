@@ -35,6 +35,7 @@ import {
   deleteDocumentoTecnico,
   uploadArquivoDocumento,
   createTipoDocumento,
+  deleteTipoDocumento,
   verificarENotificarDocumentosVencendo,
   enviarDocumentosDoTecnicoPorEmail,
 } from '@/app/actions/documentosTecnicos'
@@ -147,10 +148,7 @@ export default function DocumentosTecnicosPage({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Itens da Ficha de EPI
-  const [itensEpi, setItensEpi] = useState<ItemEpi[]>([
-    { nome: 'Capacete de Segurança', validadeMeses: 24, dataEntrega: '', dataVencimento: '' },
-    { nome: 'Óculos de Segurança', validadeMeses: 6, dataEntrega: '', dataVencimento: '' },
-  ])
+  const [itensEpi, setItensEpi] = useState<ItemEpi[]>([])
   const [novoItemNome, setNovoItemNome] = useState('')
   const [novoItemValidadeMeses, setNovoItemValidadeMeses] = useState<number>(12)
 
@@ -384,10 +382,7 @@ export default function DocumentosTecnicosPage({
     setArquivoFile(null)
     setShowTecnicoPicker(false)
     setTecnicoPickerSearch('')
-    setItensEpi([
-      { nome: 'Capacete de Segurança', validadeMeses: 24, dataEntrega: '', dataVencimento: '' },
-      { nome: 'Óculos de Segurança', validadeMeses: 6, dataEntrega: '', dataVencimento: '' },
-    ])
+    setItensEpi([])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -414,6 +409,22 @@ export default function DocumentosTecnicosPage({
         if (tiposRes.success && tiposRes.data) setTiposDocs(tiposRes.data as any)
       } else {
         setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao criar tipo de documento.' })
+      }
+    })
+  }
+
+  // Excluir Tipo de Documento / Treinamento
+  const handleExcluirTipo = async (id: string, nome: string) => {
+    if (!confirm(`Deseja realmente remover o tipo de treinamento "${nome}"?`)) return
+
+    startTransition(async () => {
+      const res = await deleteTipoDocumento(id)
+      if (res.success) {
+        setFeedback({ tipo: 'sucesso', msg: `Tipo "${nome}" excluído com sucesso.` })
+        const tiposRes = await getTiposDocumentos()
+        if (tiposRes.success && tiposRes.data) setTiposDocs(tiposRes.data as any)
+      } else {
+        setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao excluir tipo de documento.' })
       }
     })
   }
@@ -646,69 +657,73 @@ export default function DocumentosTecnicosPage({
         </div>
       )}
 
-      {/* ─── CARDS DE STATUS / RESUMO ─── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+      {/* ─── CARDS DE STATUS / RESUMO (FINOS E COMPACTOS) ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
         <div style={{
           background: '#fff',
-          borderRadius: 12,
-          padding: '18px 20px',
+          borderRadius: 10,
+          padding: '14px 18px',
           border: '1px solid #f1f5f9',
           boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Total Cadastrados</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{contadores.total}</div>
             <FileText size={18} color="#64748b" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#1e293b' }}>{contadores.total}</div>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Documentos vigentes</span>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginTop: 6 }}>
+            Total Cadastrados
+          </div>
         </div>
 
         <div style={{
           background: '#fff',
-          borderRadius: 12,
-          padding: '18px 20px',
+          borderRadius: 10,
+          padding: '14px 18px',
           border: '1px solid #f1f5f9',
           borderLeft: '4px solid #10b981',
           boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#10b981' }}>Válidos</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{contadores.validos}</div>
             <CheckCircle2 size={18} color="#10b981" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#1e293b' }}>{contadores.validos}</div>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Dentro do prazo</span>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#10b981', marginTop: 6 }}>
+            Válidos
+          </div>
         </div>
 
         <div style={{
           background: '#fff',
-          borderRadius: 12,
-          padding: '18px 20px',
+          borderRadius: 10,
+          padding: '14px 18px',
           border: '1px solid #f1f5f9',
           borderLeft: '4px solid #f59e0b',
           boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b' }}>A Vencer (&le; 45 dias)</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{contadores.aVencer}</div>
             <Clock size={18} color="#f59e0b" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#1e293b' }}>{contadores.aVencer}</div>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Alerta de 45 dias</span>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b', marginTop: 6 }}>
+            A Vencer (&le; 45 dias)
+          </div>
         </div>
 
         <div style={{
           background: '#fff',
-          borderRadius: 12,
-          padding: '18px 20px',
+          borderRadius: 10,
+          padding: '14px 18px',
           border: '1px solid #f1f5f9',
           borderLeft: '4px solid #ef4444',
           boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#ef4444' }}>Vencidos</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{contadores.vencidos}</div>
             <AlertTriangle size={18} color="#ef4444" />
           </div>
-          <div style={{ fontSize: 26, fontWeight: 800, color: '#ef4444' }}>{contadores.vencidos}</div>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>Requer renovação imediata</span>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#ef4444', marginTop: 6 }}>
+            Vencidos
+          </div>
         </div>
       </div>
 
@@ -1867,6 +1882,60 @@ export default function DocumentosTecnicosPage({
                   />
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>Padrão: 45 dias antes</span>
                 </div>
+              </div>
+
+              {/* Lista dos tipos já cadastrados no banco */}
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 14, marginTop: 4 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
+                  TIPOS CADASTRADOS NO BANCO ({tiposDocs.length})
+                </label>
+                {tiposDocs.length === 0 ? (
+                  <p style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>
+                    Nenhum tipo cadastrado no momento. Cadastre acima para que apareça nas opções.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', paddingRight: 4 }}>
+                    {tiposDocs.map(tipo => (
+                      <div
+                        key={tipo.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 12px',
+                          background: '#f8fafc',
+                          borderRadius: 8,
+                          border: '1px solid #e2e8f0',
+                          fontSize: 12,
+                        }}
+                      >
+                        <div style={{ overflow: 'hidden' }}>
+                          <span style={{ fontWeight: 700, color: '#1e293b' }}>{tipo.nome}</span>
+                          <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>
+                            {tipo.validadeMeses ? `${tipo.validadeMeses} meses` : 'Sem validade'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleExcluirTipo(tipo.id, tipo.nome)}
+                          disabled={isPending}
+                          title="Remover tipo de treinamento do banco de dados"
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: 4,
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div style={{
