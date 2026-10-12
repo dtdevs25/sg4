@@ -786,3 +786,73 @@ export async function verificarENotificarDocumentosVencendo() {
     return { success: false, error: 'Erro ao processar notificações de vencimento' }
   }
 }
+
+// ─── CONSULTAR HISTÓRICO DE ALERTAS E DOCUMENTOS COM NOTIFICAÇÃO PENDENTE ───
+
+export async function getHistoricoAlertasDocumentos() {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const hoje = new Date()
+    hoje.setHours(0, 0, 0, 0)
+
+    // Documentos já notificados anteriormente (com data de último alerta)
+    const jaNotificados = await prisma.documentoTecnico.findMany({
+      where: {
+        ultimoAlertaEmail: { not: null },
+      },
+      include: {
+        tecnico: { select: { id: true, nome: true, ativo: true } },
+        tipoDocumento: true,
+      },
+      orderBy: { ultimoAlertaEmail: 'desc' },
+      take: 50,
+    })
+
+    // Documentos elegíveis para envio de alerta agora (técnico ativo, vence em até 45 dias ou vencido)
+    const documentosElegiveis = await prisma.documentoTecnico.findMany({
+      where: {
+        tecnico: { ativo: true },
+        dataVencimento: { not: null },
+      },
+      include: {
+        tecnico: { select: { id: true, nome: true, ativo: true } },
+        tipoDocumento: true,
+      },
+      orderBy: { dataVencimento: 'asc' },
+    })
+
+    const pendentesAlerta = documentosElegiveis.filter(doc => {
+      if (!doc.dataVencimento) return false
+      const venc = new Date(doc.dataVencimento)
+      venc.setHours(0, 0, 0, 0)
+      const diffTime = venc.getTime() - hoje.getTime()
+      const diffDias = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      const diasAlertaConfigurado = doc.tipoDocumento?.diasAlerta || 45
+
+      return diffDias <= diasAlertaConfigurado
+    }).map(doc => {
+      const venc = new Date(doc.dataVencimento!)
+      venc.setHours(0, 0, 0, 0)
+      const diffTime = venc.getTime() - hoje.getTime()
+      const diffDias = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return {
+        ...doc,
+        diasRestantes: diffDias,
+        isVencido: diffDias < 0,
+      }
+    })
+
+    return {
+      success: true,
+      data: {
+        jaNotificados,
+        pendentesAlerta,
+      },
+    }
+  } catch (error) {
+    console.error('Erro ao buscar histórico de alertas:', error)
+    return { success: false, error: 'Erro ao buscar histórico de alertas' }
+  }
+}

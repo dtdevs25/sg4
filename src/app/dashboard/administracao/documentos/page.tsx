@@ -26,7 +26,8 @@ import {
   Send,
   Plus,
   Shield,
-  HardHat
+  HardHat,
+  Bell,
 } from 'lucide-react'
 import {
   getDocumentosTecnicos,
@@ -38,6 +39,7 @@ import {
   deleteTipoDocumento,
   verificarENotificarDocumentosVencendo,
   enviarDocumentosDoTecnicoPorEmail,
+  getHistoricoAlertasDocumentos,
 } from '@/app/actions/documentosTecnicos'
 import { getTecnicos } from '@/app/actions/tecnicos'
 
@@ -117,16 +119,19 @@ export default function DocumentosTecnicosPage({
   const [loading, setLoading] = useState(true)
   const [isPending, startTransition] = useTransition()
 
-  // Filtros
-  const [filtroTecnico, setFiltroTecnico] = useState('todos')
-  const [filtroTipo, setFiltroTipo] = useState('todos')
-  const [filtroStatus, setFiltroStatus] = useState('todos')
+  // Filtros (Busca unificada + Flag de técnicos inativos)
   const [busca, setBusca] = useState('')
+  const [incluirInativos, setIncluirInativos] = useState(false)
 
   // Modais
   const [modalUploadAberto, setModalUploadAberto] = useState(false)
   const [modalHistoricoDoc, setModalHistoricoDoc] = useState<DocumentoItem | null>(null)
   const [modalNovoTipoAberto, setModalNovoTipoAberto] = useState(false)
+  const [modalAlertasAberto, setModalAlertasAberto] = useState(false)
+  const [dadosAlertas, setDadosAlertas] = useState<{ jaNotificados: any[]; pendentesAlerta: any[] } | null>(null)
+  const [carregandoAlertas, setCarregandoAlertas] = useState(false)
+  const [abaAlertas, setAbaAlertas] = useState<'pendentes' | 'historico'>('pendentes')
+
   const [notificandoEmail, setNotificandoEmail] = useState(false)
   const [enviandoDossieTecnicoId, setEnviandoDossieTecnicoId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null)
@@ -164,7 +169,7 @@ export default function DocumentosTecnicosPage({
     setLoading(true)
     try {
       const [resDocs, resTipos, resTecs] = await Promise.all([
-        getDocumentosTecnicos({ apenasAtivos: true }),
+        getDocumentosTecnicos({ apenasAtivos: false }),
         getTiposDocumentos(),
         getTecnicos(),
       ])
@@ -172,12 +177,28 @@ export default function DocumentosTecnicosPage({
       if (resDocs.success && resDocs.data) setDocumentos(resDocs.data as any)
       if (resTipos.success && resTipos.data) setTiposDocs(resTipos.data as any)
       if (resTecs.success && resTecs.data) {
-        setTecnicos(resTecs.data.filter((t: any) => t.ativo) as any)
+        setTecnicos(resTecs.data as any)
       }
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Abrir e consultar histórico de alertas
+  const handleAbrirModalAlertas = async () => {
+    setModalAlertasAberto(true)
+    setCarregandoAlertas(true)
+    try {
+      const res = await getHistoricoAlertasDocumentos()
+      if (res.success && res.data) {
+        setDadosAlertas(res.data)
+      }
+    } catch (e) {
+      console.error('Erro ao buscar alertas:', e)
+    } finally {
+      setCarregandoAlertas(false)
     }
   }
 
@@ -280,32 +301,48 @@ export default function DocumentosTecnicosPage({
     setItensEpi(prev => prev.filter((_, i) => i !== index))
   }
 
+  // Documentos base (respeitando o fleg de inativos)
+  const documentosBase = useMemo(() => {
+    return documentos.filter(doc => incluirInativos || doc.tecnico?.ativo !== false)
+  }, [documentos, incluirInativos])
+
   // Contadores de estatísticas (Dashboard Cards)
   const contadores = useMemo(() => {
-    const total = documentos.length
-    const validos = documentos.filter(d => d.status === 'VALIDO').length
-    const aVencer = documentos.filter(d => d.status === 'A_VENCER').length
-    const vencidos = documentos.filter(d => d.status === 'VENCIDO').length
-    const semValidade = documentos.filter(d => d.status === 'SEM_VALIDADE').length
+    const total = documentosBase.length
+    const validos = documentosBase.filter(d => d.status === 'VALIDO').length
+    const aVencer = documentosBase.filter(d => d.status === 'A_VENCER').length
+    const vencidos = documentosBase.filter(d => d.status === 'VENCIDO').length
+    const semValidade = documentosBase.filter(d => d.status === 'SEM_VALIDADE').length
     return { total, validos, aVencer, vencidos, semValidade }
-  }, [documentos])
+  }, [documentosBase])
 
-  // Lista filtrada
+  // Lista filtrada unificada por busca
   const documentosFiltrados = useMemo(() => {
-    return documentos.filter(doc => {
-      if (filtroTecnico !== 'todos' && doc.tecnicoId !== filtroTecnico) return false
-      if (filtroTipo !== 'todos' && doc.tipoDocumentoId !== filtroTipo) return false
-      if (filtroStatus !== 'todos' && doc.status !== filtroStatus) return false
-      if (busca.trim()) {
-        const termo = busca.toLowerCase()
-        const matchTec = doc.tecnico?.nome?.toLowerCase().includes(termo)
-        const matchTipo = doc.tipoDocumento?.nome?.toLowerCase().includes(termo)
-        const matchArq = doc.arquivoNome?.toLowerCase().includes(termo)
-        if (!matchTec && !matchTipo && !matchArq) return false
+    const termo = busca.toLowerCase().trim()
+    if (!termo) return documentosBase
+
+    return documentosBase.filter(doc => {
+      const matchTec = doc.tecnico?.nome?.toLowerCase().includes(termo)
+      const matchCargo = doc.tecnico?.cargo?.toLowerCase().includes(termo)
+      const matchTipo = doc.tipoDocumento?.nome?.toLowerCase().includes(termo)
+      const matchTitulo = doc.titulo?.toLowerCase().includes(termo)
+      const matchArq = doc.arquivoNome?.toLowerCase().includes(termo)
+
+      // Pesquisa por termos de status textual
+      let matchStatus = false
+      if (doc.status === 'VALIDO' && ('válido'.includes(termo) || 'valido'.includes(termo) || 'vigente'.includes(termo))) {
+        matchStatus = true
+      } else if (doc.status === 'A_VENCER' && ('a vencer'.includes(termo) || 'vencer'.includes(termo) || 'alerta'.includes(termo) || '45'.includes(termo))) {
+        matchStatus = true
+      } else if (doc.status === 'VENCIDO' && ('vencido'.includes(termo) || 'expirado'.includes(termo))) {
+        matchStatus = true
+      } else if (doc.status === 'SEM_VALIDADE' && ('sem validade'.includes(termo) || 'permanente'.includes(termo))) {
+        matchStatus = true
       }
-      return true
+
+      return matchTec || matchCargo || matchTipo || matchTitulo || matchArq || matchStatus
     })
-  }, [documentos, filtroTecnico, filtroTipo, filtroStatus, busca])
+  }, [documentosBase, busca])
 
   // Submeter Upload de Documento
   const handleSubmitUpload = async (e: React.FormEvent) => {
@@ -452,6 +489,10 @@ export default function DocumentosTecnicosPage({
       if (res.success) {
         setFeedback({ tipo: 'sucesso', msg: res.message || 'Verificação concluída!' })
         carregarDados()
+        const histRes = await getHistoricoAlertasDocumentos()
+        if (histRes.success && histRes.data) {
+          setDadosAlertas(histRes.data)
+        }
       } else {
         setFeedback({ tipo: 'erro', msg: res.message || res.error || 'Erro ao disparar notificações.' })
       }
@@ -551,43 +592,10 @@ export default function DocumentosTecnicosPage({
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         flexWrap: 'wrap',
         gap: 12,
       }}>
-        {/* Envio rápido por Técnico */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {filtroTecnico !== 'todos' && (
-            <button
-              onClick={() => {
-                const tec = tecnicos.find(t => t.id === filtroTecnico)
-                if (tec) handleEnviarDossieTecnico(tec.id, tec.nome)
-              }}
-              disabled={enviandoDossieTecnicoId === filtroTecnico}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 14px',
-                borderRadius: 8,
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                color: '#166534',
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: enviandoDossieTecnicoId ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {enviandoDossieTecnicoId === filtroTecnico ? (
-                <Loader2 size={15} className="animate-spin" />
-              ) : (
-                <Send size={15} color="#16a34a" />
-              )}
-              Enviar Documentos do Técnico por E-mail
-            </button>
-          )}
-        </div>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button
             onClick={() => setModalNovoTipoAberto(true)}
@@ -610,9 +618,8 @@ export default function DocumentosTecnicosPage({
           </button>
 
           <button
-            onClick={handleDispararNotificacoes}
-            disabled={notificandoEmail}
-            title="Verifica vencimentos com 45 dias de antecedência e envia e-mail aos administradores"
+            onClick={handleAbrirModalAlertas}
+            title="Histórico de alertas enviados e notificações de vencimento"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -624,12 +631,12 @@ export default function DocumentosTecnicosPage({
               color: '#334155',
               fontSize: 13,
               fontWeight: 600,
-              cursor: notificandoEmail ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
               boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
             }}
           >
-            {notificandoEmail ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} color={PURPLE} />}
-            Verificar & Notificar E-mails
+            <Bell size={15} color={PURPLE} />
+            Alertas & Notificações por E-mail
           </button>
         </div>
       </div>
@@ -727,23 +734,24 @@ export default function DocumentosTecnicosPage({
         </div>
       </div>
 
-      {/* ─── FILTROS & BUSCA ─── */}
+      {/* ─── FILTROS & BUSCA UNIFICADA (SEM LISTAS SUSPENSAS) ─── */}
       <div style={{
         background: '#fff',
         borderRadius: 12,
-        padding: '16px 20px',
+        padding: '14px 20px',
         border: '1px solid #f1f5f9',
         boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
         display: 'flex',
         flexWrap: 'wrap',
-        gap: 14,
+        gap: 16,
         alignItems: 'center',
+        justifyContent: 'space-between',
       }}>
-        <div style={{ flex: '1 1 240px', position: 'relative' }}>
+        <div style={{ flex: '1 1 360px', position: 'relative' }}>
           <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: 12 }} />
           <input
             type="text"
-            placeholder="Buscar por técnico, documento ou arquivo..."
+            placeholder="Pesquisar técnico, tipo de documento, arquivo ou status (válido, vencido, a vencer)..."
             value={busca}
             onChange={e => setBusca(e.target.value)}
             style={{
@@ -753,73 +761,39 @@ export default function DocumentosTecnicosPage({
               border: '1px solid #e2e8f0',
               fontSize: 13,
               outline: 'none',
+              background: '#f8fafc',
             }}
           />
         </div>
 
-        <div style={{ minWidth: 200 }}>
-          <select
-            value={filtroTecnico}
-            onChange={e => setFiltroTecnico(e.target.value)}
+        <label style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 9,
+          cursor: 'pointer',
+          userSelect: 'none',
+          fontSize: 13,
+          fontWeight: 600,
+          color: incluirInativos ? PURPLE : '#475569',
+          background: incluirInativos ? 'rgba(102,0,153,0.07)' : '#f8fafc',
+          padding: '8px 14px',
+          borderRadius: 8,
+          border: `1px solid ${incluirInativos ? PURPLE : '#e2e8f0'}`,
+          transition: 'all 0.15s ease',
+        }}>
+          <input
+            type="checkbox"
+            checked={incluirInativos}
+            onChange={e => setIncluirInativos(e.target.checked)}
             style={{
-              width: '100%',
-              padding: '9px 12px',
-              borderRadius: 8,
-              border: '1px solid #e2e8f0',
-              fontSize: 13,
-              background: '#fff',
-              outline: 'none',
+              width: 16,
+              height: 16,
+              accentColor: PURPLE,
+              cursor: 'pointer',
             }}
-          >
-            <option value="todos">Todos os Técnicos Ativos</option>
-            {tecnicos.map(t => (
-              <option key={t.id} value={t.id}>{t.nome}</option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ minWidth: 200 }}>
-          <select
-            value={filtroTipo}
-            onChange={e => setFiltroTipo(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '9px 12px',
-              borderRadius: 8,
-              border: '1px solid #e2e8f0',
-              fontSize: 13,
-              background: '#fff',
-              outline: 'none',
-            }}
-          >
-            <option value="todos">Todos os Tipos de Documento</option>
-            {tiposDocs.map(t => (
-              <option key={t.id} value={t.id}>{t.nome}</option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ minWidth: 160 }}>
-          <select
-            value={filtroStatus}
-            onChange={e => setFiltroStatus(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '9px 12px',
-              borderRadius: 8,
-              border: '1px solid #e2e8f0',
-              fontSize: 13,
-              background: '#fff',
-              outline: 'none',
-            }}
-          >
-            <option value="todos">Todos os Status</option>
-            <option value="VALIDO">Válido</option>
-            <option value="A_VENCER">A Vencer (&le; 45 dias)</option>
-            <option value="VENCIDO">Vencido</option>
-            <option value="SEM_VALIDADE">Sem Validade Fixa</option>
-          </select>
-        </div>
+          />
+          <span>Mostrar todos os técnicos (incluir inativos)</span>
+        </label>
       </div>
 
       {/* ─── TABELA DE DOCUMENTOS ─── */}
@@ -1747,12 +1721,12 @@ export default function DocumentosTecnicosPage({
         </div>
       )}
 
-      {/* ─── MODAL PADRÃO: CADASTRAR TIPO DE DOCUMENTO / VALIDADES ─── */}
+      {/* ─── MODAL PADRÃO: CADASTRAR TIPO DE DOCUMENTO / VALIDADES (CENTRALIZADO & AUTO-SCROLL) ─── */}
       {modalNovoTipoAberto && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(15, 23, 42, 0.6)',
+          background: 'rgba(15, 23, 42, 0.65)',
           backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
@@ -1764,17 +1738,20 @@ export default function DocumentosTecnicosPage({
             background: '#fff',
             borderRadius: 16,
             width: '100%',
-            maxWidth: 520,
+            maxWidth: 540,
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
             overflow: 'hidden',
-            boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
           }}>
             <div style={{
               padding: '18px 24px',
               background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
-              borderRadius: '16px 16px 0 0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              flexShrink: 0,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.15)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1797,59 +1774,25 @@ export default function DocumentosTecnicosPage({
               </button>
             </div>
 
-            <form onSubmit={handleCriarTipo} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                  NOME DO DOCUMENTO / TREINAMENTO *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Treinamento NR-35, Treinamento NR-33, ASO..."
-                  value={novoTipoNome}
-                  onChange={e => setNovoTipoNome(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 13,
-                    outline: 'none',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                  DESCRIÇÃO DA NORMA / FINALIDADE
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Certificado de capacitação periódica ou reciclagem"
-                  value={novoTipoDescricao}
-                  onChange={e => setNovoTipoDescricao(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    border: '1px solid #cbd5e1',
-                    fontSize: 13,
-                    outline: 'none',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <form onSubmit={handleCriarTipo} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <div style={{
+                padding: '20px 24px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+                flex: 1,
+              }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                    VALIDADE PADRÃO (MESES)
+                    NOME DO DOCUMENTO / TREINAMENTO *
                   </label>
                   <input
-                    type="number"
-                    min="0"
-                    placeholder="Ex: 12 ou 24"
-                    value={novoTipoValidadeMeses}
-                    onChange={e => setNovoTipoValidadeMeses(e.target.value)}
+                    type="text"
+                    required
+                    placeholder="Ex: Treinamento NR-35, Treinamento NR-33, ASO..."
+                    value={novoTipoNome}
+                    onChange={e => setNovoTipoNome(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -1859,18 +1802,17 @@ export default function DocumentosTecnicosPage({
                       outline: 'none',
                     }}
                   />
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>Vazio = sem validade periódica</span>
                 </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
-                    ALERTA PRÉVIO (DIAS)
+                    DESCRIÇÃO DA NORMA / FINALIDADE
                   </label>
                   <input
-                    type="number"
-                    min="1"
-                    value={novoTipoDiasAlerta}
-                    onChange={e => setNovoTipoDiasAlerta(Number(e.target.value))}
+                    type="text"
+                    placeholder="Ex: Certificado de capacitação periódica ou reciclagem"
+                    value={novoTipoDescricao}
+                    onChange={e => setNovoTipoDescricao(e.target.value)}
                     style={{
                       width: '100%',
                       padding: '10px 12px',
@@ -1880,72 +1822,116 @@ export default function DocumentosTecnicosPage({
                       outline: 'none',
                     }}
                   />
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>Padrão: 45 dias antes</span>
                 </div>
-              </div>
 
-              {/* Lista dos tipos já cadastrados no banco */}
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 14, marginTop: 4 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
-                  TIPOS CADASTRADOS NO BANCO ({tiposDocs.length})
-                </label>
-                {tiposDocs.length === 0 ? (
-                  <p style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>
-                    Nenhum tipo cadastrado no momento. Cadastre acima para que apareça nas opções.
-                  </p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', paddingRight: 4 }}>
-                    {tiposDocs.map(tipo => (
-                      <div
-                        key={tipo.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '8px 12px',
-                          background: '#f8fafc',
-                          borderRadius: 8,
-                          border: '1px solid #e2e8f0',
-                          fontSize: 12,
-                        }}
-                      >
-                        <div style={{ overflow: 'hidden' }}>
-                          <span style={{ fontWeight: 700, color: '#1e293b' }}>{tipo.nome}</span>
-                          <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>
-                            {tipo.validadeMeses ? `${tipo.validadeMeses} meses` : 'Sem validade'}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleExcluirTipo(tipo.id, tipo.nome)}
-                          disabled={isPending}
-                          title="Remover tipo de treinamento do banco de dados"
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                      VALIDADE PADRÃO (MESES)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Ex: 12 ou 24"
+                      value={novoTipoValidadeMeses}
+                      onChange={e => setNovoTipoValidadeMeses(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        border: '1px solid #cbd5e1',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>Vazio = sem validade periódica</span>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                      ALERTA PRÉVIO (DIAS)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={novoTipoDiasAlerta}
+                      onChange={e => setNovoTipoDiasAlerta(Number(e.target.value))}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        border: '1px solid #cbd5e1',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>Padrão: 45 dias antes</span>
+                  </div>
+                </div>
+
+                {/* Lista dos tipos já cadastrados no banco */}
+                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 14, marginTop: 4 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>
+                    TIPOS CADASTRADOS NO BANCO ({tiposDocs.length})
+                  </label>
+                  {tiposDocs.length === 0 ? (
+                    <p style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', margin: 0 }}>
+                      Nenhum tipo cadastrado no momento. Cadastre acima para que apareça nas opções.
+                    </p>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', paddingRight: 4 }}>
+                      {tiposDocs.map(tipo => (
+                        <div
+                          key={tipo.id}
                           style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#ef4444',
-                            cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            padding: 4,
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            background: '#f8fafc',
+                            borderRadius: 8,
+                            border: '1px solid #e2e8f0',
+                            fontSize: 12,
                           }}
                         >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                          <div style={{ overflow: 'hidden' }}>
+                            <span style={{ fontWeight: 700, color: '#1e293b' }}>{tipo.nome}</span>
+                            <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>
+                              {tipo.validadeMeses ? `${tipo.validadeMeses} meses` : 'Sem validade'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleExcluirTipo(tipo.id, tipo.nome)}
+                            disabled={isPending}
+                            title="Remover tipo de treinamento do banco de dados"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: 4,
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div style={{
                 padding: '16px 24px',
                 borderTop: '1px solid #e2e8f0',
                 background: '#f8fafc',
-                margin: '12px -24px -24px -24px',
                 display: 'flex',
                 justifyContent: 'flex-end',
                 gap: 12,
+                flexShrink: 0,
               }}>
                 <button
                   type="button"
@@ -1982,6 +1968,372 @@ export default function DocumentosTecnicosPage({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL HISTÓRICO DE ALERTAS & NOTIFICAÇÕES POR E-MAIL ─── */}
+      {modalAlertasAberto && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 16,
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            width: '100%',
+            maxWidth: 760,
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '18px 24px',
+              background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.15)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Bell size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                    Alertas & Notificações de Vencimento
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+                    Histórico de e-mails enviados e alertas pendentes para envio
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalAlertasAberto(false)}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', cursor: 'pointer', color: '#fff', borderRadius: 6, padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Abas */}
+            <div style={{
+              display: 'flex',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              padding: '0 24px',
+              flexShrink: 0,
+              gap: 8,
+            }}>
+              <button
+                type="button"
+                onClick={() => setAbaAlertas('pendentes')}
+                style={{
+                  padding: '12px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: abaAlertas === 'pendentes' ? `3px solid ${PURPLE}` : '3px solid transparent',
+                  color: abaAlertas === 'pendentes' ? PURPLE : '#64748b',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <AlertTriangle size={15} color={abaAlertas === 'pendentes' ? PURPLE : '#94a3b8'} />
+                Alertas Pendentes Hoje
+                {dadosAlertas?.pendentesAlerta && dadosAlertas.pendentesAlerta.length > 0 && (
+                  <span style={{
+                    padding: '2px 8px',
+                    borderRadius: 10,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: '#ef4444',
+                    color: '#fff',
+                  }}>
+                    {dadosAlertas.pendentesAlerta.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAbaAlertas('historico')}
+                style={{
+                  padding: '12px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: abaAlertas === 'historico' ? `3px solid ${PURPLE}` : '3px solid transparent',
+                  color: abaAlertas === 'historico' ? PURPLE : '#64748b',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <History size={15} color={abaAlertas === 'historico' ? PURPLE : '#94a3b8'} />
+                Histórico de Envios
+                {dadosAlertas?.jaNotificados && (
+                  <span style={{
+                    padding: '2px 8px',
+                    borderRadius: 10,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: '#e2e8f0',
+                    color: '#475569',
+                  }}>
+                    {dadosAlertas.jaNotificados.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Conteúdo com Scroll */}
+            <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
+              {carregandoAlertas ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
+                  <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 12px', color: PURPLE }} />
+                  <p>Consultando alertas e histórico de notificações...</p>
+                </div>
+              ) : abaAlertas === 'pendentes' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{
+                    padding: '12px 16px',
+                    background: '#f8fafc',
+                    borderRadius: 8,
+                    border: '1px solid #e2e8f0',
+                    fontSize: 12,
+                    color: '#475569',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 10,
+                  }}>
+                    <span>
+                      Mostrando documentos de <strong>técnicos ativos</strong> que estão <strong>vencidos</strong> ou que vencem dentro do prazo de alerta configurado (padrão 45 dias).
+                    </span>
+                    {dadosAlertas?.pendentesAlerta && dadosAlertas.pendentesAlerta.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleDispararNotificacoes}
+                        disabled={notificandoEmail}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '8px 16px',
+                          borderRadius: 8,
+                          background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
+                          border: 'none',
+                          color: '#fff',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: notificandoEmail ? 'not-allowed' : 'pointer',
+                          boxShadow: '0 2px 8px rgba(102,0,153,0.2)',
+                        }}
+                      >
+                        {notificandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                        Disparar Alertas por E-mail Agora ({dadosAlertas.pendentesAlerta.length})
+                      </button>
+                    )}
+                  </div>
+
+                  {(!dadosAlertas?.pendentesAlerta || dadosAlertas.pendentesAlerta.length === 0) ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '40px 20px',
+                      background: '#f0fdf4',
+                      borderRadius: 12,
+                      border: '1px solid #bbf7d0',
+                    }}>
+                      <CheckCircle2 size={40} color="#16a34a" style={{ margin: '0 auto 12px' }} />
+                      <h4 style={{ margin: '0 0 6px', color: '#166534', fontSize: 16 }}>Nenhum alerta pendente no momento!</h4>
+                      <p style={{ margin: 0, color: '#15803d', fontSize: 13 }}>
+                        Todos os documentos vigentes dos técnicos ativos estão dentro do prazo de validade.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {dadosAlertas.pendentesAlerta.map(item => (
+                        <div
+                          key={item.id}
+                          style={{
+                            padding: '12px 16px',
+                            background: item.isVencido ? '#fef2f2' : '#fffbeb',
+                            borderRadius: 10,
+                            border: `1px solid ${item.isVencido ? '#fecaca' : '#fde68a'}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 12,
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                              <span style={{
+                                fontWeight: 700,
+                                color: item.isVencido ? '#991b1b' : '#92400e',
+                                fontSize: 13,
+                              }}>
+                                {item.tecnico?.nome}
+                              </span>
+                              <span style={{
+                                fontSize: 10,
+                                fontWeight: 800,
+                                padding: '2px 8px',
+                                borderRadius: 12,
+                                background: item.isVencido ? '#ef4444' : '#f59e0b',
+                                color: '#fff',
+                              }}>
+                                {item.isVencido ? `VENCIDO (${Math.abs(item.diasRestantes)}d)` : `VENCE EM ${item.diasRestantes} DIAS`}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 12, color: '#475569' }}>
+                              <strong>{item.tipoDocumento?.nome}</strong> &bull; {item.arquivoNome}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                              Vencimento: {item.dataVencimento ? new Date(item.dataVencimento).toLocaleDateString('pt-BR') : 'Sem data'}
+                              {item.ultimoAlertaEmail && (
+                                <span style={{ marginLeft: 8, color: '#94a3b8' }}>
+                                  (Último e-mail: {new Date(item.ultimoAlertaEmail).toLocaleDateString('pt-BR')})
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <a
+                              href={item.arquivoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                background: '#fff',
+                                border: '1px solid #cbd5e1',
+                                color: '#334155',
+                                padding: '6px 12px',
+                                borderRadius: 6,
+                                textDecoration: 'none',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <ExternalLink size={13} /> Visualizar
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Aba Histórico de Envios Anteriores */
+                <div>
+                  {(!dadosAlertas?.jaNotificados || dadosAlertas.jaNotificados.length === 0) ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                      <History size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+                      <p style={{ fontWeight: 600 }}>Nenhum alerta de e-mail registrado anteriormente.</p>
+                      <p style={{ fontSize: 12, color: '#94a3b8' }}>
+                        Quando as notificações automáticas ou manuais forem enviadas aos administradores, os registros aparecerão aqui.
+                      </p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {dadosAlertas.jaNotificados.map(item => (
+                        <div
+                          key={item.id}
+                          style={{
+                            padding: '12px 16px',
+                            background: '#f8fafc',
+                            borderRadius: 8,
+                            border: '1px solid #e2e8f0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 12,
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 13 }}>
+                              {item.tecnico?.nome} &bull; <span style={{ color: PURPLE }}>{item.tipoDocumento?.nome}</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                              Vencimento em: {item.dataVencimento ? new Date(item.dataVencimento).toLocaleDateString('pt-BR') : 'Sem data'}
+                            </div>
+                          </div>
+
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: '#166534',
+                              background: '#dcfce7',
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                            }}>
+                              <CheckCircle2 size={12} /> Enviado em {new Date(item.ultimoAlertaEmail).toLocaleDateString('pt-BR')} às {new Date(item.ultimoAlertaEmail).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Rodapé */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}>
+              <span style={{ fontSize: 12, color: '#64748b' }}>
+                Os e-mails de alerta são direcionados aos usuários Master e Administradores do SG4.
+              </span>
+              <button
+                type="button"
+                onClick={() => setModalAlertasAberto(false)}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: 8,
+                  background: '#fff',
+                  border: '1px solid #cbd5e1',
+                  color: '#475569',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
