@@ -1,13 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Users,
   Building,
   UserCheck,
-  Shield,
-  Layers,
-  Settings
+  Plus
 } from 'lucide-react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -27,6 +25,11 @@ export default function CadastrosPage() {
 
   const [activeTab, setActiveTab] = useState<'tecnicos' | 'usuarios' | 'unidades'>('tecnicos')
 
+  // Refs para acionar os modais de adicionar de cada aba
+  const openAddTecnicoRef = useRef<(() => void) | null>(null)
+  const openAddUsuarioRef = useRef<(() => void) | null>(null)
+  const openAddUnidadeRef = useRef<(() => void) | null>(null)
+
   useEffect(() => {
     if (tabParam === 'usuarios' || tabParam === 'unidades' || tabParam === 'tecnicos') {
       setActiveTab(tabParam)
@@ -38,9 +41,33 @@ export default function CadastrosPage() {
     router.replace(`/dashboard/cadastros?aba=${tab}`)
   }
 
+  // Títulos e nomes de botões conforme a aba selecionada
+  const configAba = {
+    tecnicos: {
+      titulo: 'Técnicos',
+      icone: UserCheck,
+      botao: '+ Técnico',
+      acao: () => openAddTecnicoRef.current && openAddTecnicoRef.current(),
+    },
+    usuarios: {
+      titulo: 'Usuários',
+      icone: Users,
+      botao: '+ Usuário',
+      acao: () => openAddUsuarioRef.current && openAddUsuarioRef.current(),
+    },
+    unidades: {
+      titulo: 'Unidades',
+      icone: Building,
+      botao: '+ Unidade',
+      acao: () => openAddUnidadeRef.current && openAddUnidadeRef.current(),
+    },
+  }[activeTab]
+
+  const IconeAtual = configAba.icone
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
-      {/* ─── CABEÇALHO PADRONIZADO DO SISTEMA ─── */}
+      {/* ─── CABEÇALHO DINÂMICO CONFORME A ABA ─── */}
       <div
         style={{
           background: '#fff',
@@ -68,14 +95,35 @@ export default function CadastrosPage() {
               justifyContent: 'center',
             }}
           >
-            <Layers size={26} />
+            <IconeAtual size={26} />
           </div>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-              Central de Cadastros
+              {configAba.titulo}
             </h1>
           </div>
         </div>
+
+        <button
+          onClick={configAba.acao}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 20px',
+            borderRadius: 8,
+            background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
+            color: '#fff',
+            border: 'none',
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
+            transition: 'all 0.15s',
+          }}
+        >
+          {configAba.botao}
+        </button>
       </div>
 
       {/* ─── MENU DE ABAS ESTILO RELATÓRIOS ─── */}
@@ -156,9 +204,15 @@ export default function CadastrosPage() {
 
       {/* ─── CONTEÚDO DA ABA SELECIONADA ─── */}
       <div>
-        {activeTab === 'tecnicos' && <TecnicosContent hideHeader={true} />}
-        {activeTab === 'usuarios' && <UsuariosContent hideHeader={true} />}
-        {activeTab === 'unidades' && <UnidadesContent hideHeader={true} />}
+        {activeTab === 'tecnicos' && (
+          <TecnicosContent hideHeader={true} onOpenAddRef={openAddTecnicoRef} />
+        )}
+        {activeTab === 'usuarios' && (
+          <UsuariosContent hideHeader={true} onOpenAddRef={openAddUsuarioRef} />
+        )}
+        {activeTab === 'unidades' && (
+          <UnidadesContent hideHeader={true} onOpenAddRef={openAddUnidadeRef} />
+        )}
       </div>
     </div>
   )

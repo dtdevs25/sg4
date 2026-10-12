@@ -7,7 +7,13 @@ import {
 import { useSession } from 'next-auth/react'
 import { getUnidades, saveUnidade, deleteUnidade } from '@/app/actions/unidades'
 
-export default function UnidadesPage({ hideHeader = false }: { hideHeader?: boolean }) {
+export default function UnidadesPage({
+  hideHeader = false,
+  onOpenAddRef,
+}: {
+  hideHeader?: boolean
+  onOpenAddRef?: React.MutableRefObject<(() => void) | null>
+}) {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
@@ -40,6 +46,12 @@ export default function UnidadesPage({ hideHeader = false }: { hideHeader?: bool
       setUnidades(res.data)
     }
   }
+
+  useEffect(() => {
+    if (onOpenAddRef) {
+      onOpenAddRef.current = handleOpenAdd
+    }
+  }, [onOpenAddRef])
 
   function handleOpenAdd() {
     setIsEditing(null)
@@ -103,7 +115,7 @@ export default function UnidadesPage({ hideHeader = false }: { hideHeader?: bool
   return (
     <div style={{ paddingBottom: 40, maxWidth: 1000, margin: '0 auto' }}>
       {/* ── Cabeçalho Padronizado / Ação ── */}
-      {!hideHeader ? (
+      {!hideHeader && (
         <div style={{
           background: '#fff',
           borderRadius: 10,
@@ -123,30 +135,6 @@ export default function UnidadesPage({ hideHeader = false }: { hideHeader?: bool
               Unidades de Atendimento
             </h1>
           </div>
-          {!isTst && (
-            <button 
-              onClick={handleOpenAdd}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: '#660099',
-                color: '#fff',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: 8,
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: 'pointer',
-                boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
-              }}
-            >
-              <Plus size={16} /> Nova Unidade
-            </button>
-          )}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
           {!isTst && (
             <button 
               onClick={handleOpenAdd}

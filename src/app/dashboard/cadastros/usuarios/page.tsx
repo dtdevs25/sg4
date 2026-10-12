@@ -6,7 +6,13 @@ import { getUsuarios, toggleUserStatus, createUsuario, deleteUsuario, resendInvi
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { useSession } from 'next-auth/react'
 
-export default function UsuariosPage({ hideHeader = false }: { hideHeader?: boolean }) {
+export default function UsuariosPage({
+  hideHeader = false,
+  onOpenAddRef,
+}: {
+  hideHeader?: boolean
+  onOpenAddRef?: React.MutableRefObject<(() => void) | null>
+}) {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
@@ -52,6 +58,12 @@ export default function UsuariosPage({ hideHeader = false }: { hideHeader?: bool
     u.name.toLowerCase().includes(search.toLowerCase()) || 
     u.email.toLowerCase().includes(search.toLowerCase())
   )
+
+  useEffect(() => {
+    if (onOpenAddRef) {
+      onOpenAddRef.current = () => setShowAddModal(true)
+    }
+  }, [onOpenAddRef])
 
   async function handleToggle(id: string) {
     const res = await toggleUserStatus(id)
@@ -151,7 +163,7 @@ export default function UsuariosPage({ hideHeader = false }: { hideHeader?: bool
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
       {/* ── Cabeçalho Padronizado / Ação ── */}
-      {!hideHeader ? (
+      {!hideHeader && (
         <div style={{
           background: '#fff',
           borderRadius: 10,
@@ -171,20 +183,6 @@ export default function UsuariosPage({ hideHeader = false }: { hideHeader?: bool
             </h1>
           </div>
 
-          <button
-            onClick={() => setShowAddModal(true)}
-            style={{
-              background: '#660099', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px',
-              fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-              boxShadow: '0 2px 6px rgba(102,0,153,0.3)',
-            }}
-          >
-            <Plus size={16} />
-            Novo Usuário
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -8 }}>
           <button
             onClick={() => setShowAddModal(true)}
             style={{

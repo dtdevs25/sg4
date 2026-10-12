@@ -9,7 +9,13 @@ import { getTecnicos, saveTecnico, toggleTecnicoStatus, uploadFotoTecnico, delet
 import { getUnidades } from '@/app/actions/unidades'
 import { calcularDistanciasBase } from '@/app/actions/distancias'
 
-export default function TecnicosPage({ hideHeader = false }: { hideHeader?: boolean }) {
+export default function TecnicosPage({
+  hideHeader = false,
+  onOpenAddRef,
+}: {
+  hideHeader?: boolean
+  onOpenAddRef?: React.MutableRefObject<(() => void) | null>
+}) {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
@@ -68,6 +74,12 @@ export default function TecnicosPage({ hideHeader = false }: { hideHeader?: bool
       setUnidadesList(resUnidades.data)
     }
   }
+
+  useEffect(() => {
+    if (onOpenAddRef) {
+      onOpenAddRef.current = handleOpenAdd
+    }
+  }, [onOpenAddRef])
 
   function handleOpenAdd() {
     setIsEditing(null)
@@ -269,7 +281,7 @@ export default function TecnicosPage({ hideHeader = false }: { hideHeader?: bool
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
 
       {/* ── Cabeçalho / Barra de Ação ── */}
-      {!hideHeader ? (
+      {!hideHeader && (
         <div style={{
           background: '#fff',
           borderRadius: 10,
@@ -301,33 +313,6 @@ export default function TecnicosPage({ hideHeader = false }: { hideHeader?: bool
                 borderRadius: 8,
                 fontSize: 14,
                 fontWeight: 600,
-                cursor: pending ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                boxShadow: '0 2px 4px rgba(102,0,153, 0.2)',
-                opacity: pending ? 0.7 : 1
-              }}
-            >
-              <UserPlus size={16} />
-              Novo Técnico
-            </button>
-          )}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: -8 }}>
-          {role !== 'TST' && (
-            <button
-              onClick={handleOpenAdd}
-              disabled={pending}
-              style={{
-                background: '#660099',
-                color: '#fff',
-                border: 'none',
-                padding: '9px 18px',
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 700,
                 cursor: pending ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
