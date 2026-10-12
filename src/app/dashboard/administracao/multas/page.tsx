@@ -137,7 +137,13 @@ const formatarMoedaInput = (valor: string) => {
   return v;
 };
 
-export default function MultasAvariasPage() {
+export default function MultasAvariasPage({
+  hideHeader = false,
+  onOpenAddRef,
+}: {
+  hideHeader?: boolean
+  onOpenAddRef?: React.MutableRefObject<(() => void) | null>
+} = {}) {
   const [itens, setItens] = useState<MultaAvariaItem[]>([])
   const [tecnicos, setTecnicos] = useState<TecnicoSimple[]>([])
   const [loading, setLoading] = useState(true)
@@ -207,6 +213,14 @@ export default function MultasAvariasPage() {
   useEffect(() => {
     carregarDados()
   }, [anoFiltro, mesesFiltro, tipoFiltro, statusFiltro, tecnicoFiltro])
+
+  useEffect(() => {
+    if (onOpenAddRef) {
+      onOpenAddRef.current = () => {
+        handleAbrirCriar()
+      }
+    }
+  }, [onOpenAddRef])
 
   async function carregarTecnicos() {
     const res = await getTecnicos()
@@ -561,63 +575,65 @@ export default function MultasAvariasPage() {
       )}
 
       {/* Header */}
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          border: '1px solid #f1f5f9',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-          padding: '20px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: PURPLE_BG,
-              color: PURPLE,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Car size={26} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-              Multas e Avarias de Veículos
-            </h1>
-          </div>
-        </div>
-
-        <button
-          onClick={handleAbrirCriar}
+      {!hideHeader && (
+        <div
           style={{
+            background: '#fff',
+            borderRadius: 12,
+            border: '1px solid #f1f5f9',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+            padding: '20px 24px',
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            padding: '10px 20px',
-            borderRadius: 8,
-            background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
-            color: '#fff',
-            border: 'none',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
-            transition: 'all 0.15s',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
           }}
         >
-          + Ocorrencia
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: PURPLE_BG,
+                color: PURPLE,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Car size={26} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                Multas e Avarias de Veículos
+              </h1>
+            </div>
+          </div>
+
+          <button
+            onClick={handleAbrirCriar}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 20px',
+              borderRadius: 8,
+              background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
+              color: '#fff',
+              border: 'none',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
+              transition: 'all 0.15s',
+            }}
+          >
+            + Ocorrencia
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards - apenas 3 */}
       <div
@@ -1677,7 +1693,7 @@ export default function MultasAvariasPage() {
                     {urlsExistentes.map((url, idx) => (
                       <div key={`ext-${idx}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 8, border: '1px solid #e2e8f0', borderRadius: 8, background: '#f8fafc' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                          <FileText size={16} color={PURPLE} flexShrink={0} />
+                          <FileText size={16} color={PURPLE} style={{ flexShrink: 0 }} />
                           <span style={{ fontSize: 12, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Anexo Salvo {idx + 1}</span>
                         </div>
                         <button type="button" onClick={() => setUrlsExistentes(prev => prev.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={16} /></button>
@@ -1686,7 +1702,7 @@ export default function MultasAvariasPage() {
                     {arquivosLocais.map((file, idx) => (
                       <div key={`loc-${idx}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 8, border: '1px dashed #cbd5e1', borderRadius: 8, background: '#f1f5f9' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                          <FileText size={16} color={PURPLE} flexShrink={0} />
+                          <FileText size={16} color={PURPLE} style={{ flexShrink: 0 }} />
                           <span style={{ fontSize: 12, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
                         </div>
                         <button type="button" onClick={() => setArquivosLocais(prev => prev.filter((_, i) => i !== idx))} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}><X size={16} /></button>

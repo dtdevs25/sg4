@@ -31,19 +31,7 @@ const NAV: NavItemType[] = [
   // { href: '/dashboard/epi',         label: 'EPI',         icon: HardHat          },
   { href: '/dashboard/relatorios',  label: 'Relatórios',  icon: FileText         },
   { href: '/dashboard/cadastros',   label: 'Cadastros',   icon: UserIcon         },
-  {
-    label: 'Administração', icon: ShieldAlert,
-    subItems: [
-      { href: '/dashboard/administracao/abastecimento', label: 'Abastecimento' },
-      { href: '/dashboard/administracao/documentos', label: 'Documentos dos Técnicos' },
-      { href: '/dashboard/administracao/multas', label: 'Multas e Avarias' },
-      { href: '/dashboard/administracao/medidas-administrativas', label: 'Medidas Administrativas' },
-      { href: '/dashboard/administracao/logs', label: 'Logs' },
-      // { href: '/dashboard/administracao/programacao', label: 'Programação' },
-      { href: '/dashboard/administracao/relatorios', label: 'Relatórios' },
-      { href: '/dashboard/administracao/testes', label: 'Testes N8N' },
-    ]
-  },
+  { href: '/dashboard/administracao', label: 'Administração', icon: ShieldAlert },
 ]
 
 const RED      = '#660099'

@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import { getResumoOrcamentoMes, updateOrcamentoTecnico, createRecargaExtra } from '@/app/actions/abastecimentoOrcamento'
 import { Fuel, AlertTriangle, CheckCircle2, AlertCircle, Edit2, Loader2, Save, X, PlusCircle, History, ChevronDown, ChevronUp } from 'lucide-react'
 
-export default function AbastecimentoOrcamentoPage() {
+export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hideHeader?: boolean }) {
   const [ano, setAno] = useState(new Date().getFullYear())
   const [mesesSelecionados, setMesesSelecionados] = useState<number[]>([new Date().getMonth() + 1])
   
@@ -145,67 +145,111 @@ export default function AbastecimentoOrcamentoPage() {
         }
       `}</style>
       
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 16
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Fuel color="#660099" size={22} />
-            Gestão de Verba de Abastecimento
-          </h1>
-        </div>
+      {!hideHeader ? (
+        <div style={{
+          background: '#fff',
+          borderRadius: 10,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Fuel color="#660099" size={22} />
+              Gestão de Verba de Abastecimento
+            </h1>
+          </div>
 
-        <div className="abast-header-controls">
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-            <input type="checkbox" checked={mostrarOcultos} onChange={e => setMostrarOcultos(e.target.checked)} style={{ accentColor: '#660099', cursor: 'pointer' }} />
-            Exibir
-          </label>
+          <div className="abast-header-controls">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+              <input type="checkbox" checked={mostrarOcultos} onChange={e => setMostrarOcultos(e.target.checked)} style={{ accentColor: '#660099', cursor: 'pointer' }} />
+              Exibir
+            </label>
 
-          <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 6, position: 'relative' }}>
-            
-            <button 
-              onClick={() => setMesesDropdownOpen(!mesesDropdownOpen)}
-              style={{ padding: '6px 12px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: 6 }}
-            >
-              {mesesSelecionados.length === 0 ? 'Acumulado (Todos)' : `${mesesSelecionados.length} Mês(es) Selecionado(s)`}
-              {mesesDropdownOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-            
-            {mesesDropdownOpen && (
-              <div className="meses-dropdown">
-                <div style={{ gridColumn: '1 / -1', padding: '0 6px 8px 6px', borderBottom: '1px solid #e2e8f0', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Selecione os meses</span>
-                  <button onClick={() => setMesesSelecionados([])} style={{ fontSize: 11, background: 'none', border: 'none', color: '#660099', cursor: 'pointer', fontWeight: 600 }}>Limpar</button>
+            <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 6, position: 'relative' }}>
+              <button 
+                onClick={() => setMesesDropdownOpen(!mesesDropdownOpen)}
+                style={{ padding: '6px 12px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {mesesSelecionados.length === 0 ? 'Acumulado (Todos)' : `${mesesSelecionados.length} Mês(es) Selecionado(s)`}
+                {mesesDropdownOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+              
+              {mesesDropdownOpen && (
+                <div className="meses-dropdown">
+                  <div style={{ gridColumn: '1 / -1', padding: '0 6px 8px 6px', borderBottom: '1px solid #e2e8f0', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Selecione os meses</span>
+                    <button onClick={() => setMesesSelecionados([])} style={{ fontSize: 11, background: 'none', border: 'none', color: '#660099', cursor: 'pointer', fontWeight: 600 }}>Limpar</button>
+                  </div>
+                  {MESES_NOME.map((nome, idx) => (
+                    <label key={idx}>
+                      <input 
+                        type="checkbox" 
+                        checked={mesesSelecionados.includes(idx + 1)} 
+                        onChange={() => handleMesToggle(idx + 1)}
+                        style={{ accentColor: '#660099' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#334155' }}>{nome}</span>
+                    </label>
+                  ))}
                 </div>
-                {MESES_NOME.map((nome, idx) => (
-                  <label key={idx}>
-                    <input 
-                      type="checkbox" 
-                      checked={mesesSelecionados.includes(idx + 1)} 
-                      onChange={() => handleMesToggle(idx + 1)}
-                      style={{ accentColor: '#660099' }}
-                    />
-                    <span style={{ fontSize: 13, color: '#334155' }}>{nome}</span>
-                  </label>
-                ))}
-              </div>
-            )}
+              )}
 
-            <select value={ano} onChange={e => setAno(Number(e.target.value))} style={{ padding: '6px 12px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              {[2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
+              <select value={ano} onChange={e => setAno(Number(e.target.value))} style={{ padding: '6px 12px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                {[2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+          <div className="abast-header-controls">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer', background: '#fff', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+              <input type="checkbox" checked={mostrarOcultos} onChange={e => setMostrarOcultos(e.target.checked)} style={{ accentColor: '#660099', cursor: 'pointer' }} />
+              Exibir Inativos
+            </label>
+
+            <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 6, position: 'relative' }}>
+              <button 
+                onClick={() => setMesesDropdownOpen(!mesesDropdownOpen)}
+                style={{ padding: '6px 12px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {mesesSelecionados.length === 0 ? 'Acumulado (Todos)' : `${mesesSelecionados.length} Mês(es) Selecionado(s)`}
+                {mesesDropdownOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </button>
+              
+              {mesesDropdownOpen && (
+                <div className="meses-dropdown">
+                  <div style={{ gridColumn: '1 / -1', padding: '0 6px 8px 6px', borderBottom: '1px solid #e2e8f0', marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>Selecione os meses</span>
+                    <button onClick={() => setMesesSelecionados([])} style={{ fontSize: 11, background: 'none', border: 'none', color: '#660099', cursor: 'pointer', fontWeight: 600 }}>Limpar</button>
+                  </div>
+                  {MESES_NOME.map((nome, idx) => (
+                    <label key={idx}>
+                      <input 
+                        type="checkbox" 
+                        checked={mesesSelecionados.includes(idx + 1)} 
+                        onChange={() => handleMesToggle(idx + 1)}
+                        style={{ accentColor: '#660099' }}
+                      />
+                      <span style={{ fontSize: 12, color: '#334155' }}>{nome}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              <select value={ano} onChange={e => setAno(Number(e.target.value))} style={{ padding: '6px 12px', fontSize: 13, borderRadius: 4, border: 'none', background: '#fff', fontWeight: 700, color: '#334155', outline: 'none', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                {[2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>

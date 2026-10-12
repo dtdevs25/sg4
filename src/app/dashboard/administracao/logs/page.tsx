@@ -48,7 +48,7 @@ const RED = '#660099'
 const LIMIT = 30
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-export default function LogsPage() {
+export default function LogsPage({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const [logs, setLogs]           = useState<AuditLogEntry[]>([])
   const [total, setTotal]         = useState(0)
   const [page, setPage]           = useState(1)
@@ -99,51 +99,53 @@ export default function LogsPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
 
       {/* ── Header ── */}
-      <div style={{
-        background: '#fff',
-        borderRadius: 12,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '16px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 12,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: 'linear-gradient(135deg, rgba(102,0,153,0.12), rgba(102,0,153,0.05))',
-            border: '1px solid rgba(102,0,153,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <ShieldAlert size={20} color={RED} />
+      {!hideHeader && (
+        <div style={{
+          background: '#fff',
+          borderRadius: 12,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          padding: '16px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 10,
+              background: 'linear-gradient(135deg, rgba(102,0,153,0.12), rgba(102,0,153,0.05))',
+              border: '1px solid rgba(102,0,153,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <ShieldAlert size={20} color={RED} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                Logs de Auditoria
+              </h1>
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
+                {total.toLocaleString('pt-BR')} registros encontrados
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-              Logs de Auditoria
-            </h1>
-            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
-              {total.toLocaleString('pt-BR')} registros encontrados
-            </p>
-          </div>
-        </div>
 
-        <button
-          onClick={() => load(page, search, entity)}
-          disabled={loading}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 16px', borderRadius: 8, border: `1px solid rgba(102,0,153,0.25)`,
-            background: 'rgba(102,0,153,0.05)', color: RED, fontSize: 13, fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-          Atualizar
-        </button>
-      </div>
+          <button
+            onClick={() => load(page, search, entity)}
+            disabled={loading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 16px', borderRadius: 8, border: `1px solid rgba(102,0,153,0.25)`,
+              background: 'rgba(102,0,153,0.05)', color: RED, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            Atualizar
+          </button>
+        </div>
+      )}
 
       {/* ── Filters ── */}
       <div style={{
@@ -188,6 +190,23 @@ export default function LogsPage() {
             {entities.map(e => <option key={e} value={e}>{e}</option>)}
           </select>
         </div>
+
+        {hideHeader && (
+          <button
+            onClick={() => load(page, search, entity)}
+            disabled={loading}
+            style={{
+              marginLeft: 'auto',
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 16px', borderRadius: 8, border: `1px solid rgba(102,0,153,0.25)`,
+              background: 'rgba(102,0,153,0.05)', color: RED, fontSize: 13, fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            Atualizar
+          </button>
+        )}
       </div>
 
       {/* ── Error ── */}

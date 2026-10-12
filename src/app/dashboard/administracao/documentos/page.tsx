@@ -103,7 +103,13 @@ type DocumentoItem = {
   historico: HistoricoItem[]
 }
 
-export default function DocumentosTecnicosPage() {
+export default function DocumentosTecnicosPage({
+  hideHeader = false,
+  onOpenAddRef,
+}: {
+  hideHeader?: boolean
+  onOpenAddRef?: React.MutableRefObject<(() => void) | null>
+} = {}) {
   const [documentos, setDocumentos] = useState<DocumentoItem[]>([])
   const [tiposDocs, setTiposDocs] = useState<TipoDocItem[]>([])
   const [tecnicos, setTecnicos] = useState<TecnicoItem[]>([])
@@ -180,6 +186,15 @@ export default function DocumentosTecnicosPage() {
   useEffect(() => {
     carregarDados()
   }, [])
+
+  useEffect(() => {
+    if (onOpenAddRef) {
+      onOpenAddRef.current = () => {
+        limparFormUpload()
+        setModalUploadAberto(true)
+      }
+    }
+  }, [onOpenAddRef])
 
   // Verifica se o tipo selecionado é Ficha de EPI
   const isFichaEpi = useMemo(() => {
@@ -458,66 +473,68 @@ export default function DocumentosTecnicosPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
       {/* ─── TOPO / CABEÇALHO ─── */}
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          border: '1px solid #f1f5f9',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-          padding: '20px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: PURPLE_BG,
-              color: PURPLE,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <FileCheck size={26} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-              Documentos dos Técnicos
-            </h1>
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            limparFormUpload()
-            setModalUploadAberto(true)
-          }}
+      {!hideHeader && (
+        <div
           style={{
+            background: '#fff',
+            borderRadius: 12,
+            border: '1px solid #f1f5f9',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+            padding: '20px 24px',
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            padding: '10px 20px',
-            borderRadius: 8,
-            background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
-            color: '#fff',
-            border: 'none',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
-            transition: 'all 0.15s',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
           }}
         >
-          + Doc./Renovação
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: PURPLE_BG,
+                color: PURPLE,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <FileCheck size={26} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                Documentos dos Técnicos
+              </h1>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              limparFormUpload()
+              setModalUploadAberto(true)
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 20px',
+              borderRadius: 8,
+              background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
+              color: '#fff',
+              border: 'none',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
+              transition: 'all 0.15s',
+            }}
+          >
+            + Doc./Renovação
+          </button>
+        </div>
+      )}
 
       {/* ─── BARRA DE GUIAS / AÇÕES AUXILIARES FORA DO TÍTULO ─── */}
       <div style={{

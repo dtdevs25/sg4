@@ -188,7 +188,13 @@ const formatarVeiculo = (veiculoStr: string) => {
   return limpo || veiculoStr;
 };
 
-export default function MedidasAdministrativasPage() {
+export default function MedidasAdministrativasPage({
+  hideHeader = false,
+  onOpenAddRef,
+}: {
+  hideHeader?: boolean
+  onOpenAddRef?: React.MutableRefObject<(() => void) | null>
+} = {}) {
   const [itens, setItens] = useState<MedidaItem[]>([])
   const [tecnicos, setTecnicos] = useState<any[]>([])
   const [multasDisponiveis, setMultasDisponiveis] = useState<MultaOption[]>([])
@@ -255,6 +261,14 @@ export default function MedidasAdministrativasPage() {
   useEffect(() => {
     carregarDados()
   }, [anoFiltro, mesesFiltro, tipoFiltro, statusFiltro, tecnicoFiltro])
+
+  useEffect(() => {
+    if (onOpenAddRef) {
+      onOpenAddRef.current = () => {
+        handleAbrirCriar()
+      }
+    }
+  }, [onOpenAddRef])
 
   async function carregarTecnicos() {
     const res = await getTecnicos()
@@ -587,62 +601,64 @@ export default function MedidasAdministrativasPage() {
       )}
 
       {/* Header */}
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          border: '1px solid #f1f5f9',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-          padding: '20px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: PURPLE_BG,
-              color: PURPLE,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ShieldAlert size={26} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-              Medidas Administrativas
-            </h1>
-          </div>
-        </div>
-
-        <button
-          onClick={handleAbrirCriar}
+      {!hideHeader && (
+        <div
           style={{
+            background: '#fff',
+            borderRadius: 12,
+            border: '1px solid #f1f5f9',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+            padding: '20px 24px',
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            padding: '10px 20px',
-            borderRadius: 8,
-            background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
-            color: '#fff',
-            border: 'none',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
           }}
         >
-          + Medida
-        </button>
-      </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: PURPLE_BG,
+                color: PURPLE,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ShieldAlert size={26} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                Medidas Administrativas
+              </h1>
+            </div>
+          </div>
+
+          <button
+            onClick={handleAbrirCriar}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 20px',
+              borderRadius: 8,
+              background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
+              color: '#fff',
+              border: 'none',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
+            }}
+          >
+            + Medida
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div

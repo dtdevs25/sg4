@@ -8,7 +8,7 @@ import { testN8NMetasWebhook } from '@/app/actions/metas'
 import { testN8NAniversarioWebhook } from '@/app/actions/aniversarios'
 import { getTecnicos } from '@/app/actions/tecnicos'
 
-export default function TestesPage() {
+export default function TestesPage({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const [testandoAbastecimento, setTestandoAbastecimento] = useState(false)
   const [testandoMetas, setTestandoMetas] = useState(false)
   const [testandoAniversario, setTestandoAniversario] = useState(false)
@@ -44,21 +44,23 @@ export default function TestesPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        border: '1px solid #f1f5f9',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        padding: '14px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Send color="#660099" size={22} />
-          Painel de Testes do N8N
-        </h1>
-      </div>
+      {!hideHeader && (
+        <div style={{
+          background: '#fff',
+          borderRadius: 10,
+          border: '1px solid #f1f5f9',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Send color="#660099" size={22} />
+            Painel de Testes do N8N
+          </h1>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
         {/* Teste Abastecimento */}
