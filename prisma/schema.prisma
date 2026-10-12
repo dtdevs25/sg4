@@ -126,6 +126,7 @@ model Tecnico {
   notificacaoMetas  NotificacaoMeta[]
   multasAvarias     MultaAvaria[]
   medidasAdministrativas MedidaAdministrativa[]
+  documentos            DocumentoTecnico[]
 
   @@map("tecnicos")
 }
@@ -704,6 +705,77 @@ enum StatusMedidaAdmin {
   PENDENTE_ASSINATURA
   APLICADA
   CANCELADA
+}
+
+// ─── DOCUMENTOS DOS TÉCNICOS ───────────────────────────────────────────────
+
+model TipoDocumentoTecnico {
+  id              String             @id @default(cuid())
+  nome            String             @unique
+  descricao       String?
+  validadeMeses   Int?               // Validade padrão em meses (ex: 12 para ASO, 24 para NR-35, null se não tiver)
+  diasAlerta      Int                @default(45) // Antecedência para alertar antes de vencer
+  obrigatorio     Boolean            @default(true)
+  ativo           Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  documentos      DocumentoTecnico[]
+
+  @@map("tipos_documentos_tecnicos")
+}
+
+model DocumentoTecnico {
+  id                String                     @id @default(cuid())
+  tecnicoId         String
+  tipoDocumentoId   String
+  titulo            String?
+  arquivoUrl        String
+  arquivoNome       String
+  arquivoTamanho    Int?
+  dataEmissao       DateTime
+  dataVencimento    DateTime?
+  status            StatusDocumento            @default(VALIDO)
+  observacoes       String?
+  cadastradoPor     String?
+  ultimoAlertaEmail DateTime?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  tecnico           Tecnico                    @relation(fields: [tecnicoId], references: [id], onDelete: Cascade)
+  tipoDocumento     TipoDocumentoTecnico       @relation(fields: [tipoDocumentoId], references: [id], onDelete: Restrict)
+  historico         DocumentoTecnicoHistorico[]
+
+  @@index([tecnicoId])
+  @@index([tipoDocumentoId])
+  @@index([dataVencimento])
+  @@index([status])
+  @@map("documentos_tecnicos")
+}
+
+model DocumentoTecnicoHistorico {
+  id                  String           @id @default(cuid())
+  documentoTecnicoId  String
+  arquivoUrl          String
+  arquivoNome         String
+  arquivoTamanho      Int?
+  dataEmissao         DateTime
+  dataVencimento      DateTime?
+  modificadoPor       String?
+  motivoSubstituicao  String?
+  createdAt           DateTime         @default(now())
+
+  documentoTecnico    DocumentoTecnico @relation(fields: [documentoTecnicoId], references: [id], onDelete: Cascade)
+
+  @@index([documentoTecnicoId])
+  @@map("documentos_tecnicos_historico")
+}
+
+enum StatusDocumento {
+  VALIDO
+  A_VENCER
+  VENCIDO
+  SEM_VALIDADE
 }
 
 
