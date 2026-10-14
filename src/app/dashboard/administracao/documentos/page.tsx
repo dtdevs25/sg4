@@ -28,6 +28,7 @@ import {
   Shield,
   HardHat,
   Bell,
+  Eye,
 } from 'lucide-react'
 import {
   getDocumentosTecnicos,
@@ -54,6 +55,139 @@ type TecnicoItem = {
   ativo: boolean
   fotoUrl: string | null
   matriculaArkium: string | null
+  admissao?: string | Date | null
+}
+
+/* ── Helper: abreviar nome do técnico ── */
+function abreviarNome(completo?: string | null): string {
+  if (!completo) return '—'
+  const partes = completo.trim().split(/\s+/).filter(Boolean)
+  if (partes.length <= 1) return partes[0] || '—'
+  const primeiro = partes[0]
+  const sufixos = new Set(['junior', 'júnior', 'jr', 'jr.', 'filho', 'neto', 'sobrinho'])
+  
+  const ultimo = partes[partes.length - 1]
+  if (sufixos.has(ultimo.toLowerCase()) && partes.length >= 3) {
+    const penultimo = partes[partes.length - 2]
+    return `${primeiro} ${penultimo[0].toUpperCase()}. ${ultimo}`
+  }
+  
+  return `${primeiro} ${ultimo[0].toUpperCase()}.`
+}
+
+/* ── Helper: formatar data em DD/MM/AAAA ── */
+function formatarData(data?: string | Date | null): string {
+  if (!data) return '—'
+  try {
+    const s = String(data).split('T')[0]
+    if (s.includes('-')) {
+      const [y, m, d] = s.split('-')
+      if (y && m && d) return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`
+    }
+    return new Date(data).toLocaleDateString('pt-BR')
+  } catch {
+    return '—'
+  }
+}
+
+/* ── Componente: Badge de Status com Tooltip de Vencimento ao passar o mouse ── */
+function StatusComHoverVencimento({
+  status,
+  dataVencimento,
+  temItensEpi,
+}: {
+  status: 'VALIDO' | 'A_VENCER' | 'VENCIDO' | 'SEM_VALIDADE'
+  dataVencimento: string | null
+  temItensEpi?: boolean
+}) {
+  const [showTooltip, setShowTooltip] = useState(false)
+
+  let statusBadge = { bg: '#ecfdf5', color: '#059669', label: 'Válido' }
+  if (status === 'A_VENCER') statusBadge = { bg: '#fffbeb', color: '#d97706', label: 'A Vencer' }
+  if (status === 'VENCIDO') statusBadge = { bg: '#fef2f2', color: '#dc2626', label: 'Vencido' }
+  if (status === 'SEM_VALIDADE') statusBadge = { bg: '#f1f5f9', color: '#475569', label: 'Sem Validade' }
+
+  const vencimentoFmt = dataVencimento
+    ? formatarData(dataVencimento)
+    : 'Sem validade fixa'
+
+  const tooltipText = dataVencimento
+    ? `Vencimento: ${vencimentoFmt}${temItensEpi ? ' (regido pelo item mais recente)' : ''}`
+    : 'Documento sem validade fixa'
+
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <span
+        title={tooltipText}
+        style={{
+          background: statusBadge.bg,
+          color: statusBadge.color,
+          padding: '4px 10px',
+          borderRadius: 20,
+          fontSize: 11,
+          fontWeight: 700,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          cursor: 'pointer',
+          userSelect: 'none',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        {statusBadge.label}
+      </span>
+
+      {showTooltip && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 7px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#1e293b',
+            color: '#ffffff',
+            padding: '6px 10px',
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+            zIndex: 999,
+            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Calendar size={12} style={{ color: '#93c5fd' }} />
+            <span>Vencimento: {vencimentoFmt}</span>
+          </div>
+          {temItensEpi && (
+            <span style={{ fontSize: 9, color: '#94a3b8' }}>Regido pelo item mais recente</span>
+          )}
+          <div
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: '5px solid #1e293b',
+              width: 0,
+              height: 0,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
 }
 
 type TipoDocItem = {
@@ -825,9 +959,7 @@ export default function DocumentosTecnicosPage({
                   <th style={{ padding: '12px 18px' }}>Técnico</th>
                   <th style={{ padding: '12px 18px' }}>Documento</th>
                   <th style={{ padding: '12px 18px' }}>Emissão</th>
-                  <th style={{ padding: '12px 18px' }}>Vencimento</th>
                   <th style={{ padding: '12px 18px' }}>Status</th>
-                  <th style={{ padding: '12px 18px' }}>Arquivo Ativo</th>
                   <th style={{ padding: '12px 18px', textAlign: 'center' }}>Histórico</th>
                   <th style={{ padding: '12px 18px', textAlign: 'right' }}>Ações</th>
                 </tr>
@@ -835,13 +967,6 @@ export default function DocumentosTecnicosPage({
               <tbody>
                 {documentosFiltrados.map((doc) => {
                   const emissaoFmt = new Date(doc.dataEmissao).toLocaleDateString('pt-BR')
-                  const vencimentoFmt = doc.dataVencimento ? new Date(doc.dataVencimento).toLocaleDateString('pt-BR') : 'Sem validade'
-
-                  let statusBadge = { bg: '#ecfdf5', color: '#059669', label: 'Válido' }
-                  if (doc.status === 'A_VENCER') statusBadge = { bg: '#fffbeb', color: '#d97706', label: 'A Vencer' }
-                  if (doc.status === 'VENCIDO') statusBadge = { bg: '#fef2f2', color: '#dc2626', label: 'Vencido' }
-                  if (doc.status === 'SEM_VALIDADE') statusBadge = { bg: '#f1f5f9', color: '#475569', label: 'Sem Validade' }
-
                   const temItensEpi = Array.isArray(doc.itensEpi) && (doc.itensEpi as any[]).length > 0
 
                   return (
@@ -861,6 +986,7 @@ export default function DocumentosTecnicosPage({
                             fontWeight: 700,
                             color: '#475569',
                             overflow: 'hidden',
+                            flexShrink: 0,
                           }}>
                             {doc.tecnico?.fotoUrl ? (
                               <img src={doc.tecnico.fotoUrl} alt={doc.tecnico.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -869,8 +995,12 @@ export default function DocumentosTecnicosPage({
                             )}
                           </div>
                           <div>
-                            <div style={{ fontWeight: 700, color: '#1e293b' }}>{doc.tecnico?.nome}</div>
-                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{doc.tecnico?.cargo || 'Técnico de Segurança'}</div>
+                            <div title={doc.tecnico?.nome || ''} style={{ fontWeight: 700, color: '#1e293b' }}>
+                              {abreviarNome(doc.tecnico?.nome)}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                              Adm: {formatarData(doc.tecnico?.admissao)}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -892,52 +1022,13 @@ export default function DocumentosTecnicosPage({
                         {emissaoFmt}
                       </td>
 
-                      {/* Vencimento */}
-                      <td style={{ padding: '14px 18px', fontWeight: doc.status === 'VENCIDO' ? 700 : 500, color: doc.status === 'VENCIDO' ? '#dc2626' : '#334155' }}>
-                        {vencimentoFmt}
-                        {temItensEpi && (
-                          <div style={{ fontSize: 10, color: '#94a3b8' }}>Regido pelo item mais recente</div>
-                        )}
-                      </td>
-
-                      {/* Status */}
+                      {/* Status com Hover mostrando a Data de Vencimento */}
                       <td style={{ padding: '14px 18px' }}>
-                        <span style={{
-                          background: statusBadge.bg,
-                          color: statusBadge.color,
-                          padding: '4px 10px',
-                          borderRadius: 20,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          display: 'inline-block',
-                        }}>
-                          {statusBadge.label}
-                        </span>
-                      </td>
-
-                      {/* Link Arquivo */}
-                      <td style={{ padding: '14px 18px' }}>
-                        <a
-                          href={doc.arquivoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            color: PURPLE,
-                            textDecoration: 'none',
-                            fontWeight: 600,
-                            maxWidth: 160,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={doc.arquivoNome}
-                        >
-                          <ExternalLink size={14} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.arquivoNome}</span>
-                        </a>
+                        <StatusComHoverVencimento
+                          status={doc.status}
+                          dataVencimento={doc.dataVencimento}
+                          temItensEpi={temItensEpi}
+                        />
                       </td>
 
                       {/* Histórico / Versões */}
@@ -966,6 +1057,39 @@ export default function DocumentosTecnicosPage({
                       {/* Ações */}
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                          {/* Visualizar Documento (Olhinho) */}
+                          {doc.arquivoUrl && (
+                            <a
+                              href={doc.arquivoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={`Visualizar documento: ${doc.arquivoNome}`}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#0284c7',
+                                cursor: 'pointer',
+                                padding: 6,
+                                borderRadius: 4,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textDecoration: 'none',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#e0f2fe'
+                                e.currentTarget.style.color = '#0369a1'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent'
+                                e.currentTarget.style.color = '#0284c7'
+                              }}
+                            >
+                              <Eye size={16} />
+                            </a>
+                          )}
+
                           <button
                             onClick={() => handleEnviarDossieTecnico(doc.tecnicoId, doc.tecnico?.nome)}
                             title={`Enviar por e-mail todos os documentos de ${doc.tecnico?.nome} aos administradores`}

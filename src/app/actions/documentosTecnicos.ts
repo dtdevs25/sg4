@@ -278,7 +278,7 @@ export async function getDocumentosTecnicos(filtros?: {
       where,
       include: {
         tecnico: {
-          select: { id: true, nome: true, email: true, cargo: true, ativo: true, fotoUrl: true, matriculaArkium: true },
+          select: { id: true, nome: true, email: true, cargo: true, ativo: true, fotoUrl: true, matriculaArkium: true, admissao: true },
         },
         tipoDocumento: true,
         historico: {
