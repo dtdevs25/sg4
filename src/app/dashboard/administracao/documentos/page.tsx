@@ -29,6 +29,7 @@ import {
   HardHat,
   Bell,
   Eye,
+  Download,
 } from 'lucide-react'
 import {
   getDocumentosTecnicos,
@@ -268,6 +269,32 @@ export default function DocumentosTecnicosPage({
   const [dadosAlertas, setDadosAlertas] = useState<{ jaNotificados: any[]; pendentesAlerta: any[] } | null>(null)
   const [carregandoAlertas, setCarregandoAlertas] = useState(false)
   const [abaAlertas, setAbaAlertas] = useState<'pendentes' | 'historico'>('pendentes')
+
+  // Modal de Confirmação customizado (substitui window.confirm do browser)
+  const [modalConfirmacao, setModalConfirmacao] = useState<{
+    isOpen: boolean
+    titulo: string
+    mensagem: string
+    confirmText?: string
+    cancelText?: string
+    tipo?: 'perigo' | 'info' | 'sucesso'
+    loading?: boolean
+    onConfirm: () => void | Promise<void>
+  }>({
+    isOpen: false,
+    titulo: '',
+    mensagem: '',
+    onConfirm: () => {},
+  })
+
+  // Modal Visualizador de Documentos In-App (substitui navegação externa e protege rota)
+  const [modalVisualizarDoc, setModalVisualizarDoc] = useState<{
+    isOpen: boolean
+    id: string
+    nome: string
+    tecnicoNome?: string
+    tipoNome?: string
+  } | null>(null)
 
   const [notificandoEmail, setNotificandoEmail] = useState(false)
   const [enviandoDossieTecnicoId, setEnviandoDossieTecnicoId] = useState<string | null>(null)
@@ -587,34 +614,54 @@ export default function DocumentosTecnicosPage({
     })
   }
 
-  // Excluir Tipo de Documento / Treinamento
-  const handleExcluirTipo = async (id: string, nome: string) => {
-    if (!confirm(`Deseja realmente remover o tipo de treinamento "${nome}"?`)) return
-
-    startTransition(async () => {
-      const res = await deleteTipoDocumento(id)
-      if (res.success) {
-        setFeedback({ tipo: 'sucesso', msg: `Tipo "${nome}" excluído com sucesso.` })
-        const tiposRes = await getTiposDocumentos()
-        if (tiposRes.success && tiposRes.data) setTiposDocs(tiposRes.data as any)
-      } else {
-        setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao excluir tipo de documento.' })
-      }
+  // Excluir Tipo de Documento / Treinamento via Modal
+  const handleExcluirTipo = (id: string, nome: string) => {
+    setModalConfirmacao({
+      isOpen: true,
+      titulo: 'Remover Tipo de Treinamento',
+      mensagem: `Deseja realmente remover o tipo de treinamento "${nome}"?`,
+      tipo: 'perigo',
+      confirmText: 'Sim, Remover',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        setModalConfirmacao((prev) => ({ ...prev, loading: true }))
+        startTransition(async () => {
+          const res = await deleteTipoDocumento(id)
+          setModalConfirmacao({ isOpen: false, titulo: '', mensagem: '', onConfirm: () => {} })
+          if (res.success) {
+            setFeedback({ tipo: 'sucesso', msg: `Tipo "${nome}" excluído com sucesso.` })
+            const tiposRes = await getTiposDocumentos()
+            if (tiposRes.success && tiposRes.data) setTiposDocs(tiposRes.data as any)
+          } else {
+            setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao excluir tipo de documento.' })
+          }
+        })
+      },
     })
   }
 
-  // Excluir Documento
-  const handleExcluir = async (id: string, nome: string) => {
-    if (!confirm(`Deseja realmente remover o documento "${nome}"? O histórico associado também será excluído.`)) return
-
-    startTransition(async () => {
-      const res = await deleteDocumentoTecnico(id)
-      if (res.success) {
-        setFeedback({ tipo: 'sucesso', msg: 'Documento excluído com sucesso.' })
-        carregarDados()
-      } else {
-        setFeedback({ tipo: 'erro', msg: res.error || 'Falha ao excluir documento.' })
-      }
+  // Excluir Documento via Modal
+  const handleExcluir = (id: string, nome: string) => {
+    setModalConfirmacao({
+      isOpen: true,
+      titulo: 'Excluir Documento Técnico',
+      mensagem: `Deseja realmente remover o documento "${nome}"? O histórico de versões anteriores associado também será excluído permanentemente.`,
+      tipo: 'perigo',
+      confirmText: 'Sim, Excluir',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        setModalConfirmacao((prev) => ({ ...prev, loading: true }))
+        startTransition(async () => {
+          const res = await deleteDocumentoTecnico(id)
+          setModalConfirmacao({ isOpen: false, titulo: '', mensagem: '', onConfirm: () => {} })
+          if (res.success) {
+            setFeedback({ tipo: 'sucesso', msg: 'Documento excluído com sucesso.' })
+            carregarDados()
+          } else {
+            setFeedback({ tipo: 'erro', msg: res.error || 'Falha ao excluir documento.' })
+          }
+        })
+      },
     })
   }
 
@@ -640,23 +687,32 @@ export default function DocumentosTecnicosPage({
     }
   }
 
-  // Enviar Dossiê com Todos os Documentos do Técnico por E-mail
-  const handleEnviarDossieTecnico = async (tecId: string, tecNome: string) => {
-    if (!confirm(`Deseja enviar por e-mail para os administradores todos os documentos atualizados de ${tecNome}?`)) return
-
-    setEnviandoDossieTecnicoId(tecId)
-    try {
-      const res = await enviarDocumentosDoTecnicoPorEmail(tecId)
-      if (res.success) {
-        setFeedback({ tipo: 'sucesso', msg: res.message || 'Dossiê enviado com sucesso!' })
-      } else {
-        setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao enviar documentos por e-mail.' })
-      }
-    } catch (e) {
-      setFeedback({ tipo: 'erro', msg: 'Falha ao enviar e-mail.' })
-    } finally {
-      setEnviandoDossieTecnicoId(null)
-    }
+  // Enviar Dossiê com Todos os Documentos do Técnico por E-mail via Modal
+  const handleEnviarDossieTecnico = (tecId: string, tecNome: string) => {
+    setModalConfirmacao({
+      isOpen: true,
+      titulo: 'Enviar Dossiê por E-mail',
+      mensagem: `Deseja enviar por e-mail para os administradores todos os documentos atualizados de ${tecNome}? Os arquivos válidos serão anexados diretamente à mensagem.`,
+      tipo: 'info',
+      confirmText: 'Enviar Dossiê',
+      cancelText: 'Cancelar',
+      onConfirm: async () => {
+        setModalConfirmacao({ isOpen: false, titulo: '', mensagem: '', onConfirm: () => {} })
+        setEnviandoDossieTecnicoId(tecId)
+        try {
+          const res = await enviarDocumentosDoTecnicoPorEmail(tecId)
+          if (res.success) {
+            setFeedback({ tipo: 'sucesso', msg: res.message || 'Dossiê enviado com sucesso!' })
+          } else {
+            setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao enviar documentos por e-mail.' })
+          }
+        } catch (e) {
+          setFeedback({ tipo: 'erro', msg: 'Falha ao enviar e-mail.' })
+        } finally {
+          setEnviandoDossieTecnicoId(null)
+        }
+      },
+    })
   }
 
   return (
@@ -1060,13 +1116,20 @@ export default function DocumentosTecnicosPage({
                       {/* Ações */}
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                          {/* Visualizar Documento (Olhinho Seguro via API) */}
+                          {/* Visualizar Documento (Olhinho Seguro via Modal In-App) */}
                           {doc.arquivoUrl && (
-                            <a
-                              href={`/api/documentos-tecnicos/${doc.id}/visualizar`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={`Visualizar documento com segurança: ${doc.arquivoNome}`}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setModalVisualizarDoc({
+                                  isOpen: true,
+                                  id: doc.id,
+                                  nome: doc.arquivoNome,
+                                  tecnicoNome: doc.tecnico?.nome,
+                                  tipoNome: doc.tipoDocumento?.nome,
+                                })
+                              }
+                              title={`Visualizar documento via modal: ${doc.arquivoNome}`}
                               style={{
                                 background: 'transparent',
                                 border: 'none',
@@ -1077,7 +1140,6 @@ export default function DocumentosTecnicosPage({
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                textDecoration: 'none',
                                 transition: 'all 0.15s ease',
                               }}
                               onMouseEnter={(e) => {
@@ -1090,7 +1152,7 @@ export default function DocumentosTecnicosPage({
                               }}
                             >
                               <Eye size={16} />
-                            </a>
+                            </button>
                           )}
 
                           <button
@@ -1758,16 +1820,24 @@ export default function DocumentosTecnicosPage({
                       Emissão: {formatarData(modalHistoricoDoc.dataEmissao)} | Vencimento: {formatarData(modalHistoricoDoc.dataVencimento)}
                     </div>
                   </div>
-                  <a
-                    href={`/api/documentos-tecnicos/${modalHistoricoDoc.id}/visualizar`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setModalVisualizarDoc({
+                        isOpen: true,
+                        id: modalHistoricoDoc.id,
+                        nome: modalHistoricoDoc.arquivoNome,
+                        tecnicoNome: modalHistoricoDoc.tecnico?.nome,
+                        tipoNome: modalHistoricoDoc.tipoDocumento?.nome,
+                      })
+                    }
                     style={{
                       background: PURPLE,
                       color: '#fff',
+                      border: 'none',
+                      cursor: 'pointer',
                       padding: '6px 12px',
                       borderRadius: 6,
-                      textDecoration: 'none',
                       fontSize: 12,
                       fontWeight: 700,
                       display: 'flex',
@@ -1775,8 +1845,8 @@ export default function DocumentosTecnicosPage({
                       gap: 4,
                     }}
                   >
-                    <ExternalLink size={14} /> Visualizar
-                  </a>
+                    <Eye size={14} /> Visualizar
+                  </button>
                 </div>
               </div>
 
@@ -1818,17 +1888,24 @@ export default function DocumentosTecnicosPage({
                             </div>
                           )}
                         </div>
-                        <a
-                          href={`/api/documentos-tecnicos/${hist.id}/visualizar`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setModalVisualizarDoc({
+                              isOpen: true,
+                              id: hist.id,
+                              nome: hist.arquivoNome,
+                              tecnicoNome: modalHistoricoDoc.tecnico?.nome,
+                              tipoNome: modalHistoricoDoc.tipoDocumento?.nome,
+                            })
+                          }
                           style={{
                             background: '#f8fafc',
                             border: '1px solid #e2e8f0',
                             color: '#334155',
+                            cursor: 'pointer',
                             padding: '6px 12px',
                             borderRadius: 6,
-                            textDecoration: 'none',
                             fontSize: 12,
                             fontWeight: 600,
                             display: 'flex',
@@ -1836,8 +1913,8 @@ export default function DocumentosTecnicosPage({
                             gap: 4,
                           }}
                         >
-                          <ExternalLink size={14} /> Abrir Cópia
-                        </a>
+                          <Eye size={14} /> Abrir Cópia
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -2345,17 +2422,24 @@ export default function DocumentosTecnicosPage({
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <a
-                              href={`/api/documentos-tecnicos/${item.id}/visualizar`}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setModalVisualizarDoc({
+                                  isOpen: true,
+                                  id: item.id,
+                                  nome: item.arquivoNome,
+                                  tecnicoNome: item.tecnico?.nome,
+                                  tipoNome: item.tipoDocumento?.nome,
+                                })
+                              }
                               style={{
                                 background: '#fff',
                                 border: '1px solid #cbd5e1',
                                 color: '#334155',
+                                cursor: 'pointer',
                                 padding: '6px 12px',
                                 borderRadius: 6,
-                                textDecoration: 'none',
                                 fontSize: 12,
                                 fontWeight: 600,
                                 display: 'flex',
@@ -2363,8 +2447,8 @@ export default function DocumentosTecnicosPage({
                                 gap: 4,
                               }}
                             >
-                              <ExternalLink size={13} /> Visualizar
-                            </a>
+                              <Eye size={13} /> Visualizar
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -2459,6 +2543,310 @@ export default function DocumentosTecnicosPage({
                 }}
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL VISUALIZADOR DE DOCUMENTOS IN-APP (SEGURO & MODAL) ── */}
+      {modalVisualizarDoc?.isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1200,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalVisualizarDoc(null)
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 1100,
+              height: '92vh',
+              background: '#ffffff',
+              borderRadius: 16,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            {/* Cabeçalho do Visualizador */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: '#f8fafc',
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: PURPLE_BG,
+                    color: PURPLE,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: 0 }}>
+                      {modalVisualizarDoc.nome}
+                    </h2>
+                    {modalVisualizarDoc.tipoNome && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: PURPLE,
+                          background: PURPLE_BG,
+                          padding: '2px 8px',
+                          borderRadius: 10,
+                        }}
+                      >
+                        {modalVisualizarDoc.tipoNome}
+                      </span>
+                    )}
+                  </div>
+                  {modalVisualizarDoc.tecnicoNome && (
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <User size={12} />
+                      Técnico: <strong style={{ color: '#334155' }}>{modalVisualizarDoc.tecnicoNome}</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <a
+                  href={`/api/documentos-tecnicos/${modalVisualizarDoc.id}/visualizar?download=1`}
+                  download={modalVisualizarDoc.nome}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    background: '#fff',
+                    border: '1px solid #cbd5e1',
+                    color: '#334155',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = PURPLE
+                    e.currentTarget.style.color = PURPLE
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#cbd5e1'
+                    e.currentTarget.style.color = '#334155'
+                  }}
+                  title="Baixar arquivo para o computador"
+                >
+                  <Download size={14} />
+                  Baixar Arquivo
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => setModalVisualizarDoc(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: 6,
+                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#1e293b'
+                    e.currentTarget.style.background = '#f1f5f9'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#94a3b8'
+                    e.currentTarget.style.background = 'transparent'
+                  }}
+                  title="Fechar visualizador"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Quadro de Visualização (Iframe Seguro com Sessão SG4) */}
+            <div style={{ flex: 1, position: 'relative', background: '#e2e8f0' }}>
+              <iframe
+                src={`/api/documentos-tecnicos/${modalVisualizarDoc.id}/visualizar`}
+                title={modalVisualizarDoc.nome}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  display: 'block',
+                  background: '#ffffff',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL DE CONFIRMAÇÃO IN-APP (SUBSTITUI WINDOW.CONFIRM) ── */}
+      {modalConfirmacao.isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1300,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !modalConfirmacao.loading) {
+              setModalConfirmacao((prev) => ({ ...prev, isOpen: false }))
+            }
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 440,
+              background: '#ffffff',
+              borderRadius: 16,
+              padding: '24px 24px 20px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25)',
+              border: '1px solid #f1f5f9',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  background:
+                    modalConfirmacao.tipo === 'perigo'
+                      ? '#fee2e2'
+                      : modalConfirmacao.tipo === 'info'
+                      ? PURPLE_BG
+                      : '#ecfdf5',
+                  color:
+                    modalConfirmacao.tipo === 'perigo'
+                      ? '#dc2626'
+                      : modalConfirmacao.tipo === 'info'
+                      ? PURPLE
+                      : '#10b981',
+                }}
+              >
+                {modalConfirmacao.tipo === 'perigo' ? (
+                  <AlertTriangle size={24} />
+                ) : (
+                  <Mail size={22} />
+                )}
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                  {modalConfirmacao.titulo}
+                </h3>
+                <p style={{ fontSize: 13, color: '#475569', margin: '6px 0 0', lineHeight: 1.5 }}>
+                  {modalConfirmacao.mensagem}
+                </p>
+              </div>
+            </div>
+
+            {/* Ações */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+              <button
+                type="button"
+                disabled={modalConfirmacao.loading}
+                onClick={() => setModalConfirmacao((prev) => ({ ...prev, isOpen: false }))}
+                style={{
+                  padding: '9px 16px',
+                  borderRadius: 8,
+                  background: '#fff',
+                  border: '1px solid #cbd5e1',
+                  color: '#475569',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: modalConfirmacao.loading ? 'not-allowed' : 'pointer',
+                  opacity: modalConfirmacao.loading ? 0.6 : 1,
+                }}
+              >
+                {modalConfirmacao.cancelText || 'Cancelar'}
+              </button>
+
+              <button
+                type="button"
+                disabled={modalConfirmacao.loading}
+                onClick={() => modalConfirmacao.onConfirm()}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background:
+                    modalConfirmacao.tipo === 'perigo'
+                      ? '#dc2626'
+                      : 'linear-gradient(135deg, #660099, #7c3aed)',
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: modalConfirmacao.loading ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow:
+                    modalConfirmacao.tipo === 'perigo'
+                      ? '0 4px 12px rgba(220, 38, 38, 0.25)'
+                      : '0 4px 12px rgba(102, 0, 153, 0.25)',
+                }}
+              >
+                {modalConfirmacao.loading ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Processando...
+                  </>
+                ) : (
+                  modalConfirmacao.confirmText || 'Confirmar'
+                )}
               </button>
             </div>
           </div>

@@ -103,12 +103,14 @@ export async function GET(
     }
 
     const safeFileName = (doc.arquivoNome || 'documento.pdf').replace(/["\r\n]/g, '')
+    const isDownload = req.nextUrl.searchParams.get('download') === '1'
+    const disposition = isDownload ? 'attachment' : 'inline'
 
     return new Response(new Uint8Array(buffer), {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="${safeFileName}"`,
+        'Content-Disposition': `${disposition}; filename="${safeFileName}"`,
         'Cache-Control': 'private, max-age=1800',
       },
     })
