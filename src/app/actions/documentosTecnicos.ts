@@ -3,12 +3,95 @@
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
 import { sendMail } from '@/lib/mail'
 
 // Bucket para documentos de técnicos (fallback se não houver variável dedicada)
 const BUCKET_DOCUMENTOS = process.env.S3_BUCKET_DOCUMENTOS || 'sg4-docststs'
+
+// ─── HELPERS DE DATAS E ARQUIVOS (PREVENÇÃO DE ERROS DE FUSO E ANEXOS) ───
+
+// Salva datas estritamente ao meio-dia UTC (12:00:00Z) para que em qualquer fuso brasileiro (UTC-2 a UTC-5)
+// a data de calendário permaneça exatamente a mesma (das 07:00 às 10:00 da manhã)
+function parseDataSegura(val?: string | Date | null): Date | null {
+  if (!val) return null
+  if (val instanceof Date) return val
+  const str = String(val).trim()
+  if (!str) return null
+  const apenasData = str.split('T')[0]
+  if (apenasData.includes('-')) {
+    const partes = apenasData.split('-').map(Number)
+    if (partes.length === 3 && partes[0] && partes[1] && partes[2]) {
+      return new Date(Date.UTC(partes[0], partes[1] - 1, partes[2], 12, 0, 0))
+    }
+  }
+  const d = new Date(str)
+  return isNaN(d.getTime()) ? null : d
+}
+
+// Calcula vencimento adicionando meses sem alterar o fuso horário
+function calcularDataVencimentoPorMeses(dataEmissaoStr: string, meses: number): Date {
+  const apenasData = dataEmissaoStr.split('T')[0]
+  const partes = apenasData.split('-').map(Number)
+  if (partes.length === 3 && partes[0] && partes[1] && partes[2]) {
+    return new Date(Date.UTC(partes[0], partes[1] - 1 + meses, partes[2], 12, 0, 0))
+  }
+  const d = new Date(dataEmissaoStr)
+  d.setMonth(d.getMonth() + meses)
+  return d
+}
+
+// Formata data para exibição em pt-BR (DD/MM/AAAA) sem desvio de fuso
+function formatarDataBrSegura(val?: string | Date | null): string {
+  if (!val) return '—'
+  const str = String(val).split('T')[0]
+  if (str.includes('-')) {
+    const [y, m, d] = str.split('-')
+    if (y && m && d) return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`
+  }
+  return new Date(val).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+}
+
+// Obtém o Buffer de um arquivo para anexar diretamente em e-mails
+async function getArquivoBuffer(url: string, bucket: string = BUCKET_DOCUMENTOS): Promise<Buffer | null> {
+  try {
+    const marker = `/${bucket}/`
+    let key = ''
+    if (url.includes(marker)) {
+      key = decodeURIComponent(url.split(marker)[1])
+    } else {
+      const parts = url.split('/')
+      key = decodeURIComponent(parts.slice(-2).join('/'))
+    }
+
+    if (key) {
+      try {
+        const cmd = new GetObjectCommand({
+          Bucket: bucket,
+          Key: key,
+        })
+        const res = await s3Client.send(cmd)
+        if (res.Body) {
+          const bytes = await res.Body.transformToByteArray()
+          return Buffer.from(bytes)
+        }
+      } catch (s3Err) {
+        console.warn('Tentativa direta via SDK falhou, usando fallback HTTP:', s3Err)
+      }
+    }
+
+    const resp = await fetch(url)
+    if (resp.ok) {
+      const arrayBuffer = await resp.arrayBuffer()
+      return Buffer.from(arrayBuffer)
+    }
+    return null
+  } catch (e) {
+    console.error('Erro ao baixar arquivo para anexo de e-mail:', e)
+    return null
+  }
+}
 
 // Seed inicial dos tipos de documentos padrão caso a tabela esteja vazia
 export async function seedTiposDocumentosIniciais() {
@@ -221,13 +304,13 @@ function calcularStatusDocumento(dataVencimento: Date | null, diasAlerta: number
   if (!dataVencimento) return 'SEM_VALIDADE'
 
   const hoje = new Date()
-  hoje.setHours(0, 0, 0, 0)
+  hoje.setHours(12, 0, 0, 0)
 
   const venc = new Date(dataVencimento)
-  venc.setHours(0, 0, 0, 0)
+  venc.setHours(12, 0, 0, 0)
 
   const diffTime = venc.getTime() - hoje.getTime()
-  const diffDias = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  const diffDias = Math.round(diffTime / (1000 * 60 * 60 * 24))
 
   if (diffDias < 0) return 'VENCIDO'
   if (diffDias <= diasAlerta) return 'A_VENCER'
@@ -352,14 +435,17 @@ export async function salvarDocumentoTecnico(dados: {
 
     if (!tipo) return { success: false, error: 'Tipo de documento não encontrado' }
 
-    const emissaoDate = new Date(dados.dataEmissao)
+    // Converte data de emissão de forma segura sem desvio de fuso
+    const emissaoDate = parseDataSegura(dados.dataEmissao)
+    if (!emissaoDate) return { success: false, error: 'Data de emissão inválida' }
+
     let vencimentoDate: Date | null = null
 
     // Regra da Ficha de EPI: se tiver itens individuais de EPI, a ficha vence na data do item que vencer PRIMEIRO (menor data de vencimento)
     if (dados.itensEpi && dados.itensEpi.length > 0) {
       const datasItens = dados.itensEpi
-        .map(it => it.dataVencimento ? new Date(it.dataVencimento).getTime() : null)
-        .filter((t): t is number => t !== null && !isNaN(t))
+        .map(it => it.dataVencimento ? parseDataSegura(it.dataVencimento)?.getTime() : null)
+        .filter((t): t is number => typeof t === 'number' && !isNaN(t))
 
       if (datasItens.length > 0) {
         const menorTimestamp = Math.min(...datasItens)
@@ -369,10 +455,9 @@ export async function salvarDocumentoTecnico(dados: {
 
     if (!vencimentoDate) {
       if (dados.dataVencimento) {
-        vencimentoDate = new Date(dados.dataVencimento)
+        vencimentoDate = parseDataSegura(dados.dataVencimento)
       } else if (tipo.validadeMeses && tipo.validadeMeses > 0) {
-        vencimentoDate = new Date(emissaoDate)
-        vencimentoDate.setMonth(vencimentoDate.getMonth() + tipo.validadeMeses)
+        vencimentoDate = calcularDataVencimentoPorMeses(dados.dataEmissao, Number(tipo.validadeMeses))
       }
     }
 
@@ -515,85 +600,125 @@ export async function enviarDocumentosDoTecnicoPorEmail(tecnicoId: string) {
       return { success: false, error: 'Nenhum administrador ativo com e-mail encontrado.' }
     }
 
+    // Baixa os arquivos para anexar ao e-mail
+    const anexos: Array<{ filename: string; content: Buffer; contentType: string }> = []
+    for (const doc of tecnico.documentos) {
+      if (!doc.arquivoUrl) continue
+      const buf = await getArquivoBuffer(doc.arquivoUrl)
+      if (buf) {
+        const ext = (doc.arquivoNome.split('.').pop() || 'pdf').toLowerCase()
+        let contentType = 'application/pdf'
+        if (['jpg', 'jpeg'].includes(ext)) contentType = 'image/jpeg'
+        if (['png'].includes(ext)) contentType = 'image/png'
+
+        anexos.push({
+          filename: doc.arquivoNome || `${doc.tipoDocumento.nome}.${ext}`,
+          content: buf,
+          contentType,
+        })
+      }
+    }
+
     const linhasDocs = tecnico.documentos.map(doc => {
-      const emissao = doc.dataEmissao ? new Date(doc.dataEmissao).toLocaleDateString('pt-BR') : '-'
-      const venc = doc.dataVencimento ? new Date(doc.dataVencimento).toLocaleDateString('pt-BR') : 'Sem validade fixa'
-      let statusCor = '#10b981'
+      const emissao = formatarDataBrSegura(doc.dataEmissao)
+      const venc = doc.dataVencimento ? formatarDataBrSegura(doc.dataVencimento) : 'Sem validade fixa'
+      let statusColor = '#059669'
+      let statusBg = '#ecfdf5'
       let statusTxt = 'Válido'
-      if (doc.status === 'A_VENCER') { statusCor = '#f59e0b'; statusTxt = 'A Vencer' }
-      if (doc.status === 'VENCIDO') { statusCor = '#ef4444'; statusTxt = 'Vencido' }
+      if (doc.status === 'A_VENCER') { statusColor = '#d97706'; statusBg = '#fffbeb'; statusTxt = 'A Vencer' }
+      if (doc.status === 'VENCIDO') { statusColor = '#dc2626'; statusBg = '#fef2f2'; statusTxt = 'Vencido' }
 
       let extraItens = ''
       if (Array.isArray(doc.itensEpi) && doc.itensEpi.length > 0) {
-        extraItens = `<div style="margin-top: 4px; font-size: 11px; color: #64748b;">Itens: ${(doc.itensEpi as any[]).map(i => `${i.nome} (Venc: ${i.dataVencimento ? new Date(i.dataVencimento).toLocaleDateString('pt-BR') : '-'})`).join(', ')}</div>`
+        extraItens = `<div style="margin-top: 3px; font-size: 11px; color: #64748b;">Itens: ${(doc.itensEpi as any[]).map(i => `${i.nome} (Venc: ${formatarDataBrSegura(i.dataVencimento)})`).join(', ')}</div>`
       }
 
       return `
-        <tr style="border-bottom: 1px solid #e2e8f0;">
-          <td style="padding: 10px 12px; font-weight: 700; color: #1e293b;">
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 10px 12px; font-weight: 600; color: #1e293b; font-size: 13px;">
             ${doc.tipoDocumento.nome}
             ${extraItens}
           </td>
-          <td style="padding: 10px 12px; color: #475569;">${emissao}</td>
-          <td style="padding: 10px 12px; color: #1e293b; font-weight: 600;">${venc}</td>
-          <td style="padding: 10px 12px;">
-            <span style="background: ${statusCor}; color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">
+          <td style="padding: 10px 12px; color: #64748b; font-size: 12px;">${emissao}</td>
+          <td style="padding: 10px 12px; color: #334155; font-size: 12px; font-weight: 600;">${venc}</td>
+          <td style="padding: 10px 12px; text-align: right;">
+            <span style="background: ${statusBg}; color: ${statusColor}; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-block;">
               ${statusTxt}
             </span>
-          </td>
-          <td style="padding: 10px 12px; text-align: right;">
-            <a href="${doc.arquivoUrl}" target="_blank" style="background: #660099; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block;">
-              Acessar Arquivo
-            </a>
           </td>
         </tr>
       `
     }).join('')
 
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
-        <div style="background: linear-gradient(135deg, #660099, #4a0072); padding: 22px; color: #ffffff;">
-          <h2 style="margin: 0; font-size: 20px;">Dossiê de Documentos SST: ${tecnico.nome}</h2>
-          <p style="margin: 6px 0 0; opacity: 0.9; font-size: 13px;">
-            Cargo: ${tecnico.cargo} | Situação: ${tecnico.ativo ? 'Ativo' : 'Inativo'}
-          </p>
-        </div>
-        <div style="padding: 24px;">
-          <p style="color: #334155; font-size: 14px; margin-top: 0;">
-            Segue a listagem com todos os documentos atualizados e respectivos links de acesso dos arquivos armazenados:
-          </p>
-          <table style="width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px;">
-            <thead>
-              <tr style="background: #f8fafc; text-align: left; color: #64748b; font-size: 11px; text-transform: uppercase;">
-                <th style="padding: 10px 12px;">Documento</th>
-                <th style="padding: 10px 12px;">Emissão</th>
-                <th style="padding: 10px 12px;">Vencimento</th>
-                <th style="padding: 10px 12px;">Status</th>
-                <th style="padding: 10px 12px; text-align: right;">Download</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${linhasDocs}
-            </tbody>
-          </table>
-          <div style="margin-top: 20px; font-size: 12px; color: #94a3b8; text-align: center;">
-            Disparado pelo sistema SG4 em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+      </head>
+      <body style="margin: 0; padding: 24px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          
+          <div style="height: 4px; background: #660099;"></div>
+
+          <div style="padding: 24px 28px 16px; border-bottom: 1px solid #f1f5f9;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 15px; font-weight: 800; color: #660099; letter-spacing: 0.5px;">SG4 &bull; GESTÃO</span>
+              <span style="font-size: 12px; color: #94a3b8;">${new Date().toLocaleDateString('pt-BR')}</span>
+            </div>
+            <h1 style="margin: 14px 0 4px; font-size: 18px; color: #0f172a; font-weight: 700;">Documentação Técnica • ${tecnico.nome}</h1>
+            <p style="margin: 0; font-size: 13px; color: #64748b;">
+              Admissão: ${formatarDataBrSegura(tecnico.admissao)} &bull; Situação: ${tecnico.ativo ? 'Ativo' : 'Inativo'}
+            </p>
+          </div>
+
+          <div style="padding: 22px 28px;">
+            <p style="margin: 0 0 14px; color: #334155; font-size: 14px; line-height: 1.5;">
+              Olá, Administrador(a).
+            </p>
+            <p style="margin: 0 0 20px; color: #334155; font-size: 14px; line-height: 1.5;">
+              Seguem em anexo os <strong>${anexos.length} documento(s)</strong> técnicos de <strong>${tecnico.nome}</strong> (${tecnico.cargo || 'Técnico de Segurança'}).
+            </p>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <thead>
+                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left;">
+                  <th style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Documento</th>
+                  <th style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Emissão</th>
+                  <th style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Vencimento</th>
+                  <th style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; text-align: right;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${linhasDocs}
+              </tbody>
+            </table>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 14px; font-size: 12px; color: #475569;">
+              📎 <strong>${anexos.length} arquivo(s) anexados</strong> a esta mensagem para consulta e download direto.
+            </div>
+          </div>
+
+          <div style="padding: 14px 28px; background: #f8fafc; border-top: 1px solid #f1f5f9; text-align: center; font-size: 11px; color: #94a3b8;">
+            SG4 Segurança do Trabalho &bull; Notificação automática gerada pelo sistema
           </div>
         </div>
-      </div>
+      </body>
+      </html>
     `
 
     for (const email of emailsAdmins) {
       await sendMail({
         to: email,
-        subject: `📋 Dossiê de Documentos: ${tecnico.nome} (${tecnico.documentos.length} documento(s))`,
+        subject: `📋 Documentos Técnicos: ${tecnico.nome} (${anexos.length} arquivo(s) em anexo)`,
         html,
+        attachments: anexos,
       })
     }
 
     return {
       success: true,
-      message: `Documentos de ${tecnico.nome} enviados para ${emailsAdmins.length} administrador(es)!`,
+      message: `Documentos de ${tecnico.nome} enviados com ${anexos.length} anexo(s) para ${emailsAdmins.length} administrador(es)!`,
     }
   } catch (error) {
     console.error('Erro ao enviar documentos do técnico por e-mail:', error)
@@ -638,7 +763,7 @@ export async function deleteDocumentoTecnico(id: string) {
 export async function verificarENotificarDocumentosVencendo() {
   try {
     const hoje = new Date()
-    hoje.setHours(0, 0, 0, 0)
+    hoje.setHours(12, 0, 0, 0)
 
     // Busca apenas documentos de técnicos ATIVOS que possuem data de vencimento
     const documentos = await prisma.documentoTecnico.findMany({
@@ -678,10 +803,10 @@ export async function verificarENotificarDocumentosVencendo() {
       if (!doc.dataVencimento) continue
 
       const venc = new Date(doc.dataVencimento)
-      venc.setHours(0, 0, 0, 0)
+      venc.setHours(12, 0, 0, 0)
 
       const diffTime = venc.getTime() - hoje.getTime()
-      const diffDias = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      const diffDias = Math.round(diffTime / (1000 * 60 * 60 * 24))
       const diasAlertaConfigurado = doc.tipoDocumento?.diasAlerta || 45
 
       // Se vence em até diasAlertaConfigurado (ex: 45 dias) ou já venceu
@@ -709,17 +834,17 @@ export async function verificarENotificarDocumentosVencendo() {
 
     // Monta tabela visual estilizada para o e-mail
     const linhasHtml = docsParaNotificar.map(({ doc, diasRestantes, isVencido }) => {
-      const dataVencFormatada = doc.dataVencimento ? new Date(doc.dataVencimento).toLocaleDateString('pt-BR') : '-'
+      const dataVencFormatada = doc.dataVencimento ? formatarDataBrSegura(doc.dataVencimento) : '-'
       const badgeCor = isVencido ? '#ef4444' : '#f59e0b'
       const statusTxt = isVencido ? `VENCIDO (${Math.abs(diasRestantes)} dias atrás)` : `Vence em ${diasRestantes} dias`
 
       return `
-        <tr style="border-bottom: 1px solid #e2e8f0;">
-          <td style="padding: 12px; font-weight: 600; color: #1e293b;">${doc.tecnico.nome}</td>
-          <td style="padding: 12px; color: #334155;">${doc.tipoDocumento.nome}</td>
-          <td style="padding: 12px; color: #475569;">${dataVencFormatada}</td>
-          <td style="padding: 12px;">
-            <span style="background: ${badgeCor}; color: #ffffff; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+          <td style="padding: 10px 12px; font-weight: 600; color: #1e293b; font-size: 13px;">${doc.tecnico.nome}</td>
+          <td style="padding: 10px 12px; color: #334155; font-size: 13px;">${doc.tipoDocumento.nome}</td>
+          <td style="padding: 10px 12px; color: #475569; font-size: 13px;">${dataVencFormatada}</td>
+          <td style="padding: 10px 12px; text-align: right;">
+            <span style="background: ${badgeCor}; color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">
               ${statusTxt}
             </span>
           </td>
@@ -728,35 +853,56 @@ export async function verificarENotificarDocumentosVencendo() {
     }).join('')
 
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
-        <div style="background: linear-gradient(135deg, #660099, #4a0072); padding: 24px; color: #ffffff;">
-          <h2 style="margin: 0; font-size: 22px;">SG4 - Alerta de Vencimento de Documentos SST</h2>
-          <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px;">
-            Aviso preventivo (45 dias de antecedência) para técnicos ativos.
-          </p>
-        </div>
-        <div style="padding: 24px;">
-          <p style="color: #334155; font-size: 15px; line-height: 1.5;">
-            Olá, Administrador(a). Identificamos <strong>${docsParaNotificar.length} documento(s)</strong> que estão próximos do vencimento ou vencidos para colaboradores ativos no sistema SG4:
-          </p>
-          <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px;">
-            <thead>
-              <tr style="background: #f8fafc; text-align: left; color: #64748b; font-size: 12px; text-transform: uppercase;">
-                <th style="padding: 10px 12px;">Técnico</th>
-                <th style="padding: 10px 12px;">Documento</th>
-                <th style="padding: 10px 12px;">Vencimento</th>
-                <th style="padding: 10px 12px;">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${linhasHtml}
-            </tbody>
-          </table>
-          <div style="margin-top: 24px; padding: 16px; background: #f8fafc; border-radius: 8px; font-size: 13px; color: #64748b;">
-            Acesse o menu <strong>Administração &gt; Documentos dos Técnicos</strong> no SG4 para anexar os novos arquivos e manter o histórico atualizado.
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8" />
+      </head>
+      <body style="margin: 0; padding: 24px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="height: 4px; background: #f59e0b;"></div>
+          
+          <div style="padding: 24px 28px 16px; border-bottom: 1px solid #f1f5f9;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 15px; font-weight: 800; color: #d97706; letter-spacing: 0.5px;">ALERTA SG4</span>
+              <span style="font-size: 12px; color: #94a3b8;">${new Date().toLocaleDateString('pt-BR')}</span>
+            </div>
+            <h1 style="margin: 14px 0 4px; font-size: 18px; color: #0f172a; font-weight: 700;">Alerta de Vencimento de Documentos SST</h1>
+            <p style="margin: 0; font-size: 13px; color: #64748b;">
+              Identificados ${docsParaNotificar.length} documento(s) com validade próxima ou vencida
+            </p>
+          </div>
+
+          <div style="padding: 22px 28px;">
+            <p style="margin: 0 0 16px; color: #334155; font-size: 14px; line-height: 1.5;">
+              Olá, Administrador(a). Identificamos <strong>${docsParaNotificar.length} documento(s)</strong> de colaboradores ativos que requerem atenção:
+            </p>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <thead>
+                <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left;">
+                  <th style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Técnico</th>
+                  <th style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Documento</th>
+                  <th style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Vencimento</th>
+                  <th style="padding: 8px 12px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; text-align: right;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${linhasHtml}
+              </tbody>
+            </table>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 14px; font-size: 12px; color: #475569;">
+              Acesse o sistema SG4 em <strong>Administração &gt; Documentos Técnicos</strong> para renovar os arquivos necessários.
+            </div>
+          </div>
+
+          <div style="padding: 14px 28px; background: #f8fafc; border-top: 1px solid #f1f5f9; text-align: center; font-size: 11px; color: #94a3b8;">
+            SG4 Segurança do Trabalho &bull; Notificação automática preventiva
           </div>
         </div>
-      </div>
+      </body>
+      </html>
     `
 
     // Dispara e-mail para todos os administradores

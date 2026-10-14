@@ -13,7 +13,26 @@ const transporter = nodemailer.createTransport({
   }
 })
 
-export async function sendMail({ to, cc, subject, html }: { to: string; cc?: string; subject: string; html: string }) {
+export type MailAttachment = {
+  filename: string
+  content?: Buffer | string
+  path?: string
+  contentType?: string
+}
+
+export async function sendMail({
+  to,
+  cc,
+  subject,
+  html,
+  attachments,
+}: {
+  to: string
+  cc?: string
+  subject: string
+  html: string
+  attachments?: MailAttachment[]
+}) {
   try {
     const info = await transporter.sendMail({
       from: `"SG4 - Gestão de Segurança do Trabalho" <${process.env.SMTP_USER || 'sg4@ehspro.com.br'}>`,
@@ -21,6 +40,7 @@ export async function sendMail({ to, cc, subject, html }: { to: string; cc?: str
       cc,
       subject,
       html,
+      attachments,
     })
     return { success: true, messageId: info.messageId }
   } catch (error) {

@@ -75,16 +75,19 @@ function abreviarNome(completo?: string | null): string {
   return `${primeiro} ${ultimo[0].toUpperCase()}.`
 }
 
-/* ── Helper: formatar data em DD/MM/AAAA ── */
+/* ── Helper: formatar data em DD/MM/AAAA sem desvio de fuso ── */
 function formatarData(data?: string | Date | null): string {
   if (!data) return '—'
   try {
-    const s = String(data).split('T')[0]
+    const s = String(data).trim().split('T')[0]
     if (s.includes('-')) {
-      const [y, m, d] = s.split('-')
-      if (y && m && d) return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`
+      const parts = s.split('-')
+      if (parts.length === 3) {
+        const [y, m, d] = parts
+        return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`
+      }
     }
-    return new Date(data).toLocaleDateString('pt-BR')
+    return new Date(data).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
   } catch {
     return '—'
   }
@@ -966,7 +969,7 @@ export default function DocumentosTecnicosPage({
               </thead>
               <tbody>
                 {documentosFiltrados.map((doc) => {
-                  const emissaoFmt = new Date(doc.dataEmissao).toLocaleDateString('pt-BR')
+                  const emissaoFmt = formatarData(doc.dataEmissao)
                   const temItensEpi = Array.isArray(doc.itensEpi) && (doc.itensEpi as any[]).length > 0
 
                   return (
@@ -1057,13 +1060,13 @@ export default function DocumentosTecnicosPage({
                       {/* Ações */}
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                          {/* Visualizar Documento (Olhinho) */}
+                          {/* Visualizar Documento (Olhinho Seguro via API) */}
                           {doc.arquivoUrl && (
                             <a
-                              href={doc.arquivoUrl}
+                              href={`/api/documentos-tecnicos/${doc.id}/visualizar`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              title={`Visualizar documento: ${doc.arquivoNome}`}
+                              title={`Visualizar documento com segurança: ${doc.arquivoNome}`}
                               style={{
                                 background: 'transparent',
                                 border: 'none',
@@ -1413,7 +1416,7 @@ export default function DocumentosTecnicosPage({
                           <div>
                             <label style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Vence em</label>
                             <span style={{ fontWeight: 700, color: '#dc2626' }}>
-                              {item.dataVencimento ? new Date(item.dataVencimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
+                              {item.dataVencimento ? formatarData(item.dataVencimento) : '-'}
                             </span>
                           </div>
                           <button
@@ -1533,7 +1536,7 @@ export default function DocumentosTecnicosPage({
                         type="text"
                         readOnly
                         disabled
-                        value={vencimentoEstimado ? new Date(vencimentoEstimado + 'T00:00:00').toLocaleDateString('pt-BR') : 'Sem validade padrão'}
+                        value={vencimentoEstimado ? formatarData(vencimentoEstimado) : 'Sem validade padrão'}
                         style={{
                           width: '100%',
                           padding: '10px 12px',
@@ -1752,11 +1755,11 @@ export default function DocumentosTecnicosPage({
                   <div>
                     <div style={{ fontWeight: 700, color: '#1e293b' }}>{modalHistoricoDoc.arquivoNome}</div>
                     <div style={{ fontSize: 12, color: '#64748b' }}>
-                      Emissão: {new Date(modalHistoricoDoc.dataEmissao).toLocaleDateString('pt-BR')} | Vencimento: {modalHistoricoDoc.dataVencimento ? new Date(modalHistoricoDoc.dataVencimento).toLocaleDateString('pt-BR') : 'Sem validade'}
+                      Emissão: {formatarData(modalHistoricoDoc.dataEmissao)} | Vencimento: {formatarData(modalHistoricoDoc.dataVencimento)}
                     </div>
                   </div>
                   <a
-                    href={modalHistoricoDoc.arquivoUrl}
+                    href={`/api/documentos-tecnicos/${modalHistoricoDoc.id}/visualizar`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
@@ -1807,7 +1810,7 @@ export default function DocumentosTecnicosPage({
                         <div>
                           <div style={{ fontWeight: 600, color: '#334155', fontSize: 13 }}>{hist.arquivoNome}</div>
                           <div style={{ fontSize: 11, color: '#64748b' }}>
-                            Substituído em {new Date(hist.createdAt).toLocaleDateString('pt-BR')} por {hist.modificadoPor || 'Admin'}
+                            Substituído em {formatarData(hist.createdAt)} por {hist.modificadoPor || 'Admin'}
                           </div>
                           {hist.motivoSubstituicao && (
                             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
@@ -1816,7 +1819,7 @@ export default function DocumentosTecnicosPage({
                           )}
                         </div>
                         <a
-                          href={hist.arquivoUrl}
+                          href={`/api/documentos-tecnicos/${hist.id}/visualizar`}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{
@@ -2332,10 +2335,10 @@ export default function DocumentosTecnicosPage({
                               <strong>{item.tipoDocumento?.nome}</strong> &bull; {item.arquivoNome}
                             </div>
                             <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                              Vencimento: {item.dataVencimento ? new Date(item.dataVencimento).toLocaleDateString('pt-BR') : 'Sem data'}
+                              Vencimento: {formatarData(item.dataVencimento)}
                               {item.ultimoAlertaEmail && (
                                 <span style={{ marginLeft: 8, color: '#94a3b8' }}>
-                                  (Último e-mail: {new Date(item.ultimoAlertaEmail).toLocaleDateString('pt-BR')})
+                                  (Último e-mail: {formatarData(item.ultimoAlertaEmail)})
                                 </span>
                               )}
                             </div>
@@ -2343,7 +2346,7 @@ export default function DocumentosTecnicosPage({
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <a
-                              href={item.arquivoUrl}
+                              href={`/api/documentos-tecnicos/${item.id}/visualizar`}
                               target="_blank"
                               rel="noopener noreferrer"
                               style={{
@@ -2401,7 +2404,7 @@ export default function DocumentosTecnicosPage({
                               {item.tecnico?.nome} &bull; <span style={{ color: PURPLE }}>{item.tipoDocumento?.nome}</span>
                             </div>
                             <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
-                              Vencimento em: {item.dataVencimento ? new Date(item.dataVencimento).toLocaleDateString('pt-BR') : 'Sem data'}
+                              Vencimento em: {formatarData(item.dataVencimento)}
                             </div>
                           </div>
 
