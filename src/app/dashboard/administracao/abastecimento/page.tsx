@@ -43,6 +43,7 @@ import {
   Search,
   Car,
   Send,
+  Mail,
   Download,
   Copy,
   Check,
@@ -82,7 +83,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   const [modalPrevisaoOpen, setModalPrevisaoOpen] = useState(false)
   const [loadingPrevisao, setLoadingPrevisao] = useState(false)
   const [dadosPrevisao, setDadosPrevisao] = useState<PrevisaoDepositosResultado | null>(null)
-  const [enviandoN8N, setEnviandoN8N] = useState(false)
+  const [enviandoEmail, setEnviandoEmail] = useState(false)
   const [copiadoTexto, setCopiadoTexto] = useState(false)
   const [buscaTecnicoPrevisao, setBuscaTecnicoPrevisao] = useState('')
 
@@ -378,39 +379,39 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     }
   }
 
-  async function handleDispararN8N() {
-    setEnviandoN8N(true)
+  async function handleDispararEmail() {
+    setEnviandoEmail(true)
     try {
       const res = await dispararNotificacaoPrevisaoDepositos(true)
       if (res.success) {
-        if (res.webhookEnviado) {
+        if (res.emailEnviado) {
           setNotification({
             type: 'success',
-            title: 'Enviado com Sucesso!',
-            message: 'A tabela de previsão de pagamentos foi enviada ao N8N / Financeiro.',
+            title: 'E-mail Enviado!',
+            message: `A tabela de previsão foi enviada com sucesso para os administradores (${res.destinatarios?.join(', ') || 'Administradores'}).`,
           })
         } else {
           setNotification({
-            type: 'success',
-            title: 'Previsão Processada',
-            message: res.aviso || 'Dados gerados com sucesso. (Configure N8N_WEBHOOK_PREVISAO_ABASTECIMENTO para envio automático).',
+            type: 'error',
+            title: 'Falha no Envio de E-mail',
+            message: res.aviso || 'Não foi possível disparar o e-mail via servidor SMTP.',
           })
         }
       } else {
         setNotification({
           type: 'error',
           title: 'Erro ao Enviar',
-          message: res.error || 'Falha ao despachar notificação.',
+          message: res.error || 'Falha ao processar previsão.',
         })
       }
     } catch (err: any) {
       setNotification({
         type: 'error',
         title: 'Erro Inesperado',
-        message: err.message || 'Falha ao acionar envio.',
+        message: err.message || 'Falha ao acionar envio de e-mail.',
       })
     } finally {
-      setEnviandoN8N(false)
+      setEnviandoEmail(false)
     }
   }
 
@@ -1688,8 +1689,8 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
 
                     <button
                       type="button"
-                      onClick={handleDispararN8N}
-                      disabled={enviandoN8N}
+                      onClick={handleDispararEmail}
+                      disabled={enviandoEmail}
                       style={{
                         padding: '6px 14px',
                         borderRadius: 6,
@@ -1703,10 +1704,10 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                         alignItems: 'center',
                         gap: 6,
                       }}
-                      title="Enviar tabela via webhook para o N8N (WhatsApp/E-mail do Financeiro)"
+                      title="Enviar tabela por e-mail para todos os Administradores do sistema"
                     >
-                      {enviandoN8N ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                      Disparar p/ Financeiro (N8N)
+                      {enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                      Enviar E-mail p/ Administradores
                     </button>
                   </div>
                 </div>

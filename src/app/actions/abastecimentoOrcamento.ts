@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
+import { sendMail } from '@/lib/mail'
 import { getBusinessDaysInMonth, getBusinessDaysPassedInMonth, getValidMonthsCount, isPenultimoDiaUtil } from '@/lib/businessDays'
 
 export async function getResumoOrcamentoMes(ano: number, meses: number[]) {
@@ -1038,7 +1039,7 @@ export async function getPrevisaoDepositosProximoMes(): Promise<{
 export async function dispararNotificacaoPrevisaoDepositos(forcarEnvio: boolean = false) {
   try {
     const session = await auth()
-    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const userId = (session?.user as any)?.id || 'CRON_SYSTEM'
 
     const hoje = new Date()
     const isPenultimo = isPenultimoDiaUtil(hoje)
@@ -1057,7 +1058,22 @@ export async function dispararNotificacaoPrevisaoDepositos(forcarEnvio: boolean 
 
     const data = resPrevisao.data
 
-    // Monta texto formatado profissional para WhatsApp
+    // 1. Busca os administradores ativos do sistema
+    const admins = await prisma.user.findMany({
+      where: {
+        role: { in: ['ADMIN', 'MASTER'] },
+        active: true,
+      },
+      select: { email: true, name: true },
+    })
+
+    const emailsAdmins = Array.from(new Set(admins.map(a => a.email).filter(Boolean))) as string[]
+
+    if (emailsAdmins.length === 0) {
+      return { success: false, error: 'Nenhum administrador com e-mail cadastrado e ativo foi encontrado no sistema.' }
+    }
+
+    // 2. Monta o texto formatado para WhatsApp (mantido para cópia rápida no front)
     let textoWhatsapp = `*⛽ PREVISÃO DE DEPÓSITOS DE ABASTECIMENTO*\n`
     textoWhatsapp += `📅 *Mês de Referência:* ${data.mesReferencia}\n`
     textoWhatsapp += `💰 *Total Sugerido para a Frota:* R$ ${data.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n`
@@ -1072,48 +1088,170 @@ export async function dispararNotificacaoPrevisaoDepositos(forcarEnvio: boolean 
       textoWhatsapp += `   👉 *Depósito Sugerido: R$ ${item.depositoSugerido.toFixed(2)}*\n`
       textoWhatsapp += `   _${item.motivoSugerido}_\n\n`
     }
-
     textoWhatsapp += `ℹ️ _Relatório gerado automaticamente pelo SG4 com base no consumo dos últimos 3 meses._`
 
-    const webhookUrl = process.env.N8N_WEBHOOK_PREVISAO_ABASTECIMENTO || process.env.N8N_WEBHOOK_ABASTECIMENTO
+    // 3. Monta o e-mail em HTML corporativo e elegante com tabela completa
+    const linhasTabelaHtml = data.itens.map((item, index) => {
+      const bg = index % 2 === 0 ? '#ffffff' : '#f8fafc'
+      const saldoCor = item.saldoAtual > 0 ? '#0284c7' : '#64748b'
+      return `
+        <tr style="background-color: ${bg}; border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 10px 12px; vertical-align: middle;">
+            <div style="font-weight: 700; color: #0f172a; font-size: 13px;">${item.nome}</div>
+            ${item.veiculo ? `<div style="font-size: 11px; color: #64748b; margin-top: 2px;">🚗 ${item.veiculo}</div>` : ''}
+          </td>
+          <td style="padding: 10px 8px; text-align: right; color: #475569; vertical-align: middle; font-size: 12px;">
+            R$ ${item.consumoMes3.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </td>
+          <td style="padding: 10px 8px; text-align: right; color: #475569; vertical-align: middle; font-size: 12px;">
+            R$ ${item.consumoMes2.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </td>
+          <td style="padding: 10px 8px; text-align: right; color: #475569; vertical-align: middle; font-size: 12px;">
+            R$ ${item.consumoMes1.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </td>
+          <td style="padding: 10px 8px; text-align: right; font-weight: 700; color: #1e293b; vertical-align: middle; font-size: 12px;">
+            R$ ${item.consumoEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </td>
+          <td style="padding: 10px 8px; text-align: right; font-weight: 700; color: ${saldoCor}; vertical-align: middle; font-size: 12px;">
+            R$ ${item.saldoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </td>
+          <td style="padding: 10px 10px; text-align: right; background-color: #ecfdf5; border-left: 1px solid #bbf7d0; border-right: 1px solid #bbf7d0; vertical-align: middle;">
+            <span style="font-weight: 800; font-size: 13px; color: #16a34a;">
+              R$ ${item.depositoSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </td>
+          <td style="padding: 10px 12px; font-size: 11px; color: #64748b; font-style: italic; vertical-align: middle;">
+            ${item.motivoSugerido}
+          </td>
+        </tr>
+      `
+    }).join('')
 
-    let webhookEnviado = false
-    let webhookMsg = ''
+    const appUrl = process.env.NEXTAUTH_URL || 'https://sg4.ehspro.com.br'
 
-    if (webhookUrl) {
-      try {
-        const payload = {
-          evento: 'PREVISAO_DEPOSITOS_ABASTECIMENTO',
-          mesReferencia: data.mesReferencia,
-          dataGeracao: data.dataGeracao,
-          totalSugerido: data.totalSugerido,
-          totalCotaFixa: data.totalCotaFixa,
-          economiaEstimada: data.economiaEstimada,
-          qtdTecnicos: data.qtdTecnicos,
-          textoWhatsapp,
-          itens: data.itens
-        }
+    const htmlEmail = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; padding: 24px 12px; color: #1e293b;">
+        <div style="max-width: 860px; margin: 0 auto; background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;">
+          
+          <!-- Cabeçalho -->
+          <div style="background: linear-gradient(135deg, #660099 0%, #4a0072 100%); padding: 26px 24px; color: #ffffff;">
+            <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.85; margin-bottom: 6px;">
+              SG4 • Gestão de Frotas & Abastecimento
+            </div>
+            <h1 style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff;">
+              ⛽ Previsão de Depósitos de Abastecimento
+            </h1>
+            <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.9;">
+              Valores sugeridos para o <strong>Mês de ${data.mesReferencia}</strong> (Depósito no 1º Dia Útil)
+            </p>
+          </div>
 
-        const resN8n = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
+          <!-- Cards de Resumo -->
+          <div style="padding: 24px 24px 16px;">
+            <table style="width: 100%; border-collapse: separate; border-spacing: 12px 0;">
+              <tr>
+                <td style="width: 33.33%; background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 16px; text-align: center;">
+                  <div style="font-size: 11px; font-weight: 800; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Total a Depositar
+                  </div>
+                  <div style="font-size: 24px; font-weight: 800; color: #16a34a; margin-top: 4px;">
+                    R$ ${data.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style="font-size: 11px; color: #15803d; margin-top: 3px;">
+                    ${data.qtdTecnicos} colaboradores ativos
+                  </div>
+                </td>
 
-        if (resN8n.ok) {
-          webhookEnviado = true
-        } else {
-          webhookMsg = `N8N retornou status ${resN8n.status}`
-        }
-      } catch (err: any) {
-        console.error('Erro ao acionar webhook N8N de previsão:', err)
-        webhookMsg = err.message || 'Falha de conexão com N8N'
-      }
-    } else {
-      webhookMsg = 'Webhook N8N_WEBHOOK_PREVISAO_ABASTECIMENTO não configurado nas variáveis de ambiente'
-    }
+                <td style="width: 33.33%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; text-align: center;">
+                  <div style="font-size: 11px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Cota Fixa Mensal
+                  </div>
+                  <div style="font-size: 20px; font-weight: 800; color: #334155; margin-top: 4px;">
+                    R$ ${data.totalCotaFixa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style="font-size: 11px; color: #64748b; margin-top: 3px;">
+                    Custo caso fosse cota fixa
+                  </div>
+                </td>
 
-    const userId = (session.user as any).id
+                <td style="width: 33.33%; background-color: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 16px; text-align: center;">
+                  <div style="font-size: 11px; font-weight: 800; color: #6b21a8; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Economia Estimada
+                  </div>
+                  <div style="font-size: 20px; font-weight: 800; color: #7e22ce; margin-top: 4px;">
+                    R$ ${data.economiaEstimada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style="font-size: 11px; color: #9333ea; margin-top: 3px;">
+                    Saldo já disponível abatido
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <div style="margin-top: 16px; padding: 12px 14px; background: #f8fafc; border-left: 4px solid #660099; border-radius: 4px; font-size: 12px; color: #475569; line-height: 1.5;">
+              <strong>Critério Inteligente:</strong> Cálculo baseado no consumo dos últimos 3 meses (peso ponderado: 50% M-1, 30% M-2, 20% M-3) deduzindo o saldo positivo remanescente na conta do técnico e arredondando para múltiplos de R$ 10,00.
+            </div>
+          </div>
+
+          <!-- Tabela de Valores -->
+          <div style="padding: 0 24px 20px; overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+              <thead>
+                <tr style="background-color: #1e293b; color: #ffffff;">
+                  <th style="padding: 10px 12px; border-radius: 6px 0 0 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Colaborador</th>
+                  <th style="padding: 10px 8px; text-align: right; font-size: 11px; text-transform: uppercase;">M-3</th>
+                  <th style="padding: 10px 8px; text-align: right; font-size: 11px; text-transform: uppercase;">M-2</th>
+                  <th style="padding: 10px 8px; text-align: right; font-size: 11px; text-transform: uppercase;">M-1</th>
+                  <th style="padding: 10px 8px; text-align: right; font-size: 11px; text-transform: uppercase;">Média Est.</th>
+                  <th style="padding: 10px 8px; text-align: right; font-size: 11px; text-transform: uppercase;">Saldo Atual</th>
+                  <th style="padding: 10px 10px; text-align: right; font-size: 11px; text-transform: uppercase; background-color: #064e3b; color: #a7f3d0;">Depósito Sugerido</th>
+                  <th style="padding: 10px 12px; border-radius: 0 6px 0 0; font-size: 11px; text-transform: uppercase;">Motivo / Justificativa</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${linhasTabelaHtml}
+              </tbody>
+              <tfoot>
+                <tr style="background-color: #0f172a; color: #ffffff; font-weight: 800;">
+                  <td style="padding: 12px; border-radius: 0 0 0 6px;">TOTAL GERAL</td>
+                  <td colspan="5" style="padding: 12px; text-align: right; font-size: 11px; color: #94a3b8; font-weight: 500;">
+                    Cota Fixa: R$ ${data.totalCotaFixa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Economia: R$ ${data.economiaEstimada.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td style="padding: 12px 10px; text-align: right; background-color: #16a34a; color: #ffffff; font-size: 14px;">
+                    R$ ${data.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td style="padding: 12px; border-radius: 0 0 6px 0; font-size: 11px; color: #cbd5e1; font-weight: 400;">
+                    ${data.itens.length} colaboradores
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Rodapé do E-mail -->
+          <div style="text-align: center; padding: 22px 24px 26px; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
+            <a href="${appUrl}/dashboard/administracao/abastecimento" target="_blank" style="display: inline-block; background-color: #660099; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 13px;">
+              Acessar Painel de Abastecimento no SG4 →
+            </a>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 14px;">
+              Disparo automático enviado para os Administradores do SG4 • Gerado em ${data.dataGeracao}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `
+
+    // 4. Envia o e-mail para todos os administradores
+    const mailResult = await sendMail({
+      to: emailsAdmins.join(', '),
+      subject: `⛽ Previsão de Depósitos de Abastecimento - Mês ${data.mesReferencia} (SG4)`,
+      html: htmlEmail,
+    })
+
+    const emailEnviado = mailResult.success
+
+    // 5. Auditoria da ação
     await audit({
       userId,
       action: 'PREVISAO_PAGAMENTOS_ABASTECIMENTO',
@@ -1122,7 +1260,8 @@ export async function dispararNotificacaoPrevisaoDepositos(forcarEnvio: boolean 
         mesReferencia: data.mesReferencia,
         totalSugerido: data.totalSugerido,
         economiaEstimada: data.economiaEstimada,
-        webhookEnviado,
+        emailEnviado,
+        destinatarios: emailsAdmins,
         forcarEnvio
       }
     })
@@ -1131,8 +1270,9 @@ export async function dispararNotificacaoPrevisaoDepositos(forcarEnvio: boolean 
       success: true,
       data,
       textoWhatsapp,
-      webhookEnviado,
-      aviso: !webhookEnviado ? webhookMsg : undefined
+      emailEnviado,
+      destinatarios: emailsAdmins,
+      aviso: !emailEnviado ? 'Não foi possível enviar o e-mail via SMTP.' : undefined
     }
   } catch (error: any) {
     console.error('Erro ao disparar notificação de previsão de depósitos:', error)
