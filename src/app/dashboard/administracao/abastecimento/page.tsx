@@ -8,6 +8,7 @@ import {
   getExtratoBancarioTecnico,
   getPrevisaoDepositosProximoMes,
   dispararNotificacaoPrevisaoDepositos,
+  aplicarDepositosPrevisaoMes,
   type ExtratoBancarioData,
   type ItemExtratoBancario,
   type PrevisaoDepositosResultado,
@@ -85,8 +86,22 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   const [loadingPrevisao, setLoadingPrevisao] = useState(false)
   const [dadosPrevisao, setDadosPrevisao] = useState<PrevisaoDepositosResultado | null>(null)
   const [enviandoEmail, setEnviandoEmail] = useState(false)
-  const [copiadoTexto, setCopiadoTexto] = useState(false)
   const [buscaTecnicoPrevisao, setBuscaTecnicoPrevisao] = useState('')
+  const [salvandoDepositos, setSalvandoDepositos] = useState(false)
+
+  function abreviarNome(nome: string): string {
+    if (!nome) return ''
+    const partes = nome.trim().split(/\s+/)
+    if (partes.length <= 2) return nome
+    const primeiro = partes[0]
+    const ultimo = partes[partes.length - 1]
+    const meio = partes.slice(1, -1).map(p => {
+      const pLower = p.toLowerCase()
+      if (['de', 'da', 'do', 'das', 'dos', 'e'].includes(pLower)) return ''
+      return `${p.charAt(0).toUpperCase()}.`
+    }).filter(Boolean).join(' ')
+    return meio ? `${primeiro} ${meio} ${ultimo}` : `${primeiro} ${ultimo}`
+  }
 
   // Notificações
   const [notification, setNotification] = useState<{ type: 'success' | 'error', title: string, message: string } | null>(null)
@@ -345,38 +360,40 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     })
   }
 
-  function gerarTextoWhatsAppPrevisao() {
-    if (!dadosPrevisao) return ''
-    let t = `*⛽ PREVISÃO DE DEPÓSITOS DE ABASTECIMENTO*\n`
-    t += `📅 *Mês de Referência:* ${dadosPrevisao.mesReferencia}\n`
-    t += `💰 *Total Sugerido para a Frota:* R$ ${dadosPrevisao.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n`
-    t += `📉 *Economia Estimada vs Cota Fixa:* R$ ${dadosPrevisao.economiaEstimada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n`
-    t += `👥 *Total de Técnicos Ativos:* ${dadosPrevisao.qtdTecnicos}\n\n`
-    t += `*📋 DETALHAMENTO DE VALORES PARA O DIA 1º:*\n`
-    for (const item of dadosPrevisao.itens) {
-      const veic = item.veiculo ? ` (${item.veiculo})` : ''
-      t += `• *${item.nome}*${veic}\n`
-      t += `   Consumo Est.: R$ ${item.consumoEstimado.toFixed(2)} | Saldo Atual: R$ ${item.saldoAtual.toFixed(2)}\n`
-      t += `   👉 *Depósito Sugerido: R$ ${item.depositoSugerido.toFixed(2)}*\n`
-      t += `   _${item.motivoSugerido}_\n\n`
-    }
-    t += `ℹ️ _Relatório gerado automaticamente pelo SG4 no penúltimo dia útil._`
-    return t
-  }
+  async function handleEfetivarDepositos() {
+    if (!dadosPrevisao) return
+    const confirma = confirm(`Deseja efetivar esses valores como o depósito de ${dadosPrevisao.mesReferencia} para os técnicos no sistema?`)
+    if (!confirma) return
 
-  async function handleCopiarWhatsApp() {
-    const texto = gerarTextoWhatsAppPrevisao()
-    if (!texto) return
+    setSalvandoDepositos(true)
     try {
-      await navigator.clipboard.writeText(texto)
-      setCopiadoTexto(true)
-      setTimeout(() => setCopiadoTexto(false), 2500)
-    } catch {
+      const itens = dadosPrevisao.itens.map(i => ({
+        tecnicoId: i.tecnicoId,
+        valor: i.depositoSugerido,
+      }))
+      const res = await aplicarDepositosPrevisaoMes(itens, dadosPrevisao.mesReferencia)
+      if (res.success) {
+        setNotification({
+          type: 'success',
+          title: 'Depósitos Efetivados!',
+          message: `Os valores foram gravados com sucesso como depósito do mês de ${dadosPrevisao.mesReferencia} para todos os ${res.count} colaboradores.`,
+        })
+        load()
+      } else {
+        setNotification({
+          type: 'error',
+          title: 'Erro ao Efetivar',
+          message: res.error || 'Não foi possível gravar os depósitos no sistema.',
+        })
+      }
+    } catch (err: any) {
       setNotification({
         type: 'error',
-        title: 'Erro ao Copiar',
-        message: 'Não foi possível copiar o texto automaticamente.',
+        title: 'Erro Inesperado',
+        message: err.message || 'Falha ao efetivar depósitos.',
       })
+    } finally {
+      setSalvandoDepositos(false)
     }
   }
 
@@ -1575,56 +1592,56 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                   flexShrink: 0,
                   background: '#f8fafc',
                   borderBottom: '1px solid #e2e8f0',
-                  padding: '14px 20px',
+                  padding: '10px 16px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 12,
+                  gap: 8,
                 }}
               >
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
                   {/* Total Sugerido */}
-                  <div style={{ background: '#fff', padding: '12px 16px', borderRadius: 10, border: '1px solid #bbf7d0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 8, border: '1px solid #bbf7d0', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                       Total Sugerido (Frota)
                     </div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a', marginTop: 2 }}>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: '#16a34a', marginTop: 1 }}>
                       R$ {dadosPrevisao.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <span style={{ fontSize: 11, color: '#64748b' }}>
+                    <span style={{ fontSize: 10, color: '#64748b' }}>
                       {dadosPrevisao.qtdTecnicos} técnico(s) ativo(s)
                     </span>
                   </div>
 
                   {/* Cota Fixa Tradicional */}
-                  <div style={{ background: '#fff', padding: '12px 16px', borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                       Cota Fixa Tradicional
                     </div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: '#64748b', marginTop: 2 }}>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: '#64748b', marginTop: 1 }}>
                       R$ {dadosPrevisao.totalCotaFixa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                      Se depositasse a cota cheia para todos
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>
+                      Se depositasse a cota cheia
                     </span>
                   </div>
 
                   {/* Economia Estimada */}
-                  <div style={{ background: '#fff', padding: '12px 16px', borderRadius: 10, border: '1px solid #e9d5ff', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#660099', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  <div style={{ background: '#fff', padding: '8px 12px', borderRadius: 8, border: '1px solid #e9d5ff', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: '#660099', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                       Economia Imediata de Caixa
                     </div>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: '#660099', marginTop: 2 }}>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: '#660099', marginTop: 1 }}>
                       R$ {dadosPrevisao.economiaEstimada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>
-                      {dadosPrevisao.totalCotaFixa > 0 ? `${((dadosPrevisao.economiaEstimada / dadosPrevisao.totalCotaFixa) * 100).toFixed(1)}% de verba poupada` : ''}
+                    <span style={{ fontSize: 10, color: '#7c3aed', fontWeight: 600 }}>
+                      {dadosPrevisao.totalCotaFixa > 0 ? `${((dadosPrevisao.economiaEstimada / dadosPrevisao.totalCotaFixa) * 100).toFixed(1)}% poupado` : ''}
                     </span>
                   </div>
                 </div>
 
                 {/* Barra de Ações: Busca + Botões */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 4 }}>
-                  <div style={{ position: 'relative', minWidth: 220, flex: 1, maxWidth: 320 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginTop: 2 }}>
+                  <div style={{ position: 'relative', minWidth: 200, flex: 1, maxWidth: 300 }}>
                     <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                     <input
                       type="text"
@@ -1656,28 +1673,6 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <button
                       type="button"
-                      onClick={handleCopiarWhatsApp}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 6,
-                        border: '1px solid #cbd5e1',
-                        background: '#fff',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: copiadoTexto ? '#16a34a' : '#334155',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}
-                      title="Copiar tabela e resumo para o WhatsApp"
-                    >
-                      {copiadoTexto ? <Check size={14} color="#16a34a" /> : <Copy size={14} />}
-                      {copiadoTexto ? 'Copiado!' : 'Copiar p/ WhatsApp'}
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={handleExportarCSV}
                       style={{
                         padding: '6px 12px',
@@ -1703,13 +1698,13 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                       onClick={handleDispararEmail}
                       disabled={enviandoEmail}
                       style={{
-                        padding: '6px 14px',
+                        padding: '6px 12px',
                         borderRadius: 6,
-                        border: 'none',
-                        background: '#660099',
-                        color: '#fff',
+                        border: '1px solid #cbd5e1',
+                        background: '#fff',
                         fontSize: 12,
                         fontWeight: 700,
+                        color: '#475569',
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -1718,7 +1713,31 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                       title="Enviar tabela por e-mail para todos os Administradores do sistema"
                     >
                       {enviandoEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                      Enviar E-mail p/ Administradores
+                      Enviar E-mail
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleEfetivarDepositos}
+                      disabled={salvandoDepositos}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 6,
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                        color: '#fff',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        boxShadow: '0 2px 4px rgba(22, 163, 74, 0.25)',
+                      }}
+                      title={`Gravar esses valores como o depósito de ${dadosPrevisao.mesReferencia} no sistema`}
+                    >
+                      {salvandoDepositos ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      Efetivar Depósitos no Mês
                     </button>
                   </div>
                 </div>
@@ -1738,14 +1757,16 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
                   <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                     <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1', color: '#475569', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      <th style={{ padding: '10px 14px' }}>Colaborador</th>
-                      <th style={{ padding: '10px 10px', textAlign: 'right' }}>{dadosPrevisao.itens[0]?.rotulosMeses[2] || 'M-3'}</th>
-                      <th style={{ padding: '10px 10px', textAlign: 'right' }}>{dadosPrevisao.itens[0]?.rotulosMeses[1] || 'M-2'}</th>
-                      <th style={{ padding: '10px 10px', textAlign: 'right' }}>{dadosPrevisao.itens[0]?.rotulosMeses[0] || 'M-1'}</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Média Est.</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Saldo Atual</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'right', width: 140 }}>Depósito Sugerido</th>
-                      <th style={{ padding: '10px 14px' }}>Justificativa</th>
+                      <th style={{ padding: '8px 12px' }}>Colaborador</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right' }}>{dadosPrevisao.itens[0]?.rotulosMeses[2] || 'M-3'}</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right' }}>{dadosPrevisao.itens[0]?.rotulosMeses[1] || 'M-2'}</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right' }}>{dadosPrevisao.itens[0]?.rotulosMeses[0] || 'M-1'}</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right' }}>Média Est.</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right' }}>Saldo Atual</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', width: 130 }}>Depósito Sugerido</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'center', width: 36 }} title="Justificativa do cálculo">
+                        <Info size={13} style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1759,45 +1780,47 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                             background: idx % 2 === 0 ? '#fff' : '#fcfcfd',
                           }}
                         >
-                          <td style={{ padding: '10px 14px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #cbd5e1', flexShrink: 0 }}>
+                          <td style={{ padding: '8px 12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #cbd5e1', flexShrink: 0 }}>
                                 {item.fotoUrl ? (
                                   <img src={item.fotoUrl} alt={item.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
-                                  <span style={{ fontSize: 13, fontWeight: 800, color: '#64748b' }}>{item.nome.charAt(0)}</span>
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b' }}>{item.nome.charAt(0)}</span>
                                 )}
                               </div>
                               <div>
-                                <div style={{ fontWeight: 700, color: '#1e293b' }}>{item.nome}</div>
-                                <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                                  {item.veiculo || 'Sem veículo cadastrado'} • Cota Base: R$ {item.orcamentoBase.toFixed(2)}
+                                <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 13 }} title={item.nome}>
+                                  {abreviarNome(item.nome)}
+                                </div>
+                                <div style={{ fontSize: 10, color: '#94a3b8' }}>
+                                  {item.veiculo || 'Sem veículo'} • Cota Base: R$ {item.orcamentoBase.toFixed(2)}
                                 </div>
                               </div>
                             </div>
                           </td>
 
-                          <td style={{ padding: '10px 10px', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
                             R$ {item.consumoMes3.toFixed(2)}
                           </td>
-                          <td style={{ padding: '10px 10px', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
                             R$ {item.consumoMes2.toFixed(2)}
                           </td>
-                          <td style={{ padding: '10px 10px', textAlign: 'right', color: '#334155', fontWeight: 700 }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#334155', fontWeight: 700 }}>
                             R$ {item.consumoMes1.toFixed(2)}
                           </td>
 
-                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#660099', fontWeight: 800 }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#660099', fontWeight: 800 }}>
                             R$ {item.consumoEstimado.toFixed(2)}
                           </td>
 
-                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: item.saldoAtual <= 100 ? '#f59e0b' : '#10b981' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: item.saldoAtual <= 100 ? '#f59e0b' : '#10b981' }}>
                             R$ {item.saldoAtual.toFixed(2)}
                           </td>
 
-                          <td style={{ padding: '8px 14px', textAlign: 'right' }}>
+                          <td style={{ padding: '6px 12px', textAlign: 'right' }}>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                              <span style={{ fontSize: 12, fontWeight: 800, color: '#475569' }}>R$</span>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: '#475569' }}>R$</span>
                               <input
                                 type="number"
                                 step="10"
@@ -1805,8 +1828,8 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                                 value={item.depositoSugerido}
                                 onChange={e => handleAlterarDepositoSugerido(item.tecnicoId, parseFloat(e.target.value))}
                                 style={{
-                                  width: 85,
-                                  padding: '5px 8px',
+                                  width: 80,
+                                  padding: '4px 6px',
                                   borderRadius: 6,
                                   border: '1px solid #cbd5e1',
                                   fontSize: 13,
@@ -1820,8 +1843,24 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                             </div>
                           </td>
 
-                          <td style={{ padding: '10px 14px', fontSize: 11, color: '#64748b' }}>
-                            {item.motivoSugerido}
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                            <div
+                              title={item.motivoSugerido}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 24,
+                                height: 24,
+                                borderRadius: '50%',
+                                background: '#f1f5f9',
+                                color: '#64748b',
+                                cursor: 'help',
+                                border: '1px solid #e2e8f0',
+                              }}
+                            >
+                              <Info size={13} />
+                            </div>
                           </td>
                         </tr>
                       ))}

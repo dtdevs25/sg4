@@ -1280,4 +1280,89 @@ export async function dispararNotificacaoPrevisaoDepositos(forcarEnvio: boolean 
   }
 }
 
+export async function aplicarDepositosPrevisaoMes(
+  itens: Array<{ tecnicoId: string; valor: number }>,
+  mesReferencia: string
+) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const userId = (session.user as any).id
+    const userName = (session.user as any).name || (session.user as any).email || 'Administrador'
+
+    const [mesStr, anoStr] = mesReferencia.split('/')
+    const mes = Number(mesStr)
+    const ano = Number(anoStr)
+
+    if (isNaN(mes) || isNaN(ano)) {
+      return { success: false, error: 'Mês de referência inválido' }
+    }
+
+    const { data: dataPrimeiroDiaUtil } = getPrimeiroDiaUtilMes(ano, mes)
+    const ultimoDiaMes = new Date(ano, mes, 0).getDate()
+    const inicioMes = getInicioDiaBrasil(`${ano}-${String(mes).padStart(2, '0')}-01`)
+    const fimMes = getFimDiaBrasil(`${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDiaMes).padStart(2, '0')}`)
+
+    for (const item of itens) {
+      const valor = Math.max(0, isNaN(item.valor) ? 0 : item.valor)
+
+      // Procura se já existe override para este técnico no mês alvo
+      const overrideExistente = await prisma.recargaAbastecimento.findFirst({
+        where: {
+          tecnicoId: item.tecnicoId,
+          isOverride: true,
+          data: {
+            gte: inicioMes,
+            lte: fimMes,
+          },
+        },
+      })
+
+      if (overrideExistente) {
+        await prisma.recargaAbastecimento.update({
+          where: { id: overrideExistente.id },
+          data: {
+            valor,
+            observacao: `Depósito do mês via Sugestão Inteligente (${mesReferencia})`,
+            userId,
+            userName,
+            data: dataPrimeiroDiaUtil,
+          },
+        })
+      } else {
+        await prisma.recargaAbastecimento.create({
+          data: {
+            tecnicoId: item.tecnicoId,
+            valor,
+            observacao: `Depósito do mês via Sugestão Inteligente (${mesReferencia})`,
+            userId,
+            userName,
+            isOverride: true,
+            data: dataPrimeiroDiaUtil,
+          },
+        })
+      }
+    }
+
+    await audit({
+      userId,
+      action: 'APLICAR_DEPOSITOS_PREVISAO_MES',
+      entity: 'RecargaAbastecimento',
+      details: {
+        mesReferencia,
+        dataPrimeiroDiaUtil,
+        qtdTecnicos: itens.length,
+        totalDepositado: itens.reduce((acc, i) => acc + (i.valor || 0), 0),
+      },
+    })
+
+    return { success: true, count: itens.length }
+  } catch (error: any) {
+    console.error('Erro ao aplicar depósitos de previsão no mês:', error)
+    return { success: false, error: 'Falha ao salvar depósitos no sistema.' }
+  }
+}
+
+
 
