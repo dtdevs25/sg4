@@ -12,7 +12,7 @@ export async function getResumoOrcamentoMes(ano: number, meses: number[]) {
     
     const tecnicos = await prisma.tecnico.findMany({
       where: { ativo: true },
-      select: { id: true, nome: true, fotoUrl: true, orcamentoAbastecimento: true, admissao: true }
+      select: { id: true, nome: true, fotoUrl: true, orcamentoAbastecimento: true, admissao: true, veiculo: true }
     })
 
     const isConsolidado = ano === 0 || meses.length === 0
@@ -443,6 +443,7 @@ export type ExtratoBancarioData = {
     fotoUrl: string | null
     orcamentoBase: number
     admissao: string | Date | null
+    veiculo?: string | null
   }
   periodo: {
     dataInicio: string
@@ -482,6 +483,7 @@ export async function getExtratoBancarioTecnico(
         fotoUrl: true,
         orcamentoAbastecimento: true,
         admissao: true,
+        veiculo: true,
       },
     })
 
@@ -699,6 +701,7 @@ export async function getExtratoBancarioTecnico(
           fotoUrl: tec.fotoUrl,
           orcamentoBase: tec.orcamentoAbastecimento,
           admissao: tec.admissao,
+          veiculo: tec.veiculo || null,
         },
         periodo: {
           dataInicio: dInicioStr,

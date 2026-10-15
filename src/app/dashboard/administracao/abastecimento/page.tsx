@@ -36,6 +36,8 @@ import {
   User,
   Info,
   ExternalLink,
+  Search,
+  Car,
 } from 'lucide-react'
 
 export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hideHeader?: boolean }) {
@@ -58,12 +60,15 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   const [recargaObs, setRecargaObs] = useState('')
 
   // Modal Extrato Bancário
-  const [extratoModalTecnico, setExtratoModalTecnico] = useState<{ id: string, nome: string } | null>(null)
+  const [extratoModalTecnico, setExtratoModalTecnico] = useState<{ id: string, nome: string, fotoUrl?: string | null, veiculo?: string | null } | null>(null)
   const [dataInicioExtrato, setDataInicioExtrato] = useState<string>('')
   const [dataFimExtrato, setDataFimExtrato] = useState<string>('')
   const [dadosExtrato, setDadosExtrato] = useState<ExtratoBancarioData | null>(null)
   const [loadingExtrato, setLoadingExtrato] = useState(false)
   const [fotoCupomZoom, setFotoCupomZoom] = useState<string | null>(null)
+
+  // Filtro de pesquisa de colaboradores
+  const [buscaColaborador, setBuscaColaborador] = useState('')
 
   // Notificações
   const [notification, setNotification] = useState<{ type: 'success' | 'error', title: string, message: string } | null>(null)
@@ -76,45 +81,36 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ]
 
+  function getDataHojeFormatada() {
+    const hoje = new Date()
+    const a = hoje.getFullYear()
+    const m = String(hoje.getMonth() + 1).padStart(2, '0')
+    const d = String(hoje.getDate()).padStart(2, '0')
+    return `${a}-${m}-${d}`
+  }
+
   function getDatasMesAtual() {
     const hoje = new Date()
     const a = hoje.getFullYear()
     const m = hoje.getMonth() + 1
     const ultDia = new Date(a, m, 0).getDate()
+    const dataFimMes = `${a}-${String(m).padStart(2, '0')}-${String(ultDia).padStart(2, '0')}`
+    const hojeFmt = getDataHojeFormatada()
     return {
       inicio: `${a}-${String(m).padStart(2, '0')}-01`,
-      fim: `${a}-${String(m).padStart(2, '0')}-${String(ultDia).padStart(2, '0')}`,
+      // Bloqueia para não exceder o dia atual
+      fim: dataFimMes > hojeFmt ? hojeFmt : dataFimMes,
     }
   }
 
-  function getDatasMesAnterior() {
-    const hoje = new Date()
-    const dataAnt = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1)
-    const a = dataAnt.getFullYear()
-    const m = dataAnt.getMonth() + 1
-    const ultDia = new Date(a, m, 0).getDate()
-    return {
-      inicio: `${a}-${String(m).padStart(2, '0')}-01`,
-      fim: `${a}-${String(m).padStart(2, '0')}-${String(ultDia).padStart(2, '0')}`,
-    }
-  }
-
-  function getDatasUltimos30Dias() {
+  function getDatasUltimos90Dias() {
     const hoje = new Date()
     const antes = new Date()
-    antes.setDate(hoje.getDate() - 30)
+    antes.setDate(hoje.getDate() - 90)
     const fmt = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    return { inicio: fmt(antes), fim: fmt(hoje) }
-  }
-
-  function getDatasAnoAtual() {
-    const hoje = new Date()
-    const a = hoje.getFullYear()
-    return {
-      inicio: a === 2026 ? '2026-07-01' : `${a}-01-01`,
-      fim: `${a}-12-31`,
-    }
+    const hojeFmt = getDataHojeFormatada()
+    return { inicio: fmt(antes), fim: hojeFmt }
   }
 
   async function carregarExtrato(tecnicoId: string, dInicio: string, dFim: string) {
@@ -141,11 +137,11 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     }
   }
 
-  function handleAbrirExtrato(tecnicoId: string, nomeTecnico: string) {
+  function handleAbrirExtrato(tecnicoId: string, nomeTecnico: string, fotoUrl?: string | null, veiculo?: string | null) {
     const { inicio, fim } = getDatasMesAtual()
     setDataInicioExtrato(inicio)
     setDataFimExtrato(fim)
-    setExtratoModalTecnico({ id: tecnicoId, nome: nomeTecnico })
+    setExtratoModalTecnico({ id: tecnicoId, nome: nomeTecnico, fotoUrl, veiculo })
     setDadosExtrato(null)
     carregarExtrato(tecnicoId, inicio, fim)
   }
@@ -153,19 +149,21 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   function handleFiltrarExtrato(e?: React.FormEvent) {
     if (e) e.preventDefault()
     if (!extratoModalTecnico) return
-    carregarExtrato(extratoModalTecnico.id, dataInicioExtrato, dataFimExtrato)
+    const hojeFmt = getDataHojeFormatada()
+    let fimVal = dataFimExtrato
+    if (dataFimExtrato > hojeFmt) {
+      fimVal = hojeFmt
+      setDataFimExtrato(hojeFmt)
+    }
+    carregarExtrato(extratoModalTecnico.id, dataInicioExtrato, fimVal)
   }
 
-  function aplicarAtalhoData(tipo: 'mesAtual' | 'mesAnterior' | '30dias' | 'anoAtual') {
-    let datas = getDatasMesAtual()
-    if (tipo === 'mesAnterior') datas = getDatasMesAnterior()
-    if (tipo === '30dias') datas = getDatasUltimos30Dias()
-    if (tipo === 'anoAtual') datas = getDatasAnoAtual()
-
-    setDataInicioExtrato(datas.inicio)
-    setDataFimExtrato(datas.fim)
+  function aplicarAtalho90Dias() {
+    const { inicio, fim } = getDatasUltimos90Dias()
+    setDataInicioExtrato(inicio)
+    setDataFimExtrato(fim)
     if (extratoModalTecnico) {
-      carregarExtrato(extratoModalTecnico.id, datas.inicio, datas.fim)
+      carregarExtrato(extratoModalTecnico.id, inicio, fim)
     }
   }
 
@@ -315,9 +313,39 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
           </div>
 
           <div className="abast-header-controls">
+            {/* Campo de pesquisa por colaborador */}
+            <div style={{ position: 'relative' }}>
+              <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                placeholder="Pesquisar colaborador..."
+                value={buscaColaborador}
+                onChange={e => setBuscaColaborador(e.target.value)}
+                style={{
+                  padding: '6px 26px 6px 30px',
+                  fontSize: 13,
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  outline: 'none',
+                  color: '#1e293b',
+                  width: 190,
+                }}
+              />
+              {buscaColaborador && (
+                <button
+                  type="button"
+                  onClick={() => setBuscaColaborador('')}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, display: 'flex' }}
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
               <input type="checkbox" checked={mostrarOcultos} onChange={e => setMostrarOcultos(e.target.checked)} style={{ accentColor: '#660099', cursor: 'pointer' }} />
-              Exibir
+              Exibir Inativos
             </label>
 
             <div style={{ display: 'flex', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 6, position: 'relative' }}>
@@ -356,7 +384,38 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 4 }}>
+          {/* Campo de pesquisa por colaborador */}
+          <div style={{ position: 'relative' }}>
+            <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Pesquisar colaborador..."
+              value={buscaColaborador}
+              onChange={e => setBuscaColaborador(e.target.value)}
+              style={{
+                padding: '7px 26px 7px 30px',
+                fontSize: 13,
+                borderRadius: 8,
+                border: '1px solid #e2e8f0',
+                background: '#fff',
+                outline: 'none',
+                color: '#1e293b',
+                width: 220,
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              }}
+            />
+            {buscaColaborador && (
+              <button
+                type="button"
+                onClick={() => setBuscaColaborador('')}
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0, display: 'flex' }}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+
           <div className="abast-header-controls">
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer', background: '#fff', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
               <input type="checkbox" checked={mostrarOcultos} onChange={e => setMostrarOcultos(e.target.checked)} style={{ accentColor: '#660099', cursor: 'pointer' }} />
@@ -406,12 +465,28 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {dados.filter(item => mostrarOcultos || !(item.orcamento === 0 && item.gastoTotalAcumulado === 0 && item.recargasTotalAcumulado === 0)).length === 0 ? (
+          {dados.filter(item => {
+            const isVazio = item.orcamento === 0 && item.gastoTotalAcumulado === 0 && item.recargasTotalAcumulado === 0
+            if (!mostrarOcultos && isVazio) return false
+            if (buscaColaborador.trim()) {
+              const termo = buscaColaborador.toLowerCase().trim()
+              return item.tecnico.nome.toLowerCase().includes(termo)
+            }
+            return true
+          }).length === 0 ? (
             <div style={{ textAlign: 'center', padding: 48, color: '#64748b' }}>
-              Nenhum dado encontrado para o período.
+              {buscaColaborador.trim() ? `Nenhum colaborador encontrado com "${buscaColaborador}".` : 'Nenhum dado encontrado para o período.'}
             </div>
           ) : (
-            dados.filter(item => mostrarOcultos || !(item.orcamento === 0 && item.gastoTotalAcumulado === 0 && item.recargasTotalAcumulado === 0)).map((item, index) => (
+            dados.filter(item => {
+              const isVazio = item.orcamento === 0 && item.gastoTotalAcumulado === 0 && item.recargasTotalAcumulado === 0
+              if (!mostrarOcultos && isVazio) return false
+              if (buscaColaborador.trim()) {
+                const termo = buscaColaborador.toLowerCase().trim()
+                return item.tecnico.nome.toLowerCase().includes(termo)
+              }
+              return true
+            }).map((item, index) => (
               <div key={item.tecnico.id} className="abast-card">
                 
                 <div className="abast-main-row">
@@ -466,11 +541,6 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                   </div>
 
                   <div className="abast-actions">
-                    {mesesSelecionados.length > 0 && item.status === 'ADEQUADO' && (
-                      <div style={{ background: '#dcfce7', color: '#16a34a', padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <CheckCircle2 size={14} /> ADEQUADO
-                      </div>
-                    )}
                     {mesesSelecionados.length > 0 && item.status === 'ALERTA_PENDENTE' && (
                       <div style={{ background: '#fef3c7', color: '#d97706', padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                         <AlertTriangle size={14} /> ALERTA PENDENTE
@@ -489,7 +559,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
 
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <button
-                        onClick={() => handleAbrirExtrato(item.tecnico.id, item.tecnico.nome)}
+                        onClick={() => handleAbrirExtrato(item.tecnico.id, item.tecnico.nome, item.tecnico.fotoUrl, item.tecnico.veiculo)}
                         style={{
                           background: 'linear-gradient(135deg, rgba(102,0,153,0.06), rgba(124,58,237,0.12))',
                           border: '1px solid rgba(102,0,153,0.25)',
@@ -742,30 +812,103 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
             }}
           >
             {/* Header do Extrato (padrão do sistema) */}
+            {/* Header do Extrato (padrão do sistema, com foto do colaborador e dados do veículo) */}
             <div
               style={{
                 flexShrink: 0,
                 background: '#660099',
-                padding: '16px 20px',
+                padding: '14px 20px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                gap: 16,
               }}
             >
-              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Receipt size={18} /> Extrato — {dadosExtrato?.tecnico.nome || extratoModalTecnico.nome}
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                {/* Foto do Colaborador */}
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: '2px solid rgba(255,255,255,0.4)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {(dadosExtrato?.tecnico.fotoUrl ?? extratoModalTecnico.fotoUrl) ? (
+                    <img
+                      src={(dadosExtrato?.tecnico.fotoUrl ?? extratoModalTecnico.fotoUrl)!}
+                      alt={dadosExtrato?.tecnico.nome || extratoModalTecnico.nome}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                      {(dadosExtrato?.tecnico.nome || extratoModalTecnico.nome).charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+
+                {/* Nome do Colaborador e Dados do Veículo */}
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#e9d5ff', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Extrato Bancário
+                    </span>
+                  </div>
+                  <h2
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 800,
+                      color: '#fff',
+                      margin: 0,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {dadosExtrato?.tecnico.nome || extratoModalTecnico.nome}
+                  </h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                    <Car size={13} color="#e9d5ff" />
+                    <span style={{ fontSize: 12, color: '#f3e8ff', fontWeight: 600 }}>
+                      {(dadosExtrato?.tecnico.veiculo || extratoModalTecnico.veiculo)
+                        ? `Veículo: ${dadosExtrato?.tecnico.veiculo || extratoModalTecnico.veiculo}`
+                        : 'Veículo não informado'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botão Fechar no Topo */}
               <button
                 type="button"
                 onClick={() => setExtratoModalTecnico(null)}
-                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 32,
+                  height: 32,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  transition: 'background 0.2s',
+                }}
                 title="Fechar"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Barra de Filtro de Período (Data Inicial e Data Final + Atalhos) */}
+            {/* Barra de Filtro de Período (Data Inicial e Data Final com bloqueio até a data atual + Atalho Único 90 Dias) */}
             <div
               style={{
                 flexShrink: 0,
@@ -807,7 +950,16 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                   <input
                     type="date"
                     value={dataFimExtrato}
-                    onChange={(e) => setDataFimExtrato(e.target.value)}
+                    max={getDataHojeFormatada()}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      const hojeFmt = getDataHojeFormatada()
+                      if (val && val > hojeFmt) {
+                        setDataFimExtrato(hojeFmt)
+                      } else {
+                        setDataFimExtrato(val)
+                      }
+                    }}
                     style={{
                       padding: '6px 10px',
                       borderRadius: 6,
@@ -843,72 +995,28 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                 </button>
               </form>
 
-              {/* Atalhos Rápidos */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>Atalhos:</span>
+              {/* Atalho Único: Últimos 90 Dias */}
+              <div>
                 <button
                   type="button"
-                  onClick={() => aplicarAtalhoData('mesAtual')}
+                  onClick={aplicarAtalho90Dias}
                   style={{
-                    padding: '4px 10px',
+                    padding: '6px 12px',
                     borderRadius: 6,
                     border: '1px solid #cbd5e1',
                     background: '#fff',
                     fontSize: 11,
                     fontWeight: 700,
-                    color: '#475569',
+                    color: '#660099',
                     cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
                   }}
+                  title="Carregar últimos 90 dias até hoje"
                 >
-                  Este Mês
-                </button>
-                <button
-                  type="button"
-                  onClick={() => aplicarAtalhoData('mesAnterior')}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    border: '1px solid #cbd5e1',
-                    background: '#fff',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#475569',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Mês Anterior
-                </button>
-                <button
-                  type="button"
-                  onClick={() => aplicarAtalhoData('30dias')}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    border: '1px solid #cbd5e1',
-                    background: '#fff',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#475569',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Últimos 30 Dias
-                </button>
-                <button
-                  type="button"
-                  onClick={() => aplicarAtalhoData('anoAtual')}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    border: '1px solid #cbd5e1',
-                    background: '#fff',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: '#475569',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Ano Atual
+                  <Calendar size={13} />
+                  Últimos 90 Dias
                 </button>
               </div>
             </div>
