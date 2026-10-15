@@ -719,7 +719,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(15, 23, 42, 0.75)',
+            background: 'rgba(0,0,0,0.6)',
             backdropFilter: 'blur(4px)',
             padding: 16,
           }}
@@ -730,76 +730,36 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
           <div
             style={{
               background: '#fff',
-              borderRadius: 14,
+              borderRadius: 16,
               width: '100%',
-              maxWidth: 960,
-              height: '88vh',
-              maxHeight: '88vh',
+              maxWidth: 720,
+              height: '85vh',
+              maxHeight: '85vh',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)',
-              border: '1px solid #cbd5e1',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
               overflow: 'hidden',
             }}
           >
-            {/* Header do Extrato Bancário */}
+            {/* Header do Extrato (padrão do sistema) */}
             <div
               style={{
                 flexShrink: 0,
-                background: '#1e293b',
+                background: '#660099',
                 padding: '16px 20px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                color: '#fff',
-                borderBottom: '1px solid #334155',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    background: '#660099',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: 16,
-                    color: '#fff',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Receipt size={20} />
-                </div>
-                <div>
-                  <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#fff' }}>
-                    Extrato de Abastecimento — {dadosExtrato?.tecnico.nome || extratoModalTecnico.nome}
-                  </h2>
-                  <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-                    Cota Mensal Base: <strong style={{ color: '#fff' }}>R$ {(dadosExtrato?.tecnico.orcamentoBase || 0).toFixed(2)}</strong>
-                    {dadosExtrato?.tecnico.admissao && (
-                      <span> • Admissão: {new Date(dadosExtrato.tecnico.admissao).toLocaleDateString('pt-BR')}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Receipt size={18} /> Extrato — {dadosExtrato?.tecnico.nome || extratoModalTecnico.nome}
+              </h2>
               <button
                 type="button"
                 onClick={() => setExtratoModalTecnico(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#94a3b8',
-                  cursor: 'pointer',
-                  padding: 6,
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: 6,
-                }}
-                title="Fechar (X)"
+                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}
+                title="Fechar"
               >
                 <X size={20} />
               </button>
@@ -953,105 +913,6 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
               </div>
             </div>
 
-            {/* Tira de Resumo Financeiro Simples (Estilo Extrato Bancário Real) */}
-            {dadosExtrato && (
-              <div
-                style={{
-                  flexShrink: 0,
-                  background: '#fff',
-                  padding: '12px 20px',
-                  borderBottom: '1px solid #e2e8f0',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-                    gap: 12,
-                  }}
-                >
-                  <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
-                      Saldo Anterior
-                    </div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: dadosExtrato.resumo.saldoAnterior < 0 ? '#dc2626' : '#1e293b', marginTop: 2 }}>
-                      R$ {dadosExtrato.resumo.saldoAnterior.toFixed(2)}
-                    </div>
-                  </div>
-
-                  <div style={{ background: '#f0fdf4', padding: '10px 14px', borderRadius: 8, border: '1px solid #bbf7d0' }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: '#166534', textTransform: 'uppercase' }}>
-                      (+) Total Entradas
-                    </div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#15803d', marginTop: 2 }}>
-                      + R$ {dadosExtrato.resumo.totalEntradas.toFixed(2)}
-                    </div>
-                    <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 600 }}>
-                      Padrão: R$ {dadosExtrato.resumo.totalPadrao.toFixed(2)} | Aditivos: R$ {dadosExtrato.resumo.totalAditivos.toFixed(2)}
-                    </div>
-                  </div>
-
-                  <div style={{ background: '#fef2f2', padding: '10px 14px', borderRadius: 8, border: '1px solid #fecaca' }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: '#991b1b', textTransform: 'uppercase' }}>
-                      (-) Total Saídas
-                    </div>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: '#dc2626', marginTop: 2 }}>
-                      - R$ {dadosExtrato.resumo.totalSaidas.toFixed(2)}
-                    </div>
-                    <div style={{ fontSize: 10, color: '#ef4444', fontWeight: 600 }}>
-                      {dadosExtrato.resumo.qtdAbastecimentos} abastecimento(s) realizados
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      background: dadosExtrato.resumo.saldoFinal >= 0 ? '#f0fdf4' : '#fff1f2',
-                      padding: '10px 14px',
-                      borderRadius: 8,
-                      border: dadosExtrato.resumo.saldoFinal >= 0 ? '1px solid #86efac' : '1px solid #fca5a5',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 800,
-                        color: dadosExtrato.resumo.saldoFinal >= 0 ? '#166534' : '#991b1b',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      (=) Saldo Atual
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 16,
-                        fontWeight: 900,
-                        color: dadosExtrato.resumo.saldoFinal >= 0 ? '#15803d' : '#dc2626',
-                        marginTop: 2,
-                      }}
-                    >
-                      R$ {dadosExtrato.resumo.saldoFinal.toFixed(2)}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: dadosExtrato.resumo.saldoFinal >= 0 ? '#16a34a' : '#ef4444',
-                      }}
-                    >
-                      {dadosExtrato.resumo.saldoFinal >= 0 ? 'Saldo Disponível' : 'Saldo Devedor / Estourado'}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ fontSize: 12, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                  <strong>Diagnóstico:</strong> {dadosExtrato.resumo.diagnostico}
-                </div>
-              </div>
-            )}
-
             {/* TABELA DE EXTRATO ROLÁVEL COM SCROLL SUAVE */}
             <div
               style={{
@@ -1074,30 +935,22 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
                   <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                     <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1', color: '#475569', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      <th style={{ padding: '10px 16px', width: 120 }}>Data</th>
-                      <th style={{ padding: '10px 16px', width: 130 }}>Tipo</th>
-                      <th style={{ padding: '10px 16px' }}>Histórico / Descrição</th>
-                      <th style={{ padding: '10px 16px', width: 110, textAlign: 'center' }}>Comprovante</th>
-                      <th style={{ padding: '10px 16px', textAlign: 'right', width: 130 }}>Valor (R$)</th>
-                      <th style={{ padding: '10px 16px', textAlign: 'right', width: 130 }}>Saldo (R$)</th>
+                      <th style={{ padding: '10px 14px', width: 90 }}>Data</th>
+                      <th style={{ padding: '10px 14px' }}>Histórico</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right', width: 110 }}>Valor</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right', width: 110 }}>Saldo</th>
                     </tr>
                   </thead>
                   <tbody>
                     {/* Linha do Saldo Anterior Transportado */}
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>
-                      <td style={{ padding: '10px 16px', color: '#64748b' }}>
+                      <td style={{ padding: '10px 14px', color: '#64748b' }}>
                         {formatarDataHora(dadosExtrato.periodo.dataInicio).data}
                       </td>
-                      <td style={{ padding: '10px 16px' }}>
-                        <span style={{ fontSize: 10, fontWeight: 800, background: '#e2e8f0', color: '#475569', padding: '2px 6px', borderRadius: 4 }}>
-                          SALDO
-                        </span>
+                      <td style={{ padding: '10px 14px', color: '#475569' }}>
+                        SALDO ANTERIOR
                       </td>
-                      <td style={{ padding: '10px 16px', color: '#475569' }}>
-                        SALDO ANTERIOR TRANSPORTADO
-                      </td>
-                      <td style={{ padding: '10px 16px', textAlign: 'center', color: '#cbd5e1' }}>—</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', color: '#94a3b8' }}>—</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', color: '#94a3b8' }}>—</td>
                       <td
                         style={{
                           padding: '10px 16px',
@@ -1124,76 +977,31 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                             background: idx % 2 === 0 ? '#fff' : '#fcfcfd',
                           }}
                         >
-                          <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>
-                            <div style={{ fontWeight: 700, color: '#1e293b' }}>{dt.data}</div>
-                            {dt.hora && dt.hora !== '00:00' && (
-                              <div style={{ fontSize: 10, color: '#94a3b8' }}>{dt.hora}</div>
-                            )}
+                          <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', fontWeight: 600, color: '#334155' }}>
+                            {dt.data}
                           </td>
 
-                          <td style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}>
-                            {t.tipo === 'ENTRADA_PADRAO' && (
-                              <span style={{ fontSize: 10, fontWeight: 800, background: '#eff6ff', color: '#1d4ed8', padding: '3px 7px', borderRadius: 4 }}>
-                                COTA PADRÃO
-                              </span>
-                            )}
-                            {t.tipo === 'ENTRADA_ADITIVO' && (
-                              <span style={{ fontSize: 10, fontWeight: 800, background: '#faf5ff', color: '#7c3aed', padding: '3px 7px', borderRadius: 4 }}>
-                                ADITIVO EXTRA
-                              </span>
-                            )}
-                            {t.tipo === 'ENTRADA_AJUSTE' && (
-                              <span style={{ fontSize: 10, fontWeight: 800, background: '#fffbeb', color: '#b45309', padding: '3px 7px', borderRadius: 4 }}>
-                                AJUSTE BASE
-                              </span>
-                            )}
-                            {t.tipo === 'SAIDA_ABASTECIMENTO' && (
-                              <span style={{ fontSize: 10, fontWeight: 800, background: '#fef2f2', color: '#dc2626', padding: '3px 7px', borderRadius: 4 }}>
-                                ABASTECIMENTO
-                              </span>
-                            )}
-                          </td>
-
-                          <td style={{ padding: '10px 16px' }}>
-                            <div style={{ fontWeight: 600, color: '#1e293b' }}>
-                              {t.titulo}
-                              {t.userName && (
-                                <span style={{ marginLeft: 6, fontSize: 10, color: '#64748b' }}>
-                                  ({t.userName})
-                                </span>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              {t.tipo === 'ENTRADA_PADRAO' && 'Cota Padrão do Mês'}
+                              {t.tipo === 'ENTRADA_ADITIVO' && 'Aditivo (Recarga Extra)'}
+                              {t.tipo === 'ENTRADA_AJUSTE' && 'Ajuste de Cota'}
+                              {t.tipo === 'SAIDA_ABASTECIMENTO' && 'Abastecimento'}
+                              {t.fotoCupom && (
+                                <button
+                                  type="button"
+                                  onClick={() => setFotoCupomZoom(t.fotoCupom!)}
+                                  style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', color: '#660099', cursor: 'pointer', padding: 0 }}
+                                  title="Ver Cupom"
+                                >
+                                  <Eye size={14} />
+                                </button>
                               )}
                             </div>
-                            {t.descricao && (
+                            {t.tipo === 'ENTRADA_ADITIVO' && t.descricao && (
                               <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
-                                {t.descricao}
+                                {t.descricao}{t.userName ? ` — ${t.userName}` : ''}
                               </div>
-                            )}
-                          </td>
-
-                          <td style={{ padding: '10px 16px', textAlign: 'center' }}>
-                            {t.fotoCupom ? (
-                              <button
-                                type="button"
-                                onClick={() => setFotoCupomZoom(t.fotoCupom!)}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 4,
-                                  padding: '3px 8px',
-                                  borderRadius: 4,
-                                  border: '1px solid #cbd5e1',
-                                  background: '#f8fafc',
-                                  color: '#0284c7',
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                }}
-                                title="Ver Comprovante"
-                              >
-                                <Eye size={12} /> Cupom
-                              </button>
-                            ) : (
-                              <span style={{ color: '#cbd5e1' }}>—</span>
                             )}
                           </td>
 
@@ -1226,19 +1034,13 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
 
                     {/* Linha do Saldo Final */}
                     <tr style={{ background: '#f8fafc', borderTop: '2px solid #cbd5e1', fontWeight: 800 }}>
-                      <td style={{ padding: '12px 16px', color: '#64748b' }}>
+                      <td style={{ padding: '12px 14px', color: '#64748b' }}>
                         {formatarDataHora(dadosExtrato.periodo.dataFim).data}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ fontSize: 10, fontWeight: 800, background: '#334155', color: '#fff', padding: '3px 7px', borderRadius: 4 }}>
-                          SALDO FINAL
-                        </span>
+                      <td style={{ padding: '12px 14px', color: '#1e293b' }}>
+                        SALDO FINAL
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#1e293b' }}>
-                        SALDO ATUAL DO PERÍODO
-                      </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center', color: '#cbd5e1' }}>—</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', color: '#94a3b8' }}>—</td>
+                      <td style={{ padding: '12px 14px', textAlign: 'right', color: '#94a3b8' }}>—</td>
                       <td
                         style={{
                           padding: '12px 16px',
@@ -1268,24 +1070,8 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
               }}
             >
               <span style={{ fontSize: 12, color: '#64748b' }}>
-                Total de <strong>{dadosExtrato?.transacoes.length || 0}</strong> lançamento(s) no período selecionado.
+                Total de <strong>{dadosExtrato?.transacoes.length || 0}</strong> lançamento(s) no período.
               </span>
-              <button
-                type="button"
-                onClick={() => setExtratoModalTecnico(null)}
-                style={{
-                  padding: '7px 18px',
-                  borderRadius: 6,
-                  border: '1px solid #cbd5e1',
-                  background: '#fff',
-                  color: '#334155',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Fechar
-              </button>
             </div>
           </div>
         </div>
