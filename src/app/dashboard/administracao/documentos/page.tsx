@@ -30,6 +30,7 @@ import {
   Bell,
   Eye,
   Download,
+  ClipboardCheck,
 } from 'lucide-react'
 import {
   getDocumentosTecnicos,
@@ -92,6 +93,46 @@ function formatarData(data?: string | Date | null): string {
   } catch {
     return '—'
   }
+}
+
+/* ── Helper: abreviar nome do tipo de documento / treinamento para colunas ── */
+function abreviarTipoDoc(nome?: string | null): string {
+  if (!nome) return '—'
+  const trimmed = nome.trim()
+
+  const nrMatch = trimmed.match(/NR[- ]?\d+(\s+[A-Za-z]+)?/i)
+  if (nrMatch) return nrMatch[0].toUpperCase().replace(/\s+/g, ' ')
+
+  if (/ASO/i.test(trimmed)) return 'ASO'
+  if (/EPI/i.test(trimmed)) return 'Ficha EPI'
+  if (/CNH/i.test(trimmed)) return 'CNH'
+  if (/Registro/i.test(trimmed)) return 'Reg. Prof.'
+  if (/Ordem de Servi/i.test(trimmed)) return 'OS'
+  if (/Integra/i.test(trimmed)) return 'Integração'
+
+  const parenMatch = trimmed.match(/\(([A-Z0-9\s-]{2,8})\)/)
+  if (parenMatch) return parenMatch[1].trim()
+
+  if (trimmed.length <= 13) return trimmed
+
+  const palavras = trimmed.split(/\s+/)
+  if (palavras.length >= 2 && (palavras[0].length + palavras[1].length) <= 13) {
+    return `${palavras[0]} ${palavras[1]}`
+  }
+
+  return trimmed.substring(0, 11) + '…'
+}
+
+/* ── Helper: data compacta DD/MM/AA ── */
+function formatarDataCompacta(data?: string | Date | null): string {
+  if (!data) return '—'
+  const str = formatarData(data)
+  if (str === '—') return '—'
+  const parts = str.split('/')
+  if (parts.length === 3) {
+    return `${parts[0]}/${parts[1]}/${parts[2].slice(-2)}`
+  }
+  return str
 }
 
 /* ── Componente: Badge de Status com Tooltip de Vencimento ao passar o mouse ── */
@@ -269,6 +310,11 @@ export default function DocumentosTecnicosPage({
   const [dadosAlertas, setDadosAlertas] = useState<{ jaNotificados: any[]; pendentesAlerta: any[] } | null>(null)
   const [carregandoAlertas, setCarregandoAlertas] = useState(false)
   const [abaAlertas, setAbaAlertas] = useState<'pendentes' | 'historico'>('pendentes')
+
+  // Modal Matriz de Auditoria
+  const [modalAuditoriaAberto, setModalAuditoriaAberto] = useState(false)
+  const [auditoriaIncluirInativos, setAuditoriaIncluirInativos] = useState(false)
+  const [auditoriaBusca, setAuditoriaBusca] = useState('')
 
   // Modal de Confirmação customizado (substitui window.confirm do browser)
   const [modalConfirmacao, setModalConfirmacao] = useState<{
@@ -507,6 +553,33 @@ export default function DocumentosTecnicosPage({
       return matchTec || matchCargo || matchTipo || matchTitulo || matchArq || matchStatus
     })
   }, [documentosBase, busca])
+
+  // Mapa indexado de Documentos para busca O(1) na Matriz de Auditoria
+  const mapaDocumentosAuditoria = useMemo(() => {
+    const mapa = new Map<string, DocumentoItem>()
+    for (const doc of documentos) {
+      if (doc.tecnicoId && doc.tipoDocumentoId) {
+        const key = `${doc.tecnicoId}_${doc.tipoDocumentoId}`
+        if (!mapa.has(key)) {
+          mapa.set(key, doc)
+        }
+      }
+    }
+    return mapa
+  }, [documentos])
+
+  // Técnicos filtrados para a Matriz de Auditoria (com busca e toggle de inativos)
+  const tecnicosAuditoria = useMemo(() => {
+    let lista = tecnicos
+    if (!auditoriaIncluirInativos) {
+      lista = lista.filter((t) => t.ativo !== false)
+    }
+    if (auditoriaBusca.trim()) {
+      const termo = auditoriaBusca.trim().toLowerCase()
+      lista = lista.filter((t) => t.nome?.toLowerCase().includes(termo) || t.cargo?.toLowerCase().includes(termo))
+    }
+    return lista
+  }, [tecnicos, auditoriaIncluirInativos, auditoriaBusca])
 
   // Submeter Upload de Documento
   const handleSubmitUpload = async (e: React.FormEvent) => {
@@ -807,7 +880,7 @@ export default function DocumentosTecnicosPage({
               boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
             }}
           >
-            <Settings size={15} color={PURPLE} /> Tipos de Documentos & Validades
+            <Settings size={15} color={PURPLE} /> + Tipos Docs.
           </button>
 
           <button
@@ -829,7 +902,29 @@ export default function DocumentosTecnicosPage({
             }}
           >
             <Bell size={15} color={PURPLE} />
-            Alertas & Notificações por E-mail
+            Alertas
+          </button>
+
+          <button
+            onClick={() => setModalAuditoriaAberto(true)}
+            title="Matriz de Auditoria e Conformidade de Documentos"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              color: '#334155',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+            }}
+          >
+            <ClipboardCheck size={15} color={PURPLE} />
+            Auditoria
           </button>
         </div>
       </div>
@@ -2538,6 +2633,498 @@ export default function DocumentosTecnicosPage({
                   border: '1px solid #cbd5e1',
                   color: '#475569',
                   fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL DE AUDITORIA & CONFORMIDADE (MATRIZ COLABORADOR X DOCUMENTOS) ── */}
+      {modalAuditoriaAberto && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalAuditoriaAberto(false)
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 1300,
+              height: '92vh',
+              maxHeight: '92vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              overflow: 'hidden',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            {/* Header com Gradiente Moderno */}
+            <div
+              style={{
+                padding: '16px 24px',
+                background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: '#fff',
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    background: 'rgba(255,255,255,0.18)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ClipboardCheck size={22} color="#fff" />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>
+                    Auditoria de Documentos & Treinamentos
+                  </h2>
+                  <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
+                    Matriz de conformidade geral por colaborador e status de validade
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setModalAuditoriaAberto(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#fff',
+                  borderRadius: 8,
+                  padding: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.25)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+                title="Fechar Auditoria"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Barra de Ferramentas / Filtros e Legenda */}
+            <div
+              style={{
+                padding: '12px 24px',
+                background: '#f8fafc',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 12,
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                {/* Campo de Busca Rápida de Colaborador */}
+                <div style={{ position: 'relative', width: 240 }}>
+                  <Search
+                    size={14}
+                    color="#94a3b8"
+                    style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Filtrar colaborador..."
+                    value={auditoriaBusca}
+                    onChange={(e) => setAuditoriaBusca(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px 6px 30px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 12,
+                      background: '#fff',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                {/* Botão de Incluir Inativos */}
+                <button
+                  type="button"
+                  onClick={() => setAuditoriaIncluirInativos((prev) => !prev)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    border: `1px solid ${auditoriaIncluirInativos ? PURPLE : '#cbd5e1'}`,
+                    background: auditoriaIncluirInativos ? PURPLE_BG : '#fff',
+                    color: auditoriaIncluirInativos ? PURPLE : '#475569',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title={auditoriaIncluirInativos ? 'Ocultar colaboradores inativos' : 'Exibir também colaboradores inativos'}
+                >
+                  <input
+                    type="checkbox"
+                    checked={auditoriaIncluirInativos}
+                    onChange={() => {}} // controlado pelo button
+                    style={{ accentColor: PURPLE, pointerEvents: 'none', cursor: 'pointer' }}
+                  />
+                  Incluir Inativos
+                </button>
+              </div>
+
+              {/* Legenda de Status solicitada pelo usuário */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 11, fontWeight: 700 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6, background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' }} title="Documento válido dentro do prazo">
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a' }} />
+                  Válido (Data)
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6, background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }} title="Documento próximo do vencimento">
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} />
+                  A Vencer (Data)
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6, background: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca' }} title="Documento já expirado">
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#dc2626' }} />
+                  Vencido (Data)
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6, background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' }} title="Documento não cadastrado">
+                  <strong style={{ color: '#94a3b8' }}>NE</strong> = Não Encontrado
+                </span>
+              </div>
+            </div>
+
+            {/* Tabela Matriz com Scroll Duplo (Horizontal + Vertical) */}
+            <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
+              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, minWidth: Math.max(800, tiposDocs.length * 110 + 220) }}>
+                <thead>
+                  <tr>
+                    {/* Célula Superior Esquerda Fixa (Sticky Top + Sticky Left) */}
+                    <th
+                      style={{
+                        position: 'sticky',
+                        top: 0,
+                        left: 0,
+                        zIndex: 30,
+                        background: '#f1f5f9',
+                        padding: '12px 14px',
+                        textAlign: 'left',
+                        fontSize: 12,
+                        fontWeight: 800,
+                        color: '#334155',
+                        borderBottom: '2px solid #cbd5e1',
+                        borderRight: '2px solid #cbd5e1',
+                        minWidth: 200,
+                        boxShadow: '2px 2px 4px rgba(0,0,0,0.04)',
+                      }}
+                    >
+                      Colaborador ({tecnicosAuditoria.length})
+                    </th>
+
+                    {/* Colunas dos Tipos de Documentos (Abreviados, Sticky Top) */}
+                    {tiposDocs.map((tipo) => (
+                      <th
+                        key={tipo.id}
+                        title={tipo.nome}
+                        style={{
+                          position: 'sticky',
+                          top: 0,
+                          zIndex: 20,
+                          background: '#f8fafc',
+                          padding: '10px 8px',
+                          textAlign: 'center',
+                          fontSize: 12,
+                          fontWeight: 800,
+                          color: '#334155',
+                          borderBottom: '2px solid #cbd5e1',
+                          borderRight: '1px solid #e2e8f0',
+                          minWidth: 95,
+                          cursor: 'help',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                          <span style={{ whiteSpace: 'nowrap' }}>{abreviarTipoDoc(tipo.nome)}</span>
+                          {tipo.validadeMeses ? (
+                            <span style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8' }}>
+                              {tipo.validadeMeses}m
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8' }}>perm.</span>
+                          )}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tecnicosAuditoria.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={tiposDocs.length + 1}
+                        style={{ padding: 48, textAlign: 'center', color: '#94a3b8', fontSize: 14 }}
+                      >
+                        Nenhum colaborador encontrado com os filtros atuais.
+                      </td>
+                    </tr>
+                  ) : (
+                    tecnicosAuditoria.map((tec, idx) => (
+                      <tr
+                        key={tec.id}
+                        style={{
+                          background: idx % 2 === 0 ? '#ffffff' : '#fafafa',
+                          transition: 'background 0.1s ease',
+                        }}
+                      >
+                        {/* Coluna do Colaborador (Abreviado, Sticky Left) */}
+                        <td
+                          style={{
+                            position: 'sticky',
+                            left: 0,
+                            zIndex: 10,
+                            background: idx % 2 === 0 ? '#ffffff' : '#fafafa',
+                            padding: '8px 12px',
+                            borderBottom: '1px solid #f1f5f9',
+                            borderRight: '2px solid #cbd5e1',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: 6,
+                                background: tec.ativo === false ? '#f1f5f9' : PURPLE_BG,
+                                color: tec.ativo === false ? '#94a3b8' : PURPLE,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 11,
+                                fontWeight: 800,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {idx + 1}
+                            </div>
+                            <div>
+                              <div
+                                title={tec.nome}
+                                style={{
+                                  fontWeight: 700,
+                                  color: tec.ativo === false ? '#94a3b8' : '#1e293b',
+                                  fontSize: 12,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 6,
+                                }}
+                              >
+                                <span>{abreviarNome(tec.nome)}</span>
+                                {tec.ativo === false && (
+                                  <span
+                                    style={{
+                                      fontSize: 9,
+                                      fontWeight: 800,
+                                      color: '#dc2626',
+                                      background: '#fef2f2',
+                                      padding: '1px 5px',
+                                      borderRadius: 4,
+                                    }}
+                                  >
+                                    Inativo
+                                  </span>
+                                )}
+                              </div>
+                              {tec.cargo && (
+                                <div style={{ fontSize: 10, color: '#64748b' }}>
+                                  {tec.cargo}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Células da Matriz (Documentos) */}
+                        {tiposDocs.map((tipo) => {
+                          const doc = mapaDocumentosAuditoria.get(`${tec.id}_${tipo.id}`)
+
+                          if (!doc) {
+                            return (
+                              <td
+                                key={tipo.id}
+                                style={{
+                                  padding: '6px 4px',
+                                  textAlign: 'center',
+                                  borderBottom: '1px solid #f1f5f9',
+                                  borderRight: '1px solid #f8fafc',
+                                }}
+                              >
+                                <span
+                                  title="Não encontrado"
+                                  style={{
+                                    display: 'inline-block',
+                                    padding: '3px 8px',
+                                    borderRadius: 6,
+                                    background: '#f1f5f9',
+                                    color: '#94a3b8',
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    cursor: 'default',
+                                    userSelect: 'none',
+                                  }}
+                                >
+                                  NE
+                                </span>
+                              </td>
+                            )
+                          }
+
+                          const isVencido = doc.status === 'VENCIDO'
+                          const isAVencer = doc.status === 'A_VENCER'
+
+                          const dataExibida = doc.dataVencimento
+                            ? formatarDataCompacta(doc.dataVencimento)
+                            : doc.dataEmissao
+                            ? formatarDataCompacta(doc.dataEmissao)
+                            : '—'
+
+                          let corBg = '#dcfce7'
+                          let corTexto = '#15803d'
+                          let corBorder = '#bbf7d0'
+                          let tooltipTexto = 'Válido'
+
+                          if (isVencido) {
+                            corBg = '#fee2e2'
+                            corTexto = '#b91c1c'
+                            corBorder = '#fecaca'
+                            tooltipTexto = doc.dataVencimento
+                              ? `Vencido (Venceu em ${formatarData(doc.dataVencimento)})`
+                              : 'Vencido'
+                          } else if (isAVencer) {
+                            corBg = '#fef3c7'
+                            corTexto = '#b45309'
+                            corBorder = '#fde68a'
+                            tooltipTexto = `A Vencer (Vence em ${formatarData(doc.dataVencimento)})`
+                          } else {
+                            tooltipTexto = doc.dataVencimento
+                              ? `Válido (Vence em ${formatarData(doc.dataVencimento)})`
+                              : 'Válido (Sem validade fixa)'
+                          }
+
+                          return (
+                            <td
+                              key={tipo.id}
+                              style={{
+                                padding: '6px 4px',
+                                textAlign: 'center',
+                                borderBottom: '1px solid #f1f5f9',
+                                borderRight: '1px solid #f8fafc',
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setModalVisualizarDoc({
+                                    isOpen: true,
+                                    id: doc.id,
+                                    nome: doc.arquivoNome,
+                                    tecnicoNome: tec.nome,
+                                    tipoNome: tipo.nome,
+                                  })
+                                }
+                                title={tooltipTexto}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  padding: '3px 8px',
+                                  borderRadius: 6,
+                                  background: corBg,
+                                  color: corTexto,
+                                  border: `1px solid ${corBorder}`,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.transform = 'scale(1.05)'
+                                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.1)'
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.transform = 'scale(1)'
+                                  e.currentTarget.style.boxShadow = 'none'
+                                }}
+                              >
+                                {dataExibida}
+                              </button>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Rodapé do Modal com Informações e Fechar */}
+            <div
+              style={{
+                padding: '12px 24px',
+                background: '#f8fafc',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ fontSize: 12, color: '#64748b' }}>
+                Clique sobre qualquer data para visualizar o documento diretamente no visualizador.
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalAuditoriaAberto(false)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 8,
+                  background: '#fff',
+                  border: '1px solid #cbd5e1',
+                  color: '#334155',
+                  fontSize: 12,
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
