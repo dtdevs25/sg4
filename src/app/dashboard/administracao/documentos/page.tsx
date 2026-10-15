@@ -2555,7 +2555,7 @@ export default function DocumentosTecnicosPage({
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 1200,
+            zIndex: 10000,
             background: 'rgba(15, 23, 42, 0.75)',
             backdropFilter: 'blur(6px)',
             display: 'flex',
@@ -2775,7 +2775,7 @@ export default function DocumentosTecnicosPage({
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 1300,
+            zIndex: 10100,
             background: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
