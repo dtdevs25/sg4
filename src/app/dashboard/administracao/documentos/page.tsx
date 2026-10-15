@@ -2920,23 +2920,34 @@ export default function DocumentosTecnicosPage({
                             whiteSpace: 'nowrap',
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                            {/* Foto do Colaborador (ou Iniciais) */}
                             <div
                               style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: 6,
-                                background: tec.ativo === false ? '#f1f5f9' : PURPLE_BG,
+                                width: 30,
+                                height: 30,
+                                borderRadius: '50%',
+                                background: tec.ativo === false ? '#f1f5f9' : '#e2e8f0',
                                 color: tec.ativo === false ? '#94a3b8' : PURPLE,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 fontSize: 11,
                                 fontWeight: 800,
+                                overflow: 'hidden',
                                 flexShrink: 0,
+                                border: `1px solid ${tec.ativo === false ? '#e2e8f0' : '#cbd5e1'}`,
                               }}
                             >
-                              {idx + 1}
+                              {tec.fotoUrl ? (
+                                <img
+                                  src={tec.fotoUrl}
+                                  alt={tec.nome}
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              ) : (
+                                tec.nome?.charAt(0) || 'T'
+                              )}
                             </div>
                             <div>
                               <div
@@ -2966,11 +2977,9 @@ export default function DocumentosTecnicosPage({
                                   </span>
                                 )}
                               </div>
-                              {tec.cargo && (
-                                <div style={{ fontSize: 10, color: '#64748b' }}>
-                                  {tec.cargo}
-                                </div>
-                              )}
+                              <div style={{ fontSize: 10, color: '#64748b' }}>
+                                Adm: {formatarData(tec.admissao)}
+                              </div>
                             </div>
                           </div>
                         </td>
