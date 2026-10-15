@@ -445,8 +445,8 @@ export type ExtratoBancarioData = {
     admissao: string | Date | null
   }
   periodo: {
-    ano: number
-    mes: number | 'todos'
+    dataInicio: string
+    dataFim: string
     rotulo: string
   }
   resumo: {
@@ -467,8 +467,8 @@ export type ExtratoBancarioData = {
 
 export async function getExtratoBancarioTecnico(
   tecnicoId: string,
-  ano: number,
-  mes: number | 'todos' = 'todos'
+  dataInicioStr?: string,
+  dataFimStr?: string
 ) {
   try {
     const session = await auth()
@@ -487,27 +487,37 @@ export async function getExtratoBancarioTecnico(
 
     if (!tec) return { success: false, error: 'Técnico não encontrado' }
 
-    const marcoZero = new Date(2026, 6, 1) // 01/07/2026
+    const marcoZero = new Date(2026, 6, 1, 0, 0, 0) // 01/07/2026
     const MESES_NOME = [
       'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
     ]
 
-    // Determina datas de início e fim do período solicitado
-    let dataInicioPeriodo: Date
-    let dataFimPeriodo: Date
-    let rotuloPeriodo = ''
+    // Datas padrão: mês atual
+    const hoje = new Date()
+    const defAno = hoje.getFullYear()
+    const defMes = hoje.getMonth() + 1
+    const defUltimoDia = new Date(defAno, defMes, 0).getDate()
 
-    if (mes === 'todos') {
-      const inicioAno = new Date(ano, 0, 1, 0, 0, 0)
-      dataInicioPeriodo = inicioAno < marcoZero ? marcoZero : inicioAno
-      dataFimPeriodo = new Date(ano, 11, 31, 23, 59, 59)
-      rotuloPeriodo = `Ano de ${ano} (Completo)`
-    } else {
-      dataInicioPeriodo = new Date(ano, mes - 1, 1, 0, 0, 0)
-      dataFimPeriodo = new Date(ano, mes, 0, 23, 59, 59)
-      rotuloPeriodo = `${MESES_NOME[mes - 1]} / ${ano}`
+    const dInicioStr = dataInicioStr || `${defAno}-${String(defMes).padStart(2, '0')}-01`
+    const dFimStr =
+      dataFimStr || `${defAno}-${String(defMes).padStart(2, '0')}-${String(defUltimoDia).padStart(2, '0')}`
+
+    const [aIni, mIni, diaIni] = dInicioStr.split('-').map(Number)
+    const [aFim, mFim, diaFim] = dFimStr.split('-').map(Number)
+
+    let dataInicioPeriodo = new Date(aIni, mIni - 1, diaIni, 0, 0, 0, 0)
+    let dataFimPeriodo = new Date(aFim, mFim - 1, diaFim, 23, 59, 59, 999)
+
+    if (dataInicioPeriodo > dataFimPeriodo) {
+      const temp = dataInicioPeriodo
+      dataInicioPeriodo = dataFimPeriodo
+      dataFimPeriodo = temp
     }
+
+    const rotuloPeriodo = `${dataInicioPeriodo.toLocaleDateString('pt-BR')} a ${dataFimPeriodo.toLocaleDateString(
+      'pt-BR'
+    )}`
 
     // Busca todos os abastecimentos e recargas desde o marco zero até o fim do período selecionado
     const [abastecimentos, recargas] = await Promise.all([
@@ -527,38 +537,63 @@ export async function getExtratoBancarioTecnico(
       }),
     ])
 
-    // 1. Calcula o Saldo Anterior (tudo o que ocorreu antes de dataInicioPeriodo)
+    // 1. Processa todos os meses desde marco zero (julho/2026) até o mês de dataFimPeriodo
     let saldoAnterior = 0
+    const transacoes: Array<Omit<ItemExtratoBancario, 'saldoApos'>> = []
+
+    const anoFimIter = dataFimPeriodo.getFullYear()
+    const mesFimIter = dataFimPeriodo.getMonth() + 1
+
     let cy = 2026
-    let cm = 7 // marco zero julho/2026
+    let cm = 7
 
-    while (
-      cy < dataInicioPeriodo.getFullYear() ||
-      (cy === dataInicioPeriodo.getFullYear() && cm < dataInicioPeriodo.getMonth() + 1)
-    ) {
-      const inicioM = new Date(cy, cm - 1, 1)
-      const fimM = new Date(cy, cm, 0, 23, 59, 59)
+    while (cy < anoFimIter || (cy === anoFimIter && cm <= mesFimIter)) {
+      const dataCreditoMes = new Date(cy, cm - 1, 1, 0, 0, 0, 0)
+      const dataFimMes = new Date(cy, cm, 0, 23, 59, 59, 999)
 
-      const gastoM = abastecimentos
-        .filter((a) => a.data >= inicioM && a.data <= fimM)
-        .reduce((acc, c) => acc + c.valor, 0)
+      const overridesNoMes = recargas.filter(
+        (r) => r.isOverride && r.data >= dataCreditoMes && r.data <= dataFimMes
+      )
+      const mesesValidos =
+        getValidMonthsCount(tec.admissao, cy, cm) - getValidMonthsCount(tec.admissao, cy, cm - 1)
 
-      const recargasM = recargas
-        .filter((r) => !r.isOverride && r.data >= inicioM && r.data <= fimM)
-        .reduce((acc, c) => acc + c.valor, 0)
-
-      const overridesM = recargas.filter((r) => r.isOverride && r.data >= inicioM && r.data <= fimM)
-
-      let orcamentoM = 0
-      const mvs = getValidMonthsCount(tec.admissao, cy, cm) - getValidMonthsCount(tec.admissao, cy, cm - 1)
-
-      if (overridesM.length > 0) {
-        orcamentoM = overridesM[overridesM.length - 1].valor
-      } else {
-        orcamentoM = tec.orcamentoAbastecimento * Math.max(0, mvs)
+      // Se o crédito do mês ocorreu antes de dataInicioPeriodo -> compõe o Saldo Anterior
+      if (dataCreditoMes < dataInicioPeriodo) {
+        let orcamentoM = 0
+        if (overridesNoMes.length > 0) {
+          orcamentoM = overridesNoMes[overridesNoMes.length - 1].valor
+        } else if (mesesValidos > 0) {
+          orcamentoM = tec.orcamentoAbastecimento
+        }
+        saldoAnterior += orcamentoM
+      } else if (dataCreditoMes >= dataInicioPeriodo && dataCreditoMes <= dataFimPeriodo) {
+        // Se o crédito do mês está dentro do período selecionado -> gera lançamento no extrato
+        if (overridesNoMes.length > 0) {
+          const ultOverride = overridesNoMes[overridesNoMes.length - 1]
+          transacoes.push({
+            id: `ajuste_base_${cy}_${cm}`,
+            data: ultOverride.data.toISOString(),
+            tipo: 'ENTRADA_AJUSTE',
+            titulo: `Ajuste de Base (${MESES_NOME[cm - 1]}/${cy})`,
+            descricao: `Cota base recalculada para R$ ${ultOverride.valor.toFixed(2)}${
+              ultOverride.observacao ? ` - ${ultOverride.observacao}` : ''
+            }`,
+            valor: ultOverride.valor,
+            userName: ultOverride.userName || 'Administrador',
+            isOverride: true,
+          })
+        } else if (mesesValidos > 0 && tec.orcamentoAbastecimento > 0) {
+          transacoes.push({
+            id: `padrao_${cy}_${cm}`,
+            data: dataCreditoMes.toISOString(),
+            tipo: 'ENTRADA_PADRAO',
+            titulo: `Cota Mensal Regular (${MESES_NOME[cm - 1]}/${cy})`,
+            descricao: `Crédito automático da verba mensal base`,
+            valor: tec.orcamentoAbastecimento,
+            userName: 'Sistema',
+          })
+        }
       }
-
-      saldoAnterior += orcamentoM + recargasM - gastoM
 
       cm++
       if (cm > 12) {
@@ -567,88 +602,45 @@ export async function getExtratoBancarioTecnico(
       }
     }
 
-    // 2. Monta as transações que pertencem estritamente ao período selecionado
-    const transacoes: Array<Omit<ItemExtratoBancario, 'saldoApos'>> = []
-
-    // A) Créditos do Orçamento Padrão do Mês
-    const mesInicio = mes === 'todos' ? (ano === 2026 ? 7 : 1) : mes
-    const mesFim = mes === 'todos' ? 12 : mes
-
-    for (let m = mesInicio; m <= mesFim; m++) {
-      const inicioM = new Date(ano, m - 1, 1, 0, 0, 0)
-      const fimM = new Date(ano, m, 0, 23, 59, 59)
-
-      const overridesNoMes = recargas.filter(
-        (r) => r.isOverride && r.data >= inicioM && r.data <= fimM
-      )
-
-      const mesesValidos =
-        getValidMonthsCount(tec.admissao, ano, m) - getValidMonthsCount(tec.admissao, ano, m - 1)
-
-      if (overridesNoMes.length > 0) {
-        const ultOverride = overridesNoMes[overridesNoMes.length - 1]
+    // Processa recargas extras (aditivos, não-override)
+    for (const r of recargas.filter((r) => !r.isOverride)) {
+      if (r.data < dataInicioPeriodo) {
+        saldoAnterior += r.valor
+      } else if (r.data >= dataInicioPeriodo && r.data <= dataFimPeriodo) {
         transacoes.push({
-          id: `ajuste_base_${ano}_${m}`,
-          data: ultOverride.data.toISOString(),
-          tipo: 'ENTRADA_AJUSTE',
-          titulo: `Ajuste de Base (${MESES_NOME[m - 1]})`,
-          descricao: `Cota base recalculada/ajustada para R$ ${ultOverride.valor.toFixed(2)}${
-            ultOverride.observacao ? ` - ${ultOverride.observacao}` : ''
-          }`,
-          valor: ultOverride.valor,
-          userName: ultOverride.userName || 'Administrador',
-          isOverride: true,
-        })
-      } else if (mesesValidos > 0 && tec.orcamentoAbastecimento > 0) {
-        transacoes.push({
-          id: `padrao_${ano}_${m}`,
-          data: inicioM.toISOString(),
-          tipo: 'ENTRADA_PADRAO',
-          titulo: `Orçamento Padrão (${MESES_NOME[m - 1]})`,
-          descricao: `Crédito automático da verba mensal contratual`,
-          valor: tec.orcamentoAbastecimento,
-          userName: 'Sistema Automático',
+          id: r.id,
+          data: r.data.toISOString(),
+          tipo: 'ENTRADA_ADITIVO',
+          titulo: 'Recarga Extra (Aditivo)',
+          descricao: r.observacao || 'Recarga complementar autorizada',
+          valor: r.valor,
+          userName: r.userName || 'Administrador',
         })
       }
     }
 
-    // B) Recargas Extras / Aditivos (não-override) dentro do período
-    const recargasPeriodo = recargas.filter(
-      (r) => !r.isOverride && r.data >= dataInicioPeriodo && r.data <= dataFimPeriodo
-    )
-    for (const r of recargasPeriodo) {
-      transacoes.push({
-        id: r.id,
-        data: r.data.toISOString(),
-        tipo: 'ENTRADA_ADITIVO',
-        titulo: 'Recarga Extra (Aditivo)',
-        descricao: r.observacao || 'Recarga complementar autorizada',
-        valor: r.valor,
-        userName: r.userName || 'Administrador',
-      })
-    }
-
-    // C) Abastecimentos (Saídas) dentro do período
-    const abastecimentosPeriodo = abastecimentos.filter(
-      (a) => a.data >= dataInicioPeriodo && a.data <= dataFimPeriodo
-    )
-    for (const a of abastecimentosPeriodo) {
-      transacoes.push({
-        id: a.id,
-        data: a.data.toISOString(),
-        tipo: 'SAIDA_ABASTECIMENTO',
-        titulo: 'Abastecimento de Combustível',
-        descricao: `Lançamento de combustível registrado no app`,
-        valor: -Math.abs(a.valor),
-        fotoCupom: a.fotoCupom || null,
-        userName: tec.nome,
-      })
+    // Processa abastecimentos (saídas)
+    for (const a of abastecimentos) {
+      if (a.data < dataInicioPeriodo) {
+        saldoAnterior -= a.valor
+      } else if (a.data >= dataInicioPeriodo && a.data <= dataFimPeriodo) {
+        transacoes.push({
+          id: a.id,
+          data: a.data.toISOString(),
+          tipo: 'SAIDA_ABASTECIMENTO',
+          titulo: 'Abastecimento',
+          descricao: a.tipo ? `Combustível (${a.tipo})` : 'Abastecimento realizado',
+          valor: -Math.abs(a.valor),
+          fotoCupom: a.fotoCupom || null,
+          userName: tec.nome,
+        })
+      }
     }
 
     // Ordena as transações cronologicamente
     transacoes.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
 
-    // 3. Calcula Saldo Progressivo exatamente como num extrato bancário
+    // 2. Calcula Saldo Progressivo exatamente como num extrato bancário
     let runningBalance = saldoAnterior
     const transacoesComSaldo: ItemExtratoBancario[] = transacoes.map((t) => {
       runningBalance += t.valor
@@ -658,7 +650,7 @@ export async function getExtratoBancarioTecnico(
       }
     })
 
-    // 4. Totais e Diagnóstico
+    // 3. Totais e Diagnóstico
     const totalPadrao = transacoes
       .filter((t) => t.tipo === 'ENTRADA_PADRAO' || t.tipo === 'ENTRADA_AJUSTE')
       .reduce((acc, t) => acc + t.valor, 0)
@@ -674,40 +666,28 @@ export async function getExtratoBancarioTecnico(
 
     const saldoPeriodo = totalEntradas - totalSaidas
     const saldoFinal = saldoAnterior + saldoPeriodo
-    const qtdAbastecimentos = abastecimentosPeriodo.length
-    const qtdAditivos = recargasPeriodo.length
+    const qtdAbastecimentos = transacoes.filter((t) => t.tipo === 'SAIDA_ABASTECIMENTO').length
+    const qtdAditivos = transacoes.filter((t) => t.tipo === 'ENTRADA_ADITIVO').length
 
     let statusResumo: 'SUPERAVIT' | 'DEFICIT' | 'EQUILIBRADO' = 'EQUILIBRADO'
     if (saldoFinal > 0) statusResumo = 'SUPERAVIT'
     else if (saldoFinal < 0) statusResumo = 'DEFICIT'
 
     let diagnostico = ''
-    if (qtdAbastecimentos === 0 && totalEntradas === 0 && saldoAnterior === 0) {
+    if (transacoes.length === 0 && saldoAnterior === 0) {
       diagnostico = `Sem movimentações financeiras de abastecimento no período (${rotuloPeriodo}).`
     } else if (saldoFinal < 0) {
-      diagnostico = `Atenção: O colaborador encerrou o período com saldo devedor/estourado de R$ ${Math.abs(
-        saldoFinal
-      ).toFixed(2)}. Os gastos de abastecimento (R$ ${totalSaidas.toFixed(
+      diagnostico = `Atenção: Saldo devedor de R$ ${Math.abs(saldoFinal).toFixed(
         2
-      )}) superaram a soma das entradas (R$ ${totalEntradas.toFixed(
-        2
-      )}) mais o saldo anterior (R$ ${saldoAnterior.toFixed(
-        2
-      )}). Recomenda-se liberação de aditivo de regularização.`
+      )}. Os abastecimentos superaram os créditos concedidos.`
     } else if (totalAditivos > 0) {
-      diagnostico = `Operação atendida com apoio de aditivos: foram concedidos R$ ${totalAditivos.toFixed(
+      diagnostico = `Operação contou com R$ ${totalAditivos.toFixed(
         2
-      )} em recarga(s) extra(s) para complementar o orçamento padrão de R$ ${totalPadrao.toFixed(
-        2
-      )}. Foram realizados ${qtdAbastecimentos} abastecimento(s) totalizando R$ ${totalSaidas.toFixed(
-        2
-      )}. Saldo disponível atual: R$ ${saldoFinal.toFixed(2)}.`
+      )} em recarga(s) extra(s) (aditivos). Saldo final disponível: R$ ${saldoFinal.toFixed(2)}.`
     } else {
-      diagnostico = `Operação 100% dentro da meta: o colaborador consumiu R$ ${totalSaidas.toFixed(
+      diagnostico = `Operação realizada 100% dentro do padrão mensal sem aditivos extras. Saldo final disponível: R$ ${saldoFinal.toFixed(
         2
-      )} em ${qtdAbastecimentos} abastecimento(s), sem necessidade de nenhum aditivo extra sobre o padrão de R$ ${totalPadrao.toFixed(
-        2
-      )}. Saldo positivo remanescente: R$ ${saldoFinal.toFixed(2)}.`
+      )}.`
     }
 
     return {
@@ -721,8 +701,8 @@ export async function getExtratoBancarioTecnico(
           admissao: tec.admissao,
         },
         periodo: {
-          ano,
-          mes,
+          dataInicio: dInicioStr,
+          dataFim: dFimStr,
           rotulo: rotuloPeriodo,
         },
         resumo: {
