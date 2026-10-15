@@ -4,7 +4,67 @@ import { prisma } from '@/lib/db'
 import s3Client from '@/lib/s3'
 import { GetObjectCommand } from '@aws-sdk/client-s3'
 
-const BUCKET_DOCUMENTOS = process.env.S3_BUCKET_DOCUMENTOS || 'sg4-docststs'
+const BUCKET_PADRAO = (
+  process.env.S3_BUCKET_DOCUMENTOS ||
+  process.env.S3_BUCKET ||
+  'sg4-docststs'
+).trim()
+
+function extractS3Candidates(arquivoUrl: string, defaultBucket: string): Array<{ bucket: string; key: string }> {
+  const candidates: Array<{ bucket: string; key: string }> = []
+  const cleanUrl = arquivoUrl.split('?')[0]
+
+  let pathname = cleanUrl
+  try {
+    if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+      const u = new URL(cleanUrl)
+      pathname = u.pathname
+    }
+  } catch {}
+
+  const normalizedPath = pathname.replace(/^\/+/, '')
+  const parts = normalizedPath.split('/')
+
+  // Caso 1: se contiver 'documentos-tecnicos/'
+  const dtIdx = normalizedPath.indexOf('documentos-tecnicos/')
+  if (dtIdx !== -1) {
+    const keyFromDt = normalizedPath.substring(dtIdx)
+    candidates.push({ bucket: defaultBucket, key: decodeURIComponent(keyFromDt) })
+    candidates.push({ bucket: defaultBucket, key: keyFromDt })
+
+    const prefix = normalizedPath.substring(0, dtIdx).replace(/\/+$/, '')
+    if (prefix && prefix !== defaultBucket) {
+      candidates.push({ bucket: prefix, key: decodeURIComponent(keyFromDt) })
+      candidates.push({ bucket: prefix, key: keyFromDt })
+    }
+  }
+
+  // Caso 2: primeiro segmento é o bucket, restante é a key
+  if (parts.length >= 2) {
+    const bucketFromUrl = parts[0]
+    const keyFromUrl = parts.slice(1).join('/')
+    candidates.push({ bucket: bucketFromUrl, key: decodeURIComponent(keyFromUrl) })
+    candidates.push({ bucket: bucketFromUrl, key: keyFromUrl })
+    if (bucketFromUrl !== defaultBucket) {
+      candidates.push({ bucket: defaultBucket, key: decodeURIComponent(keyFromUrl) })
+      candidates.push({ bucket: defaultBucket, key: keyFromUrl })
+    }
+  }
+
+  // Caso 3: todo o path é a chave dentro do bucket padrão
+  candidates.push({ bucket: defaultBucket, key: decodeURIComponent(normalizedPath) })
+  candidates.push({ bucket: defaultBucket, key: normalizedPath })
+
+  // Remove duplicados
+  const seen = new Set<string>()
+  return candidates.filter((c) => {
+    if (!c.bucket || !c.key) return false
+    const k = `${c.bucket}:::${c.key}`
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+}
 
 export async function GET(
   req: NextRequest,
@@ -60,48 +120,16 @@ export async function GET(
       return new NextResponse('Acesso restrito ao titular do documento', { status: 403 })
     }
 
-    // Extrai o bucket e a chave S3 de forma flexível e robusta
-    let bucket = BUCKET_DOCUMENTOS
-    let key = ''
-
-    try {
-      if (doc.arquivoUrl.startsWith('http://') || doc.arquivoUrl.startsWith('https://')) {
-        const parsed = new URL(doc.arquivoUrl)
-        const segments = parsed.pathname.replace(/^\/+/, '').split('/')
-        if (segments.length >= 2) {
-          bucket = segments[0]
-          key = decodeURIComponent(segments.slice(1).join('/'))
-        } else if (segments.length === 1) {
-          key = decodeURIComponent(segments[0])
-        }
-      } else {
-        const parts = doc.arquivoUrl.replace(/^\/+/, '').split('?')[0].split('/')
-        if (parts.length >= 2) {
-          bucket = parts[0]
-          key = decodeURIComponent(parts.slice(1).join('/'))
-        } else {
-          key = decodeURIComponent(parts[0])
-        }
-      }
-    } catch {
-      const marker = `/${BUCKET_DOCUMENTOS}/`
-      if (doc.arquivoUrl.includes(marker)) {
-        key = decodeURIComponent(doc.arquivoUrl.split(marker)[1].split('?')[0])
-      } else {
-        const parts = doc.arquivoUrl.split('?')[0].split('/')
-        key = decodeURIComponent(parts.slice(-2).join('/'))
-      }
-    }
-
     let buffer: Buffer | null = null
     let contentType = 'application/pdf'
 
-    // 1. Tentativa via AWS SDK (S3 / MinIO)
-    if (key) {
+    // 1. Tentativa via AWS SDK (S3 / MinIO) com candidatos
+    const candidates = extractS3Candidates(doc.arquivoUrl, BUCKET_PADRAO)
+    for (const cand of candidates) {
       try {
         const cmd = new GetObjectCommand({
-          Bucket: bucket,
-          Key: key,
+          Bucket: cand.bucket,
+          Key: cand.key,
         })
         const s3Res = await s3Client.send(cmd)
         if (s3Res.ContentType) {
@@ -110,33 +138,18 @@ export async function GET(
         if (s3Res.Body) {
           const bytes = await s3Res.Body.transformToByteArray()
           buffer = Buffer.from(bytes)
+          break
         }
       } catch (err: any) {
-        console.warn(`Tentativa S3 SDK falhou para bucket "${bucket}" e key "${key}":`, err?.message || err)
-        if (bucket !== BUCKET_DOCUMENTOS) {
-          try {
-            const fallbackCmd = new GetObjectCommand({
-              Bucket: BUCKET_DOCUMENTOS,
-              Key: key,
-            })
-            const s3Res = await s3Client.send(fallbackCmd)
-            if (s3Res.ContentType) contentType = s3Res.ContentType
-            if (s3Res.Body) {
-              const bytes = await s3Res.Body.transformToByteArray()
-              buffer = Buffer.from(bytes)
-            }
-          } catch (e2) {
-            // Segue para os próximos fallbacks
-          }
-        }
+        // Tenta o próximo candidato
       }
     }
 
-    // 2. Fallback via HTTP fetch no servidor
+    // 2. Fallback via HTTP fetch interno no servidor (se aplicável)
     if (!buffer && (doc.arquivoUrl.startsWith('http://') || doc.arquivoUrl.startsWith('https://'))) {
       try {
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 8000)
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
         const resp = await fetch(doc.arquivoUrl, { signal: controller.signal })
         clearTimeout(timeoutId)
         if (resp.ok) {
@@ -149,12 +162,18 @@ export async function GET(
       }
     }
 
-    // 3. Fallback de Redirecionamento 302 direto para a URL do arquivo
-    // Garante que, se o servidor interno não alcançar o MinIO (ex: rede Docker),
-    // o próprio navegador do usuário consiga abrir o arquivo sem apresentar erro
+    // Se o arquivo não pôde ser recuperado, retorna 404 limpo (sem redirecionamento externo)
     if (!buffer) {
-      console.log('Servidor redirecionando cliente para arquivoUrl direto:', doc.arquivoUrl)
-      return NextResponse.redirect(doc.arquivoUrl, 302)
+      return new NextResponse(
+        `<!DOCTYPE html><html><body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #475569;"><div style="text-align: center; padding: 24px;"><h3 style="color: #e11d48; margin-bottom: 8px;">Documento não localizado</h3><p style="font-size: 14px;">Não foi possível carregar o arquivo a partir do armazenamento seguro.</p></div></body></html>`,
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'X-Frame-Options': 'SAMEORIGIN',
+          },
+        }
+      )
     }
 
     const safeFileName = (doc.arquivoNome || 'documento.pdf').replace(/["\r\n]/g, '')
