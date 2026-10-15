@@ -1,8 +1,42 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
-import { getResumoOrcamentoMes, updateOrcamentoTecnico, createRecargaExtra } from '@/app/actions/abastecimentoOrcamento'
-import { Fuel, AlertTriangle, CheckCircle2, AlertCircle, Edit2, Loader2, Save, X, PlusCircle, History, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  getResumoOrcamentoMes,
+  updateOrcamentoTecnico,
+  createRecargaExtra,
+  getExtratoBancarioTecnico,
+  type ExtratoBancarioData,
+  type ItemExtratoBancario,
+} from '@/app/actions/abastecimentoOrcamento'
+import {
+  Fuel,
+  AlertTriangle,
+  CheckCircle2,
+  AlertCircle,
+  Edit2,
+  Loader2,
+  Save,
+  X,
+  PlusCircle,
+  History,
+  ChevronDown,
+  ChevronUp,
+  Receipt,
+  ArrowDownRight,
+  ArrowUpRight,
+  Calendar,
+  Wallet,
+  TrendingDown,
+  TrendingUp,
+  Sparkles,
+  Eye,
+  FileText,
+  DollarSign,
+  User,
+  Info,
+  ExternalLink,
+} from 'lucide-react'
 
 export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hideHeader?: boolean }) {
   const [ano, setAno] = useState(new Date().getFullYear())
@@ -23,19 +57,89 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   const [recargaValor, setRecargaValor] = useState('')
   const [recargaObs, setRecargaObs] = useState('')
 
+  // Modal Extrato Bancário
+  const [extratoModalTecnico, setExtratoModalTecnico] = useState<{ id: string, nome: string } | null>(null)
+  const [extratoAno, setExtratoAno] = useState<number>(new Date().getFullYear())
+  const [extratoMes, setExtratoMes] = useState<number | 'todos'>(new Date().getMonth() + 1)
+  const [dadosExtrato, setDadosExtrato] = useState<ExtratoBancarioData | null>(null)
+  const [loadingExtrato, setLoadingExtrato] = useState(false)
+  const [fotoCupomZoom, setFotoCupomZoom] = useState<string | null>(null)
+
   // Notificações
   const [notification, setNotification] = useState<{ type: 'success' | 'error', title: string, message: string } | null>(null)
 
   // Toggle dropdown de meses
   const [mesesDropdownOpen, setMesesDropdownOpen] = useState(false)
 
-  // Controle de expansão do histórico de recargas
-  const [expandedHistoricoId, setExpandedHistoricoId] = useState<string | null>(null)
-
   const MESES_NOME = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ]
+
+  async function carregarExtrato(tecnicoId: string, anoAlvo: number, mesAlvo: number | 'todos') {
+    setLoadingExtrato(true)
+    try {
+      const res = await getExtratoBancarioTecnico(tecnicoId, anoAlvo, mesAlvo)
+      if (res.success && res.data) {
+        setDadosExtrato(res.data)
+      } else {
+        setNotification({
+          type: 'error',
+          title: 'Erro no Extrato',
+          message: res.error || 'Não foi possível carregar o extrato bancário.',
+        })
+      }
+    } catch (err: any) {
+      setNotification({
+        type: 'error',
+        title: 'Erro Inesperado',
+        message: err.message || 'Falha ao buscar dados do extrato.',
+      })
+    } finally {
+      setLoadingExtrato(false)
+    }
+  }
+
+  function handleAbrirExtrato(tecnicoId: string, nomeTecnico: string) {
+    const mesInicial = mesesSelecionados.length === 1 ? mesesSelecionados[0] : (new Date().getMonth() + 1)
+    const anoInicial = ano === 0 ? new Date().getFullYear() : ano
+    setExtratoAno(anoInicial)
+    setExtratoMes(mesInicial)
+    setExtratoModalTecnico({ id: tecnicoId, nome: nomeTecnico })
+    setDadosExtrato(null)
+    carregarExtrato(tecnicoId, anoInicial, mesInicial)
+  }
+
+  function handleMudarMesExtrato(novoMes: number | 'todos') {
+    setExtratoMes(novoMes)
+    if (extratoModalTecnico) {
+      carregarExtrato(extratoModalTecnico.id, extratoAno, novoMes)
+    }
+  }
+
+  function handleMudarAnoExtrato(novoAno: number) {
+    setExtratoAno(novoAno)
+    if (extratoModalTecnico) {
+      carregarExtrato(extratoModalTecnico.id, novoAno, extratoMes)
+    }
+  }
+
+  function formatarDataHora(dataIso: string) {
+    try {
+      const d = new Date(dataIso)
+      const dia = String(d.getDate()).padStart(2, '0')
+      const mes = String(d.getMonth() + 1).padStart(2, '0')
+      const ano = d.getFullYear()
+      const horas = String(d.getHours()).padStart(2, '0')
+      const minutos = String(d.getMinutes()).padStart(2, '0')
+      return {
+        data: `${dia}/${mes}/${ano}`,
+        hora: `${horas}:${minutos}`,
+      }
+    } catch {
+      return { data: dataIso, hora: '' }
+    }
+  }
 
   useEffect(() => {
     load()
@@ -338,24 +442,50 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <button
-                        onClick={() => {
-                          setExpandedHistoricoId(expandedHistoricoId === item.tecnico.id ? null : item.tecnico.id)
+                        onClick={() => handleAbrirExtrato(item.tecnico.id, item.tecnico.nome)}
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(102,0,153,0.06), rgba(124,58,237,0.12))',
+                          border: '1px solid rgba(102,0,153,0.25)',
+                          borderRadius: 8,
+                          padding: '8px 14px',
+                          color: '#660099',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 12,
+                          fontWeight: 700,
                         }}
-                        style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: 10, color: '#475569', cursor: 'pointer', transition: 'all 0.2s' }}
-                        title="Ver Histórico de Recargas Extras"
+                        title="Abrir Extrato Bancário Analítico"
                       >
-                        <History size={16} />
+                        <Receipt size={15} />
+                        Extrato
                       </button>
                       <button
                         onClick={() => {
                           setRecargaModal({ id: item.tecnico.id, nome: item.tecnico.nome })
                         }}
-                        style={{ background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, color: '#16a34a', cursor: 'pointer', transition: 'all 0.2s' }}
+                        style={{
+                          background: '#dcfce7',
+                          border: '1px solid #bbf7d0',
+                          borderRadius: 8,
+                          padding: '8px 12px',
+                          color: '#16a34a',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
                         title="Adicionar Recarga Extra"
                       >
-                        <PlusCircle size={16} />
+                        <PlusCircle size={15} />
+                        Aditivo
                       </button>
                       <button
                         onClick={() => {
@@ -364,10 +494,10 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                           setNovoValor(orcEfetivo.toString())
                           setTipoEdicao('mes') // Padrão
                         }}
-                        style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: 10, color: '#475569', cursor: 'pointer', transition: 'all 0.2s' }}
+                        style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: 8, color: '#475569', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center' }}
                         title="Editar Orçamento Base"
                       >
-                        <Edit2 size={16} />
+                        <Edit2 size={15} />
                       </button>
                     </div>
                   </div>
@@ -395,41 +525,6 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                         </div>
                       </div>
                     ))}
-                  </div>
-                )}
-
-                {/* HISTÓRICO DE RECARGAS EXPANSÍVEL */}
-                {expandedHistoricoId === item.tecnico.id && (
-                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed #cbd5e1' }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 800, color: '#334155', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <History size={16} color="#660099" /> Histórico de Recargas Extras
-                    </h4>
-                    {item.recargasHistorico.length === 0 ? (
-                      <p style={{ fontSize: 13, color: '#64748b' }}>Nenhuma recarga extra registrada no período geral.</p>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {item.recargasHistorico.map((r: any) => (
-                          <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                              <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
-                                + R$ {r.valor.toFixed(2)}
-                              </span>
-                              <span style={{ fontSize: 12, color: '#64748b' }}>
-                                {r.observacao || 'Sem observação'}
-                              </span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-                              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
-                                {new Date(r.data).toLocaleDateString('pt-BR')} às {new Date(r.data).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}
-                              </span>
-                              <span style={{ fontSize: 11, color: '#660099', fontWeight: 700, background: '#f3e8ff', padding: '2px 6px', borderRadius: 4 }}>
-                                Feito por: {r.userName || 'Sistema'}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -565,6 +660,799 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
             <button onClick={() => setNotification(null)} style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: notification.type === 'success' ? '#16a34a' : '#dc2626', color: '#fff', fontWeight: 800, cursor: 'pointer', marginTop: 12 }}>
               OK
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE EXTRATO BANCÁRIO */}
+      {extratoModalTecnico && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(6px)',
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setExtratoModalTecnico(null)
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 20,
+              width: '100%',
+              maxWidth: 1040,
+              maxHeight: '92vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.35)',
+              overflow: 'hidden',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            {/* Header do Extrato Bancário */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #3b0764 0%, #660099 50%, #7c3aed 100%)',
+                padding: '20px 24px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                color: '#fff',
+                boxShadow: '0 4px 20px rgba(102, 0, 153, 0.25)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.15)',
+                    border: '2px solid rgba(255,255,255,0.5)',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {dadosExtrato?.tecnico.fotoUrl ? (
+                    <img
+                      src={dadosExtrato.tecnico.fotoUrl}
+                      alt={dadosExtrato.tecnico.nome}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>
+                      {extratoModalTecnico.nome.charAt(0)}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: '#fff' }}>
+                      {dadosExtrato?.tecnico.nome || extratoModalTecnico.nome}
+                    </h2>
+                    <span
+                      style={{
+                        background: 'rgba(255,255,255,0.2)',
+                        padding: '3px 10px',
+                        borderRadius: 20,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: 0.5,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Extrato Bancário
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 4, flexWrap: 'wrap', fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
+                    <span>
+                      Cota Base Contratual: <strong style={{ color: '#fff' }}>R$ {(dadosExtrato?.tecnico.orcamentoBase || 0).toFixed(2)}/mês</strong>
+                    </span>
+                    {dadosExtrato?.tecnico.admissao && (
+                      <span>
+                        • Admissão: <strong style={{ color: '#fff' }}>{new Date(dadosExtrato.tecnico.admissao).toLocaleDateString('pt-BR')}</strong>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setExtratoModalTecnico(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 36,
+                  height: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+                title="Fechar Extrato"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Barra de Filtro de Período do Extrato */}
+            <div
+              style={{
+                background: '#f8fafc',
+                padding: '12px 24px',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Calendar size={16} color="#660099" />
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                  Período do Extrato:
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#660099', background: '#f3e8ff', padding: '3px 8px', borderRadius: 6 }}>
+                  {dadosExtrato?.periodo.rotulo || (extratoMes === 'todos' ? `Ano ${extratoAno}` : `${MESES_NOME[(extratoMes as number) - 1]} / ${extratoAno}`)}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {/* Seletor de Ano */}
+                <select
+                  value={extratoAno}
+                  onChange={(e) => handleMudarAnoExtrato(Number(e.target.value))}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    background: '#fff',
+                    color: '#1e293b',
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  {[2026, 2027, 2028].map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Botão de Todos os Meses */}
+                <button
+                  type="button"
+                  onClick={() => handleMudarMesExtrato('todos')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: extratoMes === 'todos' ? '1px solid #660099' : '1px solid #e2e8f0',
+                    background: extratoMes === 'todos' ? '#660099' : '#fff',
+                    color: extratoMes === 'todos' ? '#fff' : '#475569',
+                    boxShadow: extratoMes === 'todos' ? '0 2px 8px rgba(102, 0, 153, 0.25)' : 'none',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  Ano Completo (Acumulado)
+                </button>
+
+                {/* Pílulas de Meses */}
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {MESES_NOME.map((nome, idx) => {
+                    const mNum = idx + 1
+                    const isSelected = extratoMes === mNum
+                    const isBeforeMarcoZero = extratoAno === 2026 && mNum < 7
+                    if (isBeforeMarcoZero) return null
+
+                    return (
+                      <button
+                        key={mNum}
+                        type="button"
+                        onClick={() => handleMudarMesExtrato(mNum)}
+                        style={{
+                          padding: '5px 9px',
+                          borderRadius: 6,
+                          fontSize: 11,
+                          fontWeight: isSelected ? 800 : 600,
+                          cursor: 'pointer',
+                          border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                          background: isSelected ? '#660099' : '#fff',
+                          color: isSelected ? '#fff' : '#475569',
+                          boxShadow: isSelected ? '0 2px 6px rgba(102, 0, 153, 0.25)' : 'none',
+                          transition: 'all 0.15s',
+                        }}
+                        title={nome}
+                      >
+                        {nome.slice(0, 3)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Conteúdo do Extrato */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '20px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 20,
+                background: '#fcfcfd',
+              }}
+            >
+              {loadingExtrato ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 60, gap: 14 }}>
+                  <Loader2 className="animate-spin text-purple-600" size={36} />
+                  <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                    Processando extrato bancário e calculando saldos progressivos...
+                  </span>
+                </div>
+              ) : dadosExtrato ? (
+                <>
+                  {/* Resumo Financeiro no Estilo Bancário (5 Cards) */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+                      gap: 12,
+                    }}
+                  >
+                    {/* 1. Saldo Anterior */}
+                    <div
+                      style={{
+                        background: '#fff',
+                        borderRadius: 12,
+                        padding: '14px 16px',
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Saldo Anterior
+                        </span>
+                        <Wallet size={14} color="#64748b" />
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 800,
+                          color: dadosExtrato.resumo.saldoAnterior < 0 ? '#dc2626' : '#334155',
+                        }}
+                      >
+                        R$ {dadosExtrato.resumo.saldoAnterior.toFixed(2)}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>
+                        Carry-over herdado
+                      </span>
+                    </div>
+
+                    {/* 2. Padrão do Mês */}
+                    <div
+                      style={{
+                        background: '#eff6ff',
+                        borderRadius: 12,
+                        padding: '14px 16px',
+                        border: '1px solid #bfdbfe',
+                        boxShadow: '0 2px 6px rgba(37,99,235,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Padrão do Mês
+                        </span>
+                        <Calendar size={14} color="#1d4ed8" />
+                      </div>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: '#1e40af' }}>
+                        R$ {dadosExtrato.resumo.totalPadrao.toFixed(2)}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#60a5fa', fontWeight: 600 }}>
+                        Cota base regular
+                      </span>
+                    </div>
+
+                    {/* 3. Aditivos (Recargas) */}
+                    <div
+                      style={{
+                        background: '#faf5ff',
+                        borderRadius: 12,
+                        padding: '14px 16px',
+                        border: '1px solid #e9d5ff',
+                        boxShadow: '0 2px 6px rgba(124,58,237,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Aditivos (Extras)
+                        </span>
+                        <Sparkles size={14} color="#7c3aed" />
+                      </div>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: '#6b21a8' }}>
+                        + R$ {dadosExtrato.resumo.totalAditivos.toFixed(2)}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#a855f7', fontWeight: 600 }}>
+                        {dadosExtrato.resumo.qtdAditivos} recarga(s) extra(s)
+                      </span>
+                    </div>
+
+                    {/* 4. Total Saídas */}
+                    <div
+                      style={{
+                        background: '#fef2f2',
+                        borderRadius: 12,
+                        padding: '14px 16px',
+                        border: '1px solid #fecaca',
+                        boxShadow: '0 2px 6px rgba(220,38,38,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: '#dc2626', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Total Saídas
+                        </span>
+                        <TrendingDown size={14} color="#dc2626" />
+                      </div>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: '#b91c1c' }}>
+                        - R$ {dadosExtrato.resumo.totalSaidas.toFixed(2)}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#f87171', fontWeight: 600 }}>
+                        {dadosExtrato.resumo.qtdAbastecimentos} abastecimento(s)
+                      </span>
+                    </div>
+
+                    {/* 5. Saldo Atual em Conta */}
+                    <div
+                      style={{
+                        background: dadosExtrato.resumo.saldoFinal >= 0 ? '#f0fdf4' : '#fff1f2',
+                        borderRadius: 12,
+                        padding: '14px 16px',
+                        border: dadosExtrato.resumo.saldoFinal >= 0 ? '1px solid #bbf7d0' : '1px solid #fecdd3',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            color: dadosExtrato.resumo.saldoFinal >= 0 ? '#15803d' : '#be123c',
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.5,
+                          }}
+                        >
+                          Saldo em Conta
+                        </span>
+                        {dadosExtrato.resumo.saldoFinal >= 0 ? (
+                          <CheckCircle2 size={14} color="#15803d" />
+                        ) : (
+                          <AlertTriangle size={14} color="#be123c" />
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 18,
+                          fontWeight: 900,
+                          color: dadosExtrato.resumo.saldoFinal >= 0 ? '#166534' : '#9f1239',
+                        }}
+                      >
+                        R$ {dadosExtrato.resumo.saldoFinal.toFixed(2)}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: dadosExtrato.resumo.saldoFinal >= 0 ? '#22c55e' : '#f43f5e',
+                        }}
+                      >
+                        {dadosExtrato.resumo.saldoFinal >= 0 ? 'Saldo Disponível' : 'Estourado / Devedor'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Banner de Diagnóstico Analítico */}
+                  <div
+                    style={{
+                      background:
+                        dadosExtrato.resumo.status === 'SUPERAVIT'
+                          ? '#f0fdf4'
+                          : dadosExtrato.resumo.status === 'DEFICIT'
+                          ? '#fef2f2'
+                          : '#f8fafc',
+                      borderRadius: 12,
+                      padding: '14px 18px',
+                      border:
+                        dadosExtrato.resumo.status === 'SUPERAVIT'
+                          ? '1px solid #bbf7d0'
+                          : dadosExtrato.resumo.status === 'DEFICIT'
+                          ? '1px solid #fecaca'
+                          : '1px solid #e2e8f0',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 14,
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: 8,
+                        borderRadius: 10,
+                        background:
+                          dadosExtrato.resumo.status === 'SUPERAVIT'
+                            ? '#dcfce7'
+                            : dadosExtrato.resumo.status === 'DEFICIT'
+                            ? '#fee2e2'
+                            : '#f1f5f9',
+                        color:
+                          dadosExtrato.resumo.status === 'SUPERAVIT'
+                            ? '#16a34a'
+                            : dadosExtrato.resumo.status === 'DEFICIT'
+                            ? '#dc2626'
+                            : '#64748b',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {dadosExtrato.resumo.status === 'SUPERAVIT' ? (
+                        <CheckCircle2 size={18} />
+                      ) : dadosExtrato.resumo.status === 'DEFICIT' ? (
+                        <AlertTriangle size={18} />
+                      ) : (
+                        <Info size={18} />
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
+                          Diagnóstico do Período:
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 800,
+                            padding: '2px 8px',
+                            borderRadius: 6,
+                            background:
+                              dadosExtrato.resumo.status === 'SUPERAVIT'
+                                ? '#dcfce7'
+                                : dadosExtrato.resumo.status === 'DEFICIT'
+                                ? '#fee2e2'
+                                : '#e2e8f0',
+                            color:
+                              dadosExtrato.resumo.status === 'SUPERAVIT'
+                                ? '#166534'
+                                : dadosExtrato.resumo.status === 'DEFICIT'
+                                ? '#991b1b'
+                                : '#334155',
+                          }}
+                        >
+                          {dadosExtrato.resumo.status === 'SUPERAVIT'
+                            ? 'Operação Eficiente'
+                            : dadosExtrato.resumo.status === 'DEFICIT'
+                            ? 'Déficit / Cota Excedida'
+                            : 'Neutro'}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.5 }}>
+                        {dadosExtrato.resumo.diagnostico}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tabela de Extrato Bancário Analítico */}
+                  <div
+                    style={{
+                      background: '#fff',
+                      borderRadius: 14,
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '14px 20px',
+                        background: '#f8fafc',
+                        borderBottom: '1px solid #e2e8f0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileText size={16} color="#660099" />
+                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
+                          Histórico Cronológico de Lançamentos
+                        </h3>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b' }}>
+                        {dadosExtrato.transacoes.length} lançamento(s)
+                      </span>
+                    </div>
+
+                    {dadosExtrato.transacoes.length === 0 ? (
+                      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+                        <Receipt size={32} color="#cbd5e1" style={{ margin: '0 auto 10px auto' }} />
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
+                          Nenhuma movimentação financeira registrada neste período.
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
+                          <thead>
+                            <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                              <th style={{ padding: '12px 18px', width: 140 }}>Data / Hora</th>
+                              <th style={{ padding: '12px 18px', width: 170 }}>Tipo</th>
+                              <th style={{ padding: '12px 18px' }}>Descrição & Detalhes</th>
+                              <th style={{ padding: '12px 18px', textAlign: 'right', width: 140 }}>Valor</th>
+                              <th style={{ padding: '12px 18px', textAlign: 'right', width: 160 }}>Saldo em Conta</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dadosExtrato.transacoes.map((t, idx) => {
+                              const dt = formatarDataHora(t.data)
+                              const isEntrada = t.valor > 0
+                              const isSaida = t.valor < 0
+
+                              return (
+                                <tr
+                                  key={t.id || idx}
+                                  style={{
+                                    borderBottom: '1px solid #f1f5f9',
+                                    background: idx % 2 === 0 ? '#fff' : '#fafafa',
+                                    transition: 'background 0.15s',
+                                  }}
+                                >
+                                  {/* Data & Hora */}
+                                  <td style={{ padding: '12px 18px', whiteSpace: 'nowrap' }}>
+                                    <div style={{ fontWeight: 700, color: '#1e293b' }}>{dt.data}</div>
+                                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>{dt.hora}</div>
+                                  </td>
+
+                                  {/* Tipo da Transação */}
+                                  <td style={{ padding: '12px 18px', whiteSpace: 'nowrap' }}>
+                                    {t.tipo === 'ENTRADA_PADRAO' && (
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 6, background: '#eff6ff', color: '#1d4ed8', fontWeight: 800, fontSize: 11 }}>
+                                        <ArrowDownRight size={13} /> Cota Padrão
+                                      </span>
+                                    )}
+                                    {t.tipo === 'ENTRADA_ADITIVO' && (
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 6, background: '#faf5ff', color: '#7c3aed', fontWeight: 800, fontSize: 11 }}>
+                                        <Sparkles size={13} /> Aditivo Extra
+                                      </span>
+                                    )}
+                                    {t.tipo === 'ENTRADA_AJUSTE' && (
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 6, background: '#fffbeb', color: '#b45309', fontWeight: 800, fontSize: 11 }}>
+                                        <Edit2 size={13} /> Ajuste Base
+                                      </span>
+                                    )}
+                                    {t.tipo === 'SAIDA_ABASTECIMENTO' && (
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 6, background: '#fef2f2', color: '#dc2626', fontWeight: 800, fontSize: 11 }}>
+                                        <ArrowUpRight size={13} /> Abastecimento
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  {/* Descrição e Comprovante */}
+                                  <td style={{ padding: '12px 18px' }}>
+                                    <div style={{ fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                      <span>{t.titulo}</span>
+                                      {t.userName && (
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#660099', background: '#f3e8ff', padding: '2px 6px', borderRadius: 4 }}>
+                                          Por: {t.userName}
+                                        </span>
+                                      )}
+                                      {t.fotoCupom && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setFotoCupomZoom(t.fotoCupom!)}
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            padding: '2px 8px',
+                                            borderRadius: 4,
+                                            background: '#e0f2fe',
+                                            border: '1px solid #bae6fd',
+                                            color: '#0284c7',
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                          }}
+                                          title="Visualizar Comprovante / Cupom Fiscal"
+                                        >
+                                          <Eye size={12} /> Ver Cupom
+                                        </button>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                                      {t.descricao}
+                                    </div>
+                                  </td>
+
+                                  {/* Valor Lançado */}
+                                  <td style={{ padding: '12px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                    <span
+                                      style={{
+                                        fontSize: 13,
+                                        fontWeight: 800,
+                                        color: isEntrada ? '#16a34a' : isSaida ? '#dc2626' : '#334155',
+                                      }}
+                                    >
+                                      {isEntrada ? `+ R$ ${t.valor.toFixed(2)}` : `- R$ ${Math.abs(t.valor).toFixed(2)}`}
+                                    </span>
+                                  </td>
+
+                                  {/* Saldo Progressivo */}
+                                  <td style={{ padding: '12px 18px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                    <span
+                                      style={{
+                                        fontSize: 13,
+                                        fontWeight: 800,
+                                        color: t.saldoApos < 0 ? '#dc2626' : '#0f172a',
+                                      }}
+                                    >
+                                      R$ {t.saldoApos.toFixed(2)}
+                                    </span>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            {/* Rodapé do Extrato */}
+            <div
+              style={{
+                padding: '12px 24px',
+                background: '#f8fafc',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span style={{ fontSize: 12, color: '#64748b' }}>
+                💡 Extrato gerado com cálculo de carry-over progressivo desde o marco zero da operação.
+              </span>
+              <button
+                type="button"
+                onClick={() => setExtratoModalTecnico(null)}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  background: '#fff',
+                  color: '#334155',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE ZOOM DO CUPOM FISCAL */}
+      {fotoCupomZoom && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1300,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(5px)',
+            padding: 20,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setFotoCupomZoom(null)
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              maxWidth: 600,
+              width: '100%',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div
+              style={{
+                padding: '14px 20px',
+                background: '#1e293b',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Eye size={16} /> Comprovante / Cupom Fiscal
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <a
+                  href={fotoCupomZoom}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    color: '#94a3b8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 12,
+                    textDecoration: 'none',
+                  }}
+                >
+                  <ExternalLink size={14} /> Abrir original
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setFotoCupomZoom(null)}
+                  style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div style={{ padding: 16, maxHeight: '75vh', overflowY: 'auto', display: 'flex', justifyContent: 'center', background: '#0f172a' }}>
+              <img
+                src={fotoCupomZoom}
+                alt="Cupom Fiscal"
+                style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 8 }}
+              />
+            </div>
           </div>
         </div>
       )}

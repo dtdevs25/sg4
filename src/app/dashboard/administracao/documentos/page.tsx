@@ -3109,10 +3109,10 @@ export default function DocumentosTecnicosPage({
               </table>
             </div>
 
-            {/* Rodapé do Modal com Informações e Fechar */}
+            {/* Rodapé do Modal com Informações */}
             <div
               style={{
-                padding: '12px 24px',
+                padding: '10px 24px',
                 background: '#f8fafc',
                 borderTop: '1px solid #e2e8f0',
                 display: 'flex',
@@ -3122,24 +3122,8 @@ export default function DocumentosTecnicosPage({
               }}
             >
               <div style={{ fontSize: 12, color: '#64748b' }}>
-                Clique sobre qualquer data para visualizar o documento diretamente no visualizador.
+                💡 Dica: Clique sobre qualquer data para visualizar o documento diretamente no visualizador.
               </div>
-              <button
-                type="button"
-                onClick={() => setModalAuditoriaAberto(false)}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: 8,
-                  background: '#fff',
-                  border: '1px solid #cbd5e1',
-                  color: '#334155',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Fechar
-              </button>
             </div>
           </div>
         </div>
