@@ -67,6 +67,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   const [recargaModal, setRecargaModal] = useState<{ id: string, nome: string } | null>(null)
   const [recargaValor, setRecargaValor] = useState('')
   const [recargaObs, setRecargaObs] = useState('')
+  const [recargaData, setRecargaData] = useState('')
 
   // Modal Extrato Bancário
   const [extratoModalTecnico, setExtratoModalTecnico] = useState<{ id: string, nome: string, fotoUrl?: string | null, veiculo?: string | null } | null>(null)
@@ -277,14 +278,13 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     if (isNaN(valor) || valor <= 0) return setNotification({ type: 'error', title: 'Valor Inválido', message: 'A recarga precisa ser maior que zero.' })
     
     startTransition(async () => {
-      const maxMesSelecionado = mesesSelecionados.length > 0 ? Math.max(...mesesSelecionados) : new Date().getMonth() + 1
-      const anoSelecionado = ano === 0 ? new Date().getFullYear() : ano
-      const hoje = new Date()
       let dataDestino: Date
-      if (anoSelecionado === hoje.getFullYear() && maxMesSelecionado === (hoje.getMonth() + 1)) {
-        dataDestino = new Date()
+      if (recargaData) {
+        const [anoD, mesD, diaD] = recargaData.split('-').map(Number)
+        const agora = new Date()
+        dataDestino = new Date(anoD, mesD - 1, diaD, agora.getHours(), agora.getMinutes(), agora.getSeconds())
       } else {
-        dataDestino = new Date(anoSelecionado, maxMesSelecionado - 1, 15, 12, 0, 0)
+        dataDestino = new Date()
       }
 
       const res = await createRecargaExtra(recargaModal.id, valor, recargaObs, dataDestino)
@@ -292,7 +292,8 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
         setRecargaModal(null)
         setRecargaValor('')
         setRecargaObs('')
-        setNotification({ type: 'success', title: 'Sucesso', message: `Recarga extra lançada no mês de ${MESES_NOME[maxMesSelecionado-1]}!` })
+        setRecargaData('')
+        setNotification({ type: 'success', title: 'Sucesso', message: 'Aditivo / recarga extra lançada com sucesso!' })
         load()
       } else {
         setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao registrar recarga extra' })
@@ -738,23 +739,20 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                   </div>
 
                   <div className="abast-stats">
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', marginBottom: 4 }}>
+                    <div style={{ textAlign: 'center', minWidth: 140 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', marginBottom: 4, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         GASTO TOTAL PERÍODO
                       </div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: '#ef4444' }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: '#ef4444', lineHeight: '22px' }}>
                         R$ {(mesesSelecionados.length > 0 ? item.gastoTotalPeriodo : item.gastoTotalAcumulado).toFixed(2)}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', marginBottom: 4 }}>
+                    <div style={{ textAlign: 'center', minWidth: 140 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', marginBottom: 4, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         SALDO ATUAL
                       </div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: item.saldo <= 100 ? '#f59e0b' : '#10b981' }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: item.saldo <= 100 ? '#f59e0b' : '#10b981', lineHeight: '22px' }}>
                         R$ {(mesesSelecionados.length > 0 ? item.saldo : item.saldoAcumuladoTotal).toFixed(2)}
-                      </div>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', marginTop: 4 }}>
-                        (Restante p/ uso)
                       </div>
                     </div>
                   </div>
@@ -801,6 +799,9 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                       <button
                         onClick={() => {
                           setRecargaModal({ id: item.tecnico.id, nome: item.tecnico.nome })
+                          setRecargaValor('')
+                          setRecargaObs('')
+                          setRecargaData(getDataHojeFormatada())
                         }}
                         style={{
                           background: '#dcfce7',
@@ -816,10 +817,10 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                           fontSize: 12,
                           fontWeight: 700,
                         }}
-                        title="Adicionar Recarga Extra"
+                        title="Adicionar Recarga Extra (+ R$)"
                       >
                         <PlusCircle size={15} />
-                        Aditivo
+                        + R$
                       </button>
                       <button
                         onClick={() => {
@@ -961,11 +962,21 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                 />
               </div>
               <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>DATA DO DEPÓSITO</label>
+                <input 
+                  type="date" 
+                  required
+                  value={recargaData}
+                  onChange={e => setRecargaData(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, fontWeight: 600, color: '#1e293b', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#64748b', marginBottom: 8 }}>MOTIVO / OBSERVAÇÃO</label>
                 <input 
                   type="text" 
                   required
-                  placeholder="Ex: Complemento via N8N"
+                  placeholder="Ex: credito adicional para viagens ..."
                   value={recargaObs}
                   onChange={e => setRecargaObs(e.target.value)}
                   style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
