@@ -75,6 +75,10 @@ export default function RelatoriosAtividadesPage() {
   const [activeTab, setActiveTab] = useState<'gerador' | 'salvos'>('gerador')
   const [relatoriosSalvos, setRelatoriosSalvos] = useState<any[]>([])
   const [showDeletePdfModal, setShowDeletePdfModal] = useState<string | null>(null)
+  const [searchSalvos, setSearchSalvos] = useState('')
+  const [showInativosSalvos, setShowInativosSalvos] = useState(false)
+  const [currentPageSalvos, setCurrentPageSalvos] = useState(1)
+  const [itemsPerPageSalvos, setItemsPerPageSalvos] = useState(10)
 
   useEffect(() => {
     if (activeTab === 'gerador') {
@@ -176,6 +180,78 @@ export default function RelatoriosAtividadesPage() {
   }))
   const maxContagem = Math.max(...dadosPorMes.map(d => d.count), 1)
 
+  // Identifica o técnico de um relatório salvo (por tecnicoId, elaborador ou nome do arquivo)
+  function getTecnicoFromRelatorio(r: any, allTecnicos: any[]) {
+    if (r.tecnico) return r.tecnico
+    if (r.tecnicoId) {
+      const found = allTecnicos.find(t => t.id === r.tecnicoId)
+      if (found) return found
+    }
+    if (r.elaborador) {
+      const elabClean = r.elaborador.trim().toLowerCase()
+      const found = allTecnicos.find(t => t.nome && t.nome.trim().toLowerCase() === elabClean)
+      if (found) return found
+    }
+    if (r.nomeArquivo) {
+      const fileNameUpper = r.nomeArquivo.toUpperCase()
+      const sortedTecs = [...allTecnicos].sort((a, b) => (b.nome?.length || 0) - (a.nome?.length || 0))
+      const found = sortedTecs.find(t => t.nome && fileNameUpper.includes(t.nome.trim().toUpperCase()))
+      if (found) return found
+    }
+    return null
+  }
+
+  // Totais de técnicos ativos e inativos nos relatórios salvos
+  const totalsTecnicosSalvos = (() => {
+    const tecMap = new Map<string, boolean>()
+    relatoriosSalvos.forEach(r => {
+      const tec = getTecnicoFromRelatorio(r, tecnicos)
+      if (tec) {
+        tecMap.set(tec.id, tec.ativo !== false)
+      }
+    })
+    let ativos = 0
+    let inativos = 0
+    tecMap.forEach(isAtivo => {
+      if (isAtivo) ativos++
+      else inativos++
+    })
+    return { ativos, inativos }
+  })()
+
+  // Filtragem de relatórios salvos por técnico e técnicos inativos
+  const filteredRelatoriosSalvos = relatoriosSalvos.filter(r => {
+    const tec = getTecnicoFromRelatorio(r, tecnicos)
+
+    // Se o técnico é inativo e a flag de inativos não estiver marcada, esconde
+    if (!showInativosSalvos && tec && tec.ativo === false) {
+      return false
+    }
+
+    // Filtro por pesquisa (nome do técnico, elaborador, nome do arquivo ou mês/ano)
+    if (searchSalvos.trim()) {
+      const term = searchSalvos.trim().toLowerCase()
+      const tecNome = tec?.nome?.toLowerCase() || ''
+      const elaborador = r.elaborador?.toLowerCase() || ''
+      const nomeArquivo = r.nomeArquivo?.toLowerCase() || ''
+      const mesAno = r.mesAno?.toLowerCase() || ''
+
+      const match = tecNome.includes(term) || elaborador.includes(term) || nomeArquivo.includes(term) || mesAno.includes(term)
+      if (!match) return false
+    }
+
+    return true
+  })
+
+  useEffect(() => {
+    setCurrentPageSalvos(1)
+  }, [searchSalvos, showInativosSalvos])
+
+  const totalPagesSalvos = Math.ceil(filteredRelatoriosSalvos.length / itemsPerPageSalvos)
+  const paginatedRelatoriosSalvos = filteredRelatoriosSalvos.slice(
+    (currentPageSalvos - 1) * itemsPerPageSalvos,
+    currentPageSalvos * itemsPerPageSalvos
+  )
 
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
   function handleMonthClick(m: string) {
@@ -413,6 +489,8 @@ export default function RelatoriosAtividadesPage() {
           formData.append('fileData', pdfObj.base64);
           formData.append('fileName', pdfObj.fileName);
           formData.append('mesAno', mesAnoFormat);
+          if (tIdParaGerar) formData.append('tecnicoId', tIdParaGerar);
+          if (elaborador) formData.append('elaborador', elaborador);
           uploadRelatorioPdf(formData).then(res => {
             if (!res.success) console.error(res.error)
           })
@@ -639,11 +717,9 @@ export default function RelatoriosAtividadesPage() {
                       <button onClick={() => openEdit(a)} style={{ background: 'transparent', border: 'none', color: '#660099', cursor: 'pointer', padding: 4 }} title="Editar">
                         <Edit3 size={16} />
                       </button>
-                      {role !== 'TST' && (
-                        <button onClick={() => setShowDeleteModal(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
-                          <Trash2 size={16} />
-                        </button>
-                      )}
+                      <button onClick={() => setShowDeleteModal(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -700,13 +776,46 @@ export default function RelatoriosAtividadesPage() {
       ) : (
         /* ABA RELATÓRIOS SALVOS */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* BARRA DE PESQUISA E FLAG DE TÉCNICOS INATIVOS */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9', flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ position: 'relative', width: 340, maxWidth: '100%' }}>
+              <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
+              <input
+                type="text"
+                placeholder="Pesquisar por técnico ou arquivo..."
+                value={searchSalvos}
+                onChange={(e) => setSearchSalvos(e.target.value)}
+                style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {totalsTecnicosSalvos.inativos > 0 && (
+                <div style={{ display: 'flex', gap: 10, fontSize: 12, fontWeight: 700, color: '#475569', background: '#f8fafc', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <span>Ativos: <span style={{ color: '#10b981' }}>{totalsTecnicosSalvos.ativos}</span></span>
+                  <span style={{ color: '#cbd5e1' }}>|</span>
+                  <span>Inativos: <span style={{ color: '#ef4444' }}>{totalsTecnicosSalvos.inativos}</span></span>
+                </div>
+              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={showInativosSalvos}
+                  onChange={e => setShowInativosSalvos(e.target.checked)}
+                  style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#660099' }}
+                />
+                Incluir técnicos inativos
+              </label>
+            </div>
+          </div>
+
           <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                   <tr>
                     <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>NOME DO ARQUIVO</th>
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>ELABORADOR</th>
+                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>TÉCNICO / ELABORADOR</th>
                     <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>DATA GERAÇÃO</th>
                     <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>AÇÕES</th>
                   </tr>
@@ -714,38 +823,96 @@ export default function RelatoriosAtividadesPage() {
                 <tbody>
                   {loading ? (
                     <tr><td colSpan={4} style={{ padding: 60, textAlign: 'center' }}><Loader2 className="animate-spin inline" color="#660099" size={32} /></td></tr>
-                  ) : relatoriosSalvos.length === 0 ? (
+                  ) : paginatedRelatoriosSalvos.length === 0 ? (
                     <tr><td colSpan={4} style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>Nenhum relatório salvo encontrado.</td></tr>
-                  ) : relatoriosSalvos.map(r => (
-                    <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
-                        <a href={r.url} target="_blank" rel="noreferrer" style={{ color: '#660099', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <FileText size={16} /> {r.nomeArquivo}
-                        </a>
-                      </td>
-                      <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
-                        {r.elaborador}
-                      </td>
-                      <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
-                        {new Date(r.createdAt).toLocaleString('pt-BR')}
-                      </td>
-                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                          <a href={r.url} target="_blank" rel="noreferrer" style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 4 }} title="Visualizar">
-                            <Eye size={16} />
+                  ) : paginatedRelatoriosSalvos.map(r => {
+                    const tec = getTecnicoFromRelatorio(r, tecnicos)
+                    return (
+                      <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                          <a href={r.url} target="_blank" rel="noreferrer" style={{ color: '#660099', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <FileText size={16} /> {r.nomeArquivo}
                           </a>
-                          {role !== 'TST' && (
-                            <button onClick={() => setShowDeletePdfModal(r.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
-                              <Trash2 size={16} />
-                            </button>
+                        </td>
+                        <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 600, color: '#334155' }}>{tec?.nome || r.elaborador}</span>
+                            {tec && tec.ativo === false && (
+                              <span style={{ padding: '2px 6px', background: '#fee2e2', color: '#ef4444', borderRadius: 4, fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }}>
+                                Inativo
+                              </span>
+                            )}
+                          </div>
+                          {tec && r.elaborador && tec.nome?.toLowerCase() !== r.elaborador.toLowerCase() && (
+                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                              Elaborado por: {r.elaborador}
+                            </div>
                           )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td style={{ padding: '14px 20px', fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                          {new Date(r.createdAt).toLocaleString('pt-BR')}
+                        </td>
+                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                            <a href={r.url} target="_blank" rel="noreferrer" style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 4 }} title="Visualizar">
+                              <Eye size={16} />
+                            </a>
+                            {role !== 'TST' && (
+                              <button onClick={() => setShowDeletePdfModal(r.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
+
+            {/* PAGINATION CONTROLS PARA RELATÓRIOS SALVOS */}
+            {filteredRelatoriosSalvos.length > 0 && (
+              <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                    Mostrando de {(currentPageSalvos - 1) * itemsPerPageSalvos + 1} a {Math.min(currentPageSalvos * itemsPerPageSalvos, filteredRelatoriosSalvos.length)} de {filteredRelatoriosSalvos.length} relatórios
+                  </span>
+                  <select
+                    value={itemsPerPageSalvos}
+                    onChange={(e) => {
+                      setItemsPerPageSalvos(Number(e.target.value))
+                      setCurrentPageSalvos(1)
+                    }}
+                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value={10}>10 por página</option>
+                    <option value={20}>20 por página</option>
+                    <option value={50}>50 por página</option>
+                    <option value={100}>100 por página</option>
+                  </select>
+                </div>
+
+                {totalPagesSalvos > 1 && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => setCurrentPageSalvos(p => Math.max(1, p - 1))}
+                      disabled={currentPageSalvos === 1}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageSalvos === 1 ? '#f1f5f9' : '#fff', color: currentPageSalvos === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageSalvos === 1 ? 'not-allowed' : 'pointer' }}
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      onClick={() => setCurrentPageSalvos(p => Math.min(totalPagesSalvos, p + 1))}
+                      disabled={currentPageSalvos === totalPagesSalvos}
+                      style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPageSalvos === totalPagesSalvos ? '#f1f5f9' : '#fff', color: currentPageSalvos === totalPagesSalvos ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPageSalvos === totalPagesSalvos ? 'not-allowed' : 'pointer' }}
+                    >
+                      Próxima
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

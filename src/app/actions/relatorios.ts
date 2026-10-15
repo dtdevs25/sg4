@@ -138,6 +138,16 @@ export async function deleteAtividade(id: string) {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
     const userId = (session.user as any).id
+    const role = (session.user as any).role
+    const tecnicoId = (session.user as any).tecnicoId
+
+    if (role === 'TST') {
+      const existing = await prisma.relatorioAtividade.findUnique({ where: { id } })
+      if (!existing) return { success: false, error: 'Atividade não encontrada' }
+      if (tecnicoId && existing.tecnicoId !== tecnicoId) {
+        return { success: false, error: 'Você só pode excluir atividades do seu próprio relatório' }
+      }
+    }
 
     await prisma.relatorioAtividade.delete({ where: { id } })
     await audit({ userId, action: 'EXCLUIR_RELATORIO_ATIVIDADE', entity: 'Relatório Atividade', entityId: id })

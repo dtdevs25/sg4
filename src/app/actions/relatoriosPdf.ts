@@ -13,8 +13,11 @@ export async function uploadRelatorioPdf(formData: FormData) {
     const session = await auth()
     const userId = session?.user?.id
     const user = await db.user.findUnique({ where: { id: userId }, include: { tecnico: true } })
-    const tecnicoId = user?.tecnico?.id || null
-    const elaborador = user?.name || 'Sistema'
+    const formTecnicoId = formData.get('tecnicoId') as string | null;
+    const formElaborador = formData.get('elaborador') as string | null;
+
+    const tecnicoId = formTecnicoId || user?.tecnico?.id || null
+    const elaborador = formElaborador || user?.name || 'Sistema'
 
     const base64Data = formData.get('fileData') as string;
     const fileName = formData.get('fileName') as string;
@@ -76,7 +79,17 @@ export async function getRelatoriosPdf() {
     const role = (session.user as any).role
     const tecnicoId = (session.user as any).tecnicoId
 
-    const where = role === 'TST' ? { tecnicoId } : {}
+    let where: any = {}
+    if (role === 'TST') {
+      const tecnicoNome = (session.user as any).nome || session.user.name
+      const conditions: any[] = []
+      if (tecnicoId) conditions.push({ tecnicoId })
+      if (tecnicoNome) {
+        conditions.push({ elaborador: { contains: tecnicoNome, mode: 'insensitive' } })
+        conditions.push({ nomeArquivo: { contains: tecnicoNome, mode: 'insensitive' } })
+      }
+      where = conditions.length > 0 ? { OR: conditions } : (tecnicoId ? { tecnicoId } : {})
+    }
 
     const relatorios = await db.relatorioPdf.findMany({
       where,

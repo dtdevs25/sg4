@@ -292,6 +292,7 @@ export default function DocumentosTecnicosPage({
     isOpen: boolean
     id: string
     nome: string
+    url?: string
     tecnicoNome?: string
     tipoNome?: string
   } | null>(null)
@@ -1125,6 +1126,7 @@ export default function DocumentosTecnicosPage({
                                   isOpen: true,
                                   id: doc.id,
                                   nome: doc.arquivoNome,
+                                  url: doc.arquivoUrl,
                                   tecnicoNome: doc.tecnico?.nome,
                                   tipoNome: doc.tipoDocumento?.nome,
                                 })
@@ -1827,6 +1829,7 @@ export default function DocumentosTecnicosPage({
                         isOpen: true,
                         id: modalHistoricoDoc.id,
                         nome: modalHistoricoDoc.arquivoNome,
+                        url: modalHistoricoDoc.arquivoUrl,
                         tecnicoNome: modalHistoricoDoc.tecnico?.nome,
                         tipoNome: modalHistoricoDoc.tipoDocumento?.nome,
                       })
@@ -1895,6 +1898,7 @@ export default function DocumentosTecnicosPage({
                               isOpen: true,
                               id: hist.id,
                               nome: hist.arquivoNome,
+                              url: hist.arquivoUrl,
                               tecnicoNome: modalHistoricoDoc.tecnico?.nome,
                               tipoNome: modalHistoricoDoc.tipoDocumento?.nome,
                             })
@@ -2429,6 +2433,7 @@ export default function DocumentosTecnicosPage({
                                   isOpen: true,
                                   id: item.id,
                                   nome: item.arquivoNome,
+                                  url: item.arquivoUrl,
                                   tecnicoNome: item.tecnico?.nome,
                                   tipoNome: item.tipoDocumento?.nome,
                                 })
@@ -2641,7 +2646,39 @@ export default function DocumentosTecnicosPage({
               {/* Botões de Ação */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <a
-                  href={`/api/documentos-tecnicos/${modalVisualizarDoc.id}/visualizar?download=1`}
+                  href={modalVisualizarDoc.url || `/api/documentos-tecnicos/${modalVisualizarDoc.id}/visualizar`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    background: '#fff',
+                    border: '1px solid #cbd5e1',
+                    color: '#334155',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = PURPLE
+                    e.currentTarget.style.color = PURPLE
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#cbd5e1'
+                    e.currentTarget.style.color = '#334155'
+                  }}
+                  title="Abrir em nova aba do navegador"
+                >
+                  <ExternalLink size={14} />
+                  Nova Aba
+                </a>
+
+                <a
+                  href={modalVisualizarDoc.url || `/api/documentos-tecnicos/${modalVisualizarDoc.id}/visualizar?download=1`}
                   download={modalVisualizarDoc.nome}
                   style={{
                     display: 'inline-flex',
@@ -2701,19 +2738,66 @@ export default function DocumentosTecnicosPage({
               </div>
             </div>
 
-            {/* Quadro de Visualização (Iframe Seguro com Sessão SG4) */}
-            <div style={{ flex: 1, position: 'relative', background: '#e2e8f0' }}>
-              <iframe
-                src={`/api/documentos-tecnicos/${modalVisualizarDoc.id}/visualizar`}
-                title={modalVisualizarDoc.nome}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  display: 'block',
-                  background: '#ffffff',
-                }}
-              />
+            {/* Quadro de Visualização (Iframe Seguro ou Imagem) */}
+            <div style={{ flex: 1, position: 'relative', background: '#f8fafc', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {(() => {
+                const isImage = modalVisualizarDoc.nome?.match(/\.(jpg|jpeg|png|webp|gif|bmp)$/i) || modalVisualizarDoc.url?.match(/\.(jpg|jpeg|png|webp|gif|bmp)/i)
+
+                if (isImage) {
+                  return (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, overflow: 'auto', background: '#0f172a' }}>
+                      <img
+                        src={`/api/documentos-tecnicos/${modalVisualizarDoc.id}/visualizar`}
+                        alt={modalVisualizarDoc.nome}
+                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}
+                        onError={(e) => {
+                          if (modalVisualizarDoc.url && e.currentTarget.src !== modalVisualizarDoc.url) {
+                            e.currentTarget.src = modalVisualizarDoc.url
+                          }
+                        }}
+                      />
+                    </div>
+                  )
+                }
+
+                return (
+                  <iframe
+                    src={`/api/documentos-tecnicos/${modalVisualizarDoc.id}/visualizar`}
+                    title={modalVisualizarDoc.nome}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      display: 'block',
+                      background: '#ffffff',
+                    }}
+                  />
+                )
+              })()}
+
+              <div style={{ padding: '8px 18px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: '#64748b', flexShrink: 0 }}>
+                <span>Caso o documento não carregue no quadro acima:</span>
+                <div style={{ display: 'flex', gap: 14 }}>
+                  {modalVisualizarDoc.url && (
+                    <a
+                      href={modalVisualizarDoc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: PURPLE, fontWeight: 700, textDecoration: 'none' }}
+                    >
+                      Link Direto do Arquivo ↗
+                    </a>
+                  )}
+                  <a
+                    href={`/api/documentos-tecnicos/${modalVisualizarDoc.id}/visualizar`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#0284c7', fontWeight: 700, textDecoration: 'none' }}
+                  >
+                    Abrir em Nova Aba ↗
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
