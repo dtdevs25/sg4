@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
-import { getBusinessDaysInMonth, getBusinessDaysPassedInMonth, getValidMonthsCount } from '@/lib/businessDays'
+import { getBusinessDaysInMonth, getBusinessDaysPassedInMonth, getValidMonthsCount, isPenultimoDiaUtil } from '@/lib/businessDays'
 
 export async function getResumoOrcamentoMes(ano: number, meses: number[]) {
   try {
@@ -812,4 +812,332 @@ export async function getExtratoBancarioTecnico(
     return { success: false, error: 'Falha ao processar extrato bancário.' }
   }
 }
+
+// ─── PREVISÃO INTELIGENTE DE DEPÓSITOS (CONSUMO 3 MESES + SALDO) ────────────
+
+export interface ItemPrevisaoDeposito {
+  tecnicoId: string
+  nome: string
+  fotoUrl: string | null
+  veiculo: string | null
+  orcamentoBase: number
+  admissao: string | Date | null
+  rotulosMeses: [string, string, string] // ex: ['Out/26', 'Set/26', 'Ago/26']
+  consumoMes1: number // mês atual
+  consumoMes2: number // mês anterior
+  consumoMes3: number // 2 meses atrás
+  consumoEstimado: number
+  saldoAtual: number
+  depositoSugerido: number
+  motivoSugerido: string
+}
+
+export interface PrevisaoDepositosResultado {
+  mesReferencia: string // ex: "Novembro/2026"
+  dataGeracao: string
+  totalSugerido: number
+  totalCotaFixa: number
+  economiaEstimada: number
+  qtdTecnicos: number
+  isPenultimoDiaUtilHoje: boolean
+  itens: ItemPrevisaoDeposito[]
+}
+
+export async function getPrevisaoDepositosProximoMes(): Promise<{
+  success: boolean
+  data?: PrevisaoDepositosResultado
+  error?: string
+}> {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const hoje = new Date()
+    const anoAtual = hoje.getFullYear()
+    const mesAtual = hoje.getMonth() + 1 // 1 a 12
+
+    // Mês Alvo (próximo mês a receber o depósito no dia 1º)
+    let anoAlvo = anoAtual
+    let mesAlvo = mesAtual + 1
+    if (mesAlvo > 12) {
+      mesAlvo = 1
+      anoAlvo++
+    }
+
+    const MESES_NOME = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ]
+    const MESES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+
+    const mesReferencia = `${MESES_NOME[mesAlvo - 1]}/${anoAlvo}`
+
+    // Função auxiliar para subtrair meses
+    function subMeses(a: number, m: number, qtd: number) {
+      let anoRes = a
+      let mesRes = m - qtd
+      while (mesRes < 1) {
+        mesRes += 12
+        anoRes--
+      }
+      return { ano: anoRes, mes: mesRes }
+    }
+
+    // M1: mês atual, M2: mês anterior, M3: 2 meses atrás
+    const m1 = subMeses(anoAtual, mesAtual, 0)
+    const m2 = subMeses(anoAtual, mesAtual, 1)
+    const m3 = subMeses(anoAtual, mesAtual, 2)
+
+    const rotulosMeses: [string, string, string] = [
+      `${MESES_ABREV[m1.mes - 1]}/${String(m1.ano).slice(-2)}`,
+      `${MESES_ABREV[m2.mes - 1]}/${String(m2.ano).slice(-2)}`,
+      `${MESES_ABREV[m3.mes - 1]}/${String(m3.ano).slice(-2)}`
+    ]
+
+    const ultDiaM1 = new Date(m1.ano, m1.mes, 0).getDate()
+    const ultDiaM2 = new Date(m2.ano, m2.mes, 0).getDate()
+    const ultDiaM3 = new Date(m3.ano, m3.mes, 0).getDate()
+
+    const iniM1 = getInicioDiaBrasil(`${m1.ano}-${String(m1.mes).padStart(2, '0')}-01`)
+    const fimM1 = getFimDiaBrasil(`${m1.ano}-${String(m1.mes).padStart(2, '0')}-${String(ultDiaM1).padStart(2, '0')}`)
+
+    const iniM2 = getInicioDiaBrasil(`${m2.ano}-${String(m2.mes).padStart(2, '0')}-01`)
+    const fimM2 = getFimDiaBrasil(`${m2.ano}-${String(m2.mes).padStart(2, '0')}-${String(ultDiaM2).padStart(2, '0')}`)
+
+    const iniM3 = getInicioDiaBrasil(`${m3.ano}-${String(m3.mes).padStart(2, '0')}-01`)
+    const fimM3 = getFimDiaBrasil(`${m3.ano}-${String(m3.mes).padStart(2, '0')}-${String(ultDiaM3).padStart(2, '0')}`)
+
+    // Consulta todos os técnicos ativos
+    const tecnicos = await prisma.tecnico.findMany({
+      where: { ativo: true },
+      select: {
+        id: true,
+        nome: true,
+        fotoUrl: true,
+        veiculo: true,
+        orcamentoAbastecimento: true,
+        admissao: true,
+      },
+      orderBy: { nome: 'asc' },
+    })
+
+    // Busca abastecimentos dos 3 meses
+    const abastecimentos3M = await prisma.abastecimento.findMany({
+      where: {
+        data: { gte: iniM3, lte: fimM1 }
+      },
+      select: {
+        tecnicoId: true,
+        valor: true,
+        data: true
+      }
+    })
+
+    // Busca resumo orçamentário do mês atual para obter os saldos consolidados
+    const resumoMesAtual = await getResumoOrcamentoMes(anoAtual, [mesAtual])
+    const resumosMap = new Map<string, any>()
+    if (resumoMesAtual.success && resumoMesAtual.data) {
+      for (const r of resumoMesAtual.data) {
+        resumosMap.set(r.tecnico.id, r)
+      }
+    }
+
+    const itens: ItemPrevisaoDeposito[] = []
+
+    for (const tec of tecnicos) {
+      const abasts = abastecimentos3M.filter(a => a.tecnicoId === tec.id)
+
+      const gastoM1 = abasts.filter(a => a.data >= iniM1 && a.data <= fimM1).reduce((acc, c) => acc + c.valor, 0)
+      const gastoM2 = abasts.filter(a => a.data >= iniM2 && a.data <= fimM2).reduce((acc, c) => acc + c.valor, 0)
+      const gastoM3 = abasts.filter(a => a.data >= iniM3 && a.data <= fimM3).reduce((acc, c) => acc + c.valor, 0)
+
+      const resumoTec = resumosMap.get(tec.id)
+      const saldoAtual = resumoTec ? Number(resumoTec.saldo.toFixed(2)) : 0
+
+      const admissao = tec.admissao ? new Date(tec.admissao) : null
+      const ehRecemAdmitido = admissao && admissao >= iniM1
+
+      let consumoEstimado = 0
+      let motivoSugerido = ''
+
+      if (ehRecemAdmitido) {
+        consumoEstimado = tec.orcamentoAbastecimento
+        motivoSugerido = 'Admissão recente (Cota base contratual)'
+      } else if (admissao && admissao >= iniM2) {
+        // Possui 2 meses de histórico
+        consumoEstimado = (gastoM1 * 0.6) + (gastoM2 * 0.4)
+        motivoSugerido = 'Média ponderada 2M (60% Mês Atual / 40% Anterior)'
+      } else {
+        // Possui 3 meses de histórico
+        consumoEstimado = (gastoM1 * 0.5) + (gastoM2 * 0.3) + (gastoM3 * 0.2)
+        motivoSugerido = 'Média ponderada 3M (50% M-1 / 30% M-2 / 20% M-3)'
+      }
+
+      // Se o consumo estimado calculado for 0 (técnico não rodou nos 3 meses), o consumo previsto é 0
+      consumoEstimado = Number(consumoEstimado.toFixed(2))
+
+      let depositoSugerido = 0
+
+      if (ehRecemAdmitido) {
+        depositoSugerido = tec.orcamentoAbastecimento
+      } else {
+        const diferenca = consumoEstimado - saldoAtual
+        if (diferenca <= 0) {
+          depositoSugerido = 0
+          motivoSugerido = `Saldo em conta (R$ ${saldoAtual.toFixed(2)}) cobre o consumo previsto (R$ ${consumoEstimado.toFixed(2)})`
+        } else {
+          // Arredonda para múltiplos de R$ 10 para agilizar depósitos
+          depositoSugerido = Math.ceil(diferenca / 10) * 10
+          motivoSugerido = `Consumo previsto (R$ ${consumoEstimado.toFixed(2)}) - Saldo atual (R$ ${saldoAtual.toFixed(2)})`
+        }
+      }
+
+      itens.push({
+        tecnicoId: tec.id,
+        nome: tec.nome,
+        fotoUrl: tec.fotoUrl,
+        veiculo: tec.veiculo || null,
+        orcamentoBase: tec.orcamentoAbastecimento,
+        admissao: tec.admissao,
+        rotulosMeses,
+        consumoMes1: Number(gastoM1.toFixed(2)),
+        consumoMes2: Number(gastoM2.toFixed(2)),
+        consumoMes3: Number(gastoM3.toFixed(2)),
+        consumoEstimado,
+        saldoAtual,
+        depositoSugerido,
+        motivoSugerido,
+      })
+    }
+
+    const totalSugerido = itens.reduce((acc, i) => acc + i.depositoSugerido, 0)
+    const totalCotaFixa = itens.reduce((acc, i) => acc + i.orcamentoBase, 0)
+    const economiaEstimada = Math.max(0, totalCotaFixa - totalSugerido)
+
+    const isPenultimoDiaUtilHoje = isPenultimoDiaUtil(hoje)
+
+    return {
+      success: true,
+      data: {
+        mesReferencia,
+        dataGeracao: hoje.toISOString(),
+        totalSugerido: Number(totalSugerido.toFixed(2)),
+        totalCotaFixa: Number(totalCotaFixa.toFixed(2)),
+        economiaEstimada: Number(economiaEstimada.toFixed(2)),
+        qtdTecnicos: itens.length,
+        isPenultimoDiaUtilHoje,
+        itens,
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao calcular previsão de depósitos:', error)
+    return { success: false, error: 'Falha ao calcular previsão de depósitos.' }
+  }
+}
+
+export async function dispararNotificacaoPrevisaoDepositos(forcarEnvio: boolean = false) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const hoje = new Date()
+    const isPenultimo = isPenultimoDiaUtil(hoje)
+
+    if (!isPenultimo && !forcarEnvio) {
+      return {
+        success: false,
+        error: 'Hoje não é o penúltimo dia útil do mês. Para testar ou enviar agora, utilize o envio manual.'
+      }
+    }
+
+    const resPrevisao = await getPrevisaoDepositosProximoMes()
+    if (!resPrevisao.success || !resPrevisao.data) {
+      return { success: false, error: resPrevisao.error || 'Erro ao gerar previsão de depósitos.' }
+    }
+
+    const data = resPrevisao.data
+
+    // Monta texto formatado profissional para WhatsApp
+    let textoWhatsapp = `*⛽ PREVISÃO DE DEPÓSITOS DE ABASTECIMENTO*\n`
+    textoWhatsapp += `📅 *Mês de Referência:* ${data.mesReferencia}\n`
+    textoWhatsapp += `💰 *Total Sugerido para a Frota:* R$ ${data.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n`
+    textoWhatsapp += `📉 *Economia Estimada vs Cota Fixa:* R$ ${data.economiaEstimada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n`
+    textoWhatsapp += `👥 *Total de Técnicos Ativos:* ${data.qtdTecnicos}\n\n`
+    textoWhatsapp += `*📋 DETALHAMENTO DE VALORES PARA O DIA 1º:*\n`
+
+    for (const item of data.itens) {
+      const veic = item.veiculo ? ` (${item.veiculo})` : ''
+      textoWhatsapp += `• *${item.nome}*${veic}\n`
+      textoWhatsapp += `   Consumo Est.: R$ ${item.consumoEstimado.toFixed(2)} | Saldo Atual: R$ ${item.saldoAtual.toFixed(2)}\n`
+      textoWhatsapp += `   👉 *Depósito Sugerido: R$ ${item.depositoSugerido.toFixed(2)}*\n`
+      textoWhatsapp += `   _${item.motivoSugerido}_\n\n`
+    }
+
+    textoWhatsapp += `ℹ️ _Relatório gerado automaticamente pelo SG4 com base no consumo dos últimos 3 meses._`
+
+    const webhookUrl = process.env.N8N_WEBHOOK_PREVISAO_ABASTECIMENTO || process.env.N8N_WEBHOOK_ABASTECIMENTO
+
+    let webhookEnviado = false
+    let webhookMsg = ''
+
+    if (webhookUrl) {
+      try {
+        const payload = {
+          evento: 'PREVISAO_DEPOSITOS_ABASTECIMENTO',
+          mesReferencia: data.mesReferencia,
+          dataGeracao: data.dataGeracao,
+          totalSugerido: data.totalSugerido,
+          totalCotaFixa: data.totalCotaFixa,
+          economiaEstimada: data.economiaEstimada,
+          qtdTecnicos: data.qtdTecnicos,
+          textoWhatsapp,
+          itens: data.itens
+        }
+
+        const resN8n = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+
+        if (resN8n.ok) {
+          webhookEnviado = true
+        } else {
+          webhookMsg = `N8N retornou status ${resN8n.status}`
+        }
+      } catch (err: any) {
+        console.error('Erro ao acionar webhook N8N de previsão:', err)
+        webhookMsg = err.message || 'Falha de conexão com N8N'
+      }
+    } else {
+      webhookMsg = 'Webhook N8N_WEBHOOK_PREVISAO_ABASTECIMENTO não configurado nas variáveis de ambiente'
+    }
+
+    const userId = (session.user as any).id
+    await audit({
+      userId,
+      action: 'PREVISAO_PAGAMENTOS_ABASTECIMENTO',
+      entity: 'Abastecimento',
+      details: {
+        mesReferencia: data.mesReferencia,
+        totalSugerido: data.totalSugerido,
+        economiaEstimada: data.economiaEstimada,
+        webhookEnviado,
+        forcarEnvio
+      }
+    })
+
+    return {
+      success: true,
+      data,
+      textoWhatsapp,
+      webhookEnviado,
+      aviso: !webhookEnviado ? webhookMsg : undefined
+    }
+  } catch (error: any) {
+    console.error('Erro ao disparar notificação de previsão de depósitos:', error)
+    return { success: false, error: 'Falha ao processar previsão de pagamentos.' }
+  }
+}
+
 

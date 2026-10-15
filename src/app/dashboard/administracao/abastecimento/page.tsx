@@ -6,8 +6,12 @@ import {
   updateOrcamentoTecnico,
   createRecargaExtra,
   getExtratoBancarioTecnico,
+  getPrevisaoDepositosProximoMes,
+  dispararNotificacaoPrevisaoDepositos,
   type ExtratoBancarioData,
   type ItemExtratoBancario,
+  type PrevisaoDepositosResultado,
+  type ItemPrevisaoDeposito,
 } from '@/app/actions/abastecimentoOrcamento'
 import {
   Fuel,
@@ -38,6 +42,10 @@ import {
   ExternalLink,
   Search,
   Car,
+  Send,
+  Download,
+  Copy,
+  Check,
 } from 'lucide-react'
 
 export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hideHeader?: boolean }) {
@@ -69,6 +77,14 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
 
   // Filtro de pesquisa de colaboradores
   const [buscaColaborador, setBuscaColaborador] = useState('')
+
+  // Modal Previsão Inteligente de Depósitos
+  const [modalPrevisaoOpen, setModalPrevisaoOpen] = useState(false)
+  const [loadingPrevisao, setLoadingPrevisao] = useState(false)
+  const [dadosPrevisao, setDadosPrevisao] = useState<PrevisaoDepositosResultado | null>(null)
+  const [enviandoN8N, setEnviandoN8N] = useState(false)
+  const [copiadoTexto, setCopiadoTexto] = useState(false)
+  const [buscaTecnicoPrevisao, setBuscaTecnicoPrevisao] = useState('')
 
   // Notificações
   const [notification, setNotification] = useState<{ type: 'success' | 'error', title: string, message: string } | null>(null)
@@ -283,6 +299,146 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     })
   }
 
+  async function handleAbrirModalPrevisao() {
+    setModalPrevisaoOpen(true)
+    setLoadingPrevisao(true)
+    try {
+      const res = await getPrevisaoDepositosProximoMes()
+      if (res.success && res.data) {
+        setDadosPrevisao(res.data)
+      } else {
+        setNotification({
+          type: 'error',
+          title: 'Erro na Previsão',
+          message: res.error || 'Não foi possível calcular a previsão de depósitos.',
+        })
+      }
+    } catch (err: any) {
+      setNotification({
+        type: 'error',
+        title: 'Erro Inesperado',
+        message: err.message || 'Falha ao buscar dados da previsão.',
+      })
+    } finally {
+      setLoadingPrevisao(false)
+    }
+  }
+
+  function handleAlterarDepositoSugerido(tecnicoId: string, novoValor: number) {
+    if (!dadosPrevisao) return
+    const valorAjustado = Math.max(0, isNaN(novoValor) ? 0 : novoValor)
+    const novosItens = dadosPrevisao.itens.map(item => {
+      if (item.tecnicoId === tecnicoId) {
+        return { ...item, depositoSugerido: valorAjustado, motivoSugerido: 'Ajuste manual pelo gestor' }
+      }
+      return item
+    })
+    const novoTotalSugerido = novosItens.reduce((acc, i) => acc + i.depositoSugerido, 0)
+    const novaEconomia = Math.max(0, dadosPrevisao.totalCotaFixa - novoTotalSugerido)
+    setDadosPrevisao({
+      ...dadosPrevisao,
+      totalSugerido: novoTotalSugerido,
+      economiaEstimada: novaEconomia,
+      itens: novosItens,
+    })
+  }
+
+  function gerarTextoWhatsAppPrevisao() {
+    if (!dadosPrevisao) return ''
+    let t = `*⛽ PREVISÃO DE DEPÓSITOS DE ABASTECIMENTO*\n`
+    t += `📅 *Mês de Referência:* ${dadosPrevisao.mesReferencia}\n`
+    t += `💰 *Total Sugerido para a Frota:* R$ ${dadosPrevisao.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n`
+    t += `📉 *Economia Estimada vs Cota Fixa:* R$ ${dadosPrevisao.economiaEstimada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n`
+    t += `👥 *Total de Técnicos Ativos:* ${dadosPrevisao.qtdTecnicos}\n\n`
+    t += `*📋 DETALHAMENTO DE VALORES PARA O DIA 1º:*\n`
+    for (const item of dadosPrevisao.itens) {
+      const veic = item.veiculo ? ` (${item.veiculo})` : ''
+      t += `• *${item.nome}*${veic}\n`
+      t += `   Consumo Est.: R$ ${item.consumoEstimado.toFixed(2)} | Saldo Atual: R$ ${item.saldoAtual.toFixed(2)}\n`
+      t += `   👉 *Depósito Sugerido: R$ ${item.depositoSugerido.toFixed(2)}*\n`
+      t += `   _${item.motivoSugerido}_\n\n`
+    }
+    t += `ℹ️ _Relatório gerado automaticamente pelo SG4 no penúltimo dia útil._`
+    return t
+  }
+
+  async function handleCopiarWhatsApp() {
+    const texto = gerarTextoWhatsAppPrevisao()
+    if (!texto) return
+    try {
+      await navigator.clipboard.writeText(texto)
+      setCopiadoTexto(true)
+      setTimeout(() => setCopiadoTexto(false), 2500)
+    } catch {
+      setNotification({
+        type: 'error',
+        title: 'Erro ao Copiar',
+        message: 'Não foi possível copiar o texto automaticamente.',
+      })
+    }
+  }
+
+  async function handleDispararN8N() {
+    setEnviandoN8N(true)
+    try {
+      const res = await dispararNotificacaoPrevisaoDepositos(true)
+      if (res.success) {
+        if (res.webhookEnviado) {
+          setNotification({
+            type: 'success',
+            title: 'Enviado com Sucesso!',
+            message: 'A tabela de previsão de pagamentos foi enviada ao N8N / Financeiro.',
+          })
+        } else {
+          setNotification({
+            type: 'success',
+            title: 'Previsão Processada',
+            message: res.aviso || 'Dados gerados com sucesso. (Configure N8N_WEBHOOK_PREVISAO_ABASTECIMENTO para envio automático).',
+          })
+        }
+      } else {
+        setNotification({
+          type: 'error',
+          title: 'Erro ao Enviar',
+          message: res.error || 'Falha ao despachar notificação.',
+        })
+      }
+    } catch (err: any) {
+      setNotification({
+        type: 'error',
+        title: 'Erro Inesperado',
+        message: err.message || 'Falha ao acionar envio.',
+      })
+    } finally {
+      setEnviandoN8N(false)
+    }
+  }
+
+  function handleExportarCSV() {
+    if (!dadosPrevisao) return
+    const cabecalho = ['Técnico', 'Veículo', dadosPrevisao.itens[0]?.rotulosMeses[2] || 'M-3', dadosPrevisao.itens[0]?.rotulosMeses[1] || 'M-2', dadosPrevisao.itens[0]?.rotulosMeses[0] || 'M-1', 'Consumo Estimado', 'Saldo Atual', 'Depósito Sugerido', 'Cota Fixa Base', 'Justificativa']
+    const linhas = dadosPrevisao.itens.map(item => [
+      `"${item.nome}"`,
+      `"${item.veiculo || 'Não informado'}"`,
+      item.consumoMes3.toFixed(2),
+      item.consumoMes2.toFixed(2),
+      item.consumoMes1.toFixed(2),
+      item.consumoEstimado.toFixed(2),
+      item.saldoAtual.toFixed(2),
+      item.depositoSugerido.toFixed(2),
+      item.orcamentoBase.toFixed(2),
+      `"${item.motivoSugerido}"`
+    ])
+    const conteudoCSV = '\uFEFF' + [cabecalho.join(';'), ...linhas.map(l => l.join(';'))].join('\n')
+    const blob = new Blob([conteudoCSV], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `previsao_depositos_abastecimento_${dadosPrevisao.mesReferencia.replace('/', '_')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
       <style>{`
@@ -327,6 +483,30 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
           </div>
 
           <div className="abast-header-controls">
+            {/* Botão de Sugestão Inteligente Próximo Mês */}
+            <button
+              type="button"
+              onClick={handleAbrirModalPrevisao}
+              style={{
+                background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '7px 14px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 2px 6px rgba(102, 0, 153, 0.25)',
+              }}
+              title="Previsão inteligente de depósitos com base no consumo dos últimos 3 meses"
+            >
+              <Sparkles size={15} />
+              Sugestão Próx. Mês
+            </button>
+
             {/* Campo de pesquisa por colaborador */}
             <div style={{ position: 'relative' }}>
               <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -431,6 +611,30 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
           </div>
 
           <div className="abast-header-controls">
+            {/* Botão de Sugestão Inteligente Próximo Mês */}
+            <button
+              type="button"
+              onClick={handleAbrirModalPrevisao}
+              style={{
+                background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                padding: '7px 14px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 2px 6px rgba(102, 0, 153, 0.25)',
+              }}
+              title="Previsão inteligente de depósitos com base no consumo dos últimos 3 meses"
+            >
+              <Sparkles size={15} />
+              Sugestão Próx. Mês
+            </button>
+
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#64748b', cursor: 'pointer', background: '#fff', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
               <input type="checkbox" checked={mostrarOcultos} onChange={e => setMostrarOcultos(e.target.checked)} style={{ accentColor: '#660099', cursor: 'pointer' }} />
               Exibir Inativos
@@ -1273,6 +1477,365 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                 alt="Cupom Fiscal"
                 style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 8 }}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE SUGESTÃO INTELIGENTE DE DEPÓSITOS (PRÓXIMO MÊS) */}
+      {modalPrevisaoOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalPrevisaoOpen(false)
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              width: '100%',
+              maxWidth: 980,
+              height: '90vh',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                flexShrink: 0,
+                background: '#660099',
+                padding: '16px 20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 16,
+              }}
+            >
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles size={18} /> Sugestão Inteligente de Depósitos — {dadosPrevisao?.mesReferencia || 'Próximo Mês'}
+                </h2>
+                <span style={{ fontSize: 12, color: '#e9d5ff', marginTop: 2, display: 'block' }}>
+                  Estimativa calculada pelo consumo dos últimos 3 meses com abatimento do saldo em conta
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalPrevisaoOpen(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 32,
+                  height: 32,
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+                title="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* KPI Cards & Status */}
+            {dadosPrevisao && (
+              <div
+                style={{
+                  flexShrink: 0,
+                  background: '#f8fafc',
+                  borderBottom: '1px solid #e2e8f0',
+                  padding: '14px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+                  {/* Total Sugerido */}
+                  <div style={{ background: '#fff', padding: '12px 16px', borderRadius: 10, border: '1px solid #bbf7d0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Total Sugerido (Frota)
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#16a34a', marginTop: 2 }}>
+                      R$ {dadosPrevisao.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>
+                      {dadosPrevisao.qtdTecnicos} técnico(s) ativo(s)
+                    </span>
+                  </div>
+
+                  {/* Cota Fixa Tradicional */}
+                  <div style={{ background: '#fff', padding: '12px 16px', borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Cota Fixa Tradicional
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#64748b', marginTop: 2 }}>
+                      R$ {dadosPrevisao.totalCotaFixa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                      Se depositasse a cota cheia para todos
+                    </span>
+                  </div>
+
+                  {/* Economia Estimada */}
+                  <div style={{ background: '#fff', padding: '12px 16px', borderRadius: 10, border: '1px solid #e9d5ff', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#660099', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Economia Imediata de Caixa
+                    </div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: '#660099', marginTop: 2 }}>
+                      R$ {dadosPrevisao.economiaEstimada.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <span style={{ fontSize: 11, color: '#7c3aed', fontWeight: 600 }}>
+                      {dadosPrevisao.totalCotaFixa > 0 ? `${((dadosPrevisao.economiaEstimada / dadosPrevisao.totalCotaFixa) * 100).toFixed(1)}% de verba poupada` : ''}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Barra de Ações: Busca + Botões */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 4 }}>
+                  <div style={{ position: 'relative', minWidth: 220, flex: 1, maxWidth: 320 }}>
+                    <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                    <input
+                      type="text"
+                      placeholder="Filtrar por técnico..."
+                      value={buscaTecnicoPrevisao}
+                      onChange={e => setBuscaTecnicoPrevisao(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 24px 6px 30px',
+                        fontSize: 12,
+                        borderRadius: 6,
+                        border: '1px solid #cbd5e1',
+                        background: '#fff',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    {buscaTecnicoPrevisao && (
+                      <button
+                        type="button"
+                        onClick={() => setBuscaTecnicoPrevisao('')}
+                        style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={handleCopiarWhatsApp}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        border: '1px solid #cbd5e1',
+                        background: '#fff',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: copiadoTexto ? '#16a34a' : '#334155',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                      title="Copiar tabela e resumo para o WhatsApp"
+                    >
+                      {copiadoTexto ? <Check size={14} color="#16a34a" /> : <Copy size={14} />}
+                      {copiadoTexto ? 'Copiado!' : 'Copiar p/ WhatsApp'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleExportarCSV}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 6,
+                        border: '1px solid #cbd5e1',
+                        background: '#fff',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: '#334155',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                      title="Baixar planilha CSV para o Excel"
+                    >
+                      <Download size={14} />
+                      Exportar CSV
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDispararN8N}
+                      disabled={enviandoN8N}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 6,
+                        border: 'none',
+                        background: '#660099',
+                        color: '#fff',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                      title="Enviar tabela via webhook para o N8N (WhatsApp/E-mail do Financeiro)"
+                    >
+                      {enviandoN8N ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                      Disparar p/ Financeiro (N8N)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tabela de Previsão */}
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'auto', background: '#fff' }}>
+              {loadingPrevisao ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 60, gap: 12 }}>
+                  <Loader2 className="animate-spin text-purple-600" size={32} />
+                  <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                    Analisando histórico de consumo dos últimos 3 meses e saldos...
+                  </span>
+                </div>
+              ) : dadosPrevisao ? (
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                    <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1', color: '#475569', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      <th style={{ padding: '10px 14px' }}>Colaborador</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'right' }}>{dadosPrevisao.itens[0]?.rotulosMeses[2] || 'M-3'}</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'right' }}>{dadosPrevisao.itens[0]?.rotulosMeses[1] || 'M-2'}</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'right' }}>{dadosPrevisao.itens[0]?.rotulosMeses[0] || 'M-1'}</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Média Est.</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Saldo Atual</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right', width: 140 }}>Depósito Sugerido</th>
+                      <th style={{ padding: '10px 14px' }}>Justificativa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dadosPrevisao.itens
+                      .filter(item => !buscaTecnicoPrevisao.trim() || item.nome.toLowerCase().includes(buscaTecnicoPrevisao.toLowerCase().trim()))
+                      .map((item, idx) => (
+                        <tr
+                          key={item.tecnicoId}
+                          style={{
+                            borderBottom: '1px solid #f1f5f9',
+                            background: idx % 2 === 0 ? '#fff' : '#fcfcfd',
+                          }}
+                        >
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #cbd5e1', flexShrink: 0 }}>
+                                {item.fotoUrl ? (
+                                  <img src={item.fotoUrl} alt={item.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <span style={{ fontSize: 13, fontWeight: 800, color: '#64748b' }}>{item.nome.charAt(0)}</span>
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: 700, color: '#1e293b' }}>{item.nome}</div>
+                                <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                                  {item.veiculo || 'Sem veículo cadastrado'} • Cota Base: R$ {item.orcamentoBase.toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td style={{ padding: '10px 10px', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
+                            R$ {item.consumoMes3.toFixed(2)}
+                          </td>
+                          <td style={{ padding: '10px 10px', textAlign: 'right', color: '#64748b', fontWeight: 600 }}>
+                            R$ {item.consumoMes2.toFixed(2)}
+                          </td>
+                          <td style={{ padding: '10px 10px', textAlign: 'right', color: '#334155', fontWeight: 700 }}>
+                            R$ {item.consumoMes1.toFixed(2)}
+                          </td>
+
+                          <td style={{ padding: '10px 12px', textAlign: 'right', color: '#660099', fontWeight: 800 }}>
+                            R$ {item.consumoEstimado.toFixed(2)}
+                          </td>
+
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: item.saldoAtual <= 100 ? '#f59e0b' : '#10b981' }}>
+                            R$ {item.saldoAtual.toFixed(2)}
+                          </td>
+
+                          <td style={{ padding: '8px 14px', textAlign: 'right' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ fontSize: 12, fontWeight: 800, color: '#475569' }}>R$</span>
+                              <input
+                                type="number"
+                                step="10"
+                                min="0"
+                                value={item.depositoSugerido}
+                                onChange={e => handleAlterarDepositoSugerido(item.tecnicoId, parseFloat(e.target.value))}
+                                style={{
+                                  width: 85,
+                                  padding: '5px 8px',
+                                  borderRadius: 6,
+                                  border: '1px solid #cbd5e1',
+                                  fontSize: 13,
+                                  fontWeight: 800,
+                                  textAlign: 'right',
+                                  color: item.depositoSugerido === 0 ? '#64748b' : '#16a34a',
+                                  background: item.depositoSugerido === 0 ? '#f8fafc' : '#f0fdf4',
+                                  outline: 'none',
+                                }}
+                              />
+                            </div>
+                          </td>
+
+                          <td style={{ padding: '10px 14px', fontSize: 11, color: '#64748b' }}>
+                            {item.motivoSugerido}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              ) : null}
+            </div>
+
+            {/* Rodapé */}
+            <div
+              style={{
+                flexShrink: 0,
+                padding: '12px 20px',
+                background: '#f8fafc',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 12,
+              }}
+            >
+              <span style={{ fontSize: 13, color: '#475569' }}>
+                Total a depositar no dia 1º: <strong style={{ color: '#16a34a', fontSize: 15 }}>R$ {dadosPrevisao?.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                {' '}({dadosPrevisao?.itens.length || 0} colaboradores ativos)
+              </span>
             </div>
           </div>
         </div>

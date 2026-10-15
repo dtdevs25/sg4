@@ -82,3 +82,45 @@ export function isQuintoDiaUtil(dataObj = new Date()) {
   }
   return false
 }
+
+export function getDiasUteisDoMes(ano: number, mes0Indexed: number): number[] {
+  const feriadosFixos = [
+    '01-01', // Ano Novo
+    '04-21', // Tiradentes
+    '05-01', // Dia do Trabalho
+    '09-07', // Independência
+    '10-12', // Nsa Sra Aparecida
+    '11-02', // Finados
+    '11-15', // Proclamação da República
+    '11-20', // Consciência Negra
+    '12-25', // Natal
+  ]
+
+  const diasUteis: number[] = []
+  const totalDias = new Date(ano, mes0Indexed + 1, 0).getDate()
+
+  for (let dia = 1; dia <= totalDias; dia++) {
+    const d = new Date(ano, mes0Indexed, dia)
+    const dow = d.getDay()
+    if (dow === 0 || dow === 6) continue
+
+    const mm = String(mes0Indexed + 1).padStart(2, '0')
+    const dd = String(dia).padStart(2, '0')
+    if (feriadosFixos.includes(`${mm}-${dd}`)) continue
+
+    diasUteis.push(dia)
+  }
+
+  return diasUteis
+}
+
+export function isPenultimoDiaUtil(dataObj = new Date()): boolean {
+  const ano = dataObj.getFullYear()
+  const mes = dataObj.getMonth()
+  const diasUteis = getDiasUteisDoMes(ano, mes)
+  if (diasUteis.length < 2) return false
+
+  const penultimoDiaUtil = diasUteis[diasUteis.length - 2]
+  return dataObj.getDate() === penultimoDiaUtil
+}
+
