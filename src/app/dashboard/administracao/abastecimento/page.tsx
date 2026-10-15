@@ -170,14 +170,22 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   function formatarDataHora(dataIso: string) {
     try {
       const d = new Date(dataIso)
-      const dia = String(d.getDate()).padStart(2, '0')
-      const mes = String(d.getMonth() + 1).padStart(2, '0')
-      const ano = d.getFullYear()
-      const horas = String(d.getHours()).padStart(2, '0')
-      const minutos = String(d.getMinutes()).padStart(2, '0')
+      if (isNaN(d.getTime())) return { data: dataIso, hora: '' }
+      const formatterData = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+      const formatterHora = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
       return {
-        data: `${dia}/${mes}/${ano}`,
-        hora: `${horas}:${minutos}`,
+        data: formatterData.format(d),
+        hora: formatterHora.format(d),
       }
     } catch {
       return { data: dataIso, hora: '' }
@@ -254,7 +262,13 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     startTransition(async () => {
       const maxMesSelecionado = mesesSelecionados.length > 0 ? Math.max(...mesesSelecionados) : new Date().getMonth() + 1
       const anoSelecionado = ano === 0 ? new Date().getFullYear() : ano
-      const dataDestino = new Date(anoSelecionado, maxMesSelecionado - 1, 15)
+      const hoje = new Date()
+      let dataDestino: Date
+      if (anoSelecionado === hoje.getFullYear() && maxMesSelecionado === (hoje.getMonth() + 1)) {
+        dataDestino = new Date()
+      } else {
+        dataDestino = new Date(anoSelecionado, maxMesSelecionado - 1, 15, 12, 0, 0)
+      }
 
       const res = await createRecargaExtra(recargaModal.id, valor, recargaObs, dataDestino)
       if (res.success) {
@@ -1091,9 +1105,9 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
 
                           <td style={{ padding: '10px 14px' }}>
                             <div style={{ fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                              {t.tipo === 'ENTRADA_PADRAO' && 'Cota Padrão do Mês'}
-                              {t.tipo === 'ENTRADA_ADITIVO' && 'Aditivo (Recarga Extra)'}
-                              {t.tipo === 'ENTRADA_AJUSTE' && 'Ajuste de Cota'}
+                              {t.tipo === 'ENTRADA_PADRAO' && 'Depósito da Empresa (1º Dia Útil)'}
+                              {t.tipo === 'ENTRADA_AJUSTE' && 'Depósito da Empresa (Cota Ajustada)'}
+                              {t.tipo === 'ENTRADA_ADITIVO' && 'Carga Complementar ao Depósito Mensal'}
                               {t.tipo === 'SAIDA_ABASTECIMENTO' && 'Abastecimento'}
                               {t.fotoCupom && (
                                 <button
@@ -1106,9 +1120,9 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                                 </button>
                               )}
                             </div>
-                            {t.tipo === 'ENTRADA_ADITIVO' && t.descricao && (
-                              <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>
-                                {t.descricao}{t.userName ? ` — ${t.userName}` : ''}
+                            {t.descricao && (
+                              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                                {t.descricao}{t.userName && t.tipo !== 'ENTRADA_PADRAO' ? ` • ${t.userName}` : ''}
                               </div>
                             )}
                           </td>

@@ -466,6 +466,48 @@ export type ExtratoBancarioData = {
   transacoes: ItemExtratoBancario[]
 }
 
+// Utilitários de fuso horário do Brasil (America/Sao_Paulo: UTC-3)
+function getInicioDiaBrasil(dataStr: string): Date {
+  const [ano, mes, dia] = dataStr.split('-').map(Number)
+  return new Date(Date.UTC(ano, mes - 1, dia, 3, 0, 0, 0))
+}
+
+function getFimDiaBrasil(dataStr: string): Date {
+  const [ano, mes, dia] = dataStr.split('-').map(Number)
+  return new Date(Date.UTC(ano, mes - 1, dia + 1, 2, 59, 59, 999))
+}
+
+// Retorna a data do 1º dia útil do mês às 08:00 Horário de Brasília (11:00 UTC)
+function getPrimeiroDiaUtilMes(ano: number, mes1Indexed: number): { ano: number, mes: number, dia: number, data: Date } {
+  const feriadosFixos = [
+    '01-01', // Ano Novo / Confraternização Universal
+    '04-21', // Tiradentes
+    '05-01', // Dia do Trabalho
+    '09-07', // Independência
+    '10-12', // Nsa Sra Aparecida
+    '11-02', // Finados
+    '11-15', // Proclamação da República
+    '11-20', // Consciência Negra
+    '12-25', // Natal
+  ]
+
+  for (let dia = 1; dia <= 10; dia++) {
+    // 08:00 no Brasil (BRT = UTC-3) corresponde a 11:00:00 UTC
+    const d = new Date(Date.UTC(ano, mes1Indexed - 1, dia, 11, 0, 0, 0))
+    const dow = d.getUTCDay() // 0 = Domingo, 6 = Sábado
+    if (dow === 0 || dow === 6) continue
+
+    const mm = String(mes1Indexed).padStart(2, '0')
+    const dd = String(dia).padStart(2, '0')
+    if (feriadosFixos.includes(`${mm}-${dd}`)) continue
+
+    return { ano, mes: mes1Indexed, dia, data: d }
+  }
+
+  const fallback = new Date(Date.UTC(ano, mes1Indexed - 1, 1, 11, 0, 0, 0))
+  return { ano, mes: mes1Indexed, dia: 1, data: fallback }
+}
+
 export async function getExtratoBancarioTecnico(
   tecnicoId: string,
   dataInicioStr?: string,
@@ -489,13 +531,14 @@ export async function getExtratoBancarioTecnico(
 
     if (!tec) return { success: false, error: 'Técnico não encontrado' }
 
-    const marcoZero = new Date(2026, 6, 1, 0, 0, 0) // 01/07/2026
+    // Marco zero global: 01/07/2026 em Horário de Brasília
+    const marcoZero = getInicioDiaBrasil('2026-07-01')
     const MESES_NOME = [
       'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
     ]
 
-    // Datas padrão: mês atual
+    // Datas padrão no fuso do Brasil: mês atual
     const hoje = new Date()
     const defAno = hoje.getFullYear()
     const defMes = hoje.getMonth() + 1
@@ -505,11 +548,8 @@ export async function getExtratoBancarioTecnico(
     const dFimStr =
       dataFimStr || `${defAno}-${String(defMes).padStart(2, '0')}-${String(defUltimoDia).padStart(2, '0')}`
 
-    const [aIni, mIni, diaIni] = dInicioStr.split('-').map(Number)
-    const [aFim, mFim, diaFim] = dFimStr.split('-').map(Number)
-
-    let dataInicioPeriodo = new Date(aIni, mIni - 1, diaIni, 0, 0, 0, 0)
-    let dataFimPeriodo = new Date(aFim, mFim - 1, diaFim, 23, 59, 59, 999)
+    let dataInicioPeriodo = getInicioDiaBrasil(dInicioStr)
+    let dataFimPeriodo = getFimDiaBrasil(dFimStr)
 
     if (dataInicioPeriodo > dataFimPeriodo) {
       const temp = dataInicioPeriodo
@@ -517,9 +557,9 @@ export async function getExtratoBancarioTecnico(
       dataFimPeriodo = temp
     }
 
-    const rotuloPeriodo = `${dataInicioPeriodo.toLocaleDateString('pt-BR')} a ${dataFimPeriodo.toLocaleDateString(
-      'pt-BR'
-    )}`
+    const rotuloPeriodo = `${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(
+      dataInicioPeriodo
+    )} a ${new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(dataFimPeriodo)}`
 
     // Busca todos os abastecimentos e recargas desde o marco zero até o fim do período selecionado
     const [abastecimentos, recargas] = await Promise.all([
@@ -539,60 +579,80 @@ export async function getExtratoBancarioTecnico(
       }),
     ])
 
-    // 1. Processa todos os meses desde marco zero (julho/2026) até o mês de dataFimPeriodo
+    // 1. Processa os depósitos da empresa mês a mês garantindo ausência total de duplicidades
     let saldoAnterior = 0
     const transacoes: Array<Omit<ItemExtratoBancario, 'saldoApos'>> = []
 
-    const anoFimIter = dataFimPeriodo.getFullYear()
-    const mesFimIter = dataFimPeriodo.getMonth() + 1
+    const mesesProcessadosCredito = new Set<string>()
+
+    const anoFimReal = Number(dFimStr.split('-')[0])
+    const mesFimReal = Number(dFimStr.split('-')[1])
 
     let cy = 2026
-    let cm = 7
+    let cm = 7 // Marco zero: julho/2026
 
-    while (cy < anoFimIter || (cy === anoFimIter && cm <= mesFimIter)) {
-      const dataCreditoMes = new Date(cy, cm - 1, 1, 0, 0, 0, 0)
-      const dataFimMes = new Date(cy, cm, 0, 23, 59, 59, 999)
+    while (cy < anoFimReal || (cy === anoFimReal && cm <= mesFimReal)) {
+      const chaveMes = `${cy}-${cm}`
+      if (mesesProcessadosCredito.has(chaveMes)) {
+        cm++
+        if (cm > 12) {
+          cm = 1
+          cy++
+        }
+        continue
+      }
+      mesesProcessadosCredito.add(chaveMes)
+
+      // Calcula a data do 1º dia útil do mês (às 08:00 BRT = 11:00 UTC)
+      const { data: dataCreditoMes, dia: diaUtil } = getPrimeiroDiaUtilMes(cy, cm)
+
+      // Início e fim do mês no Brasil para verificar overrides
+      const inicioMesBr = getInicioDiaBrasil(`${cy}-${String(cm).padStart(2, '0')}-01`)
+      const ultimoDiaMes = new Date(cy, cm, 0).getDate()
+      const fimMesBr = getFimDiaBrasil(`${cy}-${String(cm).padStart(2, '0')}-${String(ultimoDiaMes).padStart(2, '0')}`)
 
       const overridesNoMes = recargas.filter(
-        (r) => r.isOverride && r.data >= dataCreditoMes && r.data <= dataFimMes
+        (r) => r.isOverride && r.data >= inicioMesBr && r.data <= fimMesBr
       )
+
       const mesesValidos =
         getValidMonthsCount(tec.admissao, cy, cm) - getValidMonthsCount(tec.admissao, cy, cm - 1)
 
-      // Se o crédito do mês ocorreu antes de dataInicioPeriodo -> compõe o Saldo Anterior
+      const temOverride = overridesNoMes.length > 0
+      const ultOverride = temOverride ? overridesNoMes[overridesNoMes.length - 1] : null
+      const valorBaseMes = ultOverride
+        ? ultOverride.valor
+        : mesesValidos > 0
+        ? tec.orcamentoAbastecimento
+        : 0
+
+      // Se a data de crédito caiu antes do início do período selecionado -> Saldo Anterior
       if (dataCreditoMes < dataInicioPeriodo) {
-        let orcamentoM = 0
-        if (overridesNoMes.length > 0) {
-          orcamentoM = overridesNoMes[overridesNoMes.length - 1].valor
-        } else if (mesesValidos > 0) {
-          orcamentoM = tec.orcamentoAbastecimento
-        }
-        saldoAnterior += orcamentoM
+        saldoAnterior += valorBaseMes
       } else if (dataCreditoMes >= dataInicioPeriodo && dataCreditoMes <= dataFimPeriodo) {
-        // Se o crédito do mês está dentro do período selecionado -> gera lançamento no extrato
-        if (overridesNoMes.length > 0) {
-          const ultOverride = overridesNoMes[overridesNoMes.length - 1]
+        // Se a data de crédito está dentro do período selecionado -> entra como transação única no extrato
+        if (temOverride && ultOverride) {
           transacoes.push({
-            id: `ajuste_base_${cy}_${cm}`,
-            data: ultOverride.data.toISOString(),
+            id: `deposito_empresa_${cy}_${cm}`,
+            data: dataCreditoMes.toISOString(),
             tipo: 'ENTRADA_AJUSTE',
-            titulo: `Ajuste de Base (${MESES_NOME[cm - 1]}/${cy})`,
-            descricao: `Cota base recalculada para R$ ${ultOverride.valor.toFixed(2)}${
-              ultOverride.observacao ? ` - ${ultOverride.observacao}` : ''
+            titulo: `Depósito da Empresa - Cota Ajustada (${MESES_NOME[cm - 1]}/${cy})`,
+            descricao: `Depósito mensal no 1º dia útil (${String(diaUtil).padStart(2, '0')}/${String(cm).padStart(2, '0')}) com cota ajustada para R$ ${ultOverride.valor.toFixed(2)}${
+              ultOverride.observacao ? ` — ${ultOverride.observacao}` : ''
             }`,
             valor: ultOverride.valor,
             userName: ultOverride.userName || 'Administrador',
             isOverride: true,
           })
-        } else if (mesesValidos > 0 && tec.orcamentoAbastecimento > 0) {
+        } else if (valorBaseMes > 0) {
           transacoes.push({
-            id: `padrao_${cy}_${cm}`,
+            id: `deposito_empresa_${cy}_${cm}`,
             data: dataCreditoMes.toISOString(),
             tipo: 'ENTRADA_PADRAO',
-            titulo: `Cota Mensal Regular (${MESES_NOME[cm - 1]}/${cy})`,
-            descricao: `Crédito automático da verba mensal base`,
-            valor: tec.orcamentoAbastecimento,
-            userName: 'Sistema',
+            titulo: `Depósito da Empresa (${MESES_NOME[cm - 1]}/${cy})`,
+            descricao: `Depósito regular da cota mensal creditado no 1º dia útil (${String(diaUtil).padStart(2, '0')}/${String(cm).padStart(2, '0')})`,
+            valor: valorBaseMes,
+            userName: 'Empresa',
           })
         }
       }
@@ -604,7 +664,7 @@ export async function getExtratoBancarioTecnico(
       }
     }
 
-    // Processa recargas extras (aditivos, não-override)
+    // Processa recargas extras (cargas complementares pagas, isOverride === false)
     for (const r of recargas.filter((r) => !r.isOverride)) {
       if (r.data < dataInicioPeriodo) {
         saldoAnterior += r.valor
@@ -613,15 +673,17 @@ export async function getExtratoBancarioTecnico(
           id: r.id,
           data: r.data.toISOString(),
           tipo: 'ENTRADA_ADITIVO',
-          titulo: 'Recarga Extra (Aditivo)',
-          descricao: r.observacao || 'Recarga complementar autorizada',
+          titulo: 'Carga Complementar ao Depósito Mensal',
+          descricao: r.observacao
+            ? `Carga complementar ao valor depositado no mês — ${r.observacao}`
+            : 'Carga complementar ao valor depositado no mês',
           valor: r.valor,
           userName: r.userName || 'Administrador',
         })
       }
     }
 
-    // Processa abastecimentos (saídas)
+    // Processa abastecimentos (saídas / despesas de combustível)
     for (const a of abastecimentos) {
       if (a.data < dataInicioPeriodo) {
         saldoAnterior -= a.valor
@@ -631,7 +693,7 @@ export async function getExtratoBancarioTecnico(
           data: a.data.toISOString(),
           tipo: 'SAIDA_ABASTECIMENTO',
           titulo: 'Abastecimento',
-          descricao: a.tipo ? `Combustível (${a.tipo})` : 'Abastecimento realizado',
+          descricao: a.tipo ? `Combustível (${a.tipo})` : 'Abastecimento de veículo',
           valor: -Math.abs(a.valor),
           fotoCupom: a.fotoCupom || null,
           userName: tec.nome,
@@ -639,8 +701,29 @@ export async function getExtratoBancarioTecnico(
       }
     }
 
-    // Ordena as transações cronologicamente
-    transacoes.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
+    // Ordenação estritamente cronológica: do mais antigo para o mais novo
+    transacoes.sort((a, b) => {
+      const timeA = new Date(a.data).getTime()
+      const timeB = new Date(b.data).getTime()
+      if (timeA !== timeB) {
+        return timeA - timeB // Menor timestamp primeiro (mais antigo -> mais novo)
+      }
+
+      // Desempate na mesma data e hora:
+      // 1. Depósito da Empresa (ENTRADA_PADRAO / ENTRADA_AJUSTE)
+      // 2. Carga Complementar (ENTRADA_ADITIVO)
+      // 3. Abastecimentos (SAIDA_ABASTECIMENTO)
+      const pesoTipo = (tipo: string) => {
+        if (tipo === 'ENTRADA_PADRAO' || tipo === 'ENTRADA_AJUSTE') return 1
+        if (tipo === 'ENTRADA_ADITIVO') return 2
+        return 3
+      }
+
+      const diffPeso = pesoTipo(a.tipo) - pesoTipo(b.tipo)
+      if (diffPeso !== 0) return diffPeso
+
+      return a.id.localeCompare(b.id)
+    })
 
     // 2. Calcula Saldo Progressivo exatamente como num extrato bancário
     let runningBalance = saldoAnterior
