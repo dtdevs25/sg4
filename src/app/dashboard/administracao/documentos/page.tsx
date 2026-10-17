@@ -41,6 +41,7 @@ import {
   deleteDocumentoTecnico,
   uploadArquivoDocumento,
   createTipoDocumento,
+  updateTipoDocumento,
   deleteTipoDocumento,
   verificarENotificarDocumentosVencendo,
   enviarDocumentosDoTecnicoPorEmail,
@@ -406,6 +407,14 @@ export default function DocumentosTecnicosPage({
   const [novoTipoDiasAlerta, setNovoTipoDiasAlerta] = useState<number>(45)
   const [novoTipoObrigatorio, setNovoTipoObrigatorio] = useState(true)
   const [tipoFeedback, setTipoFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null)
+
+  // Modal de Edição de Tipo de Documento / Treinamento
+  const [tipoParaEditar, setTipoParaEditar] = useState<TipoDocItem | null>(null)
+  const [editTipoNome, setEditTipoNome] = useState('')
+  const [editTipoDescricao, setEditTipoDescricao] = useState('')
+  const [editTipoValidadeMeses, setEditTipoValidadeMeses] = useState<string>('')
+  const [editTipoDiasAlerta, setEditTipoDiasAlerta] = useState<number>(45)
+  const [editTipoSalvando, setEditTipoSalvando] = useState(false)
 
   // Carregar dados iniciais
   const carregarDados = async () => {
@@ -900,6 +909,50 @@ export default function DocumentosTecnicosPage({
         setFeedback({ tipo: 'erro', msg: msgErro })
       }
     })
+  }
+
+  // Abrir Modal de Edição de Tipo de Documento / Treinamento
+  const handleAbrirEdicaoTipo = (tipo: TipoDocItem) => {
+    setTipoParaEditar(tipo)
+    setEditTipoNome(tipo.nome)
+    setEditTipoDescricao(tipo.descricao || '')
+    setEditTipoValidadeMeses(tipo.validadeMeses ? String(tipo.validadeMeses) : '')
+    setEditTipoDiasAlerta(tipo.diasAlerta || 45)
+    setEditTipoSalvando(false)
+  }
+
+  // Submeter Edição de Tipo de Documento / Treinamento
+  const handleSalvarEdicaoTipo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!tipoParaEditar) return
+    if (!editTipoNome.trim()) return
+
+    setEditTipoSalvando(true)
+    try {
+      const res = await updateTipoDocumento(tipoParaEditar.id, {
+        nome: editTipoNome.trim(),
+        descricao: editTipoDescricao.trim() || undefined,
+        validadeMeses: editTipoValidadeMeses ? Number(editTipoValidadeMeses) : null,
+        diasAlerta: editTipoDiasAlerta || 45,
+      })
+
+      setEditTipoSalvando(false)
+      if (res.success) {
+        setTipoParaEditar(null)
+        const msgSucesso = `Tipo de documento "${editTipoNome.trim()}" atualizado com sucesso!`
+        setTipoFeedback({ tipo: 'sucesso', msg: msgSucesso })
+        setFeedback({ tipo: 'sucesso', msg: msgSucesso })
+        const tiposRes = await getTiposDocumentos()
+        if (tiposRes.success && tiposRes.data) setTiposDocs(tiposRes.data as any)
+      } else {
+        const msgErro = res.error || 'Erro ao atualizar tipo de documento.'
+        setTipoFeedback({ tipo: 'erro', msg: msgErro })
+        setFeedback({ tipo: 'erro', msg: msgErro })
+      }
+    } catch (err: any) {
+      setEditTipoSalvando(false)
+      setTipoFeedback({ tipo: 'erro', msg: 'Erro ao processar atualização do tipo.' })
+    }
   }
 
   // Excluir Tipo de Documento / Treinamento via Modal
@@ -3158,29 +3211,58 @@ export default function DocumentosTecnicosPage({
                             fontSize: 12,
                           }}
                         >
-                          <div style={{ overflow: 'hidden' }}>
+                          <div style={{ overflow: 'hidden', minWidth: 0, flex: 1, marginRight: 8 }}>
                             <span style={{ fontWeight: 700, color: '#1e293b' }}>{tipo.nome}</span>
                             <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>
                               {tipo.validadeMeses ? `${tipo.validadeMeses} meses` : 'Sem validade'}
                             </span>
+                            {tipo.descricao && (
+                              <div style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {tipo.descricao}
+                              </div>
+                            )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleExcluirTipo(tipo.id, tipo.nome)}
-                            disabled={isPending}
-                            title="Remover tipo de treinamento do banco de dados"
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#ef4444',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              padding: 4,
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleAbrirEdicaoTipo(tipo)}
+                              title="Editar este tipo de treinamento"
+                              style={{
+                                background: '#eff6ff',
+                                border: '1px solid #bfdbfe',
+                                color: '#2563eb',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '5px 8px',
+                                borderRadius: 6,
+                                fontSize: 11,
+                                fontWeight: 700,
+                              }}
+                            >
+                              <Edit2 size={13} />
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleExcluirTipo(tipo.id, tipo.nome)}
+                              disabled={isPending}
+                              title="Remover tipo de treinamento do banco de dados"
+                              style={{
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '5px 8px',
+                                borderRadius: 6,
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -3236,6 +3318,134 @@ export default function DocumentosTecnicosPage({
                 >
                   {isPending ? <Loader2 size={16} className="animate-spin" /> : <PlusCircle size={16} />}
                   {isPending ? 'Salvando...' : 'Salvar Treinamento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: EDITAR TIPO DE DOCUMENTO / TREINAMENTO ─── */}
+      {tipoParaEditar && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10005,
+          padding: 16,
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            width: '100%',
+            maxWidth: 520,
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
+            <div style={{
+              padding: '16px 20px',
+              background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Edit2 size={18} color="#fff" />
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#fff' }}>
+                  Editar Tipo de Documento / Treinamento
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTipoParaEditar(null)}
+                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSalvarEdicaoTipo} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  NOME DO DOCUMENTO / TREINAMENTO *
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="Ex: Treinamento NR-35, ASO..."
+                  value={editTipoNome}
+                  onChange={e => setEditTipoNome(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  DESCRIÇÃO DA NORMA / FINALIDADE
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Certificado de capacitação periódica"
+                  value={editTipoDescricao}
+                  onChange={e => setEditTipoDescricao(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    VALIDADE PADRÃO (MESES)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Ex: 12 ou 24"
+                    value={editTipoValidadeMeses}
+                    onChange={e => setEditTipoValidadeMeses(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                  />
+                  <span style={{ fontSize: 10, color: '#94a3b8' }}>Vazio = sem validade fixa</span>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    ALERTA PRÉVIO (DIAS)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editTipoDiasAlerta}
+                    onChange={e => setEditTipoDiasAlerta(Number(e.target.value))}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                  />
+                  <span style={{ fontSize: 10, color: '#94a3b8' }}>Padrão: 45 dias antes</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10, paddingTop: 14, borderTop: '1px solid #f1f5f9' }}>
+                <button
+                  type="button"
+                  onClick={() => setTipoParaEditar(null)}
+                  disabled={editTipoSalvando}
+                  style={{ padding: '8px 16px', borderRadius: 8, background: '#fff', border: '1px solid #cbd5e1', color: '#475569', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={editTipoSalvando}
+                  style={{ padding: '8px 20px', borderRadius: 8, background: PURPLE, border: 'none', color: '#fff', fontSize: 12, fontWeight: 700, cursor: editTipoSalvando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                >
+                  {editTipoSalvando ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  {editTipoSalvando ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </form>
