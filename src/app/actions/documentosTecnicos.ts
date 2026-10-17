@@ -575,6 +575,12 @@ export async function atualizarDocumentoTecnico(dados: {
   arquivoUrl?: string
   arquivoNome?: string
   arquivoTamanho?: number
+  itensEpi?: Array<{
+    nome: string
+    validadeMeses: number
+    dataEntrega: string
+    dataVencimento: string
+  }>
 }) {
   try {
     const session = await auth()
@@ -599,7 +605,19 @@ export async function atualizarDocumentoTecnico(dados: {
     if (!emissaoDate) return { success: false, error: 'Data de emissão inválida' }
 
     let vencimentoDate: Date | null = null
-    if (dados.dataVencimento) {
+
+    // Regra da Ficha de EPI: se tiver itens individuais de EPI, a ficha vence no item que vencer PRIMEIRO
+    if (dados.itensEpi && dados.itensEpi.length > 0) {
+      const datasItens = dados.itensEpi
+        .map(it => it.dataVencimento ? parseDataSegura(it.dataVencimento)?.getTime() : null)
+        .filter((t): t is number => typeof t === 'number' && !isNaN(t))
+
+      if (datasItens.length > 0) {
+        vencimentoDate = new Date(Math.min(...datasItens))
+      }
+    }
+
+    if (!vencimentoDate && dados.dataVencimento) {
       vencimentoDate = parseDataSegura(dados.dataVencimento)
     }
 
@@ -612,6 +630,10 @@ export async function atualizarDocumentoTecnico(dados: {
       dataVencimento: vencimentoDate,
       status: statusCalculado,
       observacoes: dados.observacoes !== undefined ? (dados.observacoes?.trim() || null) : docExistente.observacoes,
+    }
+
+    if (dados.itensEpi !== undefined) {
+      updateData.itensEpi = dados.itensEpi
     }
 
     if (dados.arquivoUrl && dados.arquivoNome) {

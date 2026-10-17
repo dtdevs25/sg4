@@ -367,6 +367,9 @@ export default function DocumentosTecnicosPage({
   const [editArquivoFile, setEditArquivoFile] = useState<File | null>(null)
   const [editSalvando, setEditSalvando] = useState(false)
   const editFileInputRef = useRef<HTMLInputElement>(null)
+  const [editItensEpi, setEditItensEpi] = useState<ItemEpi[]>([])
+  const [novoEditItemNome, setNovoEditItemNome] = useState('')
+  const [novoEditItemValidadeMeses, setNovoEditItemValidadeMeses] = useState<number>(12)
 
   // Custom Picker de Técnico no Modal
   const [showTecnicoPicker, setShowTecnicoPicker] = useState(false)
@@ -388,6 +391,13 @@ export default function DocumentosTecnicosPage({
   const [itensEpi, setItensEpi] = useState<ItemEpi[]>([])
   const [novoItemNome, setNovoItemNome] = useState('')
   const [novoItemValidadeMeses, setNovoItemValidadeMeses] = useState<number>(12)
+  const [itemEpiEmEdicao, setItemEpiEmEdicao] = useState<{
+    index: number
+    nome: string
+    validadeMeses: number
+    dataEntrega: string
+    dataVencimento: string
+  } | null>(null)
 
   // Form Novo Tipo
   const [novoTipoNome, setNovoTipoNome] = useState('')
@@ -395,6 +405,7 @@ export default function DocumentosTecnicosPage({
   const [novoTipoValidadeMeses, setNovoTipoValidadeMeses] = useState<string>('12')
   const [novoTipoDiasAlerta, setNovoTipoDiasAlerta] = useState<number>(45)
   const [novoTipoObrigatorio, setNovoTipoObrigatorio] = useState(true)
+  const [tipoFeedback, setTipoFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null)
 
   // Carregar dados iniciais
   const carregarDados = async () => {
@@ -501,20 +512,61 @@ export default function DocumentosTecnicosPage({
         const entrega = campo === 'dataEntrega' ? valor : novo[index].dataEntrega
         const valMeses = campo === 'validadeMeses' ? Number(valor) : novo[index].validadeMeses
         if (entrega && valMeses > 0) {
-          const d = new Date(entrega)
-          d.setMonth(d.getMonth() + valMeses)
-          novo[index].dataVencimento = d.toISOString().split('T')[0]
+          const partes = String(entrega).split('-').map(Number)
+          if (partes.length === 3 && partes[0] && partes[1] && partes[2]) {
+            const d = new Date(Date.UTC(partes[0], partes[1] - 1 + valMeses, partes[2], 12, 0, 0))
+            novo[index].dataVencimento = d.toISOString().split('T')[0]
+          }
         }
       }
       return novo
     })
   }
 
+  const handleAbrirEdicaoItemEpi = (index: number) => {
+    const item = itensEpi[index]
+    if (!item) return
+    setItemEpiEmEdicao({
+      index,
+      nome: item.nome,
+      validadeMeses: item.validadeMeses,
+      dataEntrega: item.dataEntrega,
+      dataVencimento: item.dataVencimento,
+    })
+  }
+
+  const handleSalvarEdicaoItemEpi = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!itemEpiEmEdicao) return
+    const { index, nome, validadeMeses, dataEntrega, dataVencimento } = itemEpiEmEdicao
+    if (!nome.trim()) return
+
+    setItensEpi(prev => {
+      const novo = [...prev]
+      novo[index] = {
+        nome: nome.trim(),
+        validadeMeses: Number(validadeMeses) || 12,
+        dataEntrega,
+        dataVencimento,
+      }
+      return novo
+    })
+    setItemEpiEmEdicao(null)
+  }
+
   const handleAdicionarItemEpi = () => {
     if (!novoItemNome.trim()) return
     const entrega = dataEmissao || new Date().toISOString().split('T')[0]
-    const d = new Date(entrega)
-    d.setMonth(d.getMonth() + (novoItemValidadeMeses || 12))
+    let venc = ''
+    const partes = entrega.split('-').map(Number)
+    if (partes.length === 3 && partes[0] && partes[1] && partes[2]) {
+      const d = new Date(Date.UTC(partes[0], partes[1] - 1 + (novoItemValidadeMeses || 12), partes[2], 12, 0, 0))
+      venc = d.toISOString().split('T')[0]
+    } else {
+      const d = new Date(entrega)
+      d.setMonth(d.getMonth() + (novoItemValidadeMeses || 12))
+      venc = d.toISOString().split('T')[0]
+    }
 
     setItensEpi(prev => [
       ...prev,
@@ -522,7 +574,7 @@ export default function DocumentosTecnicosPage({
         nome: novoItemNome.trim(),
         validadeMeses: novoItemValidadeMeses || 12,
         dataEntrega: entrega,
-        dataVencimento: d.toISOString().split('T')[0],
+        dataVencimento: venc,
       }
     ])
     setNovoItemNome('')
@@ -691,8 +743,63 @@ export default function DocumentosTecnicosPage({
     setEditSemVencimento(!doc.dataVencimento)
     setEditObservacoes(doc.observacoes || '')
     setEditArquivoFile(null)
+    setEditItensEpi(Array.isArray(doc.itensEpi) ? (doc.itensEpi as ItemEpi[]) : [])
+    setNovoEditItemNome('')
+    setNovoEditItemValidadeMeses(12)
     setEditSalvando(false)
     if (editFileInputRef.current) editFileInputRef.current.value = ''
+  }
+
+  // Helpers para itens de EPI no modal de edição de documento
+  const handleAtualizarEditItemEpi = (index: number, campo: keyof ItemEpi, valor: any) => {
+    setEditItensEpi(prev => {
+      const novo = [...prev]
+      novo[index] = { ...novo[index], [campo]: valor }
+
+      if (campo === 'dataEntrega' || campo === 'validadeMeses') {
+        const entrega = campo === 'dataEntrega' ? valor : novo[index].dataEntrega
+        const valMeses = campo === 'validadeMeses' ? Number(valor) : novo[index].validadeMeses
+        if (entrega && valMeses > 0) {
+          const partes = String(entrega).split('-').map(Number)
+          if (partes.length === 3 && partes[0] && partes[1] && partes[2]) {
+            const d = new Date(Date.UTC(partes[0], partes[1] - 1 + valMeses, partes[2], 12, 0, 0))
+            novo[index].dataVencimento = d.toISOString().split('T')[0]
+          }
+        }
+      }
+      return novo
+    })
+  }
+
+  const handleAdicionarEditItemEpi = () => {
+    if (!novoEditItemNome.trim()) return
+    const entrega = editDataEmissao || new Date().toISOString().split('T')[0]
+    let venc = ''
+    const partes = entrega.split('-').map(Number)
+    if (partes.length === 3 && partes[0] && partes[1] && partes[2]) {
+      const d = new Date(Date.UTC(partes[0], partes[1] - 1 + (novoEditItemValidadeMeses || 12), partes[2], 12, 0, 0))
+      venc = d.toISOString().split('T')[0]
+    } else {
+      const d = new Date(entrega)
+      d.setMonth(d.getMonth() + (novoEditItemValidadeMeses || 12))
+      venc = d.toISOString().split('T')[0]
+    }
+
+    setEditItensEpi(prev => [
+      ...prev,
+      {
+        nome: novoEditItemNome.trim(),
+        validadeMeses: novoEditItemValidadeMeses || 12,
+        dataEntrega: entrega,
+        dataVencimento: venc,
+      }
+    ])
+    setNovoEditItemNome('')
+    setNovoEditItemValidadeMeses(12)
+  }
+
+  const handleRemoverEditItemEpi = (index: number) => {
+    setEditItensEpi(prev => prev.filter((_, i) => i !== index))
   }
 
   // Submeter Edição de Documento
@@ -735,6 +842,8 @@ export default function DocumentosTecnicosPage({
         arquivoTamanho = uploadRes.sizeBytes
       }
 
+      const isDocEpi = modalEditarDoc.tipoDocumento?.nome?.toLowerCase().includes('epi')
+
       const res = await atualizarDocumentoTecnico({
         id: modalEditarDoc.id,
         titulo: editTitulo,
@@ -744,6 +853,7 @@ export default function DocumentosTecnicosPage({
         arquivoUrl,
         arquivoNome,
         arquivoTamanho,
+        itensEpi: isDocEpi ? editItensEpi : undefined,
       })
 
       setEditSalvando(false)
@@ -765,9 +875,11 @@ export default function DocumentosTecnicosPage({
     e.preventDefault()
     if (!novoTipoNome.trim()) return
 
+    const nomeCriado = novoTipoNome.trim()
+
     startTransition(async () => {
       const res = await createTipoDocumento({
-        nome: novoTipoNome,
+        nome: nomeCriado,
         descricao: novoTipoDescricao,
         validadeMeses: novoTipoValidadeMeses ? Number(novoTipoValidadeMeses) : null,
         diasAlerta: novoTipoDiasAlerta || 45,
@@ -775,14 +887,17 @@ export default function DocumentosTecnicosPage({
       })
 
       if (res.success) {
-        setModalNovoTipoAberto(false)
         setNovoTipoNome('')
         setNovoTipoDescricao('')
-        setFeedback({ tipo: 'sucesso', msg: 'Novo tipo de documento adicionado!' })
+        const msgSucesso = `Treinamento "${nomeCriado}" cadastrado com sucesso!`
+        setTipoFeedback({ tipo: 'sucesso', msg: msgSucesso })
+        setFeedback({ tipo: 'sucesso', msg: msgSucesso })
         const tiposRes = await getTiposDocumentos()
         if (tiposRes.success && tiposRes.data) setTiposDocs(tiposRes.data as any)
       } else {
-        setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao criar tipo de documento.' })
+        const msgErro = res.error || 'Erro ao criar tipo de documento.'
+        setTipoFeedback({ tipo: 'erro', msg: msgErro })
+        setFeedback({ tipo: 'erro', msg: msgErro })
       }
     })
   }
@@ -949,7 +1064,8 @@ export default function DocumentosTecnicosPage({
               transition: 'all 0.15s',
             }}
           >
-            + Doc./Renovação
+            <Plus size={16} />
+            + Incluir Documento
           </button>
         </div>
       )}
@@ -1029,24 +1145,43 @@ export default function DocumentosTecnicosPage({
         </div>
       </div>
 
-      {/* ─── ALERTAS / FEEDBACK ─── */}
+      {/* ─── ALERTAS / FEEDBACK FLUTUANTE DE ALTA VISIBILIDADE ─── */}
       {feedback && (
         <div style={{
-          padding: '12px 16px',
-          borderRadius: 8,
+          position: 'fixed',
+          top: 24,
+          right: 24,
+          zIndex: 100000,
+          minWidth: 320,
+          maxWidth: 480,
+          padding: '14px 18px',
+          borderRadius: 12,
           background: feedback.tipo === 'sucesso' ? '#f0fdf4' : '#fef2f2',
-          border: `1px solid ${feedback.tipo === 'sucesso' ? '#bbf7d0' : '#fecaca'}`,
-          color: feedback.tipo === 'sucesso' ? '#166534' : '#991b1b',
-          fontSize: 14,
+          border: `1px solid ${feedback.tipo === 'sucesso' ? '#86efac' : '#fca5a5'}`,
+          color: feedback.tipo === 'sucesso' ? '#15803d' : '#b91c1c',
+          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          gap: 12,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {feedback.tipo === 'sucesso' ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
-            <span>{feedback.msg}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {feedback.tipo === 'sucesso' ? <CheckCircle2 size={20} color="#16a34a" /> : <AlertTriangle size={20} color="#dc2626" />}
+            <span style={{ fontWeight: 700, fontSize: 13 }}>{feedback.msg}</span>
           </div>
-          <button onClick={() => setFeedback(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit' }}>
+          <button
+            onClick={() => setFeedback(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'inherit',
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+              opacity: 0.7,
+            }}
+          >
             <X size={16} />
           </button>
         </div>
@@ -1394,25 +1529,6 @@ export default function DocumentosTecnicosPage({
                           </button>
 
                           <button
-                            onClick={() => {
-                              setSelectedTecnicoId(doc.tecnicoId)
-                              setSelectedTipoId(doc.tipoDocumentoId)
-                              setModalUploadAberto(true)
-                            }}
-                            title="Renovar / Substituir por nova versão"
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: PURPLE,
-                              cursor: 'pointer',
-                              padding: 6,
-                              borderRadius: 4,
-                            }}
-                          >
-                            <UploadCloud size={16} />
-                          </button>
-
-                          <button
                             onClick={() => handleExcluir(doc.id, doc.tipoDocumento?.nome)}
                             title="Excluir documento"
                             style={{
@@ -1485,7 +1601,7 @@ export default function DocumentosTecnicosPage({
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>
-                    Registrar / Renovar Documento
+                    Registrar Documento
                   </h3>
                   <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
                     Gestão de Documentos SST & Ficha de EPI
@@ -1666,50 +1782,88 @@ export default function DocumentosTecnicosPage({
                       {itensEpi.map((item, idx) => (
                         <div key={idx} style={{
                           display: 'grid',
-                          gridTemplateColumns: '1.5fr 1fr 1fr 1fr auto',
+                          gridTemplateColumns: '1.4fr 0.8fr 1fr 1fr auto',
                           gap: 8,
                           alignItems: 'center',
                           background: '#fff',
-                          padding: '8px 10px',
+                          padding: '10px 12px',
                           borderRadius: 8,
                           border: '1px solid #f3e8ff',
                           fontSize: 12,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
                         }}>
                           <div>
-                            <span style={{ fontWeight: 700, color: '#1e293b' }}>{item.nome}</span>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Nome do EPI</label>
+                            <input
+                              type="text"
+                              value={item.nome}
+                              onChange={e => handleAtualizarItemEpi(idx, 'nome', e.target.value)}
+                              style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 700, color: '#1e293b' }}
+                            />
                           </div>
                           <div>
-                            <label style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Validade</label>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Meses</label>
                             <input
                               type="number"
                               min="1"
                               value={item.validadeMeses}
                               onChange={e => handleAtualizarItemEpi(idx, 'validadeMeses', e.target.value)}
-                              style={{ width: '100%', padding: '4px 6px', borderRadius: 4, border: '1px solid #cbd5e1' }}
+                              style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
                             />
                           </div>
                           <div>
-                            <label style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Entrega</label>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Entrega</label>
                             <input
                               type="date"
                               value={item.dataEntrega}
                               onChange={e => handleAtualizarItemEpi(idx, 'dataEntrega', e.target.value)}
-                              style={{ width: '100%', padding: '4px 6px', borderRadius: 4, border: '1px solid #cbd5e1' }}
+                              style={{ width: '100%', padding: '5px 6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
                             />
                           </div>
                           <div>
-                            <label style={{ fontSize: 10, color: '#64748b', display: 'block' }}>Vence em</label>
-                            <span style={{ fontWeight: 700, color: '#dc2626' }}>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Vence em</label>
+                            <span style={{ fontWeight: 700, color: '#dc2626', display: 'block', padding: '5px 0', fontSize: 11 }}>
                               {item.dataVencimento ? formatarData(item.dataVencimento) : '-'}
                             </span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoverItemEpi(idx)}
-                            style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleAbrirEdicaoItemEpi(idx)}
+                              title="Editar este item em detalhes"
+                              style={{
+                                background: '#eff6ff',
+                                border: '1px solid #bfdbfe',
+                                color: '#2563eb',
+                                cursor: 'pointer',
+                                padding: 6,
+                                borderRadius: 6,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoverItemEpi(idx)}
+                              title="Remover este item da ficha de EPI"
+                              style={{
+                                background: '#fef2f2',
+                                border: '1px solid #fecaca',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                padding: 6,
+                                borderRadius: 6,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -2193,6 +2347,137 @@ export default function DocumentosTecnicosPage({
                   </label>
                 </div>
 
+                {/* Módulo Especial: Controle de Itens da Ficha de EPI na Edição */}
+                {modalEditarDoc.tipoDocumento?.nome?.toLowerCase().includes('epi') && (
+                  <div style={{
+                    background: '#faf5ff',
+                    border: '1px solid #e9d5ff',
+                    borderRadius: 10,
+                    padding: 16,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: PURPLE, fontSize: 13 }}>
+                        <HardHat size={16} />
+                        Itens da Ficha de EPI ({editItensEpi.length})
+                      </div>
+                      <span style={{ fontSize: 11, color: '#7e22ce', fontWeight: 600 }}>
+                        Vence no item mais próximo
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {editItensEpi.map((item, idx) => (
+                        <div key={idx} style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1.4fr 0.8fr 1fr 1fr auto',
+                          gap: 8,
+                          alignItems: 'center',
+                          background: '#fff',
+                          padding: '10px 12px',
+                          borderRadius: 8,
+                          border: '1px solid #f3e8ff',
+                          fontSize: 12,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                        }}>
+                          <div>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Nome do EPI</label>
+                            <input
+                              type="text"
+                              value={item.nome}
+                              onChange={e => handleAtualizarEditItemEpi(idx, 'nome', e.target.value)}
+                              style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 700, color: '#1e293b' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Meses</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.validadeMeses}
+                              onChange={e => handleAtualizarEditItemEpi(idx, 'validadeMeses', e.target.value)}
+                              style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Entrega</label>
+                            <input
+                              type="date"
+                              value={item.dataEntrega}
+                              onChange={e => handleAtualizarEditItemEpi(idx, 'dataEntrega', e.target.value)}
+                              style={{ width: '100%', padding: '5px 6px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 10, color: '#64748b', display: 'block', marginBottom: 2 }}>Vence em</label>
+                            <span style={{ fontWeight: 700, color: '#dc2626', display: 'block', padding: '5px 0', fontSize: 11 }}>
+                              {item.dataVencimento ? formatarData(item.dataVencimento) : '-'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoverEditItemEpi(idx)}
+                            title="Remover este item da ficha de EPI"
+                            style={{
+                              background: '#fef2f2',
+                              border: '1px solid #fecaca',
+                              color: '#ef4444',
+                              cursor: 'pointer',
+                              padding: 6,
+                              borderRadius: 6,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Adicionar novo item de EPI à ficha */}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <input
+                        type="text"
+                        placeholder="Nome do EPI (ex: Bota de Segurança...)"
+                        value={novoEditItemNome}
+                        onChange={e => setNovoEditItemNome(e.target.value)}
+                        style={{ flex: 2, padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
+                      />
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Meses"
+                        value={novoEditItemValidadeMeses}
+                        onChange={e => setNovoEditItemValidadeMeses(Number(e.target.value))}
+                        style={{ width: 80, padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAdicionarEditItemEpi}
+                        style={{
+                          background: PURPLE,
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 6,
+                          padding: '0 12px',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <Plus size={14} /> Adicionar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Substituição Opcional de Arquivo */}
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
@@ -2318,6 +2603,173 @@ export default function DocumentosTecnicosPage({
                 >
                   {editSalvando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                   {editSalvando ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: EDITAR ITEM INDIVIDUAL DE EPI ─── */}
+      {itemEpiEmEdicao && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.7)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10001,
+          padding: 16,
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            width: '100%',
+            maxWidth: 480,
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
+            <div style={{
+              padding: '16px 20px',
+              background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <HardHat size={20} color="#fff" />
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#fff' }}>
+                  Editar Item da Ficha de EPI
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setItemEpiEmEdicao(null)}
+                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSalvarEdicaoItemEpi} style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                  NOME DO EQUIPAMENTO / EPI *
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="Ex: Bota de Segurança com Bico de Aço"
+                  value={itemEpiEmEdicao.nome}
+                  onChange={e => setItemEpiEmEdicao(prev => prev ? { ...prev, nome: e.target.value } : null)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    VALIDADE (MESES) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={itemEpiEmEdicao.validadeMeses}
+                    onChange={e => {
+                      const meses = Number(e.target.value)
+                      setItemEpiEmEdicao(prev => {
+                        if (!prev) return null
+                        let novoVenc = prev.dataVencimento
+                        if (prev.dataEntrega && meses > 0) {
+                          const partes = prev.dataEntrega.split('-').map(Number)
+                          if (partes.length === 3) {
+                            const d = new Date(Date.UTC(partes[0], partes[1] - 1 + meses, partes[2], 12, 0, 0))
+                            novoVenc = d.toISOString().split('T')[0]
+                          }
+                        }
+                        return { ...prev, validadeMeses: meses, dataVencimento: novoVenc }
+                      })
+                    }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    DATA DE ENTREGA *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={itemEpiEmEdicao.dataEntrega}
+                    onChange={e => {
+                      const entrega = e.target.value
+                      setItemEpiEmEdicao(prev => {
+                        if (!prev) return null
+                        let novoVenc = prev.dataVencimento
+                        if (entrega && prev.validadeMeses > 0) {
+                          const partes = entrega.split('-').map(Number)
+                          if (partes.length === 3) {
+                            const d = new Date(Date.UTC(partes[0], partes[1] - 1 + prev.validadeMeses, partes[2], 12, 0, 0))
+                            novoVenc = d.toISOString().split('T')[0]
+                          }
+                        }
+                        return { ...prev, dataEntrega: entrega, dataVencimento: novoVenc }
+                      })
+                    }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>
+                    DATA DE VENCIMENTO
+                  </label>
+                  {itemEpiEmEdicao.dataEntrega && itemEpiEmEdicao.validadeMeses > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const partes = itemEpiEmEdicao.dataEntrega.split('-').map(Number)
+                        if (partes.length === 3) {
+                          const d = new Date(Date.UTC(partes[0], partes[1] - 1 + itemEpiEmEdicao.validadeMeses, partes[2], 12, 0, 0))
+                          setItemEpiEmEdicao(prev => prev ? { ...prev, dataVencimento: d.toISOString().split('T')[0] } : null)
+                        }
+                      }}
+                      style={{ background: 'none', border: 'none', color: PURPLE, fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                    >
+                      Recalcular ({itemEpiEmEdicao.validadeMeses}m)
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="date"
+                  value={itemEpiEmEdicao.dataVencimento}
+                  onChange={e => setItemEpiEmEdicao(prev => prev ? { ...prev, dataVencimento: e.target.value } : null)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10, paddingTop: 14, borderTop: '1px solid #f1f5f9' }}>
+                <button
+                  type="button"
+                  onClick={() => setItemEpiEmEdicao(null)}
+                  style={{ padding: '8px 16px', borderRadius: 8, background: '#fff', border: '1px solid #cbd5e1', color: '#475569', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 20px', borderRadius: 8, background: PURPLE, border: 'none', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Salvar Item
                 </button>
               </div>
             </form>
@@ -2568,6 +3020,33 @@ export default function DocumentosTecnicosPage({
                 gap: 16,
                 flex: 1,
               }}>
+                {tipoFeedback && (
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: 8,
+                    background: tipoFeedback.tipo === 'sucesso' ? '#f0fdf4' : '#fef2f2',
+                    border: `1px solid ${tipoFeedback.tipo === 'sucesso' ? '#86efac' : '#fca5a5'}`,
+                    color: tipoFeedback.tipo === 'sucesso' ? '#15803d' : '#b91c1c',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {tipoFeedback.tipo === 'sucesso' ? <CheckCircle2 size={18} color="#16a34a" /> : <AlertTriangle size={18} color="#dc2626" />}
+                      <span>{tipoFeedback.msg}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTipoFeedback(null)}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
                     NOME DO DOCUMENTO / TREINAMENTO *
@@ -2720,7 +3199,10 @@ export default function DocumentosTecnicosPage({
               }}>
                 <button
                   type="button"
-                  onClick={() => setModalNovoTipoAberto(false)}
+                  onClick={() => {
+                    setTipoFeedback(null)
+                    setModalNovoTipoAberto(false)
+                  }}
                   style={{
                     padding: '10px 18px',
                     borderRadius: 8,
@@ -2732,7 +3214,7 @@ export default function DocumentosTecnicosPage({
                     cursor: 'pointer',
                   }}
                 >
-                  Cancelar
+                  Fechar
                 </button>
                 <button
                   type="submit"
@@ -2745,11 +3227,15 @@ export default function DocumentosTecnicosPage({
                     color: '#fff',
                     fontSize: 13,
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    cursor: isPending ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
                     boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
                   }}
                 >
-                  {isPending ? 'Salvando...' : 'Salvar Tipo de Treinamento'}
+                  {isPending ? <Loader2 size={16} className="animate-spin" /> : <PlusCircle size={16} />}
+                  {isPending ? 'Salvando...' : 'Salvar Treinamento'}
                 </button>
               </div>
             </form>
