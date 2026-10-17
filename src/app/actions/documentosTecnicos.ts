@@ -564,6 +564,91 @@ export async function salvarDocumentoTecnico(dados: {
   }
 }
 
+// ─── EDITAR / ATUALIZAR DADOS DO DOCUMENTO DO TÉCNICO ───
+
+export async function atualizarDocumentoTecnico(dados: {
+  id: string
+  titulo?: string
+  dataEmissao: string
+  dataVencimento?: string | null
+  observacoes?: string
+  arquivoUrl?: string
+  arquivoNome?: string
+  arquivoTamanho?: number
+}) {
+  try {
+    const session = await auth()
+    const role = (session?.user as any)?.role
+    const userName = session?.user?.name || 'Administrador'
+    if (role !== 'MASTER' && role !== 'ADMIN') return { success: false, error: 'Acesso negado' }
+
+    if (!dados.id) return { success: false, error: 'ID do documento é obrigatório' }
+    if (!dados.dataEmissao) return { success: false, error: 'Data de emissão é obrigatória' }
+
+    const docExistente = await prisma.documentoTecnico.findUnique({
+      where: { id: dados.id },
+      include: {
+        tipoDocumento: true,
+        tecnico: { select: { nome: true } },
+      },
+    })
+
+    if (!docExistente) return { success: false, error: 'Documento não encontrado' }
+
+    const emissaoDate = parseDataSegura(dados.dataEmissao)
+    if (!emissaoDate) return { success: false, error: 'Data de emissão inválida' }
+
+    let vencimentoDate: Date | null = null
+    if (dados.dataVencimento) {
+      vencimentoDate = parseDataSegura(dados.dataVencimento)
+    }
+
+    const diasAlerta = docExistente.tipoDocumento?.diasAlerta || 45
+    const statusCalculado = calcularStatusDocumento(vencimentoDate, diasAlerta)
+
+    const updateData: any = {
+      titulo: dados.titulo !== undefined ? (dados.titulo?.trim() || null) : docExistente.titulo,
+      dataEmissao: emissaoDate,
+      dataVencimento: vencimentoDate,
+      status: statusCalculado,
+      observacoes: dados.observacoes !== undefined ? (dados.observacoes?.trim() || null) : docExistente.observacoes,
+    }
+
+    if (dados.arquivoUrl && dados.arquivoNome) {
+      updateData.arquivoUrl = dados.arquivoUrl
+      updateData.arquivoNome = dados.arquivoNome
+      if (dados.arquivoTamanho) updateData.arquivoTamanho = dados.arquivoTamanho
+    }
+
+    const resultado = await prisma.documentoTecnico.update({
+      where: { id: dados.id },
+      data: updateData,
+      include: {
+        tecnico: { select: { nome: true } },
+        tipoDocumento: { select: { nome: true } },
+      },
+    })
+
+    await audit({
+      userId: session?.user?.id,
+      action: 'EDITAR_DOCUMENTO_TECNICO',
+      entity: 'DocumentoTecnico',
+      entityId: resultado.id,
+      details: {
+        tecnico: resultado.tecnico.nome,
+        tipo: resultado.tipoDocumento.nome,
+        titulo: resultado.titulo,
+        usuario: userName,
+      },
+    })
+
+    return { success: true, data: resultado }
+  } catch (error) {
+    console.error('Erro ao atualizar documento do técnico:', error)
+    return { success: false, error: 'Erro ao atualizar documento do técnico' }
+  }
+}
+
 // ─── ENVIAR TODOS OS DOCUMENTOS DO TÉCNICO POR E-MAIL PARA ADMINISTRADORES ───
 
 export async function enviarDocumentosDoTecnicoPorEmail(tecnicoId: string) {

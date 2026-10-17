@@ -31,11 +31,13 @@ import {
   Eye,
   Download,
   ClipboardCheck,
+  Edit2,
 } from 'lucide-react'
 import {
   getDocumentosTecnicos,
   getTiposDocumentos,
   salvarDocumentoTecnico,
+  atualizarDocumentoTecnico,
   deleteDocumentoTecnico,
   uploadArquivoDocumento,
   createTipoDocumento,
@@ -345,6 +347,26 @@ export default function DocumentosTecnicosPage({
   const [notificandoEmail, setNotificandoEmail] = useState(false)
   const [enviandoDossieTecnicoId, setEnviandoDossieTecnicoId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null)
+
+  // Auto-dismiss de mensagens de feedback em 10 segundos
+  useEffect(() => {
+    if (!feedback) return
+    const timer = setTimeout(() => {
+      setFeedback(null)
+    }, 10000)
+    return () => clearTimeout(timer)
+  }, [feedback])
+
+  // Modal de Edição de Documento
+  const [modalEditarDoc, setModalEditarDoc] = useState<DocumentoItem | null>(null)
+  const [editTitulo, setEditTitulo] = useState('')
+  const [editDataEmissao, setEditDataEmissao] = useState('')
+  const [editDataVencimento, setEditDataVencimento] = useState('')
+  const [editSemVencimento, setEditSemVencimento] = useState(false)
+  const [editObservacoes, setEditObservacoes] = useState('')
+  const [editArquivoFile, setEditArquivoFile] = useState<File | null>(null)
+  const [editSalvando, setEditSalvando] = useState(false)
+  const editFileInputRef = useRef<HTMLInputElement>(null)
 
   // Custom Picker de Técnico no Modal
   const [showTecnicoPicker, setShowTecnicoPicker] = useState(false)
@@ -658,6 +680,84 @@ export default function DocumentosTecnicosPage({
     setTecnicoPickerSearch('')
     setItensEpi([])
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // Abrir Modal de Edição de Documento
+  const handleAbrirModalEditar = (doc: DocumentoItem) => {
+    setModalEditarDoc(doc)
+    setEditTitulo(doc.titulo || '')
+    setEditDataEmissao(doc.dataEmissao ? String(doc.dataEmissao).split('T')[0] : '')
+    setEditDataVencimento(doc.dataVencimento ? String(doc.dataVencimento).split('T')[0] : '')
+    setEditSemVencimento(!doc.dataVencimento)
+    setEditObservacoes(doc.observacoes || '')
+    setEditArquivoFile(null)
+    setEditSalvando(false)
+    if (editFileInputRef.current) editFileInputRef.current.value = ''
+  }
+
+  // Submeter Edição de Documento
+  const handleSalvarEdicao = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!modalEditarDoc) return
+    if (!editDataEmissao) {
+      setFeedback({ tipo: 'erro', msg: 'Data de emissão é obrigatória.' })
+      return
+    }
+
+    setEditSalvando(true)
+    try {
+      let arquivoUrl: string | undefined = undefined
+      let arquivoNome: string | undefined = undefined
+      let arquivoTamanho: number | undefined = undefined
+
+      if (editArquivoFile) {
+        const base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.readAsDataURL(editArquivoFile)
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = error => reject(error)
+        })
+
+        const formData = new FormData()
+        formData.append('fileData', base64Data)
+        formData.append('fileName', editArquivoFile.name)
+        formData.append('contentType', editArquivoFile.type)
+
+        const uploadRes = await uploadArquivoDocumento(formData)
+        if (!uploadRes.success || !uploadRes.url) {
+          setEditSalvando(false)
+          setFeedback({ tipo: 'erro', msg: uploadRes.error || 'Falha no upload do novo arquivo.' })
+          return
+        }
+
+        arquivoUrl = uploadRes.url
+        arquivoNome = editArquivoFile.name
+        arquivoTamanho = uploadRes.sizeBytes
+      }
+
+      const res = await atualizarDocumentoTecnico({
+        id: modalEditarDoc.id,
+        titulo: editTitulo,
+        dataEmissao: editDataEmissao,
+        dataVencimento: editSemVencimento ? null : (editDataVencimento || null),
+        observacoes: editObservacoes,
+        arquivoUrl,
+        arquivoNome,
+        arquivoTamanho,
+      })
+
+      setEditSalvando(false)
+      if (res.success) {
+        setModalEditarDoc(null)
+        setFeedback({ tipo: 'sucesso', msg: 'Documento atualizado com sucesso!' })
+        carregarDados()
+      } else {
+        setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao atualizar documento.' })
+      }
+    } catch (err: any) {
+      setEditSalvando(false)
+      setFeedback({ tipo: 'erro', msg: 'Ocorreu um erro ao atualizar o documento.' })
+    }
   }
 
   // Criar Novo Tipo de Documento
@@ -1251,6 +1351,33 @@ export default function DocumentosTecnicosPage({
                           )}
 
                           <button
+                            onClick={() => handleAbrirModalEditar(doc)}
+                            title="Editar dados do documento"
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#2563eb',
+                              cursor: 'pointer',
+                              padding: 6,
+                              borderRadius: 4,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#dbeafe'
+                              e.currentTarget.style.color = '#1d4ed8'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent'
+                              e.currentTarget.style.color = '#2563eb'
+                            }}
+                          >
+                            <Edit2 size={16} />
+                          </button>
+
+                          <button
                             onClick={() => handleEnviarDossieTecnico(doc.tecnicoId, doc.tecnico?.nome)}
                             title={`Enviar por e-mail todos os documentos de ${doc.tecnico?.nome} aos administradores`}
                             disabled={enviandoDossieTecnicoId === doc.tecnicoId}
@@ -1832,6 +1959,365 @@ export default function DocumentosTecnicosPage({
                 >
                   {uploadProgress ? <Loader2 size={16} className="animate-spin" /> : <UploadCloud size={16} />}
                   {uploadProgress ? 'Enviando...' : 'Salvar Documento'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: EDITAR DADOS DO DOCUMENTO ─── */}
+      {modalEditarDoc && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 16,
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            width: '100%',
+            maxWidth: 580,
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
+            {/* Header Modal - Padrão SG4 */}
+            <div style={{
+              padding: '18px 24px',
+              background: `linear-gradient(135deg, ${PURPLE} 0%, #4a0072 100%)`,
+              borderRadius: '16px 16px 0 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  background: 'rgba(255,255,255,0.15)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Edit2 size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                    Editar Dados do Documento
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
+                    {modalEditarDoc.tipoDocumento?.nome} &bull; {modalEditarDoc.tecnico?.nome}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalEditarDoc(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#fff',
+                  borderRadius: 6,
+                  padding: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Formulário com Scroll Interno */}
+            <form onSubmit={handleSalvarEdicao} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
+                {/* Resumo do Documento (Técnico e Tipo) */}
+                <div style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 10,
+                  padding: '12px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Colaborador / Tipo</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginTop: 2 }}>
+                      {modalEditarDoc.tecnico?.nome}
+                    </div>
+                    <div style={{ fontSize: 12, color: PURPLE, fontWeight: 600 }}>
+                      {modalEditarDoc.tipoDocumento?.nome}
+                    </div>
+                  </div>
+                  {modalEditarDoc.arquivoUrl && (
+                    <a
+                      href={modalEditarDoc.arquivoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 12,
+                        color: '#0284c7',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        background: '#e0f2fe',
+                        padding: '6px 10px',
+                        borderRadius: 6,
+                      }}
+                    >
+                      <Eye size={14} /> Ver Atual
+                    </a>
+                  )}
+                </div>
+
+                {/* Título ou Identificador */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    TÍTULO / IDENTIFICADOR (OPCIONAL)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Treinamento NR-35 turma 2026 / Periódico Anual"
+                    value={editTitulo}
+                    onChange={e => setEditTitulo(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                {/* Datas de Emissão e Vencimento */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                      DATA DE EMISSÃO / ENTREGA *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={editDataEmissao}
+                      onChange={e => setEditDataEmissao(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        border: '1px solid #cbd5e1',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>
+                        DATA DE VENCIMENTO
+                      </label>
+                      {modalEditarDoc.tipoDocumento?.validadeMeses && !editSemVencimento && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (editDataEmissao) {
+                              const partes = editDataEmissao.split('-').map(Number)
+                              if (partes.length === 3 && partes[0] && partes[1] && partes[2]) {
+                                const d = new Date(Date.UTC(partes[0], partes[1] - 1 + Number(modalEditarDoc.tipoDocumento.validadeMeses), partes[2], 12, 0, 0))
+                                setEditDataVencimento(d.toISOString().split('T')[0])
+                              }
+                            }
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: PURPLE,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            padding: 0,
+                          }}
+                        >
+                          Calcular ({modalEditarDoc.tipoDocumento.validadeMeses}m)
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="date"
+                      disabled={editSemVencimento}
+                      value={editSemVencimento ? '' : editDataVencimento}
+                      onChange={e => setEditDataVencimento(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        border: '1px solid #cbd5e1',
+                        background: editSemVencimento ? '#f1f5f9' : '#fff',
+                        color: editSemVencimento ? '#94a3b8' : '#1e293b',
+                        fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    id="chkEditSemVenc"
+                    checked={editSemVencimento}
+                    onChange={e => {
+                      setEditSemVencimento(e.target.checked)
+                      if (e.target.checked) setEditDataVencimento('')
+                    }}
+                    style={{ accentColor: PURPLE }}
+                  />
+                  <label htmlFor="chkEditSemVenc" style={{ fontSize: 12, color: '#475569', cursor: 'pointer' }}>
+                    Documento sem validade / Permanente (não expira)
+                  </label>
+                </div>
+
+                {/* Substituição Opcional de Arquivo */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    SUBSTITUIR ARQUIVO (OPCIONAL)
+                  </label>
+                  <div
+                    style={{
+                      border: '1px dashed #cbd5e1',
+                      borderRadius: 8,
+                      padding: 12,
+                      background: '#f8fafc',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                    }}
+                    onClick={() => editFileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={editFileInputRef}
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        if (e.target.files && e.target.files[0]) {
+                          setEditArquivoFile(e.target.files[0])
+                        }
+                      }}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                      <UploadCloud size={20} color={PURPLE} style={{ flexShrink: 0 }} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {editArquivoFile ? editArquivoFile.name : `Atual: ${modalEditarDoc.arquivoNome}`}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                          {editArquivoFile ? `${(editArquivoFile.size / 1024).toFixed(1)} KB (selecionado)` : 'Clique caso deseje trocar o arquivo deste documento'}
+                        </div>
+                      </div>
+                    </div>
+                    {editArquivoFile && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditArquivoFile(null)
+                        }}
+                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Observações */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                    OBSERVAÇÕES (OPCIONAL)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ex: Observações corrigidas, detalhes do certificado..."
+                    value={editObservacoes}
+                    onChange={e => setEditObservacoes(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      outline: 'none',
+                      resize: 'vertical',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Footer Modal */}
+              <div style={{
+                padding: '16px 24px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 12,
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setModalEditarDoc(null)}
+                  disabled={editSalvando}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: 8,
+                    background: '#fff',
+                    border: '1px solid #cbd5e1',
+                    color: '#475569',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSalvando}
+                  style={{
+                    padding: '10px 22px',
+                    borderRadius: 8,
+                    background: `linear-gradient(135deg, ${PURPLE}, #4a0072)`,
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: editSalvando ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 4px 12px rgba(102,0,153,0.25)',
+                  }}
+                >
+                  {editSalvando ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  {editSalvando ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
             </form>
