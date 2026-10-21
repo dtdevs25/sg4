@@ -41,7 +41,7 @@ export async function getPlanejamentos(tecnicoId?: string, startDate?: Date, end
   }
 }
 
-function getGoogleCalendarUrl(plan: {
+function getOutlookCalendarUrl(plan: {
   dataAtividade: Date;
   hora?: string | null;
   titulo?: string | null;
@@ -51,29 +51,25 @@ function getGoogleCalendarUrl(plan: {
   cidade?: string | null;
   estado?: string | null;
 }) {
-  const dateStr = plan.dataAtividade.toISOString().split('T')[0].replace(/-/g, '') // YYYYMMDD
+  const dateStr = plan.dataAtividade.toISOString().split('T')[0] // YYYY-MM-DD
   let startHour = plan.hora || '08:00'
   if (startHour.length === 5) {
-    startHour = startHour.replace(':', '') + '00' // HHMMSS
-  } else if (startHour.length === 8) {
-    startHour = startHour.replace(/:/g, '') // HHMMSS
-  } else {
-    startHour = '080000'
-  }
-  
-  // Default to 1 hour event
-  let endHour = String(parseInt(startHour.substring(0, 2)) + 1).padStart(2, '0') + startHour.substring(2)
-  if (parseInt(endHour.substring(0, 2)) >= 24) {
-    endHour = '235900'
+    startHour = startHour + ':00' // HH:mm:ss
+  } else if (startHour.length !== 8) {
+    startHour = '08:00:00'
   }
 
-  const dateParam = `${dateStr}T${startHour}/${dateStr}T${endHour}`
-  
-  const text = plan.titulo || plan.categoria
-  const details = `${plan.categoria} - ${plan.descricaoOriginal}\n\nGerado automaticamente via SG4.`
+  const startH = parseInt(startHour.substring(0, 2), 10)
+  const endH = startH >= 23 ? '23:59:00' : String(startH + 1).padStart(2, '0') + startHour.substring(2)
+
+  const startDt = `${dateStr}T${startHour}`
+  const endDt = `${dateStr}T${endH}`
+
+  const subject = plan.titulo || plan.categoria
+  const body = `${plan.categoria} - ${plan.descricaoOriginal}\n\nGerado automaticamente via SG4.`
   const location = `${plan.local || ''} ${plan.cidade ? '(' + plan.cidade + '-' + plan.estado + ')' : ''}`.trim()
-  
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(text)}&dates=${dateParam}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}`
+
+  return `https://outlook.office.com/calendar/0/deeplink/compose?path=%2Fcalendar%2Faction%2Fcompose&rru=addevent&subject=${encodeURIComponent(subject)}&startdt=${encodeURIComponent(startDt)}&enddt=${encodeURIComponent(endDt)}&body=${encodeURIComponent(body)}&location=${encodeURIComponent(location)}`
 }
 
 async function notifyTecnicoPlan(
@@ -83,7 +79,7 @@ async function notifyTecnicoPlan(
 ) {
   if (newPlan.tecnico?.email && creatorTecnicoId !== newPlan.tecnicoId) {
     const dataFormatada = newPlan.dataAtividade.toLocaleDateString('pt-BR', { timeZone: 'UTC' })
-    const googleCalendarUrl = getGoogleCalendarUrl(newPlan)
+    const outlookCalendarUrl = getOutlookCalendarUrl(newPlan)
 
     const html = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
@@ -101,8 +97,8 @@ async function notifyTecnicoPlan(
           </div>
           
           <div style="text-align: center; margin: 24px 0;">
-            <a href="${googleCalendarUrl}" target="_blank" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 14px;">
-              📅 Adicionar à Agenda do Google
+            <a href="${outlookCalendarUrl}" target="_blank" style="background-color: #0078d4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 14px;">
+              📅 Adicionar ao Outlook (Office 365)
             </a>
           </div>
 

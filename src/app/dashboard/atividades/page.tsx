@@ -40,31 +40,28 @@ const CATEGORIES = [
   'TREINAMENTO',
   'OUTROS'
 ]
-function getGoogleCalendarUrl(plan: any) {
+function getOutlookCalendarUrl(plan: any) {
   if (!plan.dataAtividade) return '#'
   const d = typeof plan.dataAtividade === 'string' ? new Date(plan.dataAtividade) : plan.dataAtividade
-  const dateStr = d.toISOString().split('T')[0].replace(/-/g, '') // YYYYMMDD
+  const dateStr = d.toISOString().split('T')[0] // YYYY-MM-DD
   let startHour = plan.hora || '08:00'
   if (startHour.length === 5) {
-    startHour = startHour.replace(':', '') + '00' // HHMMSS
-  } else if (startHour.length === 8) {
-    startHour = startHour.replace(/:/g, '') // HHMMSS
-  } else {
-    startHour = '080000'
-  }
-  
-  let endHour = String(parseInt(startHour.substring(0, 2)) + 1).padStart(2, '0') + startHour.substring(2)
-  if (parseInt(endHour.substring(0, 2)) >= 24) {
-    endHour = '235900'
+    startHour = startHour + ':00' // HH:mm:ss
+  } else if (startHour.length !== 8) {
+    startHour = '08:00:00'
   }
 
-  const dateParam = `${dateStr}T${startHour}/${dateStr}T${endHour}`
-  
-  const text = plan.titulo || plan.categoria
-  const details = `${plan.categoria} - ${plan.descricaoOriginal}\n\nGerado automaticamente via SG4.`
+  const startH = parseInt(startHour.substring(0, 2), 10)
+  const endH = startH >= 23 ? '23:59:00' : String(startH + 1).padStart(2, '0') + startHour.substring(2)
+
+  const startDt = `${dateStr}T${startHour}`
+  const endDt = `${dateStr}T${endH}`
+
+  const subject = plan.titulo || plan.categoria
+  const body = `${plan.categoria} - ${plan.descricaoOriginal}\n\nGerado automaticamente via SG4.`
   const location = `${plan.local || ''} ${plan.cidade ? '(' + plan.cidade + '-' + plan.estado + ')' : ''}`.trim()
-  
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(text)}&dates=${dateParam}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}`
+
+  return `https://outlook.office.com/calendar/0/deeplink/compose?path=%2Fcalendar%2Faction%2Fcompose&rru=addevent&subject=${encodeURIComponent(subject)}&startdt=${encodeURIComponent(startDt)}&enddt=${encodeURIComponent(endDt)}&body=${encodeURIComponent(body)}&location=${encodeURIComponent(location)}`
 }
 
 export default function PlanejamentoPage() {
@@ -1957,16 +1954,16 @@ export default function PlanejamentoPage() {
                 <div style={{ display: 'flex', gap: 8, flexDirection: 'column', alignItems: 'flex-end', minWidth: 120 }}>
                   <button
                     type="button"
-                    title="Adicionar ao Google Calendar"
+                    title="Adicionar ao Outlook (Office 365)"
                     onClick={() => {
-                      const url = getGoogleCalendarUrl(showExecModal)
+                      const url = getOutlookCalendarUrl(showExecModal)
                       window.open(url, '_blank')
                     }}
                     style={{ background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: '#334155', fontWeight: 700, fontSize: 12, flexShrink: 0, transition: 'all 0.2s', width: '100%', justifyContent: 'center' }}
                     onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
                     onMouseOut={e => e.currentTarget.style.background = '#f8fafc'}
                   >
-                    <CalendarIcon size={16} color="#2563eb" /> Agenda
+                    <CalendarIcon size={16} color="#0078d4" /> Agenda Outlook
                   </button>
                   <button
                     type="button"
