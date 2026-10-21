@@ -12,18 +12,44 @@ export async function uploadRelatorioPdf(formData: FormData) {
   try {
     const session = await auth()
     const userId = session?.user?.id
-    const user = await db.user.findUnique({ where: { id: userId }, include: { tecnico: true } })
+    const user = userId ? await db.user.findUnique({ where: { id: userId }, include: { tecnico: true } }) : null
+
+    // Resolver técnico por vínculo direto, email ou nome
+    let tecnico = user?.tecnico
+    if (!tecnico && user) {
+      tecnico = await db.tecnico.findFirst({
+        where: {
+          OR: [
+            { userId: user.id },
+            ...(user.email ? [{ email: { equals: user.email, mode: 'insensitive' as const } }] : []),
+            ...(user.name ? [{ nome: { equals: user.name, mode: 'insensitive' as const } }] : [])
+          ]
+        }
+      })
+      if (tecnico && !tecnico.userId) {
+        await db.tecnico.update({ where: { id: tecnico.id }, data: { userId: user.id } }).catch(() => {})
+      }
+    }
+
     const formTecnicoId = formData.get('tecnicoId') as string | null;
     const formElaborador = formData.get('elaborador') as string | null;
 
-    const tecnicoId = formTecnicoId || user?.tecnico?.id || null
-    const elaborador = formElaborador || user?.name || 'Sistema'
+    const tecnicoId = formTecnicoId || tecnico?.id || null
+    let elaborador = (formElaborador && formElaborador !== 'TST' && formElaborador !== 'Não Identificado')
+      ? formElaborador
+      : (tecnico?.nome || user?.name || 'Sistema')
 
     const base64Data = formData.get('fileData') as string;
-    const fileName = formData.get('fileName') as string;
+    let fileName = formData.get('fileName') as string;
     const mesAno = formData.get('mesAno') as string;
 
     if (!base64Data || !fileName) return { success: false, error: 'Dados inválidos' }
+
+    // Se o nome do arquivo começou com "TST - " mas temos o nome real, ajusta o nome
+    if (fileName.startsWith('TST - ') && elaborador && elaborador !== 'TST') {
+      const safeElab = elaborador.toUpperCase().replace(/[^A-Z0-9 \-]/g, '')
+      fileName = fileName.replace(/^TST - /, `${safeElab} - `)
+    }
 
     // Limpar o prefixo data:application/pdf;base64,
     const base64String = base64Data.split(',')[1] || base64Data
@@ -40,7 +66,6 @@ export async function uploadRelatorioPdf(formData: FormData) {
       Key: s3Key,
       Body: buffer,
       ContentType: 'application/pdf',
-      ACL: 'public-read' as const,
     }
 
     await s3Client.send(new PutObjectCommand(uploadParams))
@@ -67,7 +92,7 @@ export async function uploadRelatorioPdf(formData: FormData) {
     return { success: true, data: relatorioDb }
   } catch (error: any) {
     console.error('Erro ao fazer upload do PDF:', error)
-    return { success: false, error: 'Erro ao fazer upload do PDF' }
+    return { success: false, error: error?.message || 'Erro ao fazer upload do PDF' }
   }
 }
 
@@ -77,18 +102,48 @@ export async function getRelatoriosPdf() {
     if (!session?.user) return { success: false, error: 'Não autorizado' }
 
     const role = (session.user as any).role
-    const tecnicoId = (session.user as any).tecnicoId
+    const userId = session.user.id
+    let tecnicoId = (session.user as any).tecnicoId
 
     let where: any = {}
     if (role === 'TST') {
-      const tecnicoNome = (session.user as any).nome || session.user.name
+      let tecNome = session.user.name || ''
+
+      // Se não veio o tecnicoId na sessão, busca no banco
+      if (!tecnicoId && userId) {
+        const tec = await db.tecnico.findFirst({
+          where: {
+            OR: [
+              { userId: userId },
+              ...(session.user.email ? [{ email: { equals: session.user.email, mode: 'insensitive' as const } }] : []),
+              ...(session.user.name ? [{ nome: { equals: session.user.name, mode: 'insensitive' as const } }] : [])
+            ]
+          }
+        })
+        if (tec) {
+          tecnicoId = tec.id
+          tecNome = tec.nome
+          if (!tec.userId) {
+            await db.tecnico.update({ where: { id: tec.id }, data: { userId } }).catch(() => {})
+          }
+        }
+      } else if (tecnicoId && !tecNome) {
+        const tec = await db.tecnico.findUnique({ where: { id: tecnicoId } })
+        if (tec) tecNome = tec.nome
+      }
+
       const conditions: any[] = []
       if (tecnicoId) conditions.push({ tecnicoId })
-      if (tecnicoNome) {
-        conditions.push({ elaborador: { contains: tecnicoNome, mode: 'insensitive' } })
-        conditions.push({ nomeArquivo: { contains: tecnicoNome, mode: 'insensitive' } })
+      if (tecNome) {
+        conditions.push({ elaborador: { contains: tecNome, mode: 'insensitive' as const } })
+        conditions.push({ nomeArquivo: { contains: tecNome, mode: 'insensitive' as const } })
       }
-      where = conditions.length > 0 ? { OR: conditions } : (tecnicoId ? { tecnicoId } : {})
+      if (session.user.name && session.user.name !== tecNome) {
+        conditions.push({ elaborador: { contains: session.user.name, mode: 'insensitive' as const } })
+        conditions.push({ nomeArquivo: { contains: session.user.name, mode: 'insensitive' as const } })
+      }
+
+      where = conditions.length > 0 ? { OR: conditions } : { id: 'sem_acesso_tst_nao_localizado' }
     }
 
     const relatorios = await db.relatorioPdf.findMany({

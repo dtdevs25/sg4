@@ -223,8 +223,8 @@ export default function RelatoriosAtividadesPage() {
   const filteredRelatoriosSalvos = relatoriosSalvos.filter(r => {
     const tec = getTecnicoFromRelatorio(r, tecnicos)
 
-    // Se o técnico é inativo e a flag de inativos não estiver marcada, esconde
-    if (!showInativosSalvos && tec && tec.ativo === false) {
+    // Se o técnico é inativo e a flag de inativos não estiver marcada, esconde (somente para Admin/Master, TST sempre vê seus relatórios)
+    if (role !== 'TST' && !showInativosSalvos && tec && tec.ativo === false) {
       return false
     }
 
@@ -456,12 +456,22 @@ export default function RelatoriosAtividadesPage() {
     
     try {
       setLoading(true)
-      const tIdParaGerar = role === 'TST' ? (session?.user as any)?.tecnicoId : formPdf.tecnicoId;
+      let tIdParaGerar = role === 'TST' ? (session?.user as any)?.tecnicoId : formPdf.tecnicoId;
+      if (role === 'TST' && !tIdParaGerar && tecnicos.length > 0) {
+        const found = tecnicos.find(t => 
+          (session?.user?.id && t.userId === session?.user?.id) || 
+          (session?.user?.email && t.email?.toLowerCase() === session?.user?.email?.toLowerCase()) ||
+          (session?.user?.name && t.nome?.toLowerCase() === session?.user?.name?.toLowerCase())
+        )
+        if (found) tIdParaGerar = found.id
+      }
+
       const data = await getAtividadesForPrint(formPdf.mes, formPdf.ano, 'VIVO', tIdParaGerar)
       
       let elaborador = 'Não Identificado'
       if (role === 'TST') {
-        elaborador = (session?.user as any)?.nome || 'TST'
+        const tecnicoData = tIdParaGerar ? tecnicos.find(t => t.id === tIdParaGerar) : null
+        elaborador = tecnicoData?.nome || session?.user?.name || (session?.user as any)?.nome || 'TST'
       } else {
         const tecnicoData = tecnicos.find(t => t.id === formPdf.tecnicoId)
         if (tecnicoData) elaborador = tecnicoData.nome
@@ -482,18 +492,21 @@ export default function RelatoriosAtividadesPage() {
         link.click()
         document.body.removeChild(link)
 
-        // Upload em background para a nuvem
+        // Salvar na nuvem e atualizar a lista
         const mesAnoFormat = `${formPdf.mes.toString().padStart(2, '0')}/${formPdf.ano}`
-        if (pdfObj) {
-          const formData = new FormData();
-          formData.append('fileData', pdfObj.base64);
-          formData.append('fileName', pdfObj.fileName);
-          formData.append('mesAno', mesAnoFormat);
-          if (tIdParaGerar) formData.append('tecnicoId', tIdParaGerar);
-          if (elaborador) formData.append('elaborador', elaborador);
-          uploadRelatorioPdf(formData).then(res => {
-            if (!res.success) console.error(res.error)
-          })
+        const formData = new FormData();
+        formData.append('fileData', pdfObj.base64);
+        formData.append('fileName', pdfObj.fileName);
+        formData.append('mesAno', mesAnoFormat);
+        if (tIdParaGerar) formData.append('tecnicoId', tIdParaGerar);
+        if (elaborador) formData.append('elaborador', elaborador);
+
+        const upRes = await uploadRelatorioPdf(formData)
+        if (!upRes.success) {
+          console.error('Erro ao salvar relatório PDF:', upRes.error)
+          alert('Aviso: O download do PDF foi iniciado, mas ocorreu uma falha ao salvar o relatório na listagem: ' + (upRes.error || 'Erro desconhecido'))
+        } else {
+          await loadRelatoriosSalvos()
         }
       }
 
