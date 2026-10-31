@@ -615,6 +615,8 @@ export async function POST(req: Request) {
             dataInicial: dataIni,
             kmInicial,
             fotoInicial: payload?.fotoInicial || null,
+            latitudeInicial: payload?.latitude != null ? Number(payload.latitude) : (payload?.latitudeInicial != null ? Number(payload.latitudeInicial) : null),
+            longitudeInicial: payload?.longitude != null ? Number(payload.longitude) : (payload?.longitudeInicial != null ? Number(payload.longitudeInicial) : null),
           },
         })
         break
@@ -650,6 +652,8 @@ export async function POST(req: Request) {
             kmFinal,
             diferenca,
             fotoFinal: payload?.fotoFinal || null,
+            latitudeFinal: payload?.latitude != null ? Number(payload.latitude) : (payload?.latitudeFinal != null ? Number(payload.latitudeFinal) : null),
+            longitudeFinal: payload?.longitude != null ? Number(payload.longitude) : (payload?.longitudeFinal != null ? Number(payload.longitudeFinal) : null),
           },
         })
         break
@@ -688,7 +692,8 @@ export async function POST(req: Request) {
             tecnicoId,
             kmManutencao: Math.round(kmManutencao),
             dataManutencao: payload?.dataManutencao ? parseDateSafe(payload.dataManutencao) : new Date(),
-            comprovanteUrl: payload?.comprovanteUrl || null,
+            descricao: payload?.descricao ? String(payload.descricao).trim() : null,
+            comprovanteUrl: payload?.fotoUrl || payload?.comprovanteUrl || null,
           },
         })
         break
@@ -712,6 +717,36 @@ export async function POST(req: Request) {
             cidadeUf: payload?.cidadeUf || 'São Paulo/SP',
             descricao,
             fotoUrl: payload?.fotoUrl || null,
+          },
+        })
+        break
+      }
+
+      case 'EDITAR_RELATORIO_CAMPO': {
+        const relId = payload?.id
+        if (!relId) {
+          return NextResponse.json(
+            { error: 'ID do item do relatório é obrigatório.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
+        const existingRel = await prisma.relatorioAtividade.findUnique({ where: { id: relId } })
+        if (!existingRel || existingRel.tecnicoId !== tecnicoId) {
+          return NextResponse.json(
+            { error: 'Item do relatório não encontrado.' },
+            { status: 404, headers: CORS_HEADERS }
+          )
+        }
+        resultData = await prisma.relatorioAtividade.update({
+          where: { id: relId },
+          data: {
+            empresa: payload?.empresa !== undefined ? String(payload.empresa).trim() : existingRel.empresa,
+            projeto: payload?.projeto !== undefined ? String(payload.projeto).trim() : existingRel.projeto,
+            local: payload?.local !== undefined ? String(payload.local).trim() : existingRel.local,
+            cidadeUf: payload?.cidadeUf !== undefined ? String(payload.cidadeUf).trim() : existingRel.cidadeUf,
+            descricao: payload?.descricao !== undefined ? String(payload.descricao).trim() : existingRel.descricao,
+            fotoUrl: payload?.fotoUrl !== undefined ? payload.fotoUrl : existingRel.fotoUrl,
+            data: payload?.data ? parseDateSafe(payload.data) : existingRel.data,
           },
         })
         break

@@ -231,6 +231,13 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setFilterTecnicoId(tecnicoId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(selectedTecnicoId = tecnicoId) }
+            refreshData(silent = false)
+        }
+    }
+
     private suspend fun refreshDataInternal(overrideTecnicoId: String? = null) {
         val syncRes = repository.syncWithServer(overrideTecnicoId)
         syncRes.fold(
@@ -239,7 +246,7 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         isOnline = true,
                         syncData = data,
-                        selectedTecnicoId = data.currentTecnico?.id ?: it.selectedTecnicoId
+                        selectedTecnicoId = overrideTecnicoId ?: data.currentTecnico?.id ?: it.selectedTecnicoId
                     )
                 }
             },

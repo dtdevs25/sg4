@@ -134,7 +134,11 @@ data class QuilometragemDto(
     val dataFinal: String? = null,
     val kmFinal: Double? = null,
     val fotoFinal: String? = null,
-    val diferenca: Double? = null
+    val diferenca: Double? = null,
+    val latitudeInicial: Double? = null,
+    val longitudeInicial: Double? = null,
+    val latitudeFinal: Double? = null,
+    val longitudeFinal: Double? = null
 )
 
 data class AbastecimentoDto(
@@ -153,6 +157,7 @@ data class ManutencaoDto(
     val tecnicoNome: String = "",
     val kmManutencao: Int = 0,
     val dataManutencao: String = "",
+    val descricao: String? = null,
     val comprovanteUrl: String? = null
 )
 
@@ -167,6 +172,17 @@ data class RelatorioCampoDto(
     val cidadeUf: String = "",
     val descricao: String = "",
     val fotoUrl: String? = null
+)
+
+data class RelatorioPdfDto(
+    val id: String = "",
+    val nomeArquivo: String = "",
+    val url: String = "",
+    val tamanhoBytes: Long = 0L,
+    val tecnicoId: String? = null,
+    val mesAno: String = "",
+    val elaborador: String = "",
+    val createdAt: String = ""
 )
 
 data class DssAliadoDto(
@@ -243,6 +259,7 @@ data class MobileSyncResponse(
     val abastecimentos: List<AbastecimentoDto> = emptyList(),
     val manutencoes: List<ManutencaoDto> = emptyList(),
     val relatoriosCampo: List<RelatorioCampoDto> = emptyList(),
+    val relatoriosPdf: List<RelatorioPdfDto> = emptyList(),
     val dssAliados: List<DssAliadoDto> = emptyList(),
     val naoConformidades: List<NaoConformidadeDto> = emptyList(),
     val documentos: List<DocumentoDto> = emptyList(),

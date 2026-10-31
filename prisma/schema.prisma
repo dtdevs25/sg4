@@ -462,6 +462,10 @@ model Quilometragem {
   kmFinal      Float?
   fotoFinal    String?
   diferenca    Float?
+  latitudeInicial  Float?
+  longitudeInicial Float?
+  latitudeFinal    Float?
+  longitudeFinal   Float?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -490,6 +494,7 @@ model ManutencaoVeiculo {
   tecnicoId        String
   kmManutencao     Int
   dataManutencao   DateTime
+  descricao        String?
   comprovanteUrl   String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

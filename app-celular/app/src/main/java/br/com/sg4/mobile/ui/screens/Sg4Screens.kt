@@ -1,5 +1,19 @@
 package br.com.sg4.mobile.ui.screens
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.LocationManager
+import androidx.core.content.ContextCompat
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import br.com.sg4.mobile.model.RelatorioPdfDto
+import br.com.sg4.mobile.model.RelatorioCampoDto
+import br.com.sg4.mobile.model.ManutencaoDto
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
@@ -119,6 +133,41 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+
+
+fun getDeviceLocation(context: Context): Pair<Double, Double>? {
+    return try {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
+        val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+        val isNetEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        if (!isGpsEnabled && !isNetEnabled) return null
+
+        val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!hasFine && !hasCoarse) return null
+
+        val loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+            ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+        loc?.let { it.latitude to it.longitude }
+    } catch (_: Exception) {
+        null
+    }
+}
+
+fun formatCurrencyBrlInput(digitsOnly: String): String {
+    val clean = digitsOnly.filter { it.isDigit() }
+    if (clean.isBlank()) return "R$ 0,00"
+    val num = clean.toLongOrNull() ?: 0L
+    val valor = num / 100.0
+    return String.format(Locale("pt", "BR"), "R$ %.2f", valor)
+}
+
+fun parseCurrencyValue(formatted: String): Double {
+    val clean = formatted.filter { it.isDigit() }
+    if (clean.isBlank()) return 0.0
+    val num = clean.toLongOrNull() ?: 0L
+    return num / 100.0
+}
 
 private val MESES_NOMES = listOf(
     "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
@@ -697,6 +746,10 @@ fun HomeDashboardScreen(
         mutableStateListOf<Int>().apply { add(currentMonth1to12) }
     }
 
+    var showYearDropdown by remember { mutableStateOf(false) }
+    var showMonthsDialog by remember { mutableStateOf(false) }
+    var showTecnicoDropdown by remember { mutableStateOf(false) }
+
     val tecnico = uiState.syncData.currentTecnico
     val summary = uiState.syncData.summary
     val firstName = remember(tecnico?.nome, uiState.userName) {
@@ -708,7 +761,16 @@ fun HomeDashboardScreen(
         if (parsed.isEmpty()) listOf(currentYearNum, currentYearNum - 1) else parsed
     }
 
-    // Filtra as estatísticas mensais do próprio usuário pelos meses selecionados
+    val isMasterOrAdmin = remember(uiState.userRole) {
+        uiState.userRole.uppercase() in listOf("MASTER", "ADMIN")
+    }
+
+    val currentTecName = remember(uiState.selectedTecnicoId, uiState.syncData.tecnicos) {
+        if (uiState.selectedTecnicoId == "ALL") "Todos os Colaboradores"
+        else uiState.syncData.tecnicos.find { it.id == uiState.selectedTecnicoId }?.nome ?: tecnico?.nome ?: "Meu Perfil"
+    }
+
+    // Filtra as estatísticas mensais pelos meses e ano selecionados
     val monthlyStats = uiState.syncData.monthlyStats
     val activeMonthsCount = selectedMonths.size.coerceAtLeast(1)
 
@@ -782,12 +844,20 @@ fun HomeDashboardScreen(
         }
     }
 
+    val periodoLabelShort = remember(selectedMonths.toList()) {
+        if (selectedMonths.size == 12) "Todos os Meses"
+        else if (selectedMonths.size == 1) MESES_NOMES.getOrElse(selectedMonths.first() - 1) { "Mês" }
+        else "${selectedMonths.size} Meses"
+    }
+
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Cabeçalho do Usuário + Filtro de Ano e Meses (Igual ao Dashboard Web)
+        // Cabeçalho do Usuário + Filtros em Listas Suspensas (Dropdowns)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -814,23 +884,67 @@ fun HomeDashboardScreen(
                                 color = Slate600
                             )
                         }
+                    }
 
-                        // Seletor de Ano
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            yearsList.forEach { yr ->
-                                val isSelYear = yr == selectedYear
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(if (isSelYear) Sg4Purple else Color(0xFFF1F5F9))
-                                        .clickable { selectedYear = yr }
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                    // Seletor de Colaborador para Master e Admin (Lista suspensa)
+                    if (isMasterOrAdmin && uiState.syncData.tecnicos.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(
+                                onClick = { showTecnicoDropdown = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Sg4Purple),
+                                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFFBF8FF))
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = yr.toString(),
-                                        color = if (isSelYear) Color.White else Slate600,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Person,
+                                            contentDescription = null,
+                                            tint = Sg4Purple,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            text = currentTecName,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Slate900,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    Text("▾", fontSize = 14.sp, color = Sg4Purple, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = showTecnicoDropdown,
+                                onDismissRequest = { showTecnicoDropdown = false },
+                                modifier = Modifier.fillMaxWidth(0.85f).background(Color.White)
+                            ) {
+                                uiState.syncData.tecnicos.forEach { t ->
+                                    val isSelected = t.id == uiState.selectedTecnicoId || (t.id == "ALL" && uiState.selectedTecnicoId == "ALL")
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = t.nome,
+                                                fontSize = 13.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) Sg4Purple else Slate900
+                                            )
+                                        },
+                                        onClick = {
+                                            viewModel.setFilterTecnicoId(t.id)
+                                            showTecnicoDropdown = false
+                                        }
                                     )
                                 }
                             }
@@ -839,105 +953,85 @@ fun HomeDashboardScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Barra de Filtro de Meses (Multi-seleção igual à Web)
+                    // Linha com Listas Suspensas de Ano e Meses
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "PERÍODO: ${periodoLabel.uppercase()}",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Sg4Purple
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                text = "Mês Atual",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selectedMonths.size == 1 && selectedMonths.contains(currentMonth1to12)) Sg4Purple else Slate600,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .clickable {
-                                        selectedMonths.clear()
-                                        selectedMonths.add(currentMonth1to12)
-                                        selectedYear = currentYearNum
-                                    }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                            Text(
-                                text = if (selectedMonths.size == 12) "Limpar" else "Todos os Meses",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Sg4Purple,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .clickable {
-                                        if (selectedMonths.size == 12) {
-                                            selectedMonths.clear()
-                                            selectedMonths.add(currentMonth1to12)
-                                        } else {
-                                            selectedMonths.clear()
-                                            selectedMonths.addAll(1..12)
-                                        }
-                                    }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Grade de 12 Meses (2 linhas x 6 colunas para toque rápido)
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        for (rowIndex in 0..1) {
-                            Row(
+                        // Dropdown de Ano
+                        Box(modifier = Modifier.weight(1f)) {
+                            OutlinedButton(
+                                onClick = { showYearDropdown = true },
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Sg4Purple),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Sg4Purple, containerColor = Color.White)
                             ) {
-                                for (colIndex in 0..5) {
-                                    val monthNumber = rowIndex * 6 + colIndex + 1
-                                    val monthName = MESES_NOMES[monthNumber - 1]
-                                    val isSelected = selectedMonths.contains(monthNumber)
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(34.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(
-                                                if (isSelected) Sg4Purple else Color(0xFFF8FAFC)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Ano: $selectedYear", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Purple)
+                                    Text("▾", fontSize = 13.sp, color = Sg4Purple, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            DropdownMenu(
+                                expanded = showYearDropdown,
+                                onDismissRequest = { showYearDropdown = false },
+                                modifier = Modifier.background(Color.White)
+                            ) {
+                                yearsList.forEach { yr ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = "$yr",
+                                                fontWeight = if (yr == selectedYear) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (yr == selectedYear) Sg4Purple else Slate900
                                             )
-                                            .border(
-                                                1.dp,
-                                                if (isSelected) Sg4Purple else Color(0xFFE2E8F0),
-                                                RoundedCornerShape(8.dp)
-                                            )
-                                            .clickable {
-                                                if (isSelected) {
-                                                    if (selectedMonths.size > 1) {
-                                                        selectedMonths.remove(monthNumber)
-                                                    }
-                                                } else {
-                                                    selectedMonths.add(monthNumber)
-                                                }
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = monthName,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (isSelected) Color.White else Slate600
-                                        )
-                                    }
+                                        },
+                                        onClick = {
+                                            selectedYear = yr
+                                            showYearDropdown = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Dropdown / Diálogo de Multi-seleção de Meses
+                        Box(modifier = Modifier.weight(1f)) {
+                            OutlinedButton(
+                                onClick = { showMonthsDialog = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Sg4Purple),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Sg4Purple, containerColor = Color.White)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Meses: $periodoLabelShort", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Purple, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text("▾", fontSize = 13.sp, color = Sg4Purple, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "PERÍODO: ${periodoLabel.uppercase()}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Sg4Purple
+                    )
+
                     if (pendingOfflineCount > 0) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         StatusBadge(
                             text = "$pendingOfflineCount registro(s) na fila offline aguardando sincronização",
                             color = Sg4Amber
@@ -947,7 +1041,8 @@ fun HomeDashboardScreen(
             }
         }
 
-        // CARD 1: DSS REALIZADOS (Igual ao DualStatCard #660099 / #4a0072 do Dashboard Web)
+        // CARDS DO DASHBOARD (NÃO CLICÁVEIS NO MOBILE)
+        // CARD 1: DSS REALIZADOS
         item {
             DualStatDashboardCard(
                 titleLeft = "DSS Realizados",
@@ -958,11 +1053,11 @@ fun HomeDashboardScreen(
                 subRight = if (dssRealizados >= dssMeta) "Meta Atingida! ✓" else "Faltam: ${(dssMeta - dssRealizados).coerceAtLeast(0)}",
                 gradientStart = Color(0xFF660099),
                 gradientEnd = Color(0xFF4A0072),
-                onClick = { viewModel.selectTab(MobileTab.AGENDA) }
+                onClick = null
             )
         }
 
-        // CARD 2: INSPEÇÕES REALIZADAS (Igual ao DualStatCard #8e44ad / #732d91 do Dashboard Web)
+        // CARD 2: INSPEÇÕES REALIZADAS
         item {
             DualStatDashboardCard(
                 titleLeft = "Inspeções Realizadas",
@@ -973,11 +1068,11 @@ fun HomeDashboardScreen(
                 subRight = if (inspecoesRealizadas >= inspecoesMeta) "Meta Atingida! ✓" else "Faltam: ${(inspecoesMeta - inspecoesRealizadas).coerceAtLeast(0)}",
                 gradientStart = Color(0xFF8E44AD),
                 gradientEnd = Color(0xFF732D91),
-                onClick = { viewModel.selectTab(MobileTab.AGENDA) }
+                onClick = null
             )
         }
 
-        // CARD 3: ITENS INCLUÍDOS NO RELATÓRIO (Igual ao Card #673ab7 / #512da8 do Dashboard Web)
+        // CARD 3: ITENS INCLUÍDOS NO RELATÓRIO
         item {
             val mediaPorMes = String.format(Locale("pt", "BR"), "%.1f", relatoriosIncluidos.toDouble() / activeMonthsCount)
             DualStatDashboardCard(
@@ -986,14 +1081,14 @@ fun HomeDashboardScreen(
                 subLeft = "Relatório de Atividades",
                 titleRight = "Média / Mês",
                 valueRight = mediaPorMes,
-                subRight = "Toque p/ abrir Relatórios →",
+                subRight = "Total no período",
                 gradientStart = Color(0xFF673AB7),
                 gradientEnd = Color(0xFF512DA8),
-                onClick = { viewModel.selectTab(MobileTab.RELATORIOS) }
+                onClick = null
             )
         }
 
-        // CARD 4: NÃO CONFORMIDADES (NCs Abertas) (Igual ao DualStatCard #9c27b0 / #7b1fa2 do Dashboard Web)
+        // CARD 4: NÃO CONFORMIDADES (NCs ABERTAS)
         item {
             DualStatDashboardCard(
                 titleLeft = "NCs Abertas",
@@ -1004,16 +1099,14 @@ fun HomeDashboardScreen(
                 subRight = "Resolvidas: $ncFechadas",
                 gradientStart = Color(0xFF9C27B0),
                 gradientEnd = Color(0xFF7B1FA2),
-                onClick = { viewModel.selectTab(MobileTab.RELATORIOS) }
+                onClick = null
             )
         }
 
-        // Card complementar de KM & Saldo de Abastecimento do Usuário
+        // Card complementar de KM & Saldo de Abastecimento (Não clicável)
         item {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { viewModel.selectTab(MobileTab.KM) },
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -1056,6 +1149,107 @@ fun HomeDashboardScreen(
                 }
             }
         }
+    }
+
+    // Modal de Multi-seleção de Meses Suspenso
+    if (showMonthsDialog) {
+        AlertDialog(
+            onDismissRequest = { showMonthsDialog = false },
+            title = {
+                Text(
+                    text = "Selecionar Meses de $selectedYear",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 16.sp,
+                    color = Slate900
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                selectedMonths.clear()
+                                selectedMonths.add(currentMonth1to12)
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Purple)
+                        ) {
+                            Text("Mês Atual", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                if (selectedMonths.size == 12) {
+                                    selectedMonths.clear()
+                                    selectedMonths.add(currentMonth1to12)
+                                } else {
+                                    selectedMonths.clear()
+                                    selectedMonths.addAll(1..12)
+                                }
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Purple)
+                        ) {
+                            Text(if (selectedMonths.size == 12) "Desmarcar" else "Todos", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                    // Grade com os 12 meses clicáveis
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        for (r in 0..3) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                for (c in 0..2) {
+                                    val mNum = r * 3 + c + 1
+                                    val mName = MESES_NOMES[mNum - 1]
+                                    val isSel = selectedMonths.contains(mNum)
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(36.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isSel) Sg4Purple else Color(0xFFF8FAFC))
+                                            .border(1.dp, if (isSel) Sg4Purple else Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                if (isSel) {
+                                                    if (selectedMonths.size > 1) selectedMonths.remove(mNum)
+                                                } else {
+                                                    selectedMonths.add(mNum)
+                                                }
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = mName,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            color = if (isSel) Color.White else Slate900
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showMonthsDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Confirmar", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 }
 
@@ -1136,12 +1330,13 @@ fun AgendaPlanejamentoScreen(
         SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
     }
 
-    // Modo de visualização: 0 = Semana, 1 = Mês, 2 = Todas
+    // Modo de visualização: 0 = Semana, 1 = Mês (Todas removido a pedido do usuário)
     var viewMode by remember { mutableIntStateOf(0) }
     var statusFilter by remember { mutableStateOf("TODOS") } // TODOS, PENDENTE, CONCLUIDO
-    var dayOffset by remember { mutableIntStateOf(0) } // deslocamento em dias (Semana) ou meses (Mês)
+    var dayOffset by remember { mutableIntStateOf(0) } // deslocamento em semanas ou meses
+    var selectedCalendarDayYmd by remember { mutableStateOf(todayYmd) }
 
-    // Estados de Modais de Planejamento
+    // Estados de Modais
     var showCreateOrEditModal by remember { mutableStateOf(false) }
     var editingPlan by remember { mutableStateOf<PlanejamentoDto?>(null) }
     var prefillDateYmd by remember { mutableStateOf(todayYmd) }
@@ -1150,17 +1345,16 @@ fun AgendaPlanejamentoScreen(
     var transferringPlan by remember { mutableStateOf<PlanejamentoDto?>(null) }
     var movingDatePlan by remember { mutableStateOf<PlanejamentoDto?>(null) }
     var deletingPlan by remember { mutableStateOf<PlanejamentoDto?>(null) }
-    var showDssAliadoDirectModal by remember { mutableStateOf(false) }
-
-    // Edição de sub-item do checklist
     var editingChecklistItem by remember { mutableStateOf<Pair<PlanejamentoDto, ChecklistItemDto>?>(null) }
 
-    // Cálculo de intervalo de datas (Semana ou Mês)
-    val (periodLabel, startYmd, endYmd) = remember(viewMode, dayOffset) {
+    // FAB State
+    var fabExpanded by remember { mutableStateOf(false) }
+
+    // Cálculo do intervalo de datas (Semana ou Mês)
+    val (periodLabel, startYmd, endYmd, currentCalMonth, currentCalYear) = remember(viewMode, dayOffset) {
         val baseCal = Calendar.getInstance()
         if (viewMode == 0) {
             baseCal.add(Calendar.DAY_OF_YEAR, dayOffset * 7)
-            // Ajusta para segunda-feira da semana
             val dow = baseCal.get(Calendar.DAY_OF_WEEK)
             val diffToMonday = if (dow == Calendar.SUNDAY) -6 else Calendar.MONDAY - dow
             baseCal.add(Calendar.DAY_OF_YEAR, diffToMonday)
@@ -1169,18 +1363,16 @@ fun AgendaPlanejamentoScreen(
             baseCal.add(Calendar.DAY_OF_YEAR, 6)
             val end = formatCalToYmd(baseCal)
             val d2 = "${baseCal.get(Calendar.DAY_OF_MONTH).toString().padStart(2, '0')}/${(baseCal.get(Calendar.MONTH) + 1).toString().padStart(2, '0')}/${baseCal.get(Calendar.YEAR)}"
-            Triple("Semana: $d1 a $d2", start, end)
-        } else if (viewMode == 1) {
+            Tuple5("Semana: $d1 a $d2", start, end, baseCal.get(Calendar.MONTH), baseCal.get(Calendar.YEAR))
+        } else {
             baseCal.add(Calendar.MONTH, dayOffset)
-            baseCal.set(Calendar.DAY_OF_MONTH, 1)
-            val start = formatCalToYmd(baseCal)
             val mIdx = baseCal.get(Calendar.MONTH)
             val yr = baseCal.get(Calendar.YEAR)
+            baseCal.set(Calendar.DAY_OF_MONTH, 1)
+            val start = formatCalToYmd(baseCal)
             baseCal.set(Calendar.DAY_OF_MONTH, baseCal.getActualMaximum(Calendar.DAY_OF_MONTH))
             val end = formatCalToYmd(baseCal)
-            Triple("Mês: ${MESES_NOMES.getOrElse(mIdx) { "" }} / $yr", start, end)
-        } else {
-            Triple("Todos os Agendamentos", "1900-01-01", "2100-12-31")
+            Tuple5("Mês: ${MESES_NOMES.getOrElse(mIdx) { "" }} / $yr", start, end, mIdx, yr)
         }
     }
 
@@ -1188,7 +1380,7 @@ fun AgendaPlanejamentoScreen(
         uiState.syncData.planejamentos
             .filter { p ->
                 val ymd = p.dataAtividade.take(10)
-                val inPeriod = viewMode == 2 || (ymd >= startYmd && ymd <= endYmd)
+                val inPeriod = ymd in startYmd..endYmd
                 val inStatus = statusFilter == "TODOS" || p.status.equals(statusFilter, ignoreCase = true)
                 inPeriod && inStatus
             }
@@ -1199,1075 +1391,288 @@ fun AgendaPlanejamentoScreen(
         filteredPlans.groupBy { it.dataAtividade.take(10) }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Barra superior da Agenda: + Novo Agendamento e + DSS Aliado
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+    // Mapa de contagem de atividades por dia para o calendário mensal
+    val monthActivitiesCountByDay = remember(uiState.syncData.planejamentos, currentCalMonth, currentCalYear) {
+        val map = mutableMapOf<String, Int>()
+        uiState.syncData.planejamentos.forEach { p ->
+            val ymd = p.dataAtividade.take(10)
+            map[ymd] = (map[ymd] ?: 0) + 1
+        }
+        map
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Barra superior da Agenda: Seletores Semana / Mês e Filtros de Status
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = {
-                        editingPlan = null
-                        prefillDateYmd = todayYmd
-                        showCreateOrEditModal = true
-                    },
-                    enabled = !uiState.isBlockingLoading,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Novo Agendamento", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-
-                OutlinedButton(
-                    onClick = { showDssAliadoDirectModal = true },
-                    enabled = !uiState.isBlockingLoading,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("+ DSS Aliado", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
-                }
-            }
-
-            // Seletor de Visão (Semana / Mês / Todas) + Filtro de Status
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    listOf(0 to "Semana", 1 to "Mês", 2 to "Todas").forEach { (idx, label) ->
-                        val active = viewMode == idx
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (active) Sg4Purple else Color(0xFFF1F5F9))
-                                .clickable {
-                                    viewMode = idx
-                                    dayOffset = 0
-                                }
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
-                        ) {
-                            Text(
-                                text = label,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (active) Color.White else Slate600
-                            )
-                        }
-                    }
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    listOf("TODOS" to "Todos", "PENDENTE" to "Pend.", "CONCLUIDO" to "Concl.").forEach { (st, lbl) ->
-                        val active = statusFilter == st
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (active) Sg4PurpleSurface else Color.Transparent)
-                                .border(1.dp, if (active) Sg4Purple else Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                                .clickable { statusFilter = st }
-                                .padding(horizontal = 8.dp, vertical = 5.dp)
-                        ) {
-                            Text(
-                                text = lbl,
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (active) Sg4Purple else Slate600
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Navegador de Período (< Hoje >)
-            if (viewMode != 2) {
+                // Seletor de Visão (Semana / Mês) + Filtro de Status
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = { dayOffset -= 1 },
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(Icons.Default.ChevronLeft, contentDescription = "Anterior", tint = Sg4Purple)
-                    }
-
+                    // Alternador Semana / Mês
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFF1F5F9))
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text(
-                            text = periodLabel,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Slate900
-                        )
-                        if (dayOffset != 0) {
-                            Text(
-                                text = "Hoje",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Sg4Purple,
+                        listOf(0 to "Semana", 1 to "Mês").forEach { (idx, label) ->
+                            val active = viewMode == idx
+                            Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Sg4PurpleSurface)
-                                    .clickable { dayOffset = 0 }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (active) Sg4Purple else Color.Transparent)
+                                    .clickable {
+                                        viewMode = idx
+                                        dayOffset = 0
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (active) Color.White else Slate600
+                                )
+                            }
                         }
                     }
 
-                    IconButton(
-                        onClick = { dayOffset += 1 },
-                        modifier = Modifier.size(30.dp)
+                    // Filtro de Status: Todos / Pend. / Concl.
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("TODOS" to "Todos", "PENDENTE" to "Pend.", "CONCLUIDO" to "Concl.").forEach { (st, lbl) ->
+                            val active = statusFilter == st
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (active) Sg4PurpleSurface else Color.Transparent)
+                                    .border(1.dp, if (active) Sg4Purple else Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                                    .clickable { statusFilter = st }
+                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = lbl,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (active) Sg4Purple else Slate600
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Navegador de Período (< Hoje >) para a visão Semana
+                if (viewMode == 0) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFF8FAFC))
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.ChevronRight, contentDescription = "Próximo", tint = Sg4Purple)
+                        IconButton(onClick = { dayOffset -= 1 }, modifier = Modifier.size(30.dp)) {
+                            Icon(Icons.Default.ChevronLeft, contentDescription = "Anterior", tint = Sg4Purple)
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = periodLabel,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Slate900
+                            )
+                            if (dayOffset != 0) {
+                                Text(
+                                    text = "Hoje",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Sg4Purple,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Sg4PurpleSurface)
+                                        .clickable { dayOffset = 0 }
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        IconButton(onClick = { dayOffset += 1 }, modifier = Modifier.size(30.dp)) {
+                            Icon(Icons.Default.ChevronRight, contentDescription = "Próximo", tint = Sg4Purple)
+                        }
                     }
                 }
             }
-        }
 
-        HorizontalDivider(color = Color(0xFFE2E8F0))
+            HorizontalDivider(color = Color(0xFFE2E8F0))
 
-        // Lista de Agendamentos Agrupados por Dia
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (groupedByDay.isEmpty()) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Nenhuma atividade encontrada neste período.",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Slate600,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Toque em 'Novo Agendamento' para planejar atividades com repetição e corretor IA.",
-                                fontSize = 12.sp,
-                                color = Slate400,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            } else {
-                groupedByDay.forEach { (dayYmd, dayPlans) ->
-                    item(key = "header-$dayYmd") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(
-                                            if (dayYmd == todayYmd) Sg4Green else Sg4Purple,
-                                            CircleShape
-                                        )
-                                )
-                                Text(
-                                    text = formatYmdToBrFull(dayYmd) + if (dayYmd == todayYmd) " (HOJE)" else "",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Slate900
-                                )
-                            }
-
-                            Text(
-                                text = "+ Agendar no dia",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Sg4Purple,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .clickable {
-                                        editingPlan = null
-                                        prefillDateYmd = dayYmd
-                                        showCreateOrEditModal = true
-                                    }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    items(dayPlans, key = { it.id }) { plan ->
-                        val prioColor = when (plan.prioridade.uppercase()) {
-                            "ALTA" -> Color(0xFFEF4444)
-                            "BAIXA" -> Color(0xFF6366F1)
-                            else -> Color(0xFFF59E0B)
-                        }
-                        val isConcluido = plan.status == "CONCLUIDO"
-
+            // Conteúdo principal da Agenda:
+            // Se MÊS: exibe Calendário Completo do Mês no topo + lista de tarefas do dia selecionado
+            // Se SEMANA: exibe a lista agrupada por dias da semana
+            if (viewMode == 1) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Calendário Mensal em Grade
+                    item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(
-                                        BorderStroke(1.dp, prioColor.copy(alpha = 0.35f)),
-                                        RoundedCornerShape(14.dp)
-                                    )
-                                    .padding(14.dp)
-                            ) {
-                                // Topo do Card: Hora, Categoria, Prioridade, Status
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                // Cabeçalho do mês com navegação
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        StatusBadge(text = "🕒 ${plan.hora}", color = Slate600)
-                                        StatusBadge(
-                                            text = plan.categoria.ifBlank { "ATIVIDADE" },
-                                            color = Sg4Purple
-                                        )
-                                        StatusBadge(
-                                            text = plan.prioridade,
-                                            color = prioColor
-                                        )
+                                    IconButton(onClick = { dayOffset -= 1 }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Default.ChevronLeft, contentDescription = "Anterior", tint = Sg4Purple)
                                     }
-                                    StatusBadge(
-                                        text = if (isConcluido) "CONCLUÍDO" else "PENDENTE",
-                                        color = if (isConcluido) Sg4Green else Sg4Amber
-                                    )
+
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text(
+                                            text = periodLabel.replace("Mês: ", ""),
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Slate900
+                                        )
+                                        if (dayOffset != 0) {
+                                            Text(
+                                                text = "Hoje",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Sg4Purple,
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(Sg4PurpleSurface)
+                                                    .clickable {
+                                                        dayOffset = 0
+                                                        selectedCalendarDayYmd = todayYmd
+                                                    }
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(onClick = { dayOffset += 1 }, modifier = Modifier.size(32.dp)) {
+                                        Icon(Icons.Default.ChevronRight, contentDescription = "Próximo", tint = Sg4Purple)
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // Título e Descrição Original
-                                Text(
-                                    text = plan.titulo.ifBlank { plan.categoria },
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Slate900,
-                                    textDecoration = if (isConcluido) TextDecoration.LineThrough else TextDecoration.None
-                                )
-
-                                if (plan.descricaoOriginal.isNotBlank() && plan.descricaoOriginal != plan.titulo) {
-                                    Spacer(modifier = Modifier.height(3.dp))
-                                    Text(
-                                        text = plan.descricaoOriginal,
-                                        fontSize = 13.sp,
-                                        color = Slate600
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                // Local / Unidade
+                                // Cabeçalho Dias da Semana (Dom, Seg, Ter...)
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceAround
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.LocationOn,
-                                        contentDescription = null,
-                                        tint = Sg4Purple,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = "${plan.local.ifBlank { "Em Campo" }} (${plan.cidade.ifBlank { "São Paulo" }}/${plan.estado.ifBlank { "SP" }})",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Slate600
-                                    )
-                                }
-
-                                // Checklist de Sub-itens (se houver)
-                                if (plan.checklist.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(Color(0xFFF8FAFC))
-                                            .padding(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
+                                    listOf("Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb").forEach { d ->
                                         Text(
-                                            text = "ITENS DO PLANEJAMENTO (${plan.checklist.count { it.concluido }}/${plan.checklist.size})",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Slate600
-                                        )
-                                        plan.checklist.forEachIndexed { idx, chk ->
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .clickable(enabled = !uiState.isBlockingLoading) {
-                                                            val updatedList = plan.checklist.mapIndexed { i, item ->
-                                                                if (i == idx) item.copy(concluido = !item.concluido) else item
-                                                            }
-                                                            viewModel.performAction(
-                                                                actionType = "TOGGLE_CHECKLIST_ATIVIDADE",
-                                                                loadingTitle = "Atualizando checklist...",
-                                                                description = "Checklist ${plan.titulo}",
-                                                                payload = mapOf(
-                                                                    "id" to plan.id,
-                                                                    "checklist" to updatedList
-                                                                )
-                                                            )
-                                                        },
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = if (chk.concluido) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
-                                                        contentDescription = null,
-                                                        tint = if (chk.concluido) Sg4Green else Slate400,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                    Text(
-                                                        text = chk.texto.ifBlank { chk.titulo ?: "" },
-                                                        fontSize = 12.sp,
-                                                        color = if (chk.concluido) Slate400 else Slate900,
-                                                        textDecoration = if (chk.concluido) TextDecoration.LineThrough else TextDecoration.None
-                                                    )
-                                                }
-                                                IconButton(
-                                                    onClick = { editingChecklistItem = plan to chk },
-                                                    modifier = Modifier.size(24.dp)
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Edit,
-                                                        contentDescription = "Editar item",
-                                                        tint = Slate400,
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                // Box de Relato de Execução quando concluído
-                                if (isConcluido && (plan.descricaoExecutada.isNotBlank() || plan.observacoes.isNotBlank())) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(Color(0xFFECFDF5))
-                                            .border(1.dp, Color(0xFFA7F3D0), RoundedCornerShape(10.dp))
-                                            .padding(10.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = "✓ RELATO DE EXECUÇÃO",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = Sg4Green
-                                            )
-                                            if (plan.alteradaOriginal) {
-                                                Text(
-                                                    text = "Execução Ajustada",
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Sg4Amber
-                                                )
-                                            }
-                                        }
-                                        if (plan.descricaoExecutada.isNotBlank()) {
-                                            Spacer(modifier = Modifier.height(3.dp))
-                                            Text(
-                                                text = plan.descricaoExecutada,
-                                                fontSize = 12.sp,
-                                                color = Slate900,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
-                                        if (plan.observacoes.isNotBlank()) {
-                                            Spacer(modifier = Modifier.height(3.dp))
-                                            Text(
-                                                text = "Obs: ${plan.observacoes}",
-                                                fontSize = 11.sp,
-                                                color = Slate600
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                // Botões de Ação Principal + Ferramentas de Planejamento (Igual à Web)
-                                if (!isConcluido) {
-                                    val hasPartialChecklist = plan.checklist.any { it.concluido } && plan.checklist.any { !it.concluido }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Button(
-                                            onClick = { concludingPlan = plan },
-                                            enabled = !uiState.isBlockingLoading,
-                                            modifier = Modifier.weight(1f),
-                                            shape = RoundedCornerShape(10.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Green)
-                                        ) {
-                                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(5.dp))
-                                            Text("Concluir Atividade", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                        }
-
-                                        if (hasPartialChecklist) {
-                                            OutlinedButton(
-                                                onClick = { transferringPlan = plan },
-                                                enabled = !uiState.isBlockingLoading,
-                                                shape = RoundedCornerShape(10.dp)
-                                            ) {
-                                                Text("Transferir Pend.", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                // Barra de ações secundárias (Editar, Duplicar, Mover Data, Outlook, Reverter, Excluir)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // Editar
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0xFFF1F5F9))
-                                            .clickable(enabled = !uiState.isBlockingLoading) {
-                                                if (isConcluido) {
-                                                    concludingPlan = plan
-                                                } else {
-                                                    editingPlan = plan
-                                                    prefillDateYmd = plan.dataAtividade.take(10)
-                                                    showCreateOrEditModal = true
-                                                }
-                                            }
-                                            .padding(horizontal = 9.dp, vertical = 5.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Icon(Icons.Default.Edit, contentDescription = null, tint = Slate600, modifier = Modifier.size(13.dp))
-                                            Text(if (isConcluido) "Editar Relato" else "Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate600)
-                                        }
-                                    }
-
-                                    // Duplicar
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0xFFF1F5F9))
-                                            .clickable(enabled = !uiState.isBlockingLoading) {
-                                                editingPlan = plan.copy(id = "")
-                                                prefillDateYmd = plan.dataAtividade.take(10)
-                                                showCreateOrEditModal = true
-                                            }
-                                            .padding(horizontal = 9.dp, vertical = 5.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Icon(Icons.Default.ContentCopy, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(13.dp))
-                                            Text("Duplicar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
-                                        }
-                                    }
-
-                                    // Mover Data (se pendente)
-                                    if (!isConcluido) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0xFFF1F5F9))
-                                                .clickable(enabled = !uiState.isBlockingLoading) {
-                                                    movingDatePlan = plan
-                                                }
-                                                .padding(horizontal = 9.dp, vertical = 5.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = Sg4Blue, modifier = Modifier.size(13.dp))
-                                                Text("Mover Data", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Blue)
-                                            }
-                                        }
-                                    }
-
-                                    // Reverter para Pendente (se concluído)
-                                    if (isConcluido) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0xFFFEF3C7))
-                                                .clickable(enabled = !uiState.isBlockingLoading) {
-                                                    viewModel.performAction(
-                                                        actionType = "REVERTER_ATIVIDADE",
-                                                        loadingTitle = "Revertendo atividade para pendente...",
-                                                        description = "Reverter ${plan.titulo}",
-                                                        payload = mapOf("id" to plan.id)
-                                                    )
-                                                }
-                                                .padding(horizontal = 9.dp, vertical = 5.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                Icon(Icons.Default.Undo, contentDescription = null, tint = Sg4Amber, modifier = Modifier.size(13.dp))
-                                                Text("Reverter p/ Pendente", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Amber)
-                                            }
-                                        }
-                                    }
-
-                                    // Outlook Calendar
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0xFFE0F2FE))
-                                            .clickable {
-                                                try {
-                                                    val url = buildOutlookCalendarUrl(plan)
-                                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                                                } catch (_: Exception) {
-                                                }
-                                            }
-                                            .padding(horizontal = 9.dp, vertical = 5.dp)
-                                    ) {
-                                        Text("📅 Outlook", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
-                                    }
-
-                                    // Excluir
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0xFFFEE2E2))
-                                            .clickable(enabled = !uiState.isBlockingLoading) {
-                                                deletingPlan = plan
-                                            }
-                                            .padding(horizontal = 9.dp, vertical = 5.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Icon(Icons.Default.Delete, contentDescription = null, tint = Sg4Red, modifier = Modifier.size(13.dp))
-                                            Text("Excluir", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Red)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // MODAL 1: CRIAR / EDITAR / DUPLICAR PLANEJAMENTO COMPLETO (IGUAL AO SISTEMA WEB)
-    if (showCreateOrEditModal) {
-        val isEditingExisting = editingPlan != null && editingPlan!!.id.isNotBlank()
-        var dataAtv by remember(editingPlan, prefillDateYmd) {
-            mutableStateOf(editingPlan?.dataAtividade?.take(10) ?: prefillDateYmd)
-        }
-        var hora by remember(editingPlan) { mutableStateOf(editingPlan?.hora ?: "08:00") }
-        var frequencia by remember { mutableStateOf("UNICA") }
-        var dataFim by remember { mutableStateOf(dataAtv) }
-
-        var titulo by remember(editingPlan) { mutableStateOf(editingPlan?.titulo ?: "") }
-        val initCat = editingPlan?.categoria ?: "INSPEÇÃO DE SEGURANÇA"
-        var selectedCat by remember(editingPlan) {
-            mutableStateOf(if (CATEGORIAS_OFICIAIS.contains(initCat)) initCat else "OUTROS")
-        }
-        var customCat by remember(editingPlan) {
-            mutableStateOf(if (CATEGORIAS_OFICIAIS.contains(initCat)) "" else initCat)
-        }
-        var prioridade by remember(editingPlan) { mutableStateOf(editingPlan?.prioridade ?: "MEDIA") }
-
-        val unidades = uiState.syncData.unidades
-        var localSearch by remember(editingPlan) { mutableStateOf(editingPlan?.local ?: "") }
-        var selectedUnidadeNome by remember(editingPlan) { mutableStateOf(editingPlan?.local ?: "") }
-        var cidade by remember(editingPlan) { mutableStateOf(editingPlan?.cidade ?: "São Paulo") }
-        var estado by remember(editingPlan) { mutableStateOf(editingPlan?.estado ?: "SP") }
-        var isCustomLocal by remember(editingPlan) { mutableStateOf(false) }
-
-        var descricao by remember(editingPlan) { mutableStateOf(editingPlan?.descricaoOriginal ?: "") }
-        val draftList = remember { mutableStateListOf<DraftAgendaItem>() }
-
-        val finalCategoria = if (selectedCat == "OUTROS") customCat.ifBlank { "OUTROS" } else selectedCat
-
-        Dialog(onDismissRequest = { if (!uiState.isBlockingLoading) showCreateOrEditModal = false }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.92f),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Header do Modal
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Sg4Purple)
-                            .padding(horizontal = 18.dp, vertical = 14.dp)
-                    ) {
-                        Text(
-                            text = when {
-                                isEditingExisting -> "Editar Agendamento"
-                                editingPlan != null -> "Duplicar Agendamento"
-                                else -> "Novo Planejamento na Agenda"
-                            },
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Data e Hora
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = dataAtv,
-                                onValueChange = { dataAtv = it },
-                                label = { Text("Data (AAAA-MM-DD)") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1.3f)
-                            )
-                            OutlinedTextField(
-                                value = hora,
-                                onValueChange = { hora = it },
-                                label = { Text("Hora (08:00)") },
-                                singleLine = true,
-                                modifier = Modifier.weight(0.9f)
-                            )
-                        }
-
-                        // Atalhos rápidos de data
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf(
-                                "Hoje" to 0,
-                                "Amanhã" to 1,
-                                "+7 dias" to 7
-                            ).forEach { (lbl, addDays) ->
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(0xFFF1F5F9))
-                                        .clickable {
-                                            val c = Calendar.getInstance()
-                                            c.add(Calendar.DAY_OF_YEAR, addDays)
-                                            dataAtv = formatCalToYmd(c)
-                                        }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text(lbl, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
-                                }
-                            }
-                        }
-
-                        // Frequência de Repetição (apenas para criação/duplicação)
-                        if (!isEditingExisting) {
-                            Text(
-                                text = "FREQUÊNCIA DE REPETIÇÃO",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate600
-                            )
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                FREQUENCIAS_OFICIAIS.forEach { (code, label) ->
-                                    val active = frequencia == code
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(if (active) Sg4Purple else Color(0xFFF1F5F9))
-                                            .clickable { frequencia = code }
-                                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            text = label,
+                                            text = d,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (active) Color.White else Slate600
+                                            color = if (d == "Dom" || d == "Sáb") Slate400 else Sg4Purple,
+                                            modifier = Modifier.weight(1f),
+                                            textAlign = TextAlign.Center
                                         )
                                     }
                                 }
-                            }
 
-                            if (frequencia != "UNICA") {
-                                OutlinedTextField(
-                                    value = dataFim,
-                                    onValueChange = { dataFim = it },
-                                    label = { Text("Repetir até a Data Fim (AAAA-MM-DD)") },
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
+                                Spacer(modifier = Modifier.height(6.dp))
 
-                        // Título + Corretor Ortográfico IA
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "TÍTULO DA ATIVIDADE",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate600
-                            )
-                            AiSpellcheckButton(
-                                text = titulo,
-                                enabled = !uiState.isBlockingLoading,
-                                onClick = {
-                                    viewModel.correctTextWithAI(titulo) { corrected ->
-                                        titulo = corrected
+                                // Grade dos dias do mês
+                                val calMonth = remember(currentCalYear, currentCalMonth) {
+                                    Calendar.getInstance().apply {
+                                        set(Calendar.YEAR, currentCalYear)
+                                        set(Calendar.MONTH, currentCalMonth)
+                                        set(Calendar.DAY_OF_MONTH, 1)
                                     }
                                 }
-                            )
-                        }
-                        OutlinedTextField(
-                            value = titulo,
-                            onValueChange = { titulo = it },
-                            placeholder = { Text("Ex: Inspeção nos extintores e hidrantes") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                                val firstDayOfWeek = calMonth.get(Calendar.DAY_OF_WEEK) - 1 // 0=Dom..6=Sáb
+                                val maxDaysInMonth = calMonth.getActualMaximum(Calendar.DAY_OF_MONTH)
+                                val totalCells = ((firstDayOfWeek + maxDaysInMonth + 6) / 7) * 7
 
-                        // Categoria Oficial
-                        Text(
-                            text = "CATEGORIA",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Slate600
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            CATEGORIAS_OFICIAIS.forEach { cat ->
-                                val active = selectedCat == cat
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(if (active) Sg4Purple else Color(0xFFF1F5F9))
-                                        .clickable { selectedCat = cat }
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = cat,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (active) Color.White else Slate600
-                                    )
-                                }
-                            }
-                        }
-                        if (selectedCat == "OUTROS") {
-                            OutlinedTextField(
-                                value = customCat,
-                                onValueChange = { customCat = it },
-                                label = { Text("Especifique a Categoria") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                                for (row in 0 until (totalCells / 7)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.SpaceAround
+                                    ) {
+                                        for (col in 0..6) {
+                                            val cellIdx = row * 7 + col
+                                            val dayNumber = cellIdx - firstDayOfWeek + 1
+                                            if (dayNumber in 1..maxDaysInMonth) {
+                                                val mStr = (currentCalMonth + 1).toString().padStart(2, '0')
+                                                val dStr = dayNumber.toString().padStart(2, '0')
+                                                val cellYmd = "$currentCalYear-$mStr-$dStr"
+                                                val isSelected = cellYmd == selectedCalendarDayYmd
+                                                val isToday = cellYmd == todayYmd
+                                                val countActivities = monthActivitiesCountByDay[cellYmd] ?: 0
 
-                        // Prioridade (Baixa, Média, Alta)
-                        Text(
-                            text = "PRIORIDADE",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Slate600
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(
-                                Triple("BAIXA", "Baixa", Color(0xFF6366F1)),
-                                Triple("MEDIA", "Média", Color(0xFFF59E0B)),
-                                Triple("ALTA", "Alta", Color(0xFFEF4444))
-                            ).forEach { (code, lbl, color) ->
-                                val active = prioridade == code
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(38.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (active) color else Color(0xFFF8FAFC))
-                                        .border(1.dp, if (active) color else Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
-                                        .clickable { prioridade = code },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = lbl,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (active) Color.White else Slate600
-                                    )
-                                }
-                            }
-                        }
-
-                        // Unidade / Local (com autopreenchimento de Cidade e UF igual à Web)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "UNIDADE / LOCAL",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate600
-                            )
-                            Text(
-                                text = if (isCustomLocal) "Selecionar da Lista" else "Digitar Outro Local",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Sg4Purple,
-                                modifier = Modifier.clickable { isCustomLocal = !isCustomLocal }
-                            )
-                        }
-
-                        if (!isCustomLocal && unidades.isNotEmpty()) {
-                            OutlinedTextField(
-                                value = localSearch,
-                                onValueChange = {
-                                    localSearch = it
-                                    selectedUnidadeNome = it
-                                },
-                                label = { Text("Pesquisar ou selecionar Unidade") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            val matchingUnidades = remember(unidades, localSearch) {
-                                if (localSearch.isBlank()) unidades.take(15)
-                                else unidades.filter {
-                                    it.nome.contains(localSearch, ignoreCase = true) ||
-                                        it.cidade.contains(localSearch, ignoreCase = true)
-                                }.take(15)
-                            }
-                            if (matchingUnidades.isNotEmpty()) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    matchingUnidades.forEach { u ->
-                                        val isSelU = selectedUnidadeNome == u.nome
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(if (isSelU) Sg4PurpleSurface else Color(0xFFF1F5F9))
-                                                .border(1.dp, if (isSelU) Sg4Purple else Color.Transparent, RoundedCornerShape(8.dp))
-                                                .clickable {
-                                                    selectedUnidadeNome = u.nome
-                                                    localSearch = u.nome
-                                                    if (u.cidade.isNotBlank()) cidade = u.cidade
-                                                    if (u.estado.isNotBlank()) estado = u.estado
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(42.dp)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(
+                                                            if (isSelected) Sg4Purple
+                                                            else if (isToday) Sg4PurpleSurface
+                                                            else Color.Transparent
+                                                        )
+                                                        .border(
+                                                            1.dp,
+                                                            if (isSelected) Sg4Purple
+                                                            else if (isToday) Sg4Purple.copy(alpha = 0.5f)
+                                                            else Color.Transparent,
+                                                            RoundedCornerShape(8.dp)
+                                                        )
+                                                        .clickable {
+                                                            selectedCalendarDayYmd = cellYmd
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Column(
+                                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                                        verticalArrangement = Arrangement.Center
+                                                    ) {
+                                                        Text(
+                                                            text = "$dayNumber",
+                                                            fontSize = 12.sp,
+                                                            fontWeight = if (isSelected || isToday) FontWeight.ExtraBold else FontWeight.Medium,
+                                                            color = if (isSelected) Color.White else if (isToday) Sg4PurpleDark else Slate900
+                                                        )
+                                                        if (countActivities > 0) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(6.dp)
+                                                                    .background(
+                                                                        if (isSelected) Color.White else Sg4Purple,
+                                                                        CircleShape
+                                                                    )
+                                                            )
+                                                        }
+                                                    }
                                                 }
-                                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                                        ) {
-                                            Text(
-                                                text = "${u.nome} (${u.cidade}/${u.estado})",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = if (isSelU) Sg4Purple else Slate900
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            OutlinedTextField(
-                                value = selectedUnidadeNome,
-                                onValueChange = { selectedUnidadeNome = it },
-                                label = { Text("Nome do Local / Unidade") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = cidade,
-                                onValueChange = { cidade = it },
-                                label = { Text("Cidade") },
-                                singleLine = true,
-                                modifier = Modifier.weight(1.4f)
-                            )
-                            OutlinedTextField(
-                                value = estado,
-                                onValueChange = { estado = it.uppercase().take(2) },
-                                label = { Text("UF") },
-                                singleLine = true,
-                                modifier = Modifier.weight(0.6f)
-                            )
-                        }
-
-                        // Descrição da Atividade + Corretor Ortográfico IA
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "DESCRIÇÃO DA ATIVIDADE",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate600
-                            )
-                            AiSpellcheckButton(
-                                text = descricao,
-                                enabled = !uiState.isBlockingLoading,
-                                onClick = {
-                                    viewModel.correctTextWithAI(descricao) { corrected ->
-                                        descricao = corrected
-                                    }
-                                }
-                            )
-                        }
-                        OutlinedTextField(
-                            value = descricao,
-                            onValueChange = { descricao = it },
-                            placeholder = { Text("Descreva os detalhes da atividade planejada...") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(96.dp)
-                        )
-
-                        // Opção de adicionar vários itens em lote antes de salvar (igual à Web)
-                        if (!isEditingExisting) {
-                            OutlinedButton(
-                                onClick = {
-                                    val tFinal = titulo.ifBlank { finalCategoria }
-                                    val dFinal = descricao.ifBlank { tFinal }
-                                    draftList.add(
-                                        DraftAgendaItem(
-                                            id = System.currentTimeMillis().toString(),
-                                            dataAtividade = dataAtv,
-                                            frequencia = frequencia,
-                                            dataFim = dataFim,
-                                            hora = hora,
-                                            titulo = tFinal,
-                                            categoria = finalCategoria,
-                                            prioridade = prioridade,
-                                            local = selectedUnidadeNome.ifBlank { localSearch.ifBlank { "Unidade Vivo" } },
-                                            cidade = cidade.ifBlank { "São Paulo" },
-                                            estado = estado.ifBlank { "SP" },
-                                            descricaoOriginal = dFinal
-                                        )
-                                    )
-                                    titulo = ""
-                                    descricao = ""
-                                },
-                                enabled = (titulo.isNotBlank() || descricao.isNotBlank()) && !uiState.isBlockingLoading,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Adicionar à Lista em Lote (${draftList.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-
-                            if (draftList.isNotEmpty()) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFFF8FAFC))
-                                        .padding(10.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = "ITENS PRONTOS PARA AGENDAR (${draftList.size})",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Sg4Purple
-                                    )
-                                    draftList.forEachIndexed { idx, dItem ->
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "• ${dItem.dataAtividade} (${dItem.hora}) - ${dItem.titulo} [${dItem.frequencia}]",
-                                                fontSize = 11.sp,
-                                                color = Slate900,
-                                                modifier = Modifier.weight(1f),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                text = "Remover",
-                                                fontSize = 10.sp,
-                                                color = Sg4Red,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.clickable { draftList.removeAt(idx) }
-                                            )
+                                            } else {
+                                                Spacer(modifier = Modifier.weight(1f))
+                                            }
                                         }
                                     }
                                 }
@@ -2275,413 +1680,543 @@ fun AgendaPlanejamentoScreen(
                         }
                     }
 
-                    // Rodapé de botões do Modal
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF8FAFC))
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { showCreateOrEditModal = false },
-                            enabled = !uiState.isBlockingLoading,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("Cancelar")
-                        }
-
-                        Button(
-                            onClick = {
-                                val tFinal = titulo.ifBlank { finalCategoria }
-                                val dFinal = descricao.ifBlank { tFinal }
-                                val locFinal = selectedUnidadeNome.ifBlank { localSearch.ifBlank { "Em Campo" } }
-
-                                if (isEditingExisting && editingPlan != null) {
-                                    viewModel.performAction(
-                                        actionType = "EDITAR_ATIVIDADE",
-                                        loadingTitle = "Salvando alterações do agendamento...",
-                                        description = "Editar: $tFinal",
-                                        payload = mapOf(
-                                            "id" to editingPlan!!.id,
-                                            "dataAtividade" to dataAtv,
-                                            "hora" to hora,
-                                            "titulo" to tFinal,
-                                            "categoria" to finalCategoria,
-                                            "prioridade" to prioridade,
-                                            "local" to locFinal,
-                                            "cidade" to cidade,
-                                            "estado" to estado,
-                                            "descricaoOriginal" to dFinal
-                                        ),
-                                        onCompleted = { showCreateOrEditModal = false }
-                                    )
-                                } else {
-                                    val allToSend = mutableListOf<Map<String, Any?>>()
-                                    draftList.forEach { d ->
-                                        allToSend.add(
-                                            mapOf(
-                                                "dataAtividade" to d.dataAtividade,
-                                                "frequencia" to d.frequencia,
-                                                "dataFim" to d.dataFim,
-                                                "hora" to d.hora,
-                                                "titulo" to d.titulo,
-                                                "categoria" to d.categoria,
-                                                "prioridade" to d.prioridade,
-                                                "local" to d.local,
-                                                "cidade" to d.cidade,
-                                                "estado" to d.estado,
-                                                "descricaoOriginal" to d.descricaoOriginal
-                                            )
-                                        )
-                                    }
-                                    if (titulo.isNotBlank() || descricao.isNotBlank() || allToSend.isEmpty()) {
-                                        allToSend.add(
-                                            mapOf(
-                                                "dataAtividade" to dataAtv,
-                                                "frequencia" to frequencia,
-                                                "dataFim" to dataFim,
-                                                "hora" to hora,
-                                                "titulo" to tFinal,
-                                                "categoria" to finalCategoria,
-                                                "prioridade" to prioridade,
-                                                "local" to locFinal,
-                                                "cidade" to cidade,
-                                                "estado" to estado,
-                                                "descricaoOriginal" to dFinal
-                                            )
-                                        )
-                                    }
-                                    viewModel.performAction(
-                                        actionType = "CRIAR_ATIVIDADE_BATCH",
-                                        loadingTitle = "Salvando agendamento(s) no planejamento...",
-                                        description = "Agendamento: $tFinal",
-                                        payload = mapOf("items" to allToSend),
-                                        onCompleted = { showCreateOrEditModal = false }
-                                    )
-                                }
-                            },
-                            enabled = (titulo.isNotBlank() || descricao.isNotBlank() || draftList.isNotEmpty()) && !uiState.isBlockingLoading,
-                            modifier = Modifier.weight(1.3f),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                    // Título das atividades do dia selecionado
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (isEditingExisting) "Salvar Alterações" else "Salvar na Agenda",
-                                fontWeight = FontWeight.Bold
+                                text = "PROGRAMAÇÃO DO DIA: ${formatIsoDateBr(selectedCalendarDayYmd).uppercase()}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Sg4Purple
                             )
+                            val dayCount = filteredPlans.count { it.dataAtividade.take(10) == selectedCalendarDayYmd }
+                            Text(
+                                text = "$dayCount agendada(s)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate600
+                            )
+                        }
+                    }
+
+                    // Lista de atividades do dia selecionado
+                    val dayPlans = filteredPlans.filter { it.dataAtividade.take(10) == selectedCalendarDayYmd }
+                    if (dayPlans.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Nenhuma atividade agendada para este dia.", fontSize = 13.sp, color = Slate600)
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Button(
+                                        onClick = {
+                                            editingPlan = null
+                                            prefillDateYmd = selectedCalendarDayYmd
+                                            showCreateOrEditModal = true
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text("+ Agendar para este dia", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        items(dayPlans, key = { it.id }) { plan ->
+                            AgendaCardItem(
+                                plan = plan,
+                                uiState = uiState,
+                                viewModel = viewModel,
+                                onEdit = {
+                                    editingPlan = plan
+                                    prefillDateYmd = plan.dataAtividade.take(10)
+                                    showCreateOrEditModal = true
+                                },
+                                onDuplicate = {
+                                    editingPlan = plan.copy(id = "")
+                                    prefillDateYmd = plan.dataAtividade.take(10)
+                                    showCreateOrEditModal = true
+                                },
+                                onMoveDate = { movingDatePlan = plan },
+                                onConclude = { concludingPlan = plan },
+                                onTransfer = { transferringPlan = plan },
+                                onDelete = { deletingPlan = plan }
+                            )
+                        }
+                    }
+                }
+            } else {
+                // VISÃO SEMANA (Agrupada por Dia)
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (groupedByDay.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 40.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Nenhuma atividade encontrada nesta semana.", color = Slate600, fontSize = 14.sp)
+                            }
+                        }
+                    } else {
+                        groupedByDay.forEach { (diaYmd, plansDoDia) ->
+                            item(key = "header_$diaYmd") {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = formatYmdToBrFull(diaYmd),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (diaYmd == todayYmd) Sg4Purple else Slate900
+                                    )
+                                    Text(
+                                        text = "${plansDoDia.size} atividade(s)",
+                                        fontSize = 11.sp,
+                                        color = Slate600
+                                    )
+                                }
+                            }
+
+                            items(plansDoDia, key = { it.id }) { plan ->
+                                AgendaCardItem(
+                                    plan = plan,
+                                    uiState = uiState,
+                                    viewModel = viewModel,
+                                    onEdit = {
+                                        editingPlan = plan
+                                        prefillDateYmd = plan.dataAtividade.take(10)
+                                        showCreateOrEditModal = true
+                                    },
+                                    onDuplicate = {
+                                        editingPlan = plan.copy(id = "")
+                                        prefillDateYmd = plan.dataAtividade.take(10)
+                                        showCreateOrEditModal = true
+                                    },
+                                    onMoveDate = { movingDatePlan = plan },
+                                    onConclude = { concludingPlan = plan },
+                                    onTransfer = { transferringPlan = plan },
+                                    onDelete = { deletingPlan = plan }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+
+        // Floating Action Button (FAB) Expansível no canto inferior direito
+        FloatingActionButton(
+            onClick = {
+                if (fabExpanded) {
+                    editingPlan = null
+                    prefillDateYmd = selectedCalendarDayYmd
+                    showCreateOrEditModal = true
+                    fabExpanded = false
+                } else {
+                    fabExpanded = true
+                }
+            },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp),
+            containerColor = Sg4Purple,
+            contentColor = Color.White,
+            shape = if (fabExpanded) RoundedCornerShape(16.dp) else CircleShape
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = if (fabExpanded) 16.dp else 0.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Novo Agendamento",
+                    modifier = Modifier.size(24.dp)
+                )
+                if (fabExpanded) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Novo Agendamento",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
     }
 
-    // MODAL 2: CONCLUIR ATIVIDADE DA AGENDA (COM CORRETOR IA + DSS ALIADO + RELATÓRIO DE CAMPO)
+    // MODAL 1: CRIAR OU EDITAR AGENDAMENTO (COM CORRETOR IA)
+    if (showCreateOrEditModal) {
+        val isEditing = editingPlan?.id?.isNotBlank() == true
+        var dataAtv by remember { mutableStateOf(editingPlan?.dataAtividade?.take(10) ?: prefillDateYmd) }
+        var horaAtv by remember { mutableStateOf(editingPlan?.hora ?: "08:00") }
+        var categoriaAtv by remember { mutableStateOf(editingPlan?.categoria ?: "INSPEÇÃO DE SEGURANÇA") }
+        var tituloAtv by remember { mutableStateOf(editingPlan?.titulo ?: "") }
+        var prioridadeAtv by remember { mutableStateOf(editingPlan?.prioridade ?: "MEDIA") }
+        var localAtv by remember { mutableStateOf(editingPlan?.local ?: "") }
+        var cidadeAtv by remember { mutableStateOf(editingPlan?.cidade ?: "") }
+        var estadoAtv by remember { mutableStateOf(editingPlan?.estado ?: "SP") }
+        var equipeAtv by remember { mutableStateOf(editingPlan?.equipe ?: "Individual") }
+        var descricaoAtv by remember { mutableStateOf(editingPlan?.descricaoOriginal ?: "") }
+        var frequenciaAtv by remember { mutableStateOf("UNICA") }
+        var dataFimRecorrencia by remember { mutableStateOf(prefillDateYmd) }
+
+        val textInputColors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Slate900,
+            unfocusedTextColor = Slate900,
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            focusedBorderColor = Sg4Purple,
+            unfocusedBorderColor = Color(0xFFCBD5E1),
+            focusedPlaceholderColor = Slate400,
+            unfocusedPlaceholderColor = Slate400,
+            cursorColor = Sg4Purple
+        )
+
+        AlertDialog(
+            onDismissRequest = { if (!uiState.isBlockingLoading) showCreateOrEditModal = false },
+            title = {
+                Text(
+                    text = if (isEditing) "Editar Agendamento" else "Novo Agendamento",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 17.sp,
+                    color = Slate900
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Data e Hora
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = dataAtv,
+                            onValueChange = { dataAtv = it },
+                            label = { Text("Data (AAAA-MM-DD)") },
+                            modifier = Modifier.weight(1.3f),
+                            colors = textInputColors
+                        )
+                        OutlinedTextField(
+                            value = horaAtv,
+                            onValueChange = { horaAtv = it },
+                            label = { Text("Hora (HH:mm)") },
+                            modifier = Modifier.weight(1f),
+                            colors = textInputColors
+                        )
+                    }
+
+                    // Categoria
+                    Text("CATEGORIA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        CATEGORIAS_OFICIAIS.forEach { cat ->
+                            val isSel = cat.equals(categoriaAtv, ignoreCase = true)
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSel) Sg4Purple else Color(0xFFF1F5F9))
+                                    .clickable { categoriaAtv = cat }
+                                    .padding(horizontal = 9.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = cat,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSel) Color.White else Slate900
+                                )
+                            }
+                        }
+                    }
+
+                    // Título
+                    OutlinedTextField(
+                        value = tituloAtv,
+                        onValueChange = { tituloAtv = it },
+                        label = { Text("Título da Atividade") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
+                    )
+
+                    // Descrição com Corretor IA
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("DESCRITIVO DA ATIVIDADE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        AiSpellcheckButton(
+                            text = descricaoAtv,
+                            enabled = !uiState.isBlockingLoading,
+                            onClick = {
+                                viewModel.correctTextWithAI(descricaoAtv) { corr ->
+                                    descricaoAtv = corr
+                                }
+                            }
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = descricaoAtv,
+                        onValueChange = { descricaoAtv = it },
+                        label = { Text("Descreva detalhadamente o que será executado...") },
+                        modifier = Modifier.fillMaxWidth().height(90.dp),
+                        colors = textInputColors
+                    )
+
+                    // Local, Cidade e UF
+                    OutlinedTextField(
+                        value = localAtv,
+                        onValueChange = { localAtv = it },
+                        label = { Text("Local / Unidade") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
+                    )
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = cidadeAtv,
+                            onValueChange = { cidadeAtv = it },
+                            label = { Text("Cidade") },
+                            modifier = Modifier.weight(2f),
+                            colors = textInputColors
+                        )
+                        OutlinedTextField(
+                            value = estadoAtv,
+                            onValueChange = { estadoAtv = it },
+                            label = { Text("UF") },
+                            modifier = Modifier.weight(1f),
+                            colors = textInputColors
+                        )
+                    }
+
+                    // Prioridade (ALTA, MEDIA, BAIXA)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("BAIXA" to "Baixa", "MEDIA" to "Média", "ALTA" to "Alta").forEach { (pr, lbl) ->
+                            val isSel = prioridadeAtv == pr
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSel) Sg4Purple else Color(0xFFF1F5F9))
+                                    .clickable { prioridadeAtv = pr }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(lbl, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = if (isSel) Color.White else Slate900)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val payload = mutableMapOf<String, Any?>(
+                            "dataAtividade" to dataAtv,
+                            "hora" to horaAtv,
+                            "categoria" to categoriaAtv,
+                            "titulo" to tituloAtv.ifBlank { categoriaAtv },
+                            "prioridade" to prioridadeAtv,
+                            "local" to localAtv,
+                            "cidade" to cidadeAtv,
+                            "estado" to estadoAtv,
+                            "equipe" to equipeAtv,
+                            "descricaoOriginal" to descricaoAtv.ifBlank { tituloAtv.ifBlank { categoriaAtv } },
+                            "frequencia" to frequenciaAtv,
+                            "dataFim" to dataFimRecorrencia
+                        )
+                        if (isEditing) {
+                            payload["id"] = editingPlan?.id
+                            viewModel.performAction(
+                                actionType = "ATUALIZAR_ATIVIDADE",
+                                loadingTitle = "Atualizando agendamento...",
+                                description = "Atualizar: $tituloAtv",
+                                payload = payload,
+                                onCompleted = { showCreateOrEditModal = false }
+                            )
+                        } else {
+                            viewModel.performAction(
+                                actionType = "CRIAR_ATIVIDADE",
+                                loadingTitle = "Criando agendamento...",
+                                description = "Criar: $tituloAtv",
+                                payload = payload,
+                                onCompleted = { showCreateOrEditModal = false }
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !uiState.isBlockingLoading
+                ) {
+                    Text("Salvar", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateOrEditModal = false }) {
+                    Text("Cancelar", color = Slate600)
+                }
+            }
+        )
+    }
+
+    // MODAL 2: CONCLUIR ATIVIDADE (COM CORRETOR IA)
     concludingPlan?.let { item ->
         val isDssCategory = item.categoria.uppercase().contains("DSS")
-        var descExec by remember(item.id) {
+        var descExecutada by remember(item.id) {
             mutableStateOf(item.descricaoExecutada.ifBlank { item.descricaoOriginal })
         }
         var observacoes by remember(item.id) { mutableStateOf(item.observacoes) }
-
+        var fotoUrl by remember(item.id) { mutableStateOf("") }
         var salvarDssAliado by remember(item.id) { mutableStateOf(isDssCategory) }
-        var temaDss by remember(item.id) { mutableStateOf(item.titulo.ifBlank { item.descricaoOriginal }) }
+        var gerarRelatorioCampo by remember(item.id) { mutableStateOf(true) }
+        var empresaRelatorio by remember(item.id) { mutableStateOf("Telefônica Brasil S.A") }
+        var projetoRelatorio by remember(item.id) { mutableStateOf("VIVO") }
 
-        var incluirRelatorioCampo by remember(item.id) { mutableStateOf(!isDssCategory) }
-        var empresaRel by remember(item.id) { mutableStateOf("Telefônica Brasil S.A") }
-        var projetoRel by remember(item.id) { mutableStateOf("VIVO") }
-        var localRel by remember(item.id) { mutableStateOf(item.local.ifBlank { "Unidade Operacional" }) }
-        var cidadeUfRel by remember(item.id) {
-            mutableStateOf("${item.cidade.ifBlank { "São Paulo" }}/${item.estado.ifBlank { "SP" }}")
-        }
-
-        Dialog(onDismissRequest = { if (!uiState.isBlockingLoading) concludingPlan = null }) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.88f),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Sg4Green)
-                            .padding(horizontal = 18.dp, vertical = 14.dp)
-                    ) {
-                        Text(
-                            text = "Concluir Atividade da Agenda",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "${item.categoria} • ${formatIsoDateBr(item.dataAtividade)} às ${item.hora}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Sg4Purple
-                        )
-
-                        // Relato de Execução + Corretor IA
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "RELATO DA EXECUÇÃO",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate600
-                            )
-                            AiSpellcheckButton(
-                                text = descExec,
-                                enabled = !uiState.isBlockingLoading,
-                                onClick = {
-                                    viewModel.correctTextWithAI(descExec) { corrected ->
-                                        descExec = corrected
-                                    }
-                                }
-                            )
-                        }
-                        OutlinedTextField(
-                            value = descExec,
-                            onValueChange = { descExec = it },
-                            label = { Text("O que foi realizado") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(95.dp)
-                        )
-
-                        // Observações + Corretor IA
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "OBSERVAÇÕES (OPCIONAL)",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate600
-                            )
-                            AiSpellcheckButton(
-                                text = observacoes,
-                                enabled = !uiState.isBlockingLoading,
-                                onClick = {
-                                    viewModel.correctTextWithAI(observacoes) { corrected ->
-                                        observacoes = corrected
-                                    }
-                                }
-                            )
-                        }
-                        OutlinedTextField(
-                            value = observacoes,
-                            onValueChange = { observacoes = it },
-                            label = { Text("Observações ou justificativa") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Se for DSS, opção de salvar também como DSS com Aliado
-                        if (isDssCategory) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFFF3E8FF))
-                                    .padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { salvarDssAliado = !salvarDssAliado },
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = if (salvarDssAliado) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
-                                        contentDescription = null,
-                                        tint = Sg4Purple
-                                    )
-                                    Text(
-                                        text = "Foi um DSS com Aliado? (Contabilizar no Painel)",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Sg4PurpleDark
-                                    )
-                                }
-                                if (salvarDssAliado) {
-                                    OutlinedTextField(
-                                        value = temaDss,
-                                        onValueChange = { temaDss = it },
-                                        label = { Text("Tema abordado no DSS") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            }
-                        }
-
-                        // Opção de incluir automaticamente no Relatório de Atividades de Campo
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF8FAFC))
-                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { incluirRelatorioCampo = !incluirRelatorioCampo },
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (incluirRelatorioCampo) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
-                                    contentDescription = null,
-                                    tint = Sg4Purple
-                                )
-                                Text(
-                                    text = "Incluir também no Relatório de Campo?",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate900
-                                )
-                            }
-
-                            if (incluirRelatorioCampo) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(
-                                        value = empresaRel,
-                                        onValueChange = { empresaRel = it },
-                                        label = { Text("Empresa") },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1.2f)
-                                    )
-                                    OutlinedTextField(
-                                        value = projetoRel,
-                                        onValueChange = { projetoRel = it },
-                                        label = { Text("Projeto") },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(0.8f)
-                                    )
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedTextField(
-                                        value = localRel,
-                                        onValueChange = { localRel = it },
-                                        label = { Text("Local") },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    OutlinedTextField(
-                                        value = cidadeUfRel,
-                                        onValueChange = { cidadeUfRel = it },
-                                        label = { Text("Cidade/UF") },
-                                        singleLine = true,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
-                        }
-                    }
+        AlertDialog(
+            onDismissRequest = { if (!uiState.isBlockingLoading) concludingPlan = null },
+            title = {
+                Text("Concluir Atividade", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = item.titulo.ifBlank { item.categoria },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Sg4Purple
+                    )
 
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFFF8FAFC))
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedButton(
-                            onClick = { concludingPlan = null },
+                        Text("RELATO DE EXECUÇÃO", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        AiSpellcheckButton(
+                            text = descExecutada,
                             enabled = !uiState.isBlockingLoading,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("Cancelar")
-                        }
-                        Button(
                             onClick = {
-                                if (descExec.isNotBlank() && !uiState.isBlockingLoading) {
-                                    viewModel.performAction(
-                                        actionType = "CONCLUIR_ATIVIDADE",
-                                        loadingTitle = "Concluindo atividade...",
-                                        description = "Concluir: ${item.titulo}",
-                                        payload = mapOf(
-                                            "id" to item.id,
-                                            "descricaoExecutada" to descExec,
-                                            "observacoes" to observacoes,
-                                            "salvarDssAliado" to salvarDssAliado,
-                                            "temaDss" to temaDss,
-                                            "gerarRelatorioCampo" to incluirRelatorioCampo,
-                                            "empresa" to empresaRel,
-                                            "projeto" to projetoRel,
-                                            "local" to localRel,
-                                            "cidadeUf" to cidadeUfRel,
-                                            "descricaoRelatorio" to descExec
-                                        ),
-                                        onCompleted = { concludingPlan = null }
-                                    )
+                                viewModel.correctTextWithAI(descExecutada) { corr ->
+                                    descExecutada = corr
                                 }
-                            },
-                            enabled = descExec.isNotBlank() && !uiState.isBlockingLoading,
-                            modifier = Modifier.weight(1.3f),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Green)
-                        ) {
-                            Text("Confirmar Conclusão", fontWeight = FontWeight.Bold)
+                            }
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = descExecutada,
+                        onValueChange = { descExecutada = it },
+                        label = { Text("Descreva como a atividade foi executada...") },
+                        modifier = Modifier.fillMaxWidth().height(100.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Slate900,
+                            unfocusedTextColor = Slate900,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = observacoes,
+                        onValueChange = { observacoes = it },
+                        label = { Text("Observações adicionais (opcional)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Slate900,
+                            unfocusedTextColor = Slate900,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White
+                        )
+                    )
+
+                    // Opção de incluir no Relatório de Atividades
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { gerarRelatorioCampo = !gerarRelatorioCampo }) {
+                            Text(
+                                text = if (gerarRelatorioCampo) "☑ Incluir no Relatório de Atividades" else "☐ Não incluir no Relatório",
+                                color = Sg4Purple,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
                         }
                     }
                 }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.performAction(
+                            actionType = "CONCLUIR_ATIVIDADE",
+                            loadingTitle = "Concluindo atividade...",
+                            description = "Concluir: ${item.titulo}",
+                            payload = mapOf(
+                                "id" to item.id,
+                                "descricaoExecutada" to descExecutada,
+                                "observacoes" to observacoes,
+                                "fotoUrl" to fotoUrl.ifBlank { null },
+                                "salvarDssAliado" to salvarDssAliado,
+                                "gerarRelatorioCampo" to gerarRelatorioCampo,
+                                "empresa" to empresaRelatorio,
+                                "projeto" to projetoRelatorio
+                            ),
+                            onCompleted = { concludingPlan = null }
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Green),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = !uiState.isBlockingLoading
+                ) {
+                    Text("Confirmar", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { concludingPlan = null }) {
+                    Text("Cancelar", color = Slate600)
+                }
             }
-        }
+        )
     }
 
-    // MODAL 3: CONCLUIR E TRANSFERIR PENDÊNCIAS PARA OUTRA DATA
+    // MODAL 3: TRANSFERIR PENDÊNCIAS
     transferringPlan?.let { plan ->
         var novaDataTransfer by remember(plan.id) { mutableStateOf(todayYmd) }
-        var obsTransfer by remember(plan.id) { mutableStateOf("") }
 
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) transferringPlan = null },
-            title = { Text("Concluir e Transferir Pendências", fontWeight = FontWeight.ExtraBold) },
+            title = { Text("Transferir Pendências", fontWeight = FontWeight.ExtraBold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Os itens marcados serão concluídos hoje e os itens pendentes serão transferidos para a nova data:",
-                        fontSize = 12.sp,
-                        color = Slate600
-                    )
+                    Text("Escolha a nova data para as pendências:", fontSize = 12.sp, color = Slate600)
                     OutlinedTextField(
                         value = novaDataTransfer,
                         onValueChange = { novaDataTransfer = it },
                         label = { Text("Nova Data (AAAA-MM-DD)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = obsTransfer,
-                        onValueChange = { obsTransfer = it },
-                        label = { Text("Observação (opcional)") },
-                        singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -2691,21 +2226,16 @@ fun AgendaPlanejamentoScreen(
                     onClick = {
                         viewModel.performAction(
                             actionType = "TRANSFERIR_PENDENCIAS_ATIVIDADE",
-                            loadingTitle = "Concluindo e transferindo pendências...",
-                            description = "Transferência: ${plan.titulo}",
-                            payload = mapOf(
-                                "id" to plan.id,
-                                "novaData" to novaDataTransfer,
-                                "observacoes" to obsTransfer,
-                                "checklist" to plan.checklist
-                            ),
+                            loadingTitle = "Transferindo pendências...",
+                            description = "Transferir pendências de: ${plan.titulo}",
+                            payload = mapOf("id" to plan.id, "novaData" to novaDataTransfer),
                             onCompleted = { transferringPlan = null }
                         )
                     },
-                    enabled = novaDataTransfer.isNotBlank() && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Confirmar")
+                    Text("Confirmar", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2714,20 +2244,20 @@ fun AgendaPlanejamentoScreen(
         )
     }
 
-    // MODAL 4: MOVER DATA DO AGENDAMENTO
+    // MODAL 4: MOVER DATA
     movingDatePlan?.let { plan ->
-        var novaDataMove by remember(plan.id) { mutableStateOf(plan.dataAtividade.take(10)) }
+        var novaDataMover by remember(plan.id) { mutableStateOf(plan.dataAtividade.take(10)) }
+
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) movingDatePlan = null },
-            title = { Text("Mover Data da Atividade", fontWeight = FontWeight.ExtraBold) },
+            title = { Text("Mover Atividade", fontWeight = FontWeight.ExtraBold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(plan.titulo.ifBlank { plan.categoria }, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Escolha a nova data para executar:", fontSize = 12.sp, color = Slate600)
                     OutlinedTextField(
-                        value = novaDataMove,
-                        onValueChange = { novaDataMove = it },
+                        value = novaDataMover,
+                        onValueChange = { novaDataMover = it },
                         label = { Text("Nova Data (AAAA-MM-DD)") },
-                        singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -2737,16 +2267,16 @@ fun AgendaPlanejamentoScreen(
                     onClick = {
                         viewModel.performAction(
                             actionType = "MOVER_DATA_ATIVIDADE",
-                            loadingTitle = "Movendo atividade para nova data...",
-                            description = "Mover data: ${plan.titulo}",
-                            payload = mapOf("id" to plan.id, "novaData" to novaDataMove),
+                            loadingTitle = "Movendo atividade...",
+                            description = "Mover data de: ${plan.titulo}",
+                            payload = mapOf("id" to plan.id, "novaData" to novaDataMover),
                             onCompleted = { movingDatePlan = null }
                         )
                     },
-                    enabled = novaDataMove.isNotBlank() && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Mover")
+                    Text("Confirmar", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2755,29 +2285,29 @@ fun AgendaPlanejamentoScreen(
         )
     }
 
-    // MODAL 5: CONFIRMAR EXCLUSÃO
+    // MODAL 5: EXCLUIR ATIVIDADE
     deletingPlan?.let { plan ->
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) deletingPlan = null },
-            title = { Text("Excluir Agendamento", fontWeight = FontWeight.ExtraBold) },
+            title = { Text("Excluir Agendamento", fontWeight = FontWeight.ExtraBold, color = Sg4Red) },
             text = {
-                Text("Deseja realmente excluir a atividade \"${plan.titulo.ifBlank { plan.categoria }}\" da sua agenda?")
+                Text("Deseja realmente excluir este agendamento? Esta ação não pode ser desfeita.")
             },
             confirmButton = {
                 Button(
                     onClick = {
                         viewModel.performAction(
                             actionType = "EXCLUIR_ATIVIDADE",
-                            loadingTitle = "Excluindo atividade da agenda...",
-                            description = "Excluir ${plan.titulo}",
+                            loadingTitle = "Excluindo agendamento...",
+                            description = "Excluir: ${plan.titulo}",
                             payload = mapOf("id" to plan.id),
                             onCompleted = { deletingPlan = null }
                         )
                     },
-                    enabled = !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Red)
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Red),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Excluir")
+                    Text("Excluir", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2785,133 +2315,317 @@ fun AgendaPlanejamentoScreen(
             }
         )
     }
+}
 
-    // MODAL 6: EDITAR SUB-ITEM DO CHECKLIST COM CORRETOR IA
-    editingChecklistItem?.let { (plan, chk) ->
-        var itemText by remember(chk.id) { mutableStateOf(chk.texto) }
-        AlertDialog(
-            onDismissRequest = { if (!uiState.isBlockingLoading) editingChecklistItem = null },
-            title = { Text("Editar Item do Planejamento", fontWeight = FontWeight.ExtraBold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+/**
+ * Card de Atividade com dois toques para confirmação de ações e estilização diferenciada:
+ * - Tarefas concluídas: estilo esmaecido (alpha = 0.60f).
+ * - Tarefas a executar: cores fortes e vívidas (alpha = 1.0f).
+ */
+@Composable
+fun AgendaCardItem(
+    plan: PlanejamentoDto,
+    uiState: Sg4UiState,
+    viewModel: Sg4ViewModel,
+    onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
+    onMoveDate: () -> Unit,
+    onConclude: () -> Unit,
+    onTransfer: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val context = LocalContext.current
+    val isConcluido = plan.status.equals("CONCLUIDO", ignoreCase = true)
+    var confirmAction by remember { mutableStateOf<String?>(null) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (isConcluido) Modifier.background(Color.White).border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp)) else Modifier),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isConcluido) Color(0xFFFBFBFB) else Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isConcluido) 1.dp else 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+                .then(if (isConcluido) Modifier.background(Color.Transparent) else Modifier)
+        ) {
+            // Linha de Cabeçalho: Horário + Categoria + Status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isConcluido) Color(0xFFE2E8F0) else Sg4PurpleSurface)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Text("Descrição do Item", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate600)
-                        AiSpellcheckButton(
-                            text = itemText,
-                            enabled = !uiState.isBlockingLoading,
-                            onClick = {
-                                viewModel.correctTextWithAI(itemText) { corrected ->
-                                    itemText = corrected
-                                }
-                            }
+                        Text(
+                            text = plan.hora.ifBlank { "08:00" },
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isConcluido) Slate600 else Sg4PurpleDark
                         )
                     }
-                    OutlinedTextField(
-                        value = itemText,
-                        onValueChange = { itemText = it },
-                        modifier = Modifier.fillMaxWidth()
+
+                    Text(
+                        text = plan.categoria.uppercase(),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isConcluido) Slate600 else Sg4Purple,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val updatedList = plan.checklist.map {
-                            if (it.id == chk.id) it.copy(texto = itemText, titulo = itemText) else it
-                        }
-                        viewModel.performAction(
-                            actionType = "TOGGLE_CHECKLIST_ATIVIDADE",
-                            loadingTitle = "Salvando edição do item...",
-                            description = "Editar item checklist",
-                            payload = mapOf("id" to plan.id, "checklist" to updatedList),
-                            onCompleted = { editingChecklistItem = null }
-                        )
-                    },
-                    enabled = itemText.isNotBlank() && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
-                ) {
-                    Text("Salvar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { editingChecklistItem = null }) { Text("Cancelar") }
+
+                StatusBadge(
+                    text = if (isConcluido) "CONCLUÍDO" else "PENDENTE",
+                    color = if (isConcluido) Color(0xFF16A34A).copy(alpha = 0.75f) else Sg4Amber
+                )
             }
-        )
-    }
 
-    // MODAL 7: LANÇAR DSS COM ALIADO DIRETO
-    if (showDssAliadoDirectModal) {
-        var tema by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { if (!uiState.isBlockingLoading) showDssAliadoDirectModal = false },
-            title = { Text("Lançar DSS com Aliado", fontWeight = FontWeight.ExtraBold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("TEMA DO DSS", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate600)
-                        AiSpellcheckButton(
-                            text = tema,
-                            enabled = !uiState.isBlockingLoading,
-                            onClick = {
-                                viewModel.correctTextWithAI(tema) { corrected ->
-                                    tema = corrected
-                                }
-                            }
-                        )
-                    }
-                    OutlinedTextField(
-                        value = tema,
-                        onValueChange = { tema = it },
-                        label = { Text("Tema do Diálogo de Segurança") },
-                        modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Título
+            Text(
+                text = plan.titulo.ifBlank { plan.categoria },
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 15.sp,
+                color = if (isConcluido) Slate600 else Slate900,
+                textDecoration = if (isConcluido) TextDecoration.None else TextDecoration.None
+            )
+
+            // Descritivo
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = if (isConcluido && plan.descricaoExecutada.isNotBlank()) plan.descricaoExecutada else plan.descricaoOriginal,
+                fontSize = 12.sp,
+                color = if (isConcluido) Slate400 else Slate600,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Localidade
+            if (plan.local.isNotBlank() || plan.cidade.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = if (isConcluido) Slate400 else Sg4Purple,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = "${plan.local} • ${plan.cidade}/${plan.estado}",
+                        fontSize = 11.sp,
+                        color = Slate600
                     )
                 }
-            },
-            confirmButton = {
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Botão Principal: Concluir (com confirmação em dois toques)
+            if (!isConcluido) {
+                val isConcluirConfirm = confirmAction == "CONCLUIR"
                 Button(
                     onClick = {
-                        if (tema.isNotBlank() && !uiState.isBlockingLoading) {
-                            viewModel.performAction(
-                                actionType = "CRIAR_DSS_ALIADO",
-                                loadingTitle = "Registrando DSS com Aliado...",
-                                description = "DSS Aliado: $tema",
-                                payload = mapOf("tema" to tema),
-                                onCompleted = { showDssAliadoDirectModal = false }
-                            )
+                        if (isConcluirConfirm) {
+                            onConclude()
+                            confirmAction = null
+                        } else {
+                            confirmAction = "CONCLUIR"
                         }
                     },
-                    enabled = tema.isNotBlank() && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
-                ) {
-                    Text("Registrar DSS")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDssAliadoDirectModal = false },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isConcluirConfirm) Color(0xFF047857) else Sg4Green
+                    ),
                     enabled = !uiState.isBlockingLoading
                 ) {
-                    Text("Cancelar")
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (isConcluirConfirm) "Confirmar" else "Concluir", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+
+            // Barra de Botões Secundários: Editar, Duplicar, Mover, Reverter, Excluir, Outlook
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Editar (1º toque confirma ou abre)
+                val isEditConfirm = confirmAction == "EDIT"
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isEditConfirm) Sg4Purple else Color(0xFFF1F5F9))
+                        .clickable(enabled = !uiState.isBlockingLoading) {
+                            if (isEditConfirm) {
+                                onEdit()
+                                confirmAction = null
+                            } else {
+                                confirmAction = "EDIT"
+                            }
+                        }
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = null, tint = if (isEditConfirm) Color.White else Slate600, modifier = Modifier.size(13.dp))
+                        Text(if (isEditConfirm) "Confirmar" else "Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isEditConfirm) Color.White else Slate600)
+                    }
+                }
+
+                // Duplicar
+                val isDupConfirm = confirmAction == "DUP"
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isDupConfirm) Sg4Purple else Color(0xFFF1F5F9))
+                        .clickable(enabled = !uiState.isBlockingLoading) {
+                            if (isDupConfirm) {
+                                onDuplicate()
+                                confirmAction = null
+                            } else {
+                                confirmAction = "DUP"
+                            }
+                        }
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = if (isDupConfirm) Color.White else Sg4Purple, modifier = Modifier.size(13.dp))
+                        Text(if (isDupConfirm) "Confirmar" else "Duplicar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isDupConfirm) Color.White else Sg4Purple)
+                    }
+                }
+
+                // Mover Data (se pendente)
+                if (!isConcluido) {
+                    val isMoveConfirm = confirmAction == "MOVE"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isMoveConfirm) Sg4Blue else Color(0xFFF1F5F9))
+                            .clickable(enabled = !uiState.isBlockingLoading) {
+                                if (isMoveConfirm) {
+                                    onMoveDate()
+                                    confirmAction = null
+                                } else {
+                                    confirmAction = "MOVE"
+                                }
+                            }
+                            .padding(horizontal = 9.dp, vertical = 5.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = if (isMoveConfirm) Color.White else Sg4Blue, modifier = Modifier.size(13.dp))
+                            Text(if (isMoveConfirm) "Confirmar" else "Mover", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isMoveConfirm) Color.White else Sg4Blue)
+                        }
+                    }
+                }
+
+                // Reverter para Pendente (se concluído)
+                if (isConcluido) {
+                    val isRevConfirm = confirmAction == "REV"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isRevConfirm) Sg4Amber else Color(0xFFFEF3C7))
+                            .clickable(enabled = !uiState.isBlockingLoading) {
+                                if (isRevConfirm) {
+                                    viewModel.performAction(
+                                        actionType = "REVERTER_ATIVIDADE",
+                                        loadingTitle = "Revertendo atividade...",
+                                        description = "Reverter ${plan.titulo}",
+                                        payload = mapOf("id" to plan.id)
+                                    )
+                                    confirmAction = null
+                                } else {
+                                    confirmAction = "REV"
+                                }
+                            }
+                            .padding(horizontal = 9.dp, vertical = 5.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Default.Undo, contentDescription = null, tint = if (isRevConfirm) Color.White else Sg4Amber, modifier = Modifier.size(13.dp))
+                            Text(if (isRevConfirm) "Confirmar" else "Reverter", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isRevConfirm) Color.White else Sg4Amber)
+                        }
+                    }
+                }
+
+                // Excluir
+                val isDelConfirm = confirmAction == "DEL"
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isDelConfirm) Sg4Red else Color(0xFFFEE2E2))
+                        .clickable(enabled = !uiState.isBlockingLoading) {
+                            if (isDelConfirm) {
+                                onDelete()
+                                confirmAction = null
+                            } else {
+                                confirmAction = "DEL"
+                            }
+                        }
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = null, tint = if (isDelConfirm) Color.White else Sg4Red, modifier = Modifier.size(13.dp))
+                        Text(if (isDelConfirm) "Confirmar" else "Excluir", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isDelConfirm) Color.White else Sg4Red)
+                    }
+                }
+
+                // Sincronizar com Calendário Outlook
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFF1F5F9))
+                        .clickable(enabled = !uiState.isBlockingLoading) {
+                            val url = buildOutlookCalendarUrl(plan)
+                            try {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                            } catch (_: Exception) {}
+                        }
+                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.EventRepeat, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(13.dp))
+                        Text("Outlook", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    }
                 }
             }
-        )
+        }
     }
 }
 
+/**
+ * Tela de KM & Abastecimento & Manutenções com:
+ * - Captação de geolocalização no início e fim do KM
+ * - Formatação em máscara R$ 0,00 no abastecimento
+ * - Aba de registro de manutenções com data, hora, KM, descrição e foto
+ */
 @Composable
 fun KmAbastecimentoScreen(
     uiState: Sg4UiState,
     viewModel: Sg4ViewModel
 ) {
-    var selectedSubTab by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
+    var selectedSubTab by remember { mutableIntStateOf(0) } // 0=KM, 1=Abastecimento, 2=Manutenções
+
     var showStartKmDialog by remember { mutableStateOf(false) }
     var finishingKmItem by remember { mutableStateOf<QuilometragemDto?>(null) }
     var showAbastecimentoDialog by remember { mutableStateOf(false) }
@@ -2919,7 +2633,7 @@ fun KmAbastecimentoScreen(
 
     val openKm = uiState.syncData.quilometragens.firstOrNull { it.kmFinal == null }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(Color.White)) {
         TabRow(
             selectedTabIndex = selectedSubTab,
             containerColor = Color.White,
@@ -2928,15 +2642,21 @@ fun KmAbastecimentoScreen(
             Tab(
                 selected = selectedSubTab == 0,
                 onClick = { selectedSubTab = 0 },
-                text = { Text("Quilometragem", fontWeight = FontWeight.Bold) }
+                text = { Text("Quilometragem", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
             )
             Tab(
                 selected = selectedSubTab == 1,
                 onClick = { selectedSubTab = 1 },
-                text = { Text("Abastecimento", fontWeight = FontWeight.Bold) }
+                text = { Text("Abastecimento", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+            )
+            Tab(
+                selected = selectedSubTab == 2,
+                onClick = { selectedSubTab = 2 },
+                text = { Text("Manutenções", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
             )
         }
 
+        // ABA 0: QUILOMETRAGEM
         if (selectedSubTab == 0) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -2964,41 +2684,37 @@ fun KmAbastecimentoScreen(
                                     fontSize = 12.sp,
                                     color = Slate600
                                 )
+                                if (openKm.latitudeInicial != null && openKm.longitudeInicial != null) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "📍 GPS Início: ${openKm.latitudeInicial}, ${openKm.longitudeInicial}",
+                                        fontSize = 11.sp,
+                                        color = Sg4Purple
+                                    )
+                                }
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Button(
                                     onClick = { finishingKmItem = openKm },
                                     enabled = !uiState.isBlockingLoading,
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                                    shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text("Encerrar KM do Dia", fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
                     } else {
-                        Row(
+                        Button(
+                            onClick = { showStartKmDialog = true },
+                            enabled = !uiState.isBlockingLoading,
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                            shape = RoundedCornerShape(10.dp)
                         ) {
-                            Button(
-                                onClick = { showStartKmDialog = true },
-                                enabled = !uiState.isBlockingLoading,
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
-                            ) {
-                                Icon(Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Iniciar KM", fontWeight = FontWeight.Bold)
-                            }
-                            OutlinedButton(
-                                onClick = { showManutencaoDialog = true },
-                                enabled = !uiState.isBlockingLoading,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Manutenção", fontWeight = FontWeight.Bold)
-                            }
+                            Icon(Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Iniciar KM do Dia", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -3007,37 +2723,57 @@ fun KmAbastecimentoScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
                                 Text(
-                                    text = "${formatIsoDateBr(km.dataInicial)} (${km.diaSemana})",
+                                    text = "${km.diaSemana} • ${formatIsoDateBr(km.dataInicial)}",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
                                     color = Slate900
                                 )
                                 Text(
-                                    text = "Inicial: ${km.kmInicial.toInt()} km → Final: ${km.kmFinal?.toInt()?.toString() ?: "Em rota"}",
+                                    text = "Início: ${km.kmInicial.toInt()} km" + (if (km.kmFinal != null) " → Fim: ${km.kmFinal.toInt()} km" else " (Em rota)"),
                                     fontSize = 12.sp,
                                     color = Slate600
                                 )
+                                if (km.latitudeInicial != null || km.latitudeFinal != null) {
+                                    Text(
+                                        text = "📍 Geolocalização salva",
+                                        fontSize = 10.sp,
+                                        color = Sg4Purple
+                                    )
+                                }
                             }
-                            StatusBadge(
-                                text = if (km.diferenca != null) "+${km.diferenca} km" else "ABERTO",
-                                color = if (km.diferenca != null) Sg4Green else Sg4Amber
-                            )
+
+                            if (km.diferenca != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Sg4PurpleSurface)
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "+${km.diferenca.toInt()} km",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Sg4Purple,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
-        } else {
+        }
+        // ABA 1: ABASTECIMENTO
+        else if (selectedSubTab == 1) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
@@ -3048,46 +2784,131 @@ fun KmAbastecimentoScreen(
                         onClick = { showAbastecimentoDialog = true },
                         enabled = !uiState.isBlockingLoading,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(Icons.Default.LocalGasStation, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Registrar Novo Abastecimento", fontWeight = FontWeight.Bold)
+                        Text("Registrar Abastecimento", fontWeight = FontWeight.Bold)
                     }
                 }
 
-                items(uiState.syncData.abastecimentos, key = { it.id }) { abs ->
+                items(uiState.syncData.abastecimentos, key = { it.id }) { ab ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
                                 Text(
-                                    text = abs.tipo,
+                                    text = ab.tipo.ifBlank { "ABASTECIMENTO" },
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
                                     color = Slate900
                                 )
                                 Text(
-                                    text = formatIsoDateBr(abs.data),
-                                    fontSize = 11.sp,
+                                    text = formatIsoDateBr(ab.data),
+                                    fontSize = 12.sp,
                                     color = Slate600
                                 )
                             }
                             Text(
-                                text = String.format(Locale("pt", "BR"), "R$ %.2f", abs.valor),
+                                text = String.format(Locale("pt", "BR"), "R$ %.2f", ab.valor),
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 15.sp,
-                                color = Sg4Purple
+                                color = Sg4Green
                             )
+                        }
+                    }
+                }
+            }
+        }
+        // ABA 2: MANUTENÇÕES
+        else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item {
+                    Button(
+                        onClick = { showManutencaoDialog = true },
+                        enabled = !uiState.isBlockingLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Registrar Manutenção", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                if (uiState.syncData.manutencoes.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Nenhuma manutenção veicular registrada.", color = Slate600, fontSize = 13.sp)
+                        }
+                    }
+                } else {
+                    items(uiState.syncData.manutencoes, key = { it.id }) { man ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${man.kmManutencao} km",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp,
+                                        color = Sg4Purple
+                                    )
+                                    Text(
+                                        text = formatIsoDateBr(man.dataManutencao),
+                                        fontSize = 12.sp,
+                                        color = Slate600
+                                    )
+                                }
+                                if (!man.descricao.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = man.descricao,
+                                        fontSize = 13.sp,
+                                        color = Slate900,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                if (!man.comprovanteUrl.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "📎 Comprovante anexado",
+                                        fontSize = 11.sp,
+                                        color = Sg4Purple,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.clickable {
+                                            try {
+                                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(man.comprovanteUrl)))
+                                            } catch (_: Exception) {}
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -3095,38 +2916,55 @@ fun KmAbastecimentoScreen(
         }
     }
 
+    // MODAIS DE KM & ABASTECIMENTO
+    // Diálogo: Iniciar KM com captura de GPS
     if (showStartKmDialog) {
-        var kmInicialText by remember { mutableStateOf("") }
+        var kmIniStr by remember { mutableStateOf("") }
+        var fotoIniUrl by remember { mutableStateOf("") }
+
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) showStartKmDialog = false },
             title = { Text("Iniciar KM do Dia", fontWeight = FontWeight.ExtraBold) },
             text = {
-                OutlinedTextField(
-                    value = kmInicialText,
-                    onValueChange = { kmInicialText = it.filter { ch -> ch.isDigit() || ch == '.' } },
-                    label = { Text("Hodômetro Inicial (KM)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("📍 A geolocalização atual será salva automaticamente.", fontSize = 11.sp, color = Sg4Purple)
+                    OutlinedTextField(
+                        value = kmIniStr,
+                        onValueChange = { kmIniStr = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("KM Inicial do Hodômetro") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = fotoIniUrl,
+                        onValueChange = { fotoIniUrl = it },
+                        label = { Text("URL / Caminho da Foto do Hodômetro (opcional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val valNum = kmInicialText.toDoubleOrNull()
-                        if (valNum != null && !uiState.isBlockingLoading) {
-                            viewModel.performAction(
-                                actionType = "INICIAR_KM",
-                                loadingTitle = "Registrando KM Inicial...",
-                                description = "Início de KM: $valNum",
-                                payload = mapOf("kmInicial" to valNum),
-                                onCompleted = { showStartKmDialog = false }
-                            )
-                        }
+                        val kmVal = kmIniStr.toDoubleOrNull() ?: 0.0
+                        val loc = getDeviceLocation(context)
+                        viewModel.performAction(
+                            actionType = "INICIAR_KM",
+                            loadingTitle = "Iniciando KM do dia...",
+                            description = "Início com ${kmVal.toInt()} km",
+                            payload = mapOf(
+                                "kmInicial" to kmVal,
+                                "fotoInicial" to fotoIniUrl.ifBlank { null },
+                                "latitude" to loc?.first,
+                                "longitude" to loc?.second
+                            ),
+                            onCompleted = { showStartKmDialog = false }
+                        )
                     },
-                    enabled = kmInicialText.toDoubleOrNull() != null && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = kmIniStr.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Iniciar Rota")
+                    Text("Confirmar", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -3135,38 +2973,56 @@ fun KmAbastecimentoScreen(
         )
     }
 
-    finishingKmItem?.let { item ->
-        var kmFinalText by remember(item.id) { mutableStateOf("") }
+    // Diálogo: Finalizar KM com captura de GPS
+    finishingKmItem?.let { kmItem ->
+        var kmFimStr by remember(kmItem.id) { mutableStateOf("") }
+        var fotoFimUrl by remember(kmItem.id) { mutableStateOf("") }
+
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) finishingKmItem = null },
-            title = { Text("Encerrar KM (Inicial: ${item.kmInicial.toInt()})", fontWeight = FontWeight.ExtraBold) },
+            title = { Text("Encerrar KM do Dia", fontWeight = FontWeight.ExtraBold) },
             text = {
-                OutlinedTextField(
-                    value = kmFinalText,
-                    onValueChange = { kmFinalText = it.filter { ch -> ch.isDigit() || ch == '.' } },
-                    label = { Text("Hodômetro Final (KM)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("KM Inicial registrado: ${kmItem.kmInicial.toInt()} km", fontSize = 12.sp, color = Slate600)
+                    Text("📍 A geolocalização atual de término será salva.", fontSize = 11.sp, color = Sg4Purple)
+                    OutlinedTextField(
+                        value = kmFimStr,
+                        onValueChange = { kmFimStr = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("KM Final do Hodômetro") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = fotoFimUrl,
+                        onValueChange = { fotoFimUrl = it },
+                        label = { Text("URL da Foto do Hodômetro Final (opcional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val valNum = kmFinalText.toDoubleOrNull()
-                        if (valNum != null && valNum >= item.kmInicial && !uiState.isBlockingLoading) {
-                            viewModel.performAction(
-                                actionType = "FINALIZAR_KM",
-                                loadingTitle = "Encerrando rota e calculando KM...",
-                                description = "Fim de KM: $valNum",
-                                payload = mapOf("id" to item.id, "kmFinal" to valNum),
-                                onCompleted = { finishingKmItem = null }
-                            )
-                        }
+                        val kmFim = kmFimStr.toDoubleOrNull() ?: 0.0
+                        val loc = getDeviceLocation(context)
+                        viewModel.performAction(
+                            actionType = "FINALIZAR_KM",
+                            loadingTitle = "Encerrando KM do dia...",
+                            description = "Encerramento com ${kmFim.toInt()} km",
+                            payload = mapOf(
+                                "id" to kmItem.id,
+                                "kmFinal" to kmFim,
+                                "fotoFinal" to fotoFimUrl.ifBlank { null },
+                                "latitude" to loc?.first,
+                                "longitude" to loc?.second
+                            ),
+                            onCompleted = { finishingKmItem = null }
+                        )
                     },
-                    enabled = (kmFinalText.toDoubleOrNull() ?: -1.0) >= item.kmInicial && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Green)
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = kmFimStr.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Salvar KM Final")
+                    Text("Confirmar", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -3175,26 +3031,27 @@ fun KmAbastecimentoScreen(
         )
     }
 
+    // Diálogo: Registrar Abastecimento com formatação de moeda R$ 0,00
     if (showAbastecimentoDialog) {
-        var valorText by remember { mutableStateOf("") }
-        var tipoText by remember { mutableStateOf("ABASTECIMENTO") }
+        var rawDigits by remember { mutableStateOf("") }
+        var fotoCupomUrl by remember { mutableStateOf("") }
+
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) showAbastecimentoDialog = false },
-            title = { Text("Lançar Abastecimento / Despesa", fontWeight = FontWeight.ExtraBold) },
+            title = { Text("Registrar Abastecimento", fontWeight = FontWeight.ExtraBold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Digite os números para formatar automaticamente:", fontSize = 11.sp, color = Slate600)
                     OutlinedTextField(
-                        value = valorText,
-                        onValueChange = { valorText = it.replace(',', '.') },
-                        label = { Text("Valor Total (R$)") },
-                        singleLine = true,
+                        value = formatCurrencyBrlInput(rawDigits),
+                        onValueChange = { rawDigits = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Valor do Abastecimento (R$)") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
-                        value = tipoText,
-                        onValueChange = { tipoText = it },
-                        label = { Text("Tipo (ABASTECIMENTO, PEDAGIO, LAVAGEM)") },
-                        singleLine = true,
+                        value = fotoCupomUrl,
+                        onValueChange = { fotoCupomUrl = it },
+                        label = { Text("URL / Caminho da Foto do Cupom (opcional)") },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -3202,21 +3059,23 @@ fun KmAbastecimentoScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val valNum = valorText.toDoubleOrNull()
-                        if (valNum != null && valNum > 0 && !uiState.isBlockingLoading) {
-                            viewModel.performAction(
-                                actionType = "CRIAR_ABASTECIMENTO",
-                                loadingTitle = "Registrando abastecimento...",
-                                description = "Abastecimento R$ $valNum",
-                                payload = mapOf("valor" to valNum, "tipo" to tipoText),
-                                onCompleted = { showAbastecimentoDialog = false }
-                            )
-                        }
+                        val valor = parseCurrencyValue(rawDigits)
+                        viewModel.performAction(
+                            actionType = "CRIAR_ABASTECIMENTO",
+                            loadingTitle = "Registrando abastecimento...",
+                            description = "Abastecimento: R$ valor",
+                            payload = mapOf(
+                                "valor" to valor,
+                                "fotoCupom" to fotoCupomUrl.ifBlank { null }
+                            ),
+                            onCompleted = { showAbastecimentoDialog = false }
+                        )
                     },
-                    enabled = (valorText.toDoubleOrNull() ?: 0.0) > 0 && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = rawDigits.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Salvar")
+                    Text("Confirmar", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -3225,38 +3084,79 @@ fun KmAbastecimentoScreen(
         )
     }
 
+    // Diálogo: Registrar Manutenção Veicular
     if (showManutencaoDialog) {
-        var kmManutText by remember { mutableStateOf("") }
+        val calNow = Calendar.getInstance()
+        var dataManutStr by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
+        var horaManutStr by remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.US).format(Date())) }
+        var kmManutStr by remember { mutableStateOf("") }
+        var descManut by remember { mutableStateOf("") }
+        var fotoComprovanteUrl by remember { mutableStateOf("") }
+
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) showManutencaoDialog = false },
-            title = { Text("Registrar Manutenção / Revisão", fontWeight = FontWeight.ExtraBold) },
+            title = { Text("Registrar Manutenção", fontWeight = FontWeight.ExtraBold) },
             text = {
-                OutlinedTextField(
-                    value = kmManutText,
-                    onValueChange = { kmManutText = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("KM da Manutenção") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = dataManutStr,
+                            onValueChange = { dataManutStr = it },
+                            label = { Text("Data (AAAA-MM-DD)") },
+                            modifier = Modifier.weight(1.3f)
+                        )
+                        OutlinedTextField(
+                            value = horaManutStr,
+                            onValueChange = { horaManutStr = it },
+                            label = { Text("Hora (HH:mm)") },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    OutlinedTextField(
+                        value = kmManutStr,
+                        onValueChange = { kmManutStr = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("KM no Momento da Manutenção") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = descManut,
+                        onValueChange = { descManut = it },
+                        label = { Text("Descrição do Serviço / Peças Trocadas") },
+                        modifier = Modifier.fillMaxWidth().height(80.dp)
+                    )
+                    OutlinedTextField(
+                        value = fotoComprovanteUrl,
+                        onValueChange = { fotoComprovanteUrl = it },
+                        label = { Text("URL / Caminho da Foto do Comprovante (opcional)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val kmVal = kmManutText.toIntOrNull()
-                        if (kmVal != null && kmVal > 0 && !uiState.isBlockingLoading) {
-                            viewModel.performAction(
-                                actionType = "CRIAR_MANUTENCAO",
-                                loadingTitle = "Salvando manutenção do veículo...",
-                                description = "Manutenção em $kmVal km",
-                                payload = mapOf("kmManutencao" to kmVal),
-                                onCompleted = { showManutencaoDialog = false }
-                            )
-                        }
+                        val km = kmManutStr.toIntOrNull() ?: 0
+                        viewModel.performAction(
+                            actionType = "CRIAR_MANUTENCAO",
+                            loadingTitle = "Registrando manutenção...",
+                            description = "Manutenção aos $km km",
+                            payload = mapOf(
+                                "kmManutencao" to km,
+                                "dataManutencao" to "${dataManutStr}T${horaManutStr}:00Z",
+                                "descricao" to descManut.ifBlank { null },
+                                "fotoUrl" to fotoComprovanteUrl.ifBlank { null }
+                            ),
+                            onCompleted = { showManutencaoDialog = false }
+                        )
                     },
-                    enabled = (kmManutText.toIntOrNull() ?: 0) > 0 && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = kmManutStr.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Registrar")
+                    Text("Confirmar", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -3266,16 +3166,24 @@ fun KmAbastecimentoScreen(
     }
 }
 
+/**
+ * Tela de Relatórios do Usuário (sem NCs):
+ * - Aba Principal: Relatórios em PDF gerados com link para abrir/visualizar
+ * - Aba Secundária: Atividades de Campo individuais registradas pelo usuário (criar/editar/excluir)
+ */
 @Composable
-fun CampoNcScreen(
+fun RelatoriosMobileScreen(
     uiState: Sg4UiState,
     viewModel: Sg4ViewModel
 ) {
-    var selectedSubTab by remember { mutableIntStateOf(0) }
-    var showRelatorioDialog by remember { mutableStateOf(false) }
-    var treatingNc by remember { mutableStateOf<NaoConformidadeDto?>(null) }
+    val context = LocalContext.current
+    var selectedSubTab by remember { mutableIntStateOf(0) } // 0 = PDFs, 1 = Atividades de Campo
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    var showNovoItemDialog by remember { mutableStateOf(false) }
+    var editingItem by remember { mutableStateOf<RelatorioCampoDto?>(null) }
+    var deletingItem by remember { mutableStateOf<RelatorioCampoDto?>(null) }
+
+    Column(modifier = Modifier.fillMaxSize().background(Color.White)) {
         TabRow(
             selectedTabIndex = selectedSubTab,
             containerColor = Color.White,
@@ -3284,16 +3192,135 @@ fun CampoNcScreen(
             Tab(
                 selected = selectedSubTab == 0,
                 onClick = { selectedSubTab = 0 },
-                text = { Text("Relatório (${uiState.syncData.relatoriosCampo.size})", fontWeight = FontWeight.Bold) }
+                text = {
+                    Text(
+                        text = "Relatórios em PDF (${uiState.syncData.relatoriosPdf.size})",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
             )
             Tab(
                 selected = selectedSubTab == 1,
                 onClick = { selectedSubTab = 1 },
-                text = { Text("NCs (${uiState.syncData.naoConformidades.size})", fontWeight = FontWeight.Bold) }
+                text = {
+                    Text(
+                        text = "Atividades de Campo (${uiState.syncData.relatoriosCampo.size})",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                }
             )
         }
 
+        // ABA 0: RELATÓRIOS EM PDF GERADOS
         if (selectedSubTab == 0) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (uiState.syncData.relatoriosPdf.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("📄", fontSize = 36.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Nenhum relatório em PDF gerado no momento.",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Slate900,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Os relatórios consolidados em PDF aparecerão aqui automaticamente após a geração.",
+                                    fontSize = 12.sp,
+                                    color = Slate600,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    items(uiState.syncData.relatoriosPdf, key = { it.id }) { pdf ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Sg4PurpleSurface)
+                                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            text = "PDF • ${pdf.mesAno}",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Sg4Purple
+                                        )
+                                    }
+
+                                    val sizeKb = (pdf.tamanhoBytes / 1024).coerceAtLeast(1)
+                                    Text(
+                                        text = "${sizeKb} KB",
+                                        fontSize = 11.sp,
+                                        color = Slate600
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = pdf.nomeArquivo,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Slate900
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Elaborado por: ${pdf.elaborador} • ${formatIsoDateBr(pdf.createdAt)}",
+                                    fontSize = 11.sp,
+                                    color = Slate600
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Button(
+                                    onClick = {
+                                        try {
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(pdf.url)))
+                                        } catch (_: Exception) {}
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Visualizar / Baixar PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // ABA 1: ATIVIDADES DE CAMPO (REGISTROS INDIVIDUAIS)
+        else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
@@ -3301,10 +3328,11 @@ fun CampoNcScreen(
             ) {
                 item {
                     Button(
-                        onClick = { showRelatorioDialog = true },
+                        onClick = { showNovoItemDialog = true },
                         enabled = !uiState.isBlockingLoading,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
@@ -3312,82 +3340,64 @@ fun CampoNcScreen(
                     }
                 }
 
-                items(uiState.syncData.relatoriosCampo, key = { it.id }) { rel ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                StatusBadge(text = rel.projeto.ifBlank { "VIVO" }, color = Sg4Purple)
-                                Text(formatIsoDateBr(rel.data), fontSize = 11.sp, color = Slate600)
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(rel.descricao, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Slate900)
-                            Text("${rel.local} • ${rel.cidadeUf}", fontSize = 11.sp, color = Slate600)
+                if (uiState.syncData.relatoriosCampo.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Nenhum item registrado para o relatório de atividades.", color = Slate600, fontSize = 13.sp)
                         }
                     }
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(uiState.syncData.naoConformidades, key = { it.id }) { nc ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                StatusBadge(
-                                    text = nc.classificacao.ifBlank { "NC" },
-                                    color = Sg4Red
-                                )
-                                StatusBadge(
-                                    text = nc.status,
-                                    color = if (nc.status == "RESOLVIDO") Sg4Green else Sg4Amber
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = nc.pergunta.ifBlank { nc.questionario },
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                color = Slate900
-                            )
-                            Text(
-                                text = "Local: ${nc.localidade.ifBlank { nc.base }} • Abertura: ${formatIsoDateBr(nc.dataAbertura)}",
-                                fontSize = 11.sp,
-                                color = Slate600
-                            )
-                            if (nc.updates.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(4.dp))
+                } else {
+                    items(uiState.syncData.relatoriosCampo, key = { it.id }) { rel ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    StatusBadge(text = rel.projeto.ifBlank { "VIVO" }, color = Sg4Purple)
+                                    Text(formatIsoDateBr(rel.data), fontSize = 11.sp, color = Slate600)
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Última ação: ${nc.updates.last().text}",
-                                    fontSize = 11.sp,
-                                    color = Sg4Purple
+                                    text = rel.descricao,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Slate900
                                 )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedButton(
-                                onClick = { treatingNc = nc },
-                                enabled = !uiState.isBlockingLoading,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Registrar Tratativa / Atualizar Status", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "${rel.empresa} • ${rel.local} (${rel.cidadeUf})",
+                                    fontSize = 11.sp,
+                                    color = Slate600
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(
+                                        onClick = { editingItem = rel },
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                                    }
+                                    OutlinedButton(
+                                        onClick = { deletingItem = rel },
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Excluir", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Red)
+                                    }
+                                }
                             }
                         }
                     }
@@ -3396,68 +3406,83 @@ fun CampoNcScreen(
         }
     }
 
-    if (showRelatorioDialog) {
+    // Modal: Incluir Novo Item no Relatório
+    if (showNovoItemDialog) {
+        var dataItem by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
         var empresa by remember { mutableStateOf("Telefônica Brasil S.A") }
         var projeto by remember { mutableStateOf("VIVO") }
         var local by remember { mutableStateOf("") }
         var cidadeUf by remember { mutableStateOf("São Paulo/SP") }
         var descricao by remember { mutableStateOf("") }
+        var fotoUrl by remember { mutableStateOf("") }
 
         AlertDialog(
-            onDismissRequest = { if (!uiState.isBlockingLoading) showRelatorioDialog = false },
+            onDismissRequest = { if (!uiState.isBlockingLoading) showNovoItemDialog = false },
             title = { Text("Incluir Item no Relatório", fontWeight = FontWeight.ExtraBold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedTextField(
-                            value = empresa,
-                            onValueChange = { empresa = it },
-                            label = { Text("Empresa") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1.2f)
-                        )
-                        OutlinedTextField(
-                            value = projeto,
-                            onValueChange = { projeto = it },
-                            label = { Text("Projeto") },
-                            singleLine = true,
-                            modifier = Modifier.weight(0.8f)
-                        )
-                    }
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = dataItem,
+                        onValueChange = { dataItem = it },
+                        label = { Text("Data (AAAA-MM-DD)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = empresa,
+                        onValueChange = { empresa = it },
+                        label = { Text("Empresa") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = projeto,
+                        onValueChange = { projeto = it },
+                        label = { Text("Projeto") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     OutlinedTextField(
                         value = local,
                         onValueChange = { local = it },
-                        label = { Text("Unidade / Local") },
-                        singleLine = true,
+                        label = { Text("Local / Unidade") },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = cidadeUf,
                         onValueChange = { cidadeUf = it },
-                        label = { Text("Cidade/UF") },
-                        singleLine = true,
+                        label = { Text("Cidade / UF") },
                         modifier = Modifier.fillMaxWidth()
                     )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("DESCRIÇÃO", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate600)
+                        Text("DESCRIÇÃO DA ATIVIDADE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
                         AiSpellcheckButton(
                             text = descricao,
                             enabled = !uiState.isBlockingLoading,
                             onClick = {
-                                viewModel.correctTextWithAI(descricao) { corrected ->
-                                    descricao = corrected
+                                viewModel.correctTextWithAI(descricao) { corr ->
+                                    descricao = corr
                                 }
                             }
                         )
                     }
+
                     OutlinedTextField(
                         value = descricao,
                         onValueChange = { descricao = it },
-                        label = { Text("Descrição detalhada da atividade") },
+                        label = { Text("Descreva detalhadamente...") },
+                        modifier = Modifier.fillMaxWidth().height(90.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = fotoUrl,
+                        onValueChange = { fotoUrl = it },
+                        label = { Text("URL / Caminho da Foto (opcional)") },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -3465,103 +3490,189 @@ fun CampoNcScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        if (descricao.isNotBlank() && !uiState.isBlockingLoading) {
-                            viewModel.performAction(
-                                actionType = "CRIAR_RELATORIO_CAMPO",
-                                loadingTitle = "Salvando item no relatório...",
-                                description = "Relatório: $projeto",
-                                payload = mapOf(
-                                    "empresa" to empresa,
-                                    "projeto" to projeto,
-                                    "local" to local,
-                                    "cidadeUf" to cidadeUf,
-                                    "descricao" to descricao
-                                ),
-                                onCompleted = { showRelatorioDialog = false }
-                            )
-                        }
+                        viewModel.performAction(
+                            actionType = "CRIAR_RELATORIO_CAMPO",
+                            loadingTitle = "Salvando item no relatório...",
+                            description = "Item: $descricao",
+                            payload = mapOf(
+                                "data" to dataItem,
+                                "empresa" to empresa,
+                                "projeto" to projeto,
+                                "local" to local,
+                                "cidadeUf" to cidadeUf,
+                                "descricao" to descricao,
+                                "fotoUrl" to fotoUrl.ifBlank { null }
+                            ),
+                            onCompleted = { showNovoItemDialog = false }
+                        )
                     },
-                    enabled = descricao.isNotBlank() && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple)
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = descricao.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Salvar no Relatório")
+                    Text("Salvar", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showRelatorioDialog = false }) { Text("Cancelar") }
+                TextButton(onClick = { showNovoItemDialog = false }) { Text("Cancelar") }
             }
         )
     }
 
-    treatingNc?.let { nc ->
-        var tratativaText by remember(nc.id) { mutableStateOf("") }
-        var markResolvido by remember(nc.id) { mutableStateOf(true) }
+    // Modal: Editar Item do Relatório
+    editingItem?.let { item ->
+        var dataItem by remember(item.id) { mutableStateOf(item.data.take(10)) }
+        var empresa by remember(item.id) { mutableStateOf(item.empresa) }
+        var projeto by remember(item.id) { mutableStateOf(item.projeto) }
+        var local by remember(item.id) { mutableStateOf(item.local) }
+        var cidadeUf by remember(item.id) { mutableStateOf(item.cidadeUf) }
+        var descricao by remember(item.id) { mutableStateOf(item.descricao) }
+        var fotoUrl by remember(item.id) { mutableStateOf(item.fotoUrl ?: "") }
 
         AlertDialog(
-            onDismissRequest = { if (!uiState.isBlockingLoading) treatingNc = null },
-            title = { Text("Tratar Não Conformidade", fontWeight = FontWeight.ExtraBold) },
+            onDismissRequest = { if (!uiState.isBlockingLoading) editingItem = null },
+            title = { Text("Editar Item do Relatório", fontWeight = FontWeight.ExtraBold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(nc.pergunta, fontSize = 12.sp, color = Slate600)
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = dataItem,
+                        onValueChange = { dataItem = it },
+                        label = { Text("Data (AAAA-MM-DD)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = empresa,
+                        onValueChange = { empresa = it },
+                        label = { Text("Empresa") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = projeto,
+                        onValueChange = { projeto = it },
+                        label = { Text("Projeto") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = local,
+                        onValueChange = { local = it },
+                        label = { Text("Local / Unidade") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = cidadeUf,
+                        onValueChange = { cidadeUf = it },
+                        label = { Text("Cidade / UF") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("AÇÃO CORRETIVA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate600)
+                        Text("DESCRIÇÃO DA ATIVIDADE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
                         AiSpellcheckButton(
-                            text = tratativaText,
+                            text = descricao,
                             enabled = !uiState.isBlockingLoading,
                             onClick = {
-                                viewModel.correctTextWithAI(tratativaText) { corrected ->
-                                    tratativaText = corrected
+                                viewModel.correctTextWithAI(descricao) { corr ->
+                                    descricao = corr
                                 }
                             }
                         )
                     }
+
                     OutlinedTextField(
-                        value = tratativaText,
-                        onValueChange = { tratativaText = it },
-                        label = { Text("Descreva a ação corretiva realizada") },
+                        value = descricao,
+                        onValueChange = { descricao = it },
+                        label = { Text("Descrição detalhada") },
+                        modifier = Modifier.fillMaxWidth().height(90.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = fotoUrl,
+                        onValueChange = { fotoUrl = it },
+                        label = { Text("URL da Foto") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { markResolvido = !markResolvido }) {
-                            Text(
-                                text = if (markResolvido) "☑ Marcar como RESOLVIDO" else "☐ Manter EM ANDAMENTO",
-                                color = Sg4Purple,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (tratativaText.isNotBlank() && !uiState.isBlockingLoading) {
-                            viewModel.performAction(
-                                actionType = "TRATAR_NC",
-                                loadingTitle = "Salvando tratativa da Não Conformidade...",
-                                description = "Tratativa NC ${nc.originalId}",
-                                payload = mapOf(
-                                    "id" to nc.id,
-                                    "texto" to tratativaText,
-                                    "status" to if (markResolvido) "RESOLVIDO" else "EM_ANDAMENTO"
-                                ),
-                                onCompleted = { treatingNc = null }
-                            )
-                        }
+                        viewModel.performAction(
+                            actionType = "EDITAR_RELATORIO_CAMPO",
+                            loadingTitle = "Atualizando item do relatório...",
+                            description = "Atualizar item",
+                            payload = mapOf(
+                                "id" to item.id,
+                                "data" to dataItem,
+                                "empresa" to empresa,
+                                "projeto" to projeto,
+                                "local" to local,
+                                "cidadeUf" to cidadeUf,
+                                "descricao" to descricao,
+                                "fotoUrl" to fotoUrl.ifBlank { null }
+                            ),
+                            onCompleted = { editingItem = null }
+                        )
                     },
-                    enabled = tratativaText.isNotBlank() && !uiState.isBlockingLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Green)
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = descricao.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Salvar Tratativa")
+                    Text("Confirmar", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { treatingNc = null }) { Text("Cancelar") }
+                TextButton(onClick = { editingItem = null }) { Text("Cancelar") }
+            }
+        )
+    }
+
+    // Modal: Excluir Item do Relatório
+    deletingItem?.let { item ->
+        AlertDialog(
+            onDismissRequest = { if (!uiState.isBlockingLoading) deletingItem = null },
+            title = { Text("Excluir Item", fontWeight = FontWeight.ExtraBold, color = Sg4Red) },
+            text = { Text("Deseja realmente excluir este item do relatório?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.performAction(
+                            actionType = "EXCLUIR_RELATORIO_CAMPO",
+                            loadingTitle = "Excluindo item do relatório...",
+                            description = "Excluir item",
+                            payload = mapOf("id" to item.id),
+                            onCompleted = { deletingItem = null }
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Red),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Excluir", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingItem = null }) { Text("Cancelar") }
             }
         )
     }
 }
+
+// Alias de retrocompatibilidade
+@Composable
+fun CampoNcScreen(uiState: Sg4UiState, viewModel: Sg4ViewModel) {
+    RelatoriosMobileScreen(uiState = uiState, viewModel = viewModel)
+}
+
+data class Tuple5<A, B, C, D, E>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D,
+    val fifth: E
+)

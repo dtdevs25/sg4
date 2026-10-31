@@ -84,7 +84,7 @@
 
     .phone-screen {
       flex: 1;
-      background: var(--slate-50);
+      background: #ffffff;
       border-radius: 38px;
       overflow: hidden;
       display: flex;
@@ -108,9 +108,10 @@
 
     /* Top AppBar */
     .app-header {
-      background: #fff;
+      background: var(--purple);
+      color: #fff;
       padding: 12px 16px;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -247,6 +248,69 @@
     .btn-outline { background: #fff; color: var(--purple); border: 1.5px solid rgba(102,0,153,0.28); }
     .btn-block   { width: 100%; }
 
+    
+    /* Floating Action Button (FAB) */
+    .fab-btn {
+      position: absolute;
+      right: 18px;
+      bottom: 76px;
+      background: var(--purple);
+      color: #fff;
+      border: none;
+      border-radius: 28px;
+      height: 48px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 8px 18px rgba(102, 0, 153, 0.4);
+      cursor: pointer;
+      z-index: 40;
+      transition: all 0.2s ease;
+    }
+    .fab-btn:active { transform: scale(0.96); }
+
+    /* Calendário Mensal */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      text-align: center;
+    }
+    .cal-header-cell {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--purple);
+      padding: 4px 0;
+    }
+    .cal-day-cell {
+      height: 38px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--slate-800);
+      position: relative;
+      transition: background 0.15s;
+    }
+    .cal-day-cell:hover { background: #f1f5f9; }
+    .cal-day-cell.active { background: var(--purple); color: #fff; font-weight: 800; }
+    .cal-day-cell.today { border: 1.5px solid var(--purple); }
+    .cal-day-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--purple);
+      margin-top: 1px;
+    }
+    .cal-day-cell.active .cal-day-dot { background: #fff; }
+
     /* Sub-tabs */
     .sub-tabs {
       display: flex;
@@ -275,8 +339,8 @@
     /* Bottom Navigation */
     .bottom-nav {
       height: 64px;
-      background: #fff;
-      border-top: 1px solid #e2e8f0;
+      background: var(--purple);
+      border-top: 1px solid rgba(255,255,255,0.12);
       display: flex;
       align-items: center;
       justify-content: space-around;
@@ -294,14 +358,14 @@
       justify-content: center;
       gap: 3px;
       padding: 6px 2px;
-      color: var(--slate-400);
+      color: rgba(255,255,255,0.72);
       font-size: 10px;
       font-weight: 700;
       cursor: pointer;
     }
 
     .nav-btn.active {
-      color: var(--purple);
+      color: #fff;
     }
 
     .nav-btn .icon-pill {
@@ -311,7 +375,7 @@
     }
 
     .nav-btn.active .icon-pill {
-      background: var(--purple-soft);
+      background: rgba(255,255,255,0.25);
     }
 
     /* Inputs e Modais */
@@ -1057,13 +1121,14 @@
         const d = state.syncData || {};
         const sum = d.summary || {};
         const tec = d.currentTecnico || {};
+        const isMasterOrAdmin = (d.user?.role || '').toUpperCase() === 'MASTER' || (d.user?.role || '').toUpperCase() === 'ADMIN';
 
         elConnBadge.textContent = state.isOnline ? 'ONLINE' : 'OFFLINE (ROOM)';
         elConnBadge.className = 'status-pill ' + (state.isOnline ? 'online' : 'offline');
-        elHeaderSub.textContent = tec.nome ? `${tec.nome}` : 'SG4 Segurança';
+        elHeaderSub.textContent = tec.nome ? tec.nome : 'SG4 Mobile';
 
         // ══════════════════════════════════════════════════════════════════════
-        // ABA 1: PAINEL (DASHBOARD COM FILTRO DE ANO E MESES)
+        // ABA 1: PAINEL (DASHBOARD)
         // ══════════════════════════════════════════════════════════════════════
         if (state.activeTab === 'HOME') {
           const monthlyStats = d.monthlyStats || [];
@@ -1089,50 +1154,49 @@
           const kmPeriodo = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.kmTotal || 0), 0) : sum.kmRodadosMes || 0;
 
           const yearsList = d.availableYears && d.availableYears.length > 0 ? d.availableYears.map(Number) : [currentYear, currentYear - 1];
+          const tecnicosList = d.tecnicos || [];
 
           elContent.innerHTML = `
-            <!-- Card do Usuário Logado + Filtros de Ano e Meses -->
+            <!-- Card do Usuário Logado + Filtros Suspensos (Dropdowns) -->
             <div class="m3-card" style="padding:14px;">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-size:16px; font-weight:800; color:var(--slate-900);">Olá, ${(tec.nome || d.user?.name || 'Técnico').split(' ')[0]}! 👋</div>
-                  <div style="font-size:11px; color:var(--slate-600);">${tec.nome || ''} • Base: ${tec.baseFixaNome || 'Geral'}</div>
+              <div style="font-size:16px; font-weight:800; color:var(--slate-900);">Olá, ${(tec.nome || d.user?.name || 'Técnico').split(' ')[0]}! 👋</div>
+              <div style="font-size:11px; color:var(--slate-600); margin-top:2px;">${tec.nome || ''} • Base: ${tec.baseFixaNome || 'Geral'}</div>
+
+              ${isMasterOrAdmin && tecnicosList.length > 0 ? `
+                <div style="margin-top:10px;">
+                  <label style="font-size:10px; font-weight:800; color:var(--purple); text-transform:uppercase;">Colaborador (Visualização Master/Admin)</label>
+                  <select id="selTecnicoFilter" class="field-input" style="padding:7px 10px; font-size:12px; font-weight:600; margin-top:3px;">
+                    ${tecnicosList.map(t => `
+                      <option value="${t.id}" ${t.id === (state.selectedTecnicoId || 'ALL') ? 'selected' : ''}>${t.nome}</option>
+                    `).join('')}
+                  </select>
                 </div>
-                <div style="display:flex; gap:4px;">
-                  ${yearsList.map(y => `
-                    <button class="btn btn-year ${y === currentYear ? 'btn-primary' : 'btn-outline'}" data-year="${y}" style="padding:4px 8px; font-size:11px;">${y}</button>
-                  `).join('')}
+              ` : ''}
+
+              <!-- Linha com Menus Suspensos: Ano e Meses -->
+              <div style="display:flex; gap:8px; margin-top:10px;">
+                <div style="flex:1;">
+                  <label style="font-size:10px; font-weight:800; color:var(--purple); text-transform:uppercase;">Ano</label>
+                  <select id="selAnoFilter" class="field-input" style="padding:7px 10px; font-size:12px; font-weight:700; margin-top:3px;">
+                    ${yearsList.map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
+                  </select>
+                </div>
+                <div style="flex:1.2;">
+                  <label style="font-size:10px; font-weight:800; color:var(--purple); text-transform:uppercase;">Meses</label>
+                  <button id="btnOpenMesesModal" class="field-input" style="padding:7px 10px; font-size:12px; font-weight:700; margin-top:3px; background:#fff; text-align:left; cursor:pointer;">
+                    ${selectedMonths.length === 12 ? 'Todos os Meses' : selectedMonths.length === 1 ? MESES_NOMES[selectedMonths[0] - 1] : `${selectedMonths.length} Meses`} ▾
+                  </button>
                 </div>
               </div>
 
-              <!-- Seletor de Meses Multi-Seleção (Idêntico ao Web) -->
-              <div style="margin-top:12px; border-top:1px solid #f1f5f9; padding-top:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                  <span style="font-size:10px; font-weight:800; color:var(--purple); text-transform:uppercase;">
-                    PERÍODO: ${selectedMonths.length === 12 ? 'TODOS OS MESES' : selectedMonths.map(m => MESES_NOMES[m - 1]).join(', ')} / ${currentYear}
-                  </span>
-                  <div style="display:flex; gap:6px;">
-                    <span id="btnMesAtual" style="font-size:10px; font-weight:700; color:var(--purple); cursor:pointer;">Mês Atual</span>
-                    <span style="color:#cbd5e1;">|</span>
-                    <span id="btnTodosMeses" style="font-size:10px; font-weight:700; color:var(--purple); cursor:pointer;">${selectedMonths.length === 12 ? 'Limpar' : 'Todos'}</span>
-                  </div>
-                </div>
-                <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap:4px;">
-                  ${MESES_NOMES.map((nome, idx) => {
-                    const mNum = idx + 1;
-                    const isSel = selectedMonths.includes(mNum);
-                    return `
-                      <button class="btn btn-month ${isSel ? 'btn-primary' : 'btn-outline'}" data-month="${mNum}" style="padding:6px 2px; font-size:10.5px; border-radius:8px;">
-                        ${nome}
-                      </button>
-                    `;
-                  }).join('')}
-                </div>
+              <div style="margin-top:8px; font-size:10px; font-weight:800; color:var(--purple); text-transform:uppercase;">
+                PERÍODO: ${selectedMonths.length === 12 ? 'TODOS OS MESES' : selectedMonths.map(m => MESES_NOMES[m - 1]).join(', ')} / ${currentYear}
               </div>
             </div>
 
-            <!-- CARD 1: DSS Realizados (#660099 / #4a0072) -->
-            <div class="m3-card" style="background:linear-gradient(135deg, #660099, #4a0072); color:#fff; cursor:pointer;" id="cardGoDss">
+            <!-- CARDS DE METAS E ESTATÍSTICAS (NÃO CLICÁVEIS NO MOBILE) -->
+            <!-- CARD 1: DSS Realizados -->
+            <div class="m3-card" style="background:linear-gradient(135deg, #660099, #4a0072); color:#fff; cursor:default;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div style="flex:1;">
                   <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">DSS REALIZADOS</div>
@@ -1148,8 +1212,8 @@
               </div>
             </div>
 
-            <!-- CARD 2: Inspeções Realizadas (#8e44ad / #732d91) -->
-            <div class="m3-card" style="background:linear-gradient(135deg, #8e44ad, #732d91); color:#fff; cursor:pointer;" id="cardGoInsp">
+            <!-- CARD 2: Inspeções Realizadas -->
+            <div class="m3-card" style="background:linear-gradient(135deg, #8e44ad, #732d91); color:#fff; cursor:default;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div style="flex:1;">
                   <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">INSPEÇÕES REALIZADAS</div>
@@ -1165,8 +1229,8 @@
               </div>
             </div>
 
-            <!-- CARD 3: Itens no Relatório (#673ab7 / #512da8) -->
-            <div class="m3-card" style="background:linear-gradient(135deg, #673ab7, #512da8); color:#fff; cursor:pointer;" id="cardGoRel">
+            <!-- CARD 3: Itens no Relatório -->
+            <div class="m3-card" style="background:linear-gradient(135deg, #673ab7, #512da8); color:#fff; cursor:default;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div style="flex:1;">
                   <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">ITENS NO RELATÓRIO</div>
@@ -1177,13 +1241,13 @@
                 <div style="flex:1; text-align:right;">
                   <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">MÉDIA / MÊS</div>
                   <div style="font-size:24px; font-weight:900; margin-top:2px;">${(relCount / activeMonthsCount).toFixed(1)}</div>
-                  <div style="font-size:11px; opacity:0.85;">Toque p/ abrir Relatórios →</div>
+                  <div style="font-size:11px; opacity:0.85;">Total no período</div>
                 </div>
               </div>
             </div>
 
-            <!-- CARD 4: Não Conformidades Abertas (#9c27b0 / #7b1fa2) -->
-            <div class="m3-card" style="background:linear-gradient(135deg, #9c27b0, #7b1fa2); color:#fff; cursor:pointer;" id="cardGoNc">
+            <!-- CARD 4: Não Conformidades Abertas -->
+            <div class="m3-card" style="background:linear-gradient(135deg, #9c27b0, #7b1fa2); color:#fff; cursor:default;">
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div style="flex:1;">
                   <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">NCS ABERTAS</div>
@@ -1200,7 +1264,7 @@
             </div>
 
             <!-- Resumo KM & Saldo -->
-            <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center; cursor:default;">
               <div>
                 <div style="font-size:10px; font-weight:700; color:var(--slate-600);">KM RODADOS NO PERÍODO</div>
                 <div style="font-size:18px; font-weight:900; color:var(--purple);">${Number(kmPeriodo || 0).toFixed(1)} km</div>
@@ -1212,377 +1276,291 @@
             </div>
           `;
 
-          // Eventos de filtros
-          elContent.querySelectorAll('.btn-year').forEach(b => {
-            b.addEventListener('click', () => {
-              state.selectedYear = Number(b.getAttribute('data-year'));
-              render();
-            });
-          });
-
-          elContent.querySelectorAll('.btn-month').forEach(b => {
-            b.addEventListener('click', () => {
-              const m = Number(b.getAttribute('data-month'));
-              if (state.selectedMonths.includes(m)) {
-                if (state.selectedMonths.length > 1) {
-                  state.selectedMonths = state.selectedMonths.filter(x => x !== m);
-                }
-              } else {
-                state.selectedMonths.push(m);
-              }
-              render();
-            });
-          });
-
-          document.getElementById('btnMesAtual')?.addEventListener('click', () => {
-            state.selectedMonths = [new Date().getMonth() + 1];
-            state.selectedYear = new Date().getFullYear();
+          document.getElementById('selAnoFilter')?.addEventListener('change', (e) => {
+            state.selectedYear = Number(e.target.value);
             render();
           });
 
-          document.getElementById('btnTodosMeses')?.addEventListener('click', () => {
-            if (state.selectedMonths.length === 12) {
-              state.selectedMonths = [new Date().getMonth() + 1];
-            } else {
-              state.selectedMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-            }
-            render();
+          document.getElementById('selTecnicoFilter')?.addEventListener('change', async (e) => {
+            state.selectedTecnicoId = e.target.value;
+            localStorage.setItem('sg4_selected_tecnico', state.selectedTecnicoId);
+            await trySyncWithServer(false);
           });
 
-          document.getElementById('cardGoDss')?.addEventListener('click', () => {
-            document.querySelector('[data-tab="AGENDA"]').click();
+          document.getElementById('btnOpenMesesModal')?.addEventListener('click', () => {
+            openModal('Selecionar Meses', `
+              <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <button type="button" id="mShortCurrent" class="btn btn-outline" style="flex:1; font-size:11px;">Mês Atual</button>
+                <button type="button" id="mShortAll" class="btn btn-outline" style="flex:1; font-size:11px;">Todos os Meses</button>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px;" id="monthGridSelect">
+                ${MESES_NOMES.map((nome, idx) => {
+                  const m = idx + 1;
+                  const isSel = selectedMonths.includes(m);
+                  return `<button type="button" class="btn btn-month-pick ${isSel ? 'btn-primary' : 'btn-outline'}" data-m="${m}" style="padding:8px 4px; font-size:11px;">${nome}</button>`;
+                }).join('')}
+              </div>
+              <button type="button" id="btnConfirmMonths" class="btn btn-primary btn-block" style="margin-top:14px;">Confirmar</button>
+            `, (body) => {
+              let tempSel = [...selectedMonths];
+              body.querySelectorAll('.btn-month-pick').forEach(btn => {
+                btn.addEventListener('click', () => {
+                  const m = Number(btn.getAttribute('data-m'));
+                  if (tempSel.includes(m)) {
+                    if (tempSel.length > 1) tempSel = tempSel.filter(x => x !== m);
+                  } else {
+                    tempSel.push(m);
+                  }
+                  btn.className = 'btn btn-month-pick ' + (tempSel.includes(m) ? 'btn-primary' : 'btn-outline');
+                });
+              });
+              body.querySelector('#mShortCurrent').onclick = () => {
+                tempSel = [new Date().getMonth() + 1];
+                body.querySelectorAll('.btn-month-pick').forEach(btn => {
+                  const m = Number(btn.getAttribute('data-m'));
+                  btn.className = 'btn btn-month-pick ' + (tempSel.includes(m) ? 'btn-primary' : 'btn-outline');
+                });
+              };
+              body.querySelector('#mShortAll').onclick = () => {
+                tempSel = [1,2,3,4,5,6,7,8,9,10,11,12];
+                body.querySelectorAll('.btn-month-pick').forEach(btn => {
+                  btn.className = 'btn btn-month-pick btn-primary';
+                });
+              };
+              body.querySelector('#btnConfirmMonths').onclick = () => {
+                state.selectedMonths = tempSel;
+                closeModal();
+                render();
+              };
+            });
           });
-          document.getElementById('cardGoInsp')?.addEventListener('click', () => {
-            document.querySelector('[data-tab="AGENDA"]').click();
-          });
-          document.getElementById('cardGoRel')?.addEventListener('click', () => {
-            document.querySelector('[data-tab="RELATORIOS"]').click();
-          });
-          document.getElementById('cardGoNc')?.addEventListener('click', () => {
-            state.campoSubTab = 'NC';
-            document.querySelector('[data-tab="RELATORIOS"]').click();
-          });
+
           return;
         }
 
         // ══════════════════════════════════════════════════════════════════════
-        // ABA 2: AGENDA (PLANEJAMENTO COMPLETO + CORRETOR IA)
+        // ABA 2: AGENDA (SEMANA OU MÊS COM CALENDÁRIO COMPLETO)
         // ══════════════════════════════════════════════════════════════════════
         if (state.activeTab === 'AGENDA') {
-          const list = (d.planejamentos || []).filter(p => {
-            if (state.agendaStatusFilter === 'PENDENTE') return p.status !== 'CONCLUIDO';
-            if (state.agendaStatusFilter === 'CONCLUIDO') return p.status === 'CONCLUIDO';
-            return true;
-          });
+          state.agendaViewMode = state.agendaViewMode || 'SEMANA'; // 'SEMANA' ou 'MES'
+          state.agendaDayOffset = state.agendaDayOffset || 0;
+          state.agendaSelectedDay = state.agendaSelectedDay || new Date().toISOString().split('T')[0];
+
+          const allPlans = d.planejamentos || [];
 
           elContent.innerHTML = `
-            <div style="display:flex; gap:8px;">
-              <button id="btnNewPlan" class="btn btn-primary" style="flex:1;">+ Novo Agendamento</button>
-              <button id="btnNewDssAliado" class="btn btn-outline" style="flex:1;">+ DSS Aliado</button>
-            </div>
+            <!-- Alternador Semana / Mês e Filtros de Status -->
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div class="sub-tabs" style="width:140px;">
+                <button class="sub-tab ${state.agendaViewMode === 'SEMANA' ? 'active' : ''}" id="tabViewSemana">Semana</button>
+                <button class="sub-tab ${state.agendaViewMode === 'MES' ? 'active' : ''}" id="tabViewMes">Mês</button>
+              </div>
 
-            <!-- Filtro de Status -->
-            <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 12px; border-radius:10px; border:1px solid #e2e8f0;">
-              <span style="font-size:11px; font-weight:800; color:var(--slate-600);">STATUS:</span>
-              <div style="display:flex; gap:6px;">
+              <div style="display:flex; gap:4px;">
                 <button class="btn ${state.agendaStatusFilter === 'TODOS' ? 'btn-primary' : 'btn-outline'}" id="btnStTodos" style="padding:4px 8px; font-size:10px;">Todos</button>
-                <button class="btn ${state.agendaStatusFilter === 'PENDENTE' ? 'btn-primary' : 'btn-outline'}" id="btnStPend" style="padding:4px 8px; font-size:10px;">Pendentes</button>
-                <button class="btn ${state.agendaStatusFilter === 'CONCLUIDO' ? 'btn-primary' : 'btn-outline'}" id="btnStConc" style="padding:4px 8px; font-size:10px;">Concluídos</button>
+                <button class="btn ${state.agendaStatusFilter === 'PENDENTE' ? 'btn-primary' : 'btn-outline'}" id="btnStPend" style="padding:4px 8px; font-size:10px;">Pend.</button>
+                <button class="btn ${state.agendaStatusFilter === 'CONCLUIDO' ? 'btn-primary' : 'btn-outline'}" id="btnStConc" style="padding:4px 8px; font-size:10px;">Concl.</button>
               </div>
             </div>
 
-            ${list.length === 0 ? `<div class="m3-card" style="font-size:12px; color:var(--slate-600); text-align:center; padding:24px;">Nenhum agendamento encontrado.</div>` : list.map(p => `
-              <div class="m3-card" style="border-left:4px solid ${p.prioridade === 'ALTA' ? '#ef4444' : p.prioridade === 'BAIXA' ? '#6366f1' : '#f59e0b'};">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <div style="display:flex; gap:4px; align-items:center;">
-                    <span class="badge" style="background:#e2e8f0; color:#334155;">🕒 ${p.hora || '08:00'}</span>
-                    <span class="badge badge-purple">${p.categoria || 'Atividade'}</span>
-                    <span class="badge" style="background:rgba(245,158,11,0.15); color:#d97706;">${p.prioridade || 'MÉDIA'}</span>
-                  </div>
-                  <span class="badge ${p.status === 'CONCLUIDO' ? 'badge-green' : 'badge-amber'}">${p.status}</span>
+            ${state.agendaViewMode === 'MES' ? `
+              <!-- Calendário do Mês Completo -->
+              <div class="m3-card" style="padding:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <button class="btn btn-outline" id="btnMesPrev" style="padding:4px 8px;">◀</button>
+                  <span id="calMesAnoLabel" style="font-size:13px; font-weight:800; color:var(--slate-900);">Mês</span>
+                  <button class="btn btn-outline" id="btnMesNext" style="padding:4px 8px;">▶</button>
                 </div>
-                <div style="font-size:13px; font-weight:800; color:var(--slate-900);">${p.titulo || p.categoria}</div>
-                ${p.descricaoOriginal && p.descricaoOriginal !== p.titulo ? `<div style="font-size:12px; color:var(--slate-600); margin-top:2px;">${p.descricaoOriginal}</div>` : ''}
-                <div style="font-size:11px; color:var(--slate-600); margin-top:4px;">📍 ${p.local || 'Campo'} (${p.cidade}/${p.estado}) • ${formatBrDate(p.dataAtividade)}</div>
-
-                ${p.status !== 'CONCLUIDO' ? `
-                  <button class="btn btn-success btn-block btn-concluir-plan" data-id="${p.id}" data-desc="${encodeURIComponent(p.descricaoOriginal || p.titulo || '')}" data-cat="${encodeURIComponent(p.categoria || '')}" style="margin-top:10px;">
-                    ✓ Concluir Atividade
-                  </button>
-                ` : `
-                  <div style="font-size:11px; color:var(--green); font-weight:700; margin-top:8px; background:#ecfdf5; padding:6px 10px; border-radius:8px;">
-                    ✓ Executado: ${p.descricaoExecutada || p.descricaoOriginal}
-                  </div>
-                `}
+                <div class="cal-grid" id="calMonthGrid"></div>
               </div>
-            `).join('')}
+
+              <div style="font-size:11px; font-weight:800; color:var(--purple); text-transform:uppercase; margin-top:2px;">
+                PROGRAMAÇÃO DO DIA: ${formatBrDate(state.agendaSelectedDay)}
+              </div>
+              <div id="dayPlansContainer"></div>
+            ` : `
+              <!-- Visão da Semana -->
+              <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:10px; border:1px solid #e2e8f0;">
+                <button class="btn btn-outline" id="btnSemPrev" style="padding:4px 8px;">◀</button>
+                <span id="semLabel" style="font-size:11px; font-weight:800; color:var(--slate-900);">Semana</span>
+                <button class="btn btn-outline" id="btnSemNext" style="padding:4px 8px;">▶</button>
+              </div>
+              <div id="semanaPlansContainer"></div>
+            `}
+
+            <!-- FAB: + Novo Agendamento -->
+            <button class="fab-btn" id="fabNewPlan">
+              <span style="font-size:18px;">+</span>
+              <span>Novo Agendamento</span>
+            </button>
           `;
 
-          document.getElementById('btnStTodos')?.addEventListener('click', () => { state.agendaStatusFilter = 'TODOS'; render(); });
-          document.getElementById('btnStPend')?.addEventListener('click', () => { state.agendaStatusFilter = 'PENDENTE'; render(); });
-          document.getElementById('btnStConc')?.addEventListener('click', () => { state.agendaStatusFilter = 'CONCLUIDO'; render(); });
+          document.getElementById('tabViewSemana').onclick = () => { state.agendaViewMode = 'SEMANA'; render(); };
+          document.getElementById('tabViewMes').onclick = () => { state.agendaViewMode = 'MES'; render(); };
+          document.getElementById('btnStTodos').onclick = () => { state.agendaStatusFilter = 'TODOS'; render(); };
+          document.getElementById('btnStPend').onclick = () => { state.agendaStatusFilter = 'PENDENTE'; render(); };
+          document.getElementById('btnStConc').onclick = () => { state.agendaStatusFilter = 'CONCLUIDO'; render(); };
 
-          // Modal Novo Agendamento Completo (com Corretor IA e Frequência)
-          document.getElementById('btnNewPlan')?.addEventListener('click', () => {
+          // Renderizar Calendário do Mês se visão for Mês
+          if (state.agendaViewMode === 'MES') {
+            const calBase = new Date();
+            calBase.setMonth(calBase.getMonth() + state.agendaDayOffset);
+            const mYear = calBase.getFullYear();
+            const mMonth = calBase.getMonth();
+            document.getElementById('calMesAnoLabel').textContent = `${MESES_NOMES[mMonth]} / ${mYear}`;
+
+            document.getElementById('btnMesPrev').onclick = () => { state.agendaDayOffset -= 1; render(); };
+            document.getElementById('btnMesNext').onclick = () => { state.agendaDayOffset += 1; render(); };
+
+            const calGrid = document.getElementById('calMonthGrid');
+            const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            calGrid.innerHTML = weekDays.map(w => `<div class="cal-header-cell">${w}</div>`).join('');
+
+            const firstDay = new Date(mYear, mMonth, 1).getDay();
+            const daysInMonth = new Date(mYear, mMonth + 1, 0).getDate();
+
+            for (let i = 0; i < firstDay; i++) {
+              calGrid.innerHTML += `<div></div>`;
+            }
+
             const todayStr = new Date().toISOString().split('T')[0];
-            const unidades = d.unidades || [];
-            openModal('Novo Agendamento na Agenda', `
-              <form id="formNewPlan">
-                <div style="display:flex; gap:8px;">
-                  <div class="field-group" style="flex:1.2;">
-                    <label>Data</label>
-                    <input name="dataAtividade" type="date" class="field-input" value="${todayStr}" required />
-                  </div>
-                  <div class="field-group" style="flex:0.8;">
-                    <label>Hora</label>
-                    <input name="hora" type="time" class="field-input" value="08:00" required />
-                  </div>
-                </div>
+            for (let dNum = 1; dNum <= daysInMonth; dNum++) {
+              const dStr = String(dNum).padStart(2, '0');
+              const mStr = String(mMonth + 1).padStart(2, '0');
+              const cellYmd = `${mYear}-${mStr}-${dStr}`;
+              const isToday = cellYmd === todayStr;
+              const isSelected = cellYmd === state.agendaSelectedDay;
+              const countAtvs = allPlans.filter(p => p.dataAtividade.startsWith(cellYmd)).length;
 
-                <div class="field-group">
-                  <label>Frequência de Repetição</label>
-                  <select name="frequencia" id="selFrequencia" class="field-input">
-                    <option value="UNICA">Não se repete (Apenas no dia)</option>
-                    <option value="DIARIA">Diariamente (Seg a Sex)</option>
-                    <option value="SEMANAL">Semanalmente</option>
-                    <option value="QUINZENAL">Quinzenalmente (15 dias)</option>
-                    <option value="MENSAL">Mensalmente</option>
-                    <option value="BIMESTRAL">Bimestralmente</option>
-                    <option value="TRIMESTRAL">Trimestralmente</option>
-                  </select>
-                </div>
+              const cellEl = document.createElement('div');
+              cellEl.className = 'cal-day-cell ' + (isSelected ? 'active ' : '') + (isToday ? 'today ' : '');
+              cellEl.innerHTML = `
+                <span>${dNum}</span>
+                ${countAtvs > 0 ? `<span class="cal-day-dot"></span>` : ''}
+              `;
+              cellEl.onclick = () => {
+                state.agendaSelectedDay = cellYmd;
+                render();
+              };
+              calGrid.appendChild(cellEl);
+            }
 
-                <div class="field-group" id="wrapDataFim" style="display:none;">
-                  <label>Repetir até a Data Fim</label>
-                  <input name="dataFim" type="date" class="field-input" value="${todayStr}" />
-                </div>
-
-                <div class="field-group">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label>Título da Atividade</label>
-                    <button type="button" id="btnAiTitulo" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
-                  </div>
-                  <input id="inputTitulo" name="titulo" class="field-input" placeholder="Ex: Inspeção de segurança em altura" required />
-                </div>
-
-                <div class="field-group">
-                  <label>Categoria Oficial</label>
-                  <select name="categoria" class="field-input">
-                    ${CATEGORIAS_WEB.map(c => `<option value="${c}">${c}</option>`).join('')}
-                  </select>
-                </div>
-
-                <div class="field-group">
-                  <label>Prioridade</label>
-                  <select name="prioridade" class="field-input">
-                    <option value="MEDIA">Média</option>
-                    <option value="ALTA">Alta</option>
-                    <option value="BAIXA">Baixa</option>
-                  </select>
-                </div>
-
-                <div class="field-group">
-                  <label>Unidade / Local</label>
-                  <input name="local" class="field-input" list="listUnidades" placeholder="Selecione ou digite a unidade" required />
-                  <datalist id="listUnidades">
-                    ${unidades.map(u => `<option value="${u.nome}">${u.cidade}/${u.estado}</option>`).join('')}
-                  </datalist>
-                </div>
-
-                <div style="display:flex; gap:8px;">
-                  <div class="field-group" style="flex:1.4;">
-                    <label>Cidade</label>
-                    <input name="cidade" class="field-input" value="São Paulo" required />
-                  </div>
-                  <div class="field-group" style="flex:0.6;">
-                    <label>UF</label>
-                    <input name="estado" class="field-input" value="SP" required />
-                  </div>
-                </div>
-
-                <div class="field-group">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label>Descrição Detalhada</label>
-                    <button type="button" id="btnAiDesc" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
-                  </div>
-                  <textarea id="inputDesc" name="descricao" class="field-input" style="height:70px;" placeholder="Detalhes do planejamento..."></textarea>
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-block">Salvar no Planejamento</button>
-              </form>
-            `, (body) => {
-              const selFreq = body.querySelector('#selFrequencia');
-              const wrapFim = body.querySelector('#wrapDataFim');
-              selFreq.addEventListener('change', () => {
-                wrapFim.style.display = selFreq.value !== 'UNICA' ? 'block' : 'none';
-              });
-
-              body.querySelector('#btnAiTitulo').addEventListener('click', async () => {
-                const inp = body.querySelector('#inputTitulo');
-                const fixed = await correctTextWithAI(inp.value);
-                if (fixed) inp.value = fixed;
-              });
-
-              body.querySelector('#btnAiDesc').addEventListener('click', async () => {
-                const inp = body.querySelector('#inputDesc');
-                const fixed = await correctTextWithAI(inp.value);
-                if (fixed) inp.value = fixed;
-              });
-
-              body.querySelector('#formNewPlan').addEventListener('submit', (ev) => {
-                ev.preventDefault();
-                const fd = new FormData(ev.target);
-                executeMobileAction('CRIAR_ATIVIDADE', 'Salvando agendamento...', {
-                  dataAtividade: fd.get('dataAtividade'),
-                  hora: fd.get('hora'),
-                  frequencia: fd.get('frequencia'),
-                  dataFim: fd.get('dataFim') || fd.get('dataAtividade'),
-                  titulo: fd.get('titulo'),
-                  categoria: fd.get('categoria'),
-                  prioridade: fd.get('prioridade'),
-                  local: fd.get('local'),
-                  cidade: fd.get('cidade'),
-                  estado: fd.get('estado'),
-                  descricaoOriginal: fd.get('descricao') || fd.get('titulo')
-                });
-              });
+            // Atividades do dia selecionado
+            const dayPlans = allPlans.filter(p => {
+              const matchesDay = p.dataAtividade.startsWith(state.agendaSelectedDay);
+              if (state.agendaStatusFilter === 'PENDENTE') return matchesDay && p.status !== 'CONCLUIDO';
+              if (state.agendaStatusFilter === 'CONCLUIDO') return matchesDay && p.status === 'CONCLUIDO';
+              return matchesDay;
             });
+
+            const dayContainer = document.getElementById('dayPlansContainer');
+            if (dayPlans.length === 0) {
+              dayContainer.innerHTML = `<div class="m3-card" style="font-size:12px; color:var(--slate-600); text-align:center; padding:18px;">Nenhuma atividade agendada para este dia.</div>`;
+            } else {
+              dayContainer.innerHTML = dayPlans.map(p => renderPlanCardHtml(p)).join('');
+              attachCardEvents(dayContainer);
+            }
+          } else {
+            // Renderizar Semana
+            const calBase = new Date();
+            calBase.setDate(calBase.getDate() + state.agendaDayOffset * 7);
+            const dayOfWeek = calBase.getDay();
+            const diff = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+            calBase.setDate(calBase.getDate() + diff);
+
+            const startYmd = calBase.toISOString().split('T')[0];
+            const endCal = new Date(calBase);
+            endCal.setDate(endCal.getDate() + 6);
+            const endYmd = endCal.toISOString().split('T')[0];
+
+            document.getElementById('semLabel').textContent = `Semana: ${formatBrDate(startYmd)} a ${formatBrDate(endYmd)}`;
+            document.getElementById('btnSemPrev').onclick = () => { state.agendaDayOffset -= 1; render(); };
+            document.getElementById('btnSemNext').onclick = () => { state.agendaDayOffset += 1; render(); };
+
+            const semPlans = allPlans.filter(p => {
+              const ymd = p.dataAtividade.substring(0, 10);
+              const inRange = ymd >= startYmd && ymd <= endYmd;
+              if (state.agendaStatusFilter === 'PENDENTE') return inRange && p.status !== 'CONCLUIDO';
+              if (state.agendaStatusFilter === 'CONCLUIDO') return inRange && p.status === 'CONCLUIDO';
+              return inRange;
+            });
+
+            const semContainer = document.getElementById('semanaPlansContainer');
+            if (semPlans.length === 0) {
+              semContainer.innerHTML = `<div class="m3-card" style="font-size:12px; color:var(--slate-600); text-align:center; padding:18px;">Nenhum agendamento nesta semana.</div>`;
+            } else {
+              semContainer.innerHTML = semPlans.map(p => renderPlanCardHtml(p)).join('');
+              attachCardEvents(semContainer);
+            }
+          }
+
+          // Botão FAB: Criar Agendamento
+          document.getElementById('fabNewPlan')?.addEventListener('click', () => {
+            openNewPlanModal(state.agendaSelectedDay);
           });
 
-          // Modal DSS com Aliado
-          document.getElementById('btnNewDssAliado')?.addEventListener('click', () => {
-            openModal('Lançar DSS com Aliado', `
-              <form id="formDssAliado">
-                <div class="field-group">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label>Tema do Diálogo de Segurança</label>
-                    <button type="button" id="btnAiTemaDss" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
-                  </div>
-                  <input id="inputTemaDss" name="tema" class="field-input" placeholder="Ex: Procedimentos de Segurança NR-35" required />
-                </div>
-                <button type="submit" class="btn btn-primary btn-block">Registrar DSS</button>
-              </form>
-            `, (body) => {
-              body.querySelector('#btnAiTemaDss').addEventListener('click', async () => {
-                const inp = body.querySelector('#inputTemaDss');
-                const fixed = await correctTextWithAI(inp.value);
-                if (fixed) inp.value = fixed;
-              });
-
-              body.querySelector('#formDssAliado').addEventListener('submit', (ev) => {
-                ev.preventDefault();
-                const fd = new FormData(ev.target);
-                executeMobileAction('CRIAR_DSS_ALIADO', 'Registrando DSS com Aliado...', {
-                  tema: fd.get('tema')
-                });
-              });
-            });
-          });
-
-          // Modal Concluir Atividade com Corretor IA e Opções de Relatório de Campo e DSS Aliado
-          document.querySelectorAll('.btn-concluir-plan').forEach(btn => {
-            btn.addEventListener('click', () => {
-              const id = btn.getAttribute('data-id');
-              const desc = decodeURIComponent(btn.getAttribute('data-desc') || '');
-              const cat = decodeURIComponent(btn.getAttribute('data-cat') || '');
-              const isDss = cat.toUpperCase().includes('DSS');
-
-              openModal('Concluir Atividade', `
-                <form id="formConcluirPlan">
-                  <div class="field-group">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <label>Relato da Execução</label>
-                      <button type="button" id="btnAiRelato" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
-                    </div>
-                    <textarea id="inputRelato" name="descricaoExecutada" class="field-input" style="height:70px;" required>${desc.replace(/"/g, '&quot;')}</textarea>
-                  </div>
-
-                  ${isDss ? `
-                    <div style="margin-bottom:10px; background:#f5ebfa; padding:10px; border-radius:10px;">
-                      <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--purple-dark); cursor:pointer;">
-                        <input type="checkbox" name="salvarDssAliado" checked />
-                        Foi um DSS com Aliado? (Contabilizar no Painel)
-                      </label>
-                    </div>
-                  ` : ''}
-
-                  <div style="margin-bottom:12px; background:#f8fafc; padding:10px; border-radius:10px; border:1px solid #e2e8f0;">
-                    <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--slate-900); cursor:pointer;">
-                      <input type="checkbox" name="gerarRelatorioCampo" checked />
-                      Incluir no Relatório de Atividades de Campo
-                    </label>
-                  </div>
-
-                  <button type="submit" class="btn btn-success btn-block">Confirmar Conclusão</button>
-                </form>
-              `, (body) => {
-                body.querySelector('#btnAiRelato').addEventListener('click', async () => {
-                  const inp = body.querySelector('#inputRelato');
-                  const fixed = await correctTextWithAI(inp.value);
-                  if (fixed) inp.value = fixed;
-                });
-
-                body.querySelector('#formConcluirPlan').addEventListener('submit', (ev) => {
-                  ev.preventDefault();
-                  const fd = new FormData(ev.target);
-                  executeMobileAction('CONCLUIR_ATIVIDADE', 'Concluindo atividade...', {
-                    id,
-                    descricaoExecutada: fd.get('descricaoExecutada'),
-                    salvarDssAliado: fd.get('salvarDssAliado') === 'on',
-                    gerarRelatorioCampo: fd.get('gerarRelatorioCampo') === 'on'
-                  });
-                });
-              });
-            });
-          });
           return;
         }
 
         // ══════════════════════════════════════════════════════════════════════
-        // ABA 3: KM (QUILOMETRAGEM & ABASTECIMENTO)
+        // ABA 3: KM (QUILOMETRAGEM, ABASTECIMENTO & MANUTENÇÕES)
         // ══════════════════════════════════════════════════════════════════════
         if (state.activeTab === 'KM') {
+          state.kmSubTab = state.kmSubTab || 'KM'; // 'KM', 'ABS', 'MANUT'
           const kms = d.quilometragens || [];
           const abs = d.abastecimentos || [];
+          const manuts = d.manutencoes || [];
           const openKm = kms.find(k => k.kmFinal == null);
 
           elContent.innerHTML = `
             <div class="sub-tabs">
-              <button class="sub-tab ${state.kmSubTab === 'KM' ? 'active' : ''}" data-sub="KM">Quilometragem (${kms.length})</button>
-              <button class="sub-tab ${state.kmSubTab === 'ABS' ? 'active' : ''}" data-sub="ABS">Abastecimentos (${abs.length})</button>
+              <button class="sub-tab ${state.kmSubTab === 'KM' ? 'active' : ''}" data-sub="KM">KM (${kms.length})</button>
+              <button class="sub-tab ${state.kmSubTab === 'ABS' ? 'active' : ''}" data-sub="ABS">Abastecimento (${abs.length})</button>
+              <button class="sub-tab ${state.kmSubTab === 'MANUT' ? 'active' : ''}" data-sub="MANUT">Manutenção (${manuts.length})</button>
             </div>
+
             ${state.kmSubTab === 'KM' ? `
               ${openKm ? `
                 <div class="m3-card" style="background:var(--purple-soft); border-color:rgba(102,0,153,0.25);">
                   <span class="badge badge-purple">ROTA EM ANDAMENTO</span>
                   <div style="font-size:16px; font-weight:900; color:var(--purple-dark); margin-top:6px;">KM Inicial: ${openKm.kmInicial} km</div>
                   <div style="font-size:11px; color:var(--slate-600);">${openKm.diaSemana} • ${formatBrDate(openKm.dataInicial)}</div>
-                  <button id="btnFinishKm" class="btn btn-primary btn-block" style="margin-top:10px;">Encerrar KM do Dia</button>
+                  <button id="btnFinishKm" class="btn btn-primary btn-block" style="margin-top:10px;">Encerrar KM do Dia (com GPS)</button>
                 </div>
               ` : `
-                <div style="display:flex; gap:8px;">
-                  <button id="btnStartKm" class="btn btn-primary" style="flex:1;">🚗 Iniciar KM</button>
-                  <button id="btnNewMaint" class="btn btn-outline" style="flex:1;">🔧 Manutenção</button>
-                </div>
+                <button id="btnStartKm" class="btn btn-primary btn-block">🚗 Iniciar KM do Dia (com GPS)</button>
               `}
               ${kms.map(k => `
                 <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
                   <div>
                     <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${formatBrDate(k.dataInicial)} (${k.diaSemana})</div>
                     <div style="font-size:11px; color:var(--slate-600);">Inicial: ${k.kmInicial} km → Final: ${k.kmFinal ?? 'Em rota'}</div>
+                    ${k.latitudeInicial ? `<div style="font-size:9.5px; color:var(--purple); font-weight:700;">📍 GPS Gravado</div>` : ''}
                   </div>
                   <span class="badge ${k.diferenca != null ? 'badge-green' : 'badge-amber'}">${k.diferenca != null ? `+${k.diferenca} km` : 'ABERTO'}</span>
                 </div>
               `).join('')}
-            ` : `
-              <button id="btnNewAbs" class="btn btn-primary btn-block">⛽ Registrar Abastecimento / Despesa</button>
+            ` : state.kmSubTab === 'ABS' ? `
+              <button id="btnNewAbs" class="btn btn-primary btn-block">⛽ Registrar Abastecimento (R$)</button>
               ${abs.map(a => `
                 <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
                   <div>
                     <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${a.tipo}</div>
                     <div style="font-size:11px; color:var(--slate-600);">${formatBrDate(a.data)}</div>
                   </div>
-                  <div style="font-size:14px; font-weight:900; color:var(--purple);">${formatMoney(a.valor)}</div>
+                  <div style="font-size:15px; font-weight:900; color:var(--green);">${formatMoney(a.valor)}</div>
+                </div>
+              `).join('')}
+            ` : `
+              <button id="btnNewManutencao" class="btn btn-primary btn-block">🔧 Registrar Manutenção do Veículo</button>
+              ${manuts.length === 0 ? `<div class="m3-card" style="font-size:12px; color:var(--slate-600); text-align:center; padding:18px;">Nenhuma manutenção veicular registrada.</div>` : manuts.map(m => `
+                <div class="m3-card">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="font-size:14px; font-weight:900; color:var(--purple);">${m.kmManutencao} km</span>
+                    <span style="font-size:11px; color:var(--slate-600);">${formatBrDate(m.dataManutencao)}</span>
+                  </div>
+                  ${m.descricao ? `<div style="font-size:12px; color:var(--slate-900); margin-top:4px;">${m.descricao}</div>` : ''}
+                  ${m.comprovanteUrl ? `<div style="margin-top:6px;"><a href="${m.comprovanteUrl}" target="_blank" style="font-size:11px; color:var(--purple); font-weight:700;">📎 Ver Comprovante</a></div>` : ''}
                 </div>
               `).join('')}
             `}
@@ -1595,63 +1573,102 @@
             });
           });
 
+          // Iniciar KM com captura de GPS
           document.getElementById('btnStartKm')?.addEventListener('click', () => {
             openModal('Iniciar KM do Dia', `
               <form id="formStartKm">
+                <div style="font-size:11px; color:var(--purple); margin-bottom:10px; font-weight:700;">
+                  📍 Captura de geolocalização automática ativada.
+                </div>
                 <div class="field-group">
                   <label>Hodômetro Inicial (KM)</label>
                   <input name="kmInicial" type="number" step="0.1" class="field-input" placeholder="Ex: 45210" required />
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Iniciar Rota</button>
+                <button type="submit" class="btn btn-primary btn-block">Confirmar Início</button>
               </form>
             `, (body) => {
               body.querySelector('#formStartKm').addEventListener('submit', (ev) => {
                 ev.preventDefault();
                 const fd = new FormData(ev.target);
-                executeMobileAction('INICIAR_KM', 'Registrando KM inicial...', {
-                  kmInicial: Number(fd.get('kmInicial'))
-                });
+                if (navigator.geolocation) {
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      executeMobileAction('INICIAR_KM', 'Registrando KM com GPS...', {
+                        kmInicial: Number(fd.get('kmInicial')),
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude
+                      });
+                    },
+                    () => {
+                      executeMobileAction('INICIAR_KM', 'Registrando KM...', {
+                        kmInicial: Number(fd.get('kmInicial'))
+                      });
+                    },
+                    { timeout: 5000 }
+                  );
+                } else {
+                  executeMobileAction('INICIAR_KM', 'Registrando KM...', {
+                    kmInicial: Number(fd.get('kmInicial'))
+                  });
+                }
               });
             });
           });
 
+          // Encerrar KM com captura de GPS
           document.getElementById('btnFinishKm')?.addEventListener('click', () => {
-            openModal(`Encerrar KM (Inicial: ${openKm.kmInicial})`, `
+            openModal(`Encerrar KM (Inicial: ${openKm.kmInicial} km)`, `
               <form id="formFinishKm">
+                <div style="font-size:11px; color:var(--purple); margin-bottom:10px; font-weight:700;">
+                  📍 Captura de geolocalização de encerramento ativada.
+                </div>
                 <div class="field-group">
                   <label>Hodômetro Final (KM)</label>
-                  <input name="kmFinal" type="number" step="0.1" min="${openKm.kmInicial}" class="field-input" placeholder="Ex: ${openKm.kmInicial + 65}" required />
+                  <input name="kmFinal" type="number" step="0.1" min="${openKm.kmInicial}" class="field-input" placeholder="Ex: ${openKm.kmInicial + 50}" required />
                 </div>
-                <button type="submit" class="btn btn-success btn-block">Salvar KM Final</button>
+                <button type="submit" class="btn btn-success btn-block">Confirmar Encerramento</button>
               </form>
             `, (body) => {
               body.querySelector('#formFinishKm').addEventListener('submit', (ev) => {
                 ev.preventDefault();
                 const fd = new FormData(ev.target);
-                executeMobileAction('FINALIZAR_KM', 'Encerrando rota...', {
-                  id: openKm.id,
-                  kmFinal: Number(fd.get('kmFinal'))
-                });
+                if (navigator.geolocation) {
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      executeMobileAction('FINALIZAR_KM', 'Encerrando rota com GPS...', {
+                        id: openKm.id,
+                        kmFinal: Number(fd.get('kmFinal')),
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude
+                      });
+                    },
+                    () => {
+                      executeMobileAction('FINALIZAR_KM', 'Encerrando rota...', {
+                        id: openKm.id,
+                        kmFinal: Number(fd.get('kmFinal'))
+                      });
+                    },
+                    { timeout: 5000 }
+                  );
+                } else {
+                  executeMobileAction('FINALIZAR_KM', 'Encerrando rota...', {
+                    id: openKm.id,
+                    kmFinal: Number(fd.get('kmFinal'))
+                  });
+                }
               });
             });
           });
 
+          // Abastecimento com máscara R$
           document.getElementById('btnNewAbs')?.addEventListener('click', () => {
             openModal('Registrar Abastecimento', `
               <form id="formNewAbs">
                 <div class="field-group">
                   <label>Valor Total (R$)</label>
-                  <input name="valor" type="number" step="0.01" class="field-input" placeholder="Ex: 185.50" required />
+                  <input id="inputMoneyAbs" name="valor" type="number" step="0.01" class="field-input" placeholder="Ex: 185.50" required />
                 </div>
-                <div class="field-group">
-                  <label>Tipo</label>
-                  <select name="tipo" class="field-input">
-                    <option value="ABASTECIMENTO">ABASTECIMENTO</option>
-                    <option value="PEDAGIO">PEDÁGIO</option>
-                    <option value="LAVAGEM">LAVAGEM</option>
-                  </select>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block">Salvar Abastecimento</button>
+                <button type="submit" class="btn btn-primary btn-block">Confirmar</button>
               </form>
             `, (body) => {
               body.querySelector('#formNewAbs').addEventListener('submit', (ev) => {
@@ -1659,68 +1676,99 @@
                 const fd = new FormData(ev.target);
                 executeMobileAction('CRIAR_ABASTECIMENTO', 'Registrando abastecimento...', {
                   valor: Number(fd.get('valor')),
-                  tipo: fd.get('tipo')
+                  tipo: 'ABASTECIMENTO'
                 });
               });
             });
           });
 
-          document.getElementById('btnNewMaint')?.addEventListener('click', () => {
-            openModal('Registrar Manutenção', `
-              <form id="formNewMaint">
+          // Registrar Manutenção do Veículo
+          document.getElementById('btnNewManutencao')?.addEventListener('click', () => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            openModal('Registrar Manutenção do Veículo', `
+              <form id="formManutencao">
+                <div style="display:flex; gap:8px;">
+                  <div class="field-group" style="flex:1.2;">
+                    <label>Data da Manutenção</label>
+                    <input name="dataManutencao" type="date" class="field-input" value="${todayStr}" required />
+                  </div>
+                  <div class="field-group" style="flex:0.8;">
+                    <label>Hora</label>
+                    <input name="hora" type="time" class="field-input" value="10:00" required />
+                  </div>
+                </div>
                 <div class="field-group">
-                  <label>KM da Manutenção / Revisão</label>
+                  <label>KM no Momento da Revisão</label>
                   <input name="kmManutencao" type="number" class="field-input" placeholder="Ex: 50000" required />
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Salvar Manutenção</button>
+                <div class="field-group">
+                  <label>Descrição do Serviço / Peças Trocadas</label>
+                  <textarea name="descricao" class="field-input" style="height:70px;" placeholder="Troca de óleo, pastilhas de freio..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Confirmar Manutenção</button>
               </form>
             `, (body) => {
-              body.querySelector('#formNewMaint').addEventListener('submit', (ev) => {
+              body.querySelector('#formManutencao').addEventListener('submit', (ev) => {
                 ev.preventDefault();
                 const fd = new FormData(ev.target);
-                executeMobileAction('CRIAR_MANUTENCAO', 'Salvando manutenção...', {
-                  kmManutencao: Number(fd.get('kmManutencao'))
+                executeMobileAction('CRIAR_MANUTENCAO', 'Registrando manutenção...', {
+                  kmManutencao: Number(fd.get('kmManutencao')),
+                  dataManutencao: `${fd.get('dataManutencao')}T${fd.get('hora')}:00Z`,
+                  descricao: fd.get('descricao')
                 });
               });
             });
           });
+
           return;
         }
 
         // ══════════════════════════════════════════════════════════════════════
-        // ABA 4: RELATÓRIOS (RELATÓRIOS DE CAMPO & NÃO CONFORMIDADES)
+        // ABA 4: RELATÓRIOS (RELATÓRIOS PDF GERADOS & ATIVIDADES - SEM NCS)
         // ══════════════════════════════════════════════════════════════════════
         if (state.activeTab === 'RELATORIOS') {
+          state.relatoriosSubTab = state.relatoriosSubTab || 'PDF'; // 'PDF' ou 'ATIVIDADES'
+          const pdfs = d.relatoriosPdf || [];
           const rels = d.relatoriosCampo || [];
-          const ncs = d.naoConformidades || [];
 
           elContent.innerHTML = `
             <div class="sub-tabs">
-              <button class="sub-tab ${state.campoSubTab === 'RELATORIOS' ? 'active' : ''}" data-sub="RELATORIOS">Relatório de Atividades (${rels.length})</button>
-              <button class="sub-tab ${state.campoSubTab === 'NC' ? 'active' : ''}" data-sub="NC">Não Conformidades (${ncs.length})</button>
+              <button class="sub-tab ${state.relatoriosSubTab === 'PDF' ? 'active' : ''}" data-sub="PDF">Relatórios em PDF (${pdfs.length})</button>
+              <button class="sub-tab ${state.relatoriosSubTab === 'ATIVIDADES' ? 'active' : ''}" data-sub="ATIVIDADES">Atividades de Campo (${rels.length})</button>
             </div>
-            ${state.campoSubTab === 'RELATORIOS' ? `
-              <button id="btnNewRelCampo" class="btn btn-primary btn-block">+ Incluir Item no Relatório</button>
-              ${rels.map(r => `
+
+            ${state.relatoriosSubTab === 'PDF' ? `
+              ${pdfs.length === 0 ? `
+                <div class="m3-card" style="text-align:center; padding:30px;">
+                  <div style="font-size:32px;">📄</div>
+                  <div style="font-size:14px; font-weight:800; color:var(--slate-900); margin-top:6px;">Nenhum relatório em PDF disponível</div>
+                  <div style="font-size:11px; color:var(--slate-600); margin-top:4px;">Os PDFs consolidados gerados aparecerão aqui automaticamente.</div>
+                </div>
+              ` : pdfs.map(pdf => `
                 <div class="m3-card">
-                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <span class="badge badge-purple">${r.projeto || 'VIVO'}</span>
-                    <span style="font-size:10px; color:var(--slate-600);">${formatBrDate(r.data)}</span>
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="badge badge-purple">PDF • ${pdf.mesAno || ''}</span>
+                    <span style="font-size:10px; color:var(--slate-600);">${Math.round(pdf.tamanhoBytes / 1024)} KB</span>
                   </div>
-                  <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${r.descricao}</div>
-                  <div style="font-size:10px; color:var(--slate-600); margin-top:3px;">${r.local} • ${r.cidadeUf}</div>
+                  <div style="font-size:13px; font-weight:800; color:var(--slate-900); margin-top:6px;">${pdf.nomeArquivo}</div>
+                  <div style="font-size:11px; color:var(--slate-600); margin-top:2px;">Elaborador: ${pdf.elaborador} • ${formatBrDate(pdf.createdAt)}</div>
+                  <a href="${pdf.url}" target="_blank" class="btn btn-primary btn-block" style="margin-top:10px; text-decoration:none;">
+                    Visualizar / Baixar PDF
+                  </a>
                 </div>
               `).join('')}
             ` : `
-              ${ncs.map(nc => `
+              <button id="btnNewRelItem" class="btn btn-primary btn-block">+ Incluir Item no Relatório</button>
+              ${rels.length === 0 ? `
+                <div class="m3-card" style="font-size:12px; color:var(--slate-600); text-align:center; padding:20px;">Nenhum item registrado no relatório de campo.</div>
+              ` : rels.map(r => `
                 <div class="m3-card">
-                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <span class="badge badge-red">${nc.classificacao || 'NC'}</span>
-                    <span class="badge ${nc.status === 'RESOLVIDO' ? 'badge-green' : 'badge-amber'}">${nc.status}</span>
+                  <div style="display:flex; justify-content:space-between;">
+                    <span class="badge badge-purple">${r.projeto || 'VIVO'}</span>
+                    <span style="font-size:10px; color:var(--slate-600);">${formatBrDate(r.data)}</span>
                   </div>
-                  <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${nc.pergunta || nc.questionario}</div>
-                  <div style="font-size:10px; color:var(--slate-600); margin-top:2px;">Local: ${nc.localidade || nc.base} • ${formatBrDate(nc.dataAbertura)}</div>
-                  <button class="btn btn-outline btn-block btn-tratar-nc" data-id="${nc.id}" style="margin-top:8px;">Registrar Tratativa</button>
+                  <div style="font-size:13px; font-weight:800; color:var(--slate-900); margin-top:4px;">${r.descricao}</div>
+                  <div style="font-size:11px; color:var(--slate-600); margin-top:2px;">${r.empresa} • ${r.local} (${r.cidadeUf})</div>
                 </div>
               `).join('')}
             `}
@@ -1728,14 +1776,15 @@
 
           elContent.querySelectorAll('.sub-tab').forEach(b => {
             b.addEventListener('click', () => {
-              state.campoSubTab = b.getAttribute('data-sub');
+              state.relatoriosSubTab = b.getAttribute('data-sub');
               render();
             });
           });
 
-          document.getElementById('btnNewRelCampo')?.addEventListener('click', () => {
-            openModal('Novo Relatório de Campo', `
-              <form id="formRelCampo">
+          document.getElementById('btnNewRelItem')?.addEventListener('click', () => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            openModal('Incluir Item no Relatório', `
+              <form id="formNewRelItem">
                 <div style="display:flex; gap:8px;">
                   <div class="field-group" style="flex:1.2;">
                     <label>Empresa</label>
@@ -1748,32 +1797,24 @@
                 </div>
                 <div class="field-group">
                   <label>Unidade / Local</label>
-                  <input name="local" class="field-input" placeholder="Ex: Base Central" required />
+                  <input name="local" class="field-input" placeholder="Ex: Central Pinheiros" required />
                 </div>
                 <div class="field-group">
-                  <label>Cidade/UF</label>
+                  <label>Cidade / UF</label>
                   <input name="cidadeUf" class="field-input" value="São Paulo/SP" required />
                 </div>
                 <div class="field-group">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label>Descrição Detalhada</label>
-                    <button type="button" id="btnAiRelDesc" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
-                  </div>
-                  <textarea id="inputRelDesc" name="descricao" class="field-input" style="height:70px;" placeholder="Relato técnico da atividade executada..." required></textarea>
+                  <label>Descrição da Atividade</label>
+                  <textarea name="descricao" class="field-input" style="height:70px;" placeholder="Descreva detalhadamente..." required></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Salvar no Relatório</button>
+                <button type="submit" class="btn btn-primary btn-block">Confirmar</button>
               </form>
             `, (body) => {
-              body.querySelector('#btnAiRelDesc').addEventListener('click', async () => {
-                const inp = body.querySelector('#inputRelDesc');
-                const fixed = await correctTextWithAI(inp.value);
-                if (fixed) inp.value = fixed;
-              });
-
-              body.querySelector('#formRelCampo').addEventListener('submit', (ev) => {
+              body.querySelector('#formNewRelItem').addEventListener('submit', (ev) => {
                 ev.preventDefault();
                 const fd = new FormData(ev.target);
-                executeMobileAction('CRIAR_RELATORIO_CAMPO', 'Salvando relatório de campo...', {
+                executeMobileAction('CRIAR_RELATORIO_CAMPO', 'Salvando item no relatório...', {
+                  data: todayStr,
                   empresa: fd.get('empresa'),
                   projeto: fd.get('projeto'),
                   local: fd.get('local'),
@@ -1784,48 +1825,126 @@
             });
           });
 
-          document.querySelectorAll('.btn-tratar-nc').forEach(btn => {
-            btn.addEventListener('click', () => {
-              const id = btn.getAttribute('data-id');
-              openModal('Tratar Não Conformidade', `
-                <form id="formTratarNc">
-                  <div class="field-group">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <label>Ação Corretiva Realizada</label>
-                      <button type="button" id="btnAiTratativa" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
-                    </div>
-                    <textarea id="inputTratativa" name="texto" class="field-input" style="height:70px;" placeholder="Descreva a regularização do item..." required></textarea>
-                  </div>
-                  <div class="field-group">
-                    <label>Novo Status</label>
-                    <select name="status" class="field-input">
-                      <option value="RESOLVIDO">RESOLVIDO</option>
-                      <option value="EM_ANDAMENTO">EM ANDAMENTO</option>
-                    </select>
-                  </div>
-                  <button type="submit" class="btn btn-success btn-block">Salvar Tratativa</button>
-                </form>
-              `, (body) => {
-                body.querySelector('#btnAiTratativa').addEventListener('click', async () => {
-                  const inp = body.querySelector('#inputTratativa');
-                  const fixed = await correctTextWithAI(inp.value);
-                  if (fixed) inp.value = fixed;
-                });
-
-                body.querySelector('#formTratarNc').addEventListener('submit', (ev) => {
-                  ev.preventDefault();
-                  const fd = new FormData(ev.target);
-                  executeMobileAction('TRATAR_NC', 'Salvando tratativa da NC...', {
-                    id,
-                    texto: fd.get('texto'),
-                    status: fd.get('status')
-                  });
-                });
-              });
-            });
-          });
           return;
         }
+      }
+
+      function renderPlanCardHtml(p) {
+        const isConcluido = p.status === 'CONCLUIDO';
+        return `
+          <div class="m3-card" style="border-left:4px solid ${p.prioridade === 'ALTA' ? '#ef4444' : p.prioridade === 'BAIXA' ? '#6366f1' : '#f59e0b'}; opacity:${isConcluido ? '0.62' : '1'};">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <div style="display:flex; gap:4px; align-items:center;">
+                <span class="badge" style="background:#e2e8f0; color:#334155;">🕒 ${p.hora || '08:00'}</span>
+                <span class="badge badge-purple">${p.categoria || 'Atividade'}</span>
+              </div>
+              <span class="badge ${isConcluido ? 'badge-green' : 'badge-amber'}">${isConcluido ? 'CONCLUÍDO' : 'PENDENTE'}</span>
+            </div>
+            <div style="font-size:14px; font-weight:800; color:var(--slate-900);">${p.titulo || p.categoria}</div>
+            ${p.descricaoOriginal && p.descricaoOriginal !== p.titulo ? `<div style="font-size:12px; color:var(--slate-600); margin-top:2px;">${p.descricaoOriginal}</div>` : ''}
+            <div style="font-size:11px; color:var(--slate-600); margin-top:4px;">📍 ${p.local || 'Campo'} (${p.cidade}/${p.estado}) • ${formatBrDate(p.dataAtividade)}</div>
+
+            ${!isConcluido ? `
+              <button class="btn btn-success btn-block btn-two-step" data-action="CONCLUIR" data-id="${p.id}" data-desc="${encodeURIComponent(p.descricaoOriginal || p.titulo || '')}" style="margin-top:10px;">
+                Concluir
+              </button>
+            ` : `
+              <div style="display:flex; gap:6px; margin-top:10px;">
+                <div style="flex:1; font-size:11px; color:var(--green); font-weight:700; background:#ecfdf5; padding:6px 10px; border-radius:8px;">
+                  ✓ Executado: ${p.descricaoExecutada || p.descricaoOriginal}
+                </div>
+                <button class="btn btn-outline btn-two-step" data-action="REVERTER" data-id="${p.id}" style="padding:4px 8px; font-size:10px;">
+                  Reverter
+                </button>
+              </div>
+            `}
+          </div>
+        `;
+      }
+
+      function attachCardEvents(container) {
+        container.querySelectorAll('.btn-two-step').forEach(btn => {
+          let confirmed = false;
+          btn.addEventListener('click', () => {
+            const action = btn.getAttribute('data-action');
+            const id = btn.getAttribute('data-id');
+            if (!confirmed) {
+              confirmed = true;
+              btn.textContent = 'Confirmar';
+              btn.style.boxShadow = '0 0 0 2px var(--purple)';
+              setTimeout(() => {
+                confirmed = false;
+                btn.textContent = action === 'CONCLUIR' ? 'Concluir' : 'Reverter';
+                btn.style.boxShadow = 'none';
+              }, 3000);
+            } else {
+              if (action === 'CONCLUIR') {
+                const desc = decodeURIComponent(btn.getAttribute('data-desc') || '');
+                executeMobileAction('CONCLUIR_ATIVIDADE', 'Concluindo atividade...', {
+                  id,
+                  descricaoExecutada: desc,
+                  gerarRelatorioCampo: true
+                });
+              } else if (action === 'REVERTER') {
+                executeMobileAction('REVERTER_ATIVIDADE', 'Revertendo atividade...', { id });
+              }
+            }
+          });
+        });
+      }
+
+      function openNewPlanModal(defaultDate) {
+        const todayStr = defaultDate || new Date().toISOString().split('T')[0];
+        const unidades = (state.syncData && state.syncData.unidades) || [];
+        openModal('Novo Agendamento na Agenda', `
+          <form id="formNewPlanModal">
+            <div style="display:flex; gap:8px;">
+              <div class="field-group" style="flex:1.2;">
+                <label>Data</label>
+                <input name="dataAtividade" type="date" class="field-input" value="${todayStr}" required />
+              </div>
+              <div class="field-group" style="flex:0.8;">
+                <label>Hora</label>
+                <input name="hora" type="time" class="field-input" value="08:00" required />
+              </div>
+            </div>
+            <div class="field-group">
+              <label>Título da Atividade</label>
+              <input name="titulo" class="field-input" placeholder="Ex: Inspeção de segurança" required />
+            </div>
+            <div class="field-group">
+              <label>Categoria Oficial</label>
+              <select name="categoria" class="field-input">
+                ${CATEGORIAS_WEB.map(c => `<option value="${c}">${c}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field-group">
+              <label>Unidade / Local</label>
+              <input name="local" class="field-input" placeholder="Ex: Base Central" required />
+            </div>
+            <div class="field-group">
+              <label>Descrição Detalhada</label>
+              <textarea name="descricao" class="field-input" style="height:70px;" placeholder="Detalhes do planejamento..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Confirmar</button>
+          </form>
+        `, (body) => {
+          body.querySelector('#formNewPlanModal').addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            const fd = new FormData(ev.target);
+            executeMobileAction('CRIAR_ATIVIDADE', 'Criando agendamento...', {
+              dataAtividade: fd.get('dataAtividade'),
+              hora: fd.get('hora'),
+              titulo: fd.get('titulo'),
+              categoria: fd.get('categoria'),
+              prioridade: 'MEDIA',
+              local: fd.get('local'),
+              cidade: 'São Paulo',
+              estado: 'SP',
+              descricaoOriginal: fd.get('descricao')
+            });
+          });
+        });
       }
 
       // Inicialização: renderiza cache local do Room imediatamente e sincroniza com PostgreSQL
