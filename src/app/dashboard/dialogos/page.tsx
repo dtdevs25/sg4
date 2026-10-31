@@ -15,6 +15,7 @@ import { getDssArkium, upsertDssArkiumBatch, updateEstadoDssArkium, limparDssArk
 import { getDssAliados, deleteDssAliado } from '@/app/actions/dssAliado'
 import { checkAndTriggerMetaNotification } from '@/app/actions/metas'
 import { getLastImportTime } from '@/app/actions/logs'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
 
@@ -98,6 +99,8 @@ export default function DialogosPage() {
 
   const [activeTab, setActiveTab] = useState<'consolidado' | 'arkium'>('consolidado')
   const [pending, startTransition] = useTransition()
+  const [savingAction, setSavingAction] = useState(false)
+  const submittingRef = useRef(false)
 
   // --- ESTADO: Visão Consolidada ---
   const [data, setData] = useState<any[]>([])
@@ -360,22 +363,30 @@ export default function DialogosPage() {
 
   function saveEdit(id: string) {
     if (selectedMonths.length === 1) {
+      if (submittingRef.current) return
+      submittingRef.current = true
+      setSavingAction(true)
       const monthKey = selectedMonths[0]
       const dbMes = MES_MAP[monthKey]
       
       startTransition(async () => {
-         if (selectedYear === 'ALL') {
+        try {
+          if (selectedYear === 'ALL') {
             alert('Selecione um ano específico para poder editar os valores manuais da matriz.')
             setEditingId(null)
             return
-         }
-         const res = await upsertAtividadeMes(id, 'DSS', selectedYear as number, dbMes, editValue)
-         if (res.success) {
-           setData(prev => prev.map(t => t.id === id ? { ...t, [monthKey]: editValue } : t))
-         } else {
-           alert('Erro ao salvar no banco.')
-         }
-         setEditingId(null)
+          }
+          const res = await upsertAtividadeMes(id, 'DSS', selectedYear as number, dbMes, editValue)
+          if (res.success) {
+            setData(prev => prev.map(t => t.id === id ? { ...t, [monthKey]: editValue } : t))
+          } else {
+            alert('Erro ao salvar no banco.')
+          }
+          setEditingId(null)
+        } finally {
+          submittingRef.current = false
+          setSavingAction(false)
+        }
       })
     } else {
       alert("Selecione apenas 1 mês para editar os valores na tabela.")
@@ -621,29 +632,37 @@ export default function DialogosPage() {
   function handleTratar(e: React.FormEvent) {
     e.preventDefault()
     if (!treatingItem) return
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
 
     startTransition(async () => {
-      const isFechado = (tratarAssinado.toLowerCase() === 'sim' || tratarAssinado.toLowerCase() === 'yes') || tratarJustificativa.length > 0
+      try {
+        const isFechado = (tratarAssinado.toLowerCase() === 'sim' || tratarAssinado.toLowerCase() === 'yes') || tratarJustificativa.length > 0
 
-      // Persiste no banco se o item já tem ID real (do banco)
-      if (treatingItem.id && treatingItem.id.length > 9) {
-        await updateEstadoDssArkium(treatingItem.id, tratarAssinado, tratarJustificativa)
-      }
-
-      setArkiumData(prev => prev.map(item => {
-        if (item.id === treatingItem.id) {
-          return {
-            ...item,
-            assinado: tratarAssinado,
-            justificativa: tratarJustificativa,
-            estado: isFechado ? 'FECHADO' : 'ABERTO'
-          }
+        // Persiste no banco se o item já tem ID real (do banco)
+        if (treatingItem.id && treatingItem.id.length > 9) {
+          await updateEstadoDssArkium(treatingItem.id, tratarAssinado, tratarJustificativa)
         }
-        return item
-      }))
-      setTreatingItem(null)
-      setTratarJustificativa('')
-      setTratarAssinado('')
+
+        setArkiumData(prev => prev.map(item => {
+          if (item.id === treatingItem.id) {
+            return {
+              ...item,
+              assinado: tratarAssinado,
+              justificativa: tratarJustificativa,
+              estado: isFechado ? 'FECHADO' : 'ABERTO'
+            }
+          }
+          return item
+        }))
+        setTreatingItem(null)
+        setTratarJustificativa('')
+        setTratarAssinado('')
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
+      }
     })
   }
 
@@ -656,20 +675,28 @@ export default function DialogosPage() {
   async function handleDeleteArkium(id: string) {
     const item = arkiumData.find(a => a.id === id)
     if (!item) return
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
 
-    let res
-    if (item.isAliado) {
-      res = await deleteDssAliado(id)
-    } else {
-      res = await deleteDssArkium(id)
-    }
+    try {
+      let res
+      if (item.isAliado) {
+        res = await deleteDssAliado(id)
+      } else {
+        res = await deleteDssArkium(id)
+      }
 
-    if (res.success) {
-      setArkiumData(prev => prev.filter(a => a.id !== id))
-    } else {
-      alert("Erro ao excluir registro.")
+      if (res.success) {
+        setArkiumData(prev => prev.filter(a => a.id !== id))
+      } else {
+        alert("Erro ao excluir registro.")
+      }
+      setDeleteArkiumConfirmId(null)
+    } finally {
+      submittingRef.current = false
+      setSavingAction(false)
     }
-    setDeleteArkiumConfirmId(null)
   }
 
   const filteredArkiumByDateAndActive = arkiumData.filter(a => {
@@ -1740,6 +1767,7 @@ export default function DialogosPage() {
         )
       })()}
 
+      <ActionLoadingOverlay open={savingAction} title="Processando diálogo (DSS)..." />
     </div>
   )
 }

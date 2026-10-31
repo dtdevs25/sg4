@@ -10,6 +10,7 @@ import { getReunioes, createReuniaoLote, deleteReuniaoLote, updatePresencasReuni
 import { getAtas, upsertAta, uploadAnexoReuniao, deleteAnexoAta } from '@/app/actions/atas'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { useSession } from 'next-auth/react'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 type ReuniaoData = {
   id: string
@@ -46,6 +47,8 @@ export default function ReunioesPage() {
   const [tecnicos, setTecnicos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
+  const [savingAction, setSavingAction] = useState(false)
+  const submittingRef = useRef(false)
   
   const [search, setSearch] = useState('')
   const [selectedMonths, setSelectedMonths] = useState<number[]>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].slice(0, new Date().getMonth() + 1))
@@ -175,33 +178,49 @@ export default function ReunioesPage() {
   function handleCreateLote(e: React.FormEvent) {
     e.preventDefault()
     if (!meetingDate || !meetingTime || !meetingAssunto) return
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      const res = await createReuniaoLote(meetingDate, meetingTime, meetingTimeFim, meetingAssunto, meetingRecorrencia, meetingDataFim, meetingIncludeInativos)
-      if (res.success) {
-        setShowCreateModal(false)
-        setMeetingDate('')
-        setMeetingTime('')
-        setMeetingTimeFim('')
-        setMeetingAssunto('')
-        setMeetingRecorrencia('none')
-        setMeetingDataFim('')
-        setMeetingIncludeInativos(false)
-        loadData()
-      } else {
-        alert(res.error || "Erro ao criar reuniões")
+      try {
+        const res = await createReuniaoLote(meetingDate, meetingTime, meetingTimeFim, meetingAssunto, meetingRecorrencia, meetingDataFim, meetingIncludeInativos)
+        if (res.success) {
+          setShowCreateModal(false)
+          setMeetingDate('')
+          setMeetingTime('')
+          setMeetingTimeFim('')
+          setMeetingAssunto('')
+          setMeetingRecorrencia('none')
+          setMeetingDataFim('')
+          setMeetingIncludeInativos(false)
+          await loadData()
+        } else {
+          alert(res.error || "Erro ao criar reuniões")
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
 
   function handleDeleteLote() {
     if (!deleteConfirmInfo) return
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      const res = await deleteReuniaoLote(deleteConfirmInfo.data, deleteConfirmInfo.assunto)
-      if (res.success) {
-        setDeleteConfirmInfo(null)
-        loadData()
-      } else {
-        alert("Erro ao excluir reunião.")
+      try {
+        const res = await deleteReuniaoLote(deleteConfirmInfo.data, deleteConfirmInfo.assunto)
+        if (res.success) {
+          setDeleteConfirmInfo(null)
+          await loadData()
+        } else {
+          alert("Erro ao excluir reunião.")
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -263,49 +282,57 @@ export default function ReunioesPage() {
 
   function handleSaveAta() {
     if (!editingAta) return
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      let finalAnexoUrl = ataAnexoUrl
-      let finalAnexoNome = ataAnexoNome
+      try {
+        let finalAnexoUrl = ataAnexoUrl
+        let finalAnexoNome = ataAnexoNome
 
-      if (ataAnexoBase64) {
-        const formData = new FormData();
-        formData.append('fileData', ataAnexoBase64);
-        formData.append('fileName', ataAnexoNome);
-        formData.append('contentType', ataAnexoContentType);
-        const uploadRes = await uploadAnexoReuniao(formData)
-        if (uploadRes.success && uploadRes.url) {
-          finalAnexoUrl = uploadRes.url
-        } else {
-          alert(uploadRes.error || "Erro ao fazer upload do anexo")
-          return
+        if (ataAnexoBase64) {
+          const formData = new FormData();
+          formData.append('fileData', ataAnexoBase64);
+          formData.append('fileName', ataAnexoNome);
+          formData.append('contentType', ataAnexoContentType);
+          const uploadRes = await uploadAnexoReuniao(formData)
+          if (uploadRes.success && uploadRes.url) {
+            finalAnexoUrl = uploadRes.url
+          } else {
+            alert(uploadRes.error || "Erro ao fazer upload do anexo")
+            return
+          }
         }
-      }
 
-      // Salva a ata primeiro
-      const editorNode = document.getElementById('editor')
-      const contentToSave = editorNode ? editorNode.innerHTML : ataContent
-      const ataRes = await upsertAta(editingAta.data, editingAta.assunto, contentToSave, finalAnexoUrl, finalAnexoNome)
-      
-      // Salva os dados de presença — apenas ativos (ou todos se toggle ligado)
-      const updatesList = tempPresencas
-        .filter(tp => showInativosNaAta || tp.tecnico.ativo !== false)
-        .map(tp => ({
-          id: tp.id || undefined,
-          tecnicoId: tp.tecnicoId,
-          presenca: tp.presenca,
-          pontualidade: tp.pontualidade,
-          justificada: tp.justificada,
-          motivo: tp.motivo || '',
-          observacao: tp.observacao || ''
-        }))
-      
-      const presRes = await updatePresencasReuniao(editingAta.data, editingAta.assunto, updatesList)
+        // Salva a ata primeiro
+        const editorNode = document.getElementById('editor')
+        const contentToSave = editorNode ? editorNode.innerHTML : ataContent
+        const ataRes = await upsertAta(editingAta.data, editingAta.assunto, contentToSave, finalAnexoUrl, finalAnexoNome)
+        
+        // Salva os dados de presença — apenas ativos (ou todos se toggle ligado)
+        const updatesList = tempPresencas
+          .filter(tp => showInativosNaAta || tp.tecnico.ativo !== false)
+          .map(tp => ({
+            id: tp.id || undefined,
+            tecnicoId: tp.tecnicoId,
+            presenca: tp.presenca,
+            pontualidade: tp.pontualidade,
+            justificada: tp.justificada,
+            motivo: tp.motivo || '',
+            observacao: tp.observacao || ''
+          }))
+        
+        const presRes = await updatePresencasReuniao(editingAta.data, editingAta.assunto, updatesList)
 
-      if (ataRes.success && presRes.success) {
-        setEditingAta(null)
-        loadData()
-      } else {
-        alert("Ocorreu um erro ao salvar.")
+        if (ataRes.success && presRes.success) {
+          setEditingAta(null)
+          await loadData()
+        } else {
+          alert("Ocorreu um erro ao salvar.")
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -954,6 +981,7 @@ export default function ReunioesPage() {
         </div>
       )}
 
+      <ActionLoadingOverlay open={savingAction} title="Processando reunião..." />
     </>
   )
 }

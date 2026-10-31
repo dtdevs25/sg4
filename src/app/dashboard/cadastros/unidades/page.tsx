@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   MapPin, User, Search, Edit2, Trash2, Plus, AlertCircle, X, Check, Building
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { getUnidades, saveUnidade, deleteUnidade } from '@/app/actions/unidades'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 export default function UnidadesPage({
   hideHeader = false,
@@ -24,6 +25,8 @@ export default function UnidadesPage({
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [saving, setSaving] = useState(false)
+  const submittingRef = useRef(false)
   
   // Form state
   const [form, setForm] = useState({
@@ -73,20 +76,27 @@ export default function UnidadesPage({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.nome) return
+    if (!form.nome || submittingRef.current) return
+    submittingRef.current = true
+    setSaving(true)
 
     startTransition(async () => {
-      const payload = {
-        id: isEditing || undefined,
-        ...form
-      }
+      try {
+        const payload = {
+          id: isEditing || undefined,
+          ...form
+        }
 
-      const res = await saveUnidade(payload)
-      if (res.success) {
-        setShowModal(false)
-        load()
-      } else {
-        alert(res.error || 'Erro ao salvar unidade.')
+        const res = await saveUnidade(payload)
+        if (res.success) {
+          setShowModal(false)
+          await load()
+        } else {
+          alert(res.error || 'Erro ao salvar unidade.')
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
@@ -97,15 +107,22 @@ export default function UnidadesPage({
   }
 
   function handleDelete() {
-    if (!deletingId) return
+    if (!deletingId || submittingRef.current) return
+    submittingRef.current = true
+    setSaving(true)
     startTransition(async () => {
-      const res = await deleteUnidade(deletingId)
-      if (res.success) {
-        setShowDeleteModal(false)
-        setDeletingId(null)
-        load()
-      } else {
-        alert(res.error || 'Erro ao excluir unidade.')
+      try {
+        const res = await deleteUnidade(deletingId)
+        if (res.success) {
+          setShowDeleteModal(false)
+          setDeletingId(null)
+          await load()
+        } else {
+          alert(res.error || 'Erro ao excluir unidade.')
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
@@ -359,13 +376,17 @@ export default function UnidadesPage({
               <button onClick={() => setShowDeleteModal(false)} style={{ padding: '10px 16px', borderRadius: 8, background: '#f1f5f9', color: '#475569', border: 'none', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
                 Cancelar
               </button>
-              <button onClick={handleDelete} disabled={pending} style={{ padding: '10px 16px', borderRadius: 8, background: '#ef4444', color: '#fff', border: 'none', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: pending ? 0.7 : 1 }}>
-                {pending ? 'Excluindo...' : 'Sim, excluir'}
+              <button onClick={handleDelete} disabled={pending || saving} style={{ padding: '10px 16px', borderRadius: 8, background: '#ef4444', color: '#fff', border: 'none', fontWeight: 700, fontSize: 14, cursor: 'pointer', opacity: (pending || saving) ? 0.7 : 1 }}>
+                {(pending || saving) ? 'Excluindo...' : 'Sim, excluir'}
               </button>
             </div>
           </div>
         </div>
       )}
+      <ActionLoadingOverlay
+        open={pending || saving}
+        title={showDeleteModal ? 'Excluindo unidade...' : 'Salvando unidade...'}
+      />
     </div>
   )
 }

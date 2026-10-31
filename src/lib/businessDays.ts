@@ -61,26 +61,34 @@ export function getValidMonthsCount(admissao: Date, targetAno: number, targetMes
   return validMonths;
 }
 
-export function isQuintoDiaUtil(dataObj = new Date()) {
-  const ano = dataObj.getFullYear()
-  const mes = dataObj.getMonth()
-  let diasUteis = 0
-  let diaIteracao = 1
-
-  while (diaIteracao <= 31) {
-    const d = new Date(ano, mes, diaIteracao)
-    if (d.getMonth() !== mes) break 
-    
-    const isWeekend = d.getDay() === 0 || d.getDay() === 6
-    if (!isWeekend) {
-      diasUteis++
-      if (diasUteis === 5) {
-        return dataObj.getDate() === diaIteracao
-      }
-    }
-    diaIteracao++
-  }
-  return false
+export function getDataBrasilParts(dataObj: Date = new Date()): {
+  ano: number
+  mes0: number
+  mes1: number
+  dia: number
+  hora: number
+  minuto: number
+  dataIso: string
+} {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  const parts = formatter.formatToParts(dataObj)
+  const get = (type: string) => parts.find(p => p.type === type)?.value || '0'
+  const ano = Number(get('year'))
+  const mes1 = Number(get('month'))
+  const dia = Number(get('day'))
+  let hora = Number(get('hour'))
+  if (hora === 24) hora = 0
+  const minuto = Number(get('minute'))
+  const dataIso = `${ano}-${String(mes1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+  return { ano, mes0: mes1 - 1, mes1, dia, hora, minuto, dataIso }
 }
 
 export function getDiasUteisDoMes(ano: number, mes0Indexed: number): number[] {
@@ -114,13 +122,59 @@ export function getDiasUteisDoMes(ano: number, mes0Indexed: number): number[] {
   return diasUteis
 }
 
+export function isPrimeiroDiaUtil(dataObj = new Date()): boolean {
+  const { ano, mes0, dia } = getDataBrasilParts(dataObj)
+  const diasUteis = getDiasUteisDoMes(ano, mes0)
+  if (diasUteis.length === 0) return false
+  return diasUteis[0] === dia
+}
+
+export function isQuintoDiaUtil(dataObj = new Date()): boolean {
+  const { ano, mes0, dia } = getDataBrasilParts(dataObj)
+  const diasUteis = getDiasUteisDoMes(ano, mes0)
+  if (diasUteis.length < 5) return false
+  return diasUteis[4] === dia
+}
+
+export function isAntepenultimoDiaUtil(dataObj = new Date()): boolean {
+  const { ano, mes0, dia } = getDataBrasilParts(dataObj)
+  const diasUteis = getDiasUteisDoMes(ano, mes0)
+  if (diasUteis.length < 3) return false
+  const antepenultimoDiaUtil = diasUteis[diasUteis.length - 3]
+  return dia === antepenultimoDiaUtil
+}
+
 export function isPenultimoDiaUtil(dataObj = new Date()): boolean {
-  const ano = dataObj.getFullYear()
-  const mes = dataObj.getMonth()
-  const diasUteis = getDiasUteisDoMes(ano, mes)
+  const { ano, mes0, dia } = getDataBrasilParts(dataObj)
+  const diasUteis = getDiasUteisDoMes(ano, mes0)
   if (diasUteis.length < 2) return false
 
   const penultimoDiaUtil = diasUteis[diasUteis.length - 2]
-  return dataObj.getDate() === penultimoDiaUtil
+  return dia === penultimoDiaUtil
 }
+
+/**
+ * Verifica se a data atual está no 1º dia útil ou na janela de segurança (até o 3º dia útil)
+ * caso o servidor estivesse desligado exatamente no 1º dia útil.
+ */
+export function isJanelaPrimeiroDiaUtil(dataObj = new Date()): boolean {
+  const { ano, mes0, dia } = getDataBrasilParts(dataObj)
+  const diasUteis = getDiasUteisDoMes(ano, mes0)
+  if (diasUteis.length === 0) return false
+  const primeirosTres = diasUteis.slice(0, 3)
+  return primeirosTres.includes(dia)
+}
+
+/**
+ * Verifica se a data atual está no antepenúltimo dia útil ou na janela de segurança
+ * (antepenúltimo, penúltimo ou último dia útil) caso o servidor estivesse desligado no antepenúltimo.
+ */
+export function isJanelaAntepenultimoDiaUtil(dataObj = new Date()): boolean {
+  const { ano, mes0, dia } = getDataBrasilParts(dataObj)
+  const diasUteis = getDiasUteisDoMes(ano, mes0)
+  if (diasUteis.length < 3) return false
+  const ultimosTres = diasUteis.slice(-3)
+  return ultimosTres.includes(dia)
+}
+
 

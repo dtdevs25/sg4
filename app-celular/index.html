@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SG4 SST Mobile — Simulador & WebApp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple: #660099;
+      --purple-dark: #4a0072;
+      --purple-soft: #f5ebfa;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --blue: #0ea5e9;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-600: #475569;
+      --slate-400: #94a3b8;
+      --slate-100: #f1f5f9;
+      --slate-50: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top left, #2e1065, #0f172a 70%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: var(--slate-800);
+    }
+
+    body.embed-mode {
+      padding: 0;
+      background: transparent;
+    }
+
+    /* Moldura de Smartphone */
+    .phone-frame {
+      width: 392px;
+      height: 812px;
+      background: #090d16;
+      border-radius: 48px;
+      padding: 12px;
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 255, 255, 0.14);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .phone-notch {
+      width: 126px;
+      height: 24px;
+      background: #090d16;
+      border-radius: 0 0 16px 16px;
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .phone-notch::after {
+      content: '';
+      width: 42px;
+      height: 5px;
+      border-radius: 4px;
+      background: #1e293b;
+    }
+
+    .phone-screen {
+      flex: 1;
+      background: var(--slate-50);
+      border-radius: 38px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Barra de Status do Android */
+    .status-bar {
+      height: 34px;
+      background: var(--purple-dark);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 20px 0;
+      flex-shrink: 0;
+    }
+
+    /* Top AppBar */
+    .app-header {
+      background: #fff;
+      padding: 12px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+      color: #fff;
+      font-weight: 900;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .status-pill {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 3px 7px;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+
+    .status-pill.online {
+      background: rgba(16, 185, 129, 0.14);
+      color: #059669;
+    }
+
+    .status-pill.offline {
+      background: rgba(245, 158, 11, 0.18);
+      color: #d97706;
+    }
+
+    /* Conteúdo rolável */
+    .app-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .app-content::-webkit-scrollbar {
+      width: 4px;
+    }
+    .app-content::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    /* Cards Material 3 */
+    .m3-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 14px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+    }
+
+    .hero-card {
+      background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+      color: #fff;
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 8px 20px rgba(102, 0, 153, 0.25);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .badge-purple { background: var(--purple-soft); color: var(--purple); }
+    .badge-green  { background: rgba(16,185,129,0.14); color: #059669; }
+    .badge-amber  { background: rgba(245,158,11,0.16); color: #d97706; }
+    .badge-red    { background: rgba(239,68,68,0.14); color: #dc2626; }
+
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      background: var(--slate-100);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.3s ease;
+    }
+
+    /* Botões */
+    .btn {
+      border: none;
+      border-radius: 11px;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary { background: var(--purple); color: #fff; }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-outline { background: #fff; color: var(--purple); border: 1.5px solid rgba(102,0,153,0.28); }
+    .btn-block   { width: 100%; }
+
+    /* Sub-tabs */
+    .sub-tabs {
+      display: flex;
+      background: #e2e8f0;
+      padding: 3px;
+      border-radius: 10px;
+      gap: 4px;
+    }
+    .sub-tab {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 7px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--slate-600);
+      cursor: pointer;
+    }
+    .sub-tab.active {
+      background: #fff;
+      color: var(--purple);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* Bottom Navigation */
+    .bottom-nav {
+      height: 64px;
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 6px;
+      flex-shrink: 0;
+    }
+
+    .nav-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 6px 2px;
+      color: var(--slate-400);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .nav-btn.active {
+      color: var(--purple);
+    }
+
+    .nav-btn .icon-pill {
+      padding: 3px 12px;
+      border-radius: 99px;
+      font-size: 15px;
+    }
+
+    .nav-btn.active .icon-pill {
+      background: var(--purple-soft);
+    }
+
+    /* Inputs e Modais */
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+    .field-group label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--slate-600);
+    }
+    .field-input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      font-size: 13px;
+      outline: none;
+    }
+    .field-input:focus {
+      border-color: var(--purple);
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(3px);
+      z-index: 90;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-card {
+      background: #fff;
+      width: 100%;
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Overlay Bloqueante Anti-Duplo-Clique */
+    .blocking-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      cursor: wait;
+      user-select: none;
+    }
+    .blocking-overlay.open {
+      display: flex;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3.5px solid var(--purple-soft);
+      border-top-color: var(--purple);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Tela de Login */
+    .login-screen {
+      position: absolute;
+      inset: 34px 0 0 0;
+      background: linear-gradient(145deg, #4a0072, #660099, #7e22ce);
+      z-index: 80;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      padding: 22px;
+    }
+    .login-screen.open {
+      display: flex;
+    }
+  </style>
+</head>
+<body>
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+    <div class="phone-screen">
+      <!-- Barra de Status Android -->
+      <div class="status-bar">
+        <span id="clockText">09:41</span>
+        <span>5G • 100% 🔋</span>
+      </div>
+
+      <!-- Tela de Login -->
+      <div id="loginScreen" class="login-screen">
+        <div class="m3-card" style="padding: 22px; border-radius: 22px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <span class="badge badge-purple">SG4 SST MOBILE v2.6</span>
+            <span style="font-size:10px; color:var(--slate-400); font-weight:700;">Kotlin + Room</span>
+          </div>
+          <div style="text-align:center; margin-bottom:18px;">
+            <div style="width:56px; height:56px; border-radius:16px; background:var(--purple-soft); color:var(--purple); font-weight:900; font-size:18px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
+              SG4
+            </div>
+            <h2 style="font-size:18px; font-weight:800; color:var(--slate-900);">Acesso ao Sistema</h2>
+            <p style="font-size:11px; color:var(--slate-600); margin-top:2px;">Conectado ao banco PostgreSQL + Room Offline</p>
+          </div>
+
+          <form id="loginForm">
+            <div class="field-group">
+              <label>E-mail Corporativo</label>
+              <input id="loginEmail" type="email" class="field-input" placeholder="seu@email.com" required />
+            </div>
+            <div class="field-group">
+              <label>Senha</label>
+              <input id="loginPassword" type="password" class="field-input" placeholder="••••••••" required />
+            </div>
+            <div class="field-group">
+              <label>URL do Servidor API</label>
+              <input id="loginServerUrl" type="text" class="field-input" />
+            </div>
+            <div id="loginError" style="font-size:11px; color:var(--red); font-weight:700; margin-bottom:10px; display:none;"></div>
+            <button type="submit" class="btn btn-primary btn-block" style="padding:12px; font-size:13px;">
+              Entrar no Aplicativo
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Header Principal -->
+      <div class="app-header">
+        <div class="brand-row">
+          <div class="brand-logo">SG4</div>
+          <div>
+            <div style="font-size:13px; font-weight:800; color:var(--slate-900);">SG4 Mobile</div>
+            <div id="headerSub" style="font-size:10px; color:var(--slate-600); font-weight:600;">Sincronizado</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span id="connBadge" class="status-pill online">ONLINE</span>
+          <button id="btnSyncNow" class="btn btn-outline" style="padding:5px 8px; font-size:11px;" title="Sincronizar com o Banco">↻</button>
+          <button id="btnLogout" class="btn btn-outline" style="padding:5px 8px; font-size:11px; color:var(--slate-600);" title="Sair">⎋</button>
+        </div>
+      </div>
+
+      <!-- Seletor de Técnico (visível quando houver múltiplos técnicos) -->
+      <div id="tecnicoSelectorBar" style="background:#fff; padding:6px 14px; border-bottom:1px solid #f1f5f9; display:none;">
+        <select id="selectTecnico" class="field-input" style="padding:6px 10px; font-size:11px; font-weight:700;"></select>
+      </div>
+
+      <!-- Conteúdo Dinâmico das Abas -->
+      <div id="appContent" class="app-content"></div>
+
+      <!-- Barra de Navegação Inferior -->
+      <div class="bottom-nav">
+        <button class="nav-btn active" data-tab="HOME">
+          <span class="icon-pill">📊</span>
+          <span>Painel</span>
+        </button>
+        <button class="nav-btn" data-tab="AGENDA">
+          <span class="icon-pill">📅</span>
+          <span>Agenda</span>
+        </button>
+        <button class="nav-btn" data-tab="KM">
+          <span class="icon-pill">🚗</span>
+          <span>KM & Abast.</span>
+        </button>
+        <button class="nav-btn" data-tab="CAMPO">
+          <span class="icon-pill">📋</span>
+          <span>Campo & NC</span>
+        </button>
+        <button class="nav-btn" data-tab="DOSSIE">
+          <span class="icon-pill">📁</span>
+          <span>Dossiê</span>
+        </button>
+      </div>
+
+      <!-- Modal Dinâmico -->
+      <div id="modalBackdrop" class="modal-backdrop">
+        <div class="modal-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 id="modalTitle" style="font-size:15px; font-weight:800; color:var(--slate-900);">Ação</h3>
+            <button id="modalCloseBtn" style="border:none; background:none; font-size:18px; cursor:pointer; color:var(--slate-400);">✕</button>
+          </div>
+          <div id="modalBody"></div>
+        </div>
+      </div>
+
+      <!-- Overlay Bloqueante Global (Impede Duplo Clique) -->
+      <div id="blockingOverlay" class="blocking-overlay">
+        <div class="m3-card" style="text-align:center; width:100%; max-width:290px; padding:24px;">
+          <div class="spinner"></div>
+          <div id="blockingTitle" style="font-size:14px; font-weight:800; color:var(--slate-900); margin-bottom:6px;">
+            Processando...
+          </div>
+          <div id="blockingSub" style="font-size:11px; color:var(--slate-600); line-height:1.4;">
+            Aguarde a resposta do servidor. Não clique novamente para evitar duplicidade.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('embed') === '1') {
+        document.body.classList.add('embed-mode');
+      }
+
+      // Estado Reativo (MVVM StateFlow equivalente no Simulador)
+      const STORAGE_SESSION = 'sg4_mobile_session_v26';
+      const STORAGE_CACHE = 'sg4_mobile_room_cache_v26';
+      const STORAGE_QUEUE = 'sg4_mobile_room_queue_v26';
+
+      const defaultBaseUrl = window.location.protocol.startsWith('http')
+        ? window.location.origin
+        : 'http://localhost:3000';
+
+      let state = {
+        activeTab: 'HOME',
+        kmSubTab: 'KM',
+        campoSubTab: 'RELATORIOS',
+        dossieSubTab: 'DOCS',
+        isOnline: true,
+        isSubmitting: false,
+        baseUrl: localStorage.getItem('sg4_server_url') || defaultBaseUrl,
+        token: localStorage.getItem(STORAGE_SESSION) || '',
+        selectedTecnicoId: localStorage.getItem('sg4_selected_tecnico') || '',
+        syncData: loadRoomCache(),
+        pendingQueue: loadRoomQueue()
+      };
+
+      const elLoginScreen = document.getElementById('loginScreen');
+      const elLoginForm = document.getElementById('loginForm');
+      const elLoginServerUrl = document.getElementById('loginServerUrl');
+      const elLoginError = document.getElementById('loginError');
+      const elContent = document.getElementById('appContent');
+      const elConnBadge = document.getElementById('connBadge');
+      const elHeaderSub = document.getElementById('headerSub');
+      const elBlocking = document.getElementById('blockingOverlay');
+      const elBlockingTitle = document.getElementById('blockingTitle');
+      const elModalBackdrop = document.getElementById('modalBackdrop');
+      const elModalTitle = document.getElementById('modalTitle');
+      const elModalBody = document.getElementById('modalBody');
+      const elSelectTecnico = document.getElementById('selectTecnico');
+      const elTecnicoBar = document.getElementById('tecnicoSelectorBar');
+
+      elLoginServerUrl.value = state.baseUrl;
+
+      function updateClock() {
+        const now = new Date();
+        document.getElementById('clockText').textContent =
+          String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      }
+      updateClock();
+      setInterval(updateClock, 15000);
+
+      function loadRoomCache() {
+        try {
+          const raw = localStorage.getItem(STORAGE_CACHE);
+          if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return {
+          summary: {
+            mesReferencia: 'ATUAL',
+            dssRealizadosMes: 0,
+            dssMetaMes: 8,
+            inspecoesRealizadasMes: 0,
+            inspecoesMetaMes: 20,
+            saldoAbastecimento: 800,
+            kmRodadosMes: 0,
+            ncPendentesCount: 0,
+            atividadesPendentesCount: 0
+          },
+          planejamentos: [],
+          quilometragens: [],
+          abastecimentos: [],
+          relatoriosCampo: [],
+          naoConformidades: [],
+          documentos: [],
+          reunioes: [],
+          tecnicos: []
+        };
+      }
+
+      function saveRoomCache(data) {
+        state.syncData = data;
+        try {
+          localStorage.setItem(STORAGE_CACHE, JSON.stringify(data));
+        } catch (e) {}
+      }
+
+      function loadRoomQueue() {
+        try {
+          const raw = localStorage.getItem(STORAGE_QUEUE);
+          if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return [];
+      }
+
+      function saveRoomQueue(queue) {
+        state.pendingQueue = queue;
+        try {
+          localStorage.setItem(STORAGE_QUEUE, JSON.stringify(queue));
+        } catch (e) {}
+      }
+
+      function setBlockingLoading(active, title) {
+        state.isSubmitting = active;
+        if (title) elBlockingTitle.textContent = title;
+        elBlocking.classList.toggle('open', active);
+      }
+
+      function formatBrDate(iso) {
+        if (!iso) return '—';
+        const clean = String(iso).split('T')[0].split(' ')[0];
+        const p = clean.split('-');
+        return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : clean;
+      }
+
+      function formatMoney(v) {
+        return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      }
+
+      function authHeaders() {
+        const h = { 'Content-Type': 'application/json' };
+        if (state.token) h['Authorization'] = 'Bearer ' + state.token;
+        return h;
+      }
+
+      async function trySyncWithServer(silent) {
+        if (!silent) {
+          if (state.isSubmitting) return;
+          setBlockingLoading(true, 'Sincronizando com o banco SG4...');
+        }
+        try {
+          const base = state.baseUrl.replace(/\/$/, '');
+
+          // 1. Despacha fila offline pendente
+          if (state.pendingQueue.length > 0) {
+            const remaining = [];
+            for (const item of state.pendingQueue) {
+              try {
+                const resAct = await fetch(base + '/api/mobile/action', {
+                  method: 'POST',
+                  headers: authHeaders(),
+                  body: JSON.stringify(item)
+                });
+                if (!resAct.ok) remaining.push(item);
+              } catch (err) {
+                remaining.push(item);
+              }
+            }
+            saveRoomQueue(remaining);
+          }
+
+          // 2. Busca dados reais do PostgreSQL
+          const qs = state.selectedTecnicoId ? `?tecnicoId=${encodeURIComponent(state.selectedTecnicoId)}` : '';
+          const resp = await fetch(base + '/api/mobile/sync' + qs, {
+            method: 'GET',
+            headers: authHeaders(),
+            credentials: 'include'
+          });
+
+          if (resp.status === 401) {
+            elLoginScreen.classList.add('open');
+            return;
+          }
+
+          const json = await resp.json();
+          if (json && json.success) {
+            elLoginScreen.classList.remove('open');
+            state.isOnline = true;
+            if (json.currentTecnico && !state.selectedTecnicoId) {
+              state.selectedTecnicoId = json.currentTecnico.id;
+            }
+            saveRoomCache(json);
+            renderTecnicoSelector();
+            render();
+          } else {
+            throw new Error(json.error || 'Erro ao sincronizar');
+          }
+        } catch (err) {
+          state.isOnline = false;
+          render();
+        } finally {
+          if (!silent) setBlockingLoading(false);
+        }
+      }
+
+      function renderTecnicoSelector() {
+        const list = state.syncData.tecnicos || [];
+        if (list.length > 1) {
+          elTecnicoBar.style.display = 'block';
+          elSelectTecnico.innerHTML = list
+            .map(t => `<option value="${t.id}" ${t.id === state.selectedTecnicoId ? 'selected' : ''}>👤 Técnico: ${t.nome}</option>`)
+            .join('');
+        } else {
+          elTecnicoBar.style.display = 'none';
+        }
+      }
+
+      elSelectTecnico.addEventListener('change', (e) => {
+        state.selectedTecnicoId = e.target.value;
+        localStorage.setItem('sg4_selected_tecnico', state.selectedTecnicoId);
+        trySyncWithServer(false);
+      });
+
+      // Login Submit (Com Trava Anti-Duplo-Clique)
+      elLoginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (state.isSubmitting) return;
+
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        const serverUrl = elLoginServerUrl.value.trim().replace(/\/$/, '');
+
+        state.baseUrl = serverUrl;
+        localStorage.setItem('sg4_server_url', serverUrl);
+        elLoginError.style.display = 'none';
+
+        setBlockingLoading(true, 'Autenticando no SG4...');
+        try {
+          const resp = await fetch(serverUrl + '/api/mobile/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.success) {
+            elLoginError.textContent = data.error || 'Credenciais inválidas.';
+            elLoginError.style.display = 'block';
+            setBlockingLoading(false);
+            return;
+          }
+          state.token = data.token;
+          localStorage.setItem(STORAGE_SESSION, data.token);
+          if (data.user?.tecnicoId) {
+            state.selectedTecnicoId = data.user.tecnicoId;
+            localStorage.setItem('sg4_selected_tecnico', data.user.tecnicoId);
+          }
+          elLoginScreen.classList.remove('open');
+          setBlockingLoading(false);
+          await trySyncWithServer(false);
+        } catch (err) {
+          elLoginError.textContent = 'Não foi possível conectar ao servidor (' + serverUrl + ').';
+          elLoginError.style.display = 'block';
+          setBlockingLoading(false);
+        }
+      });
+
+      document.getElementById('btnSyncNow').addEventListener('click', () => {
+        trySyncWithServer(false);
+      });
+
+      document.getElementById('btnLogout').addEventListener('click', () => {
+        state.token = '';
+        localStorage.removeItem(STORAGE_SESSION);
+        elLoginScreen.classList.add('open');
+      });
+
+      // Executar Ação com Bloqueio Total + Fila Room Offline
+      async function executeMobileAction(actionType, loadingTitle, payload) {
+        if (state.isSubmitting) return;
+        setBlockingLoading(true, loadingTitle);
+
+        const reqBody = {
+          actionType,
+          payload: Object.assign({ tecnicoId: state.selectedTecnicoId || undefined }, payload),
+          clientRequestId: 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
+        };
+
+        try {
+          const base = state.baseUrl.replace(/\/$/, '');
+          const resp = await fetch(base + '/api/mobile/action', {
+            method: 'POST',
+            headers: authHeaders(),
+            credentials: 'include',
+            body: JSON.stringify(reqBody)
+          });
+          const json = await resp.json();
+          if (resp.ok && json.success) {
+            closeModal();
+            setBlockingLoading(false);
+            await trySyncWithServer(false);
+            return;
+          }
+          alert(json.error || 'Erro ao processar solicitação.');
+        } catch (networkErr) {
+          // Salva na fila offline (Room Simulation)
+          const q = loadRoomQueue();
+          q.push(reqBody);
+          saveRoomQueue(q);
+          state.isOnline = false;
+          closeModal();
+          alert('Sem sinal: salvo no banco local (Room) e será sincronizado automaticamente!');
+          render();
+        } finally {
+          setBlockingLoading(false);
+        }
+      }
+
+      function openModal(title, htmlContent, onBind) {
+        elModalTitle.textContent = title;
+        elModalBody.innerHTML = htmlContent;
+        elModalBackdrop.classList.add('open');
+        if (onBind) onBind(elModalBody);
+      }
+
+      function closeModal() {
+        elModalBackdrop.classList.remove('open');
+        elModalBody.innerHTML = '';
+      }
+
+      document.getElementById('modalCloseBtn').addEventListener('click', () => {
+        if (!state.isSubmitting) closeModal();
+      });
+
+      // Navegação entre abas
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.activeTab = btn.getAttribute('data-tab');
+          render();
+        });
+      });
+
+      function render() {
+        const d = state.syncData || {};
+        const sum = d.summary || {};
+        const tec = d.currentTecnico || {};
+
+        elConnBadge.textContent = state.isOnline ? 'ONLINE' : 'OFFLINE (ROOM)';
+        elConnBadge.className = 'status-pill ' + (state.isOnline ? 'online' : 'offline');
+        elHeaderSub.textContent = tec.nome ? `${tec.nome} • ${sum.mesReferencia || ''}` : 'Banco PostgreSQL Conectado';
+
+        if (state.activeTab === 'HOME') {
+          const dssPct = sum.dssMetaMes > 0 ? Math.min(100, Math.round((sum.dssRealizadosMes / sum.dssMetaMes) * 100)) : 0;
+          const inspPct = sum.inspecoesMetaMes > 0 ? Math.min(100, Math.round((sum.inspecoesRealizadasMes / sum.inspecoesMetaMes) * 100)) : 0;
+          const prox = (d.planejamentos || []).slice(0, 4);
+
+          elContent.innerHTML = `
+            <div class="hero-card">
+              <div style="font-size:16px; font-weight:800;">${tec.nome || d.user?.name || 'Técnico SG4'}</div>
+              <div style="font-size:11px; opacity:0.82; margin-top:2px;">${tec.cargo || 'SST'} • Base: ${tec.baseFixaNome || 'Geral'}</div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:14px;">
+                <div>
+                  <div style="font-size:9px; font-weight:700; opacity:0.75;">SALDO ABASTECIMENTO (${sum.mesReferencia || 'MÊS'})</div>
+                  <div style="font-size:21px; font-weight:900;">${formatMoney(sum.saldoAbastecimento)}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-size:9px; font-weight:700; opacity:0.75;">KM RODADOS</div>
+                  <div style="font-size:16px; font-weight:800;">${sum.kmRodadosMes || 0} km</div>
+                </div>
+              </div>
+              ${state.pendingQueue.length > 0 ? `<div style="margin-top:10px; background:rgba(245,158,11,0.25); padding:5px 8px; border-radius:8px; font-size:10px; font-weight:800;">⚡ ${state.pendingQueue.length} ação(ões) na fila offline aguardando sincronização</div>` : ''}
+            </div>
+
+            <div class="grid-2">
+              <div class="m3-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:10px; font-weight:800; color:var(--slate-600);">META DSS</span>
+                  <span class="badge badge-purple">${dssPct}%</span>
+                </div>
+                <div style="font-size:19px; font-weight:900; color:var(--slate-900); margin-top:4px;">${sum.dssRealizadosMes || 0} / ${sum.dssMetaMes || 8}</div>
+                <div class="progress-track"><div class="progress-fill" style="width:${dssPct}%; background:var(--blue);"></div></div>
+              </div>
+
+              <div class="m3-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:10px; font-weight:800; color:var(--slate-600);">INSPEÇÕES</span>
+                  <span class="badge badge-green">${inspPct}%</span>
+                </div>
+                <div style="font-size:19px; font-weight:900; color:var(--slate-900); margin-top:4px;">${sum.inspecoesRealizadasMes || 0} / ${sum.inspecoesMetaMes || 20}</div>
+                <div class="progress-track"><div class="progress-fill" style="width:${inspPct}%; background:var(--green);"></div></div>
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="m3-card" style="cursor:pointer;" id="cardGoAgenda">
+                <div style="font-size:10px; font-weight:700; color:var(--slate-600);">Atividades Pendentes</div>
+                <div style="font-size:20px; font-weight:900; color:var(--purple); margin-top:2px;">${sum.atividadesPendentesCount || 0}</div>
+                <div style="font-size:10px; color:var(--slate-400);">Abrir Planejamento →</div>
+              </div>
+              <div class="m3-card" style="cursor:pointer;" id="cardGoNc">
+                <div style="font-size:10px; font-weight:700; color:var(--slate-600);">NCs em Aberto</div>
+                <div style="font-size:20px; font-weight:900; color:${(sum.ncPendentesCount || 0) > 0 ? 'var(--red)' : 'var(--green)'}; margin-top:2px;">${sum.ncPendentesCount || 0}</div>
+                <div style="font-size:10px; color:var(--slate-400);">Tratar NCs →</div>
+              </div>
+            </div>
+
+            <div style="font-size:12px; font-weight:800; color:var(--slate-900); margin-top:2px;">Próximas Atividades da Agenda</div>
+            ${prox.length === 0 ? `<div class="m3-card" style="font-size:12px; color:var(--slate-600);">Nenhuma atividade planejada encontrada.</div>` : prox.map(p => `
+              <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <div style="min-width:0;">
+                  <div style="font-size:12px; font-weight:800; color:var(--slate-900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.titulo || p.categoria}</div>
+                  <div style="font-size:10px; color:var(--slate-600);">${formatBrDate(p.dataAtividade)} às ${p.hora} • ${p.local || p.cidade}</div>
+                </div>
+                <span class="badge ${p.status === 'CONCLUIDO' ? 'badge-green' : 'badge-amber'}">${p.status}</span>
+              </div>
+            `).join('')}
+          `;
+
+          document.getElementById('cardGoAgenda')?.addEventListener('click', () => {
+            document.querySelector('[data-tab="AGENDA"]').click();
+          });
+          document.getElementById('cardGoNc')?.addEventListener('click', () => {
+            state.campoSubTab = 'NC';
+            document.querySelector('[data-tab="CAMPO"]').click();
+          });
+          return;
+        }
+
+        if (state.activeTab === 'AGENDA') {
+          const list = d.planejamentos || [];
+          elContent.innerHTML = `
+            <div style="display:flex; gap:8px;">
+              <button id="btnNewPlan" class="btn btn-primary" style="flex:1;">+ Nova Atividade</button>
+              <button id="btnNewDssAliado" class="btn btn-outline" style="flex:1;">+ DSS Aliado</button>
+            </div>
+            ${list.length === 0 ? `<div class="m3-card" style="font-size:12px; color:var(--slate-600);">Nenhuma atividade registrada para este técnico.</div>` : list.map(p => `
+              <div class="m3-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <span class="badge badge-purple">${p.categoria || 'Atividade'}</span>
+                  <span class="badge ${p.status === 'CONCLUIDO' ? 'badge-green' : 'badge-amber'}">${p.status}</span>
+                </div>
+                <div style="font-size:13px; font-weight:800; color:var(--slate-900);">${p.descricaoOriginal}</div>
+                <div style="font-size:11px; color:var(--slate-600); margin-top:2px;">${formatBrDate(p.dataAtividade)} • ${p.hora} • ${p.local || 'Campo'} (${p.cidade}/${p.estado})</div>
+                ${p.status !== 'CONCLUIDO' ? `
+                  <button class="btn btn-success btn-block btn-concluir-plan" data-id="${p.id}" data-desc="${encodeURIComponent(p.descricaoOriginal || '')}" style="margin-top:10px;">
+                    ✓ Concluir Atividade
+                  </button>
+                ` : `<div style="font-size:11px; color:var(--green); font-weight:700; margin-top:6px;">Executado: ${p.descricaoExecutada || p.descricaoOriginal}</div>`}
+              </div>
+            `).join('')}
+          `;
+
+          document.getElementById('btnNewPlan')?.addEventListener('click', () => {
+            openModal('Cadastrar Atividade', `
+              <form id="formNewPlan">
+                <div class="field-group">
+                  <label>Categoria</label>
+                  <input name="categoria" class="field-input" value="Visita Técnica" required />
+                </div>
+                <div class="field-group">
+                  <label>Descrição da Atividade</label>
+                  <input name="descricao" class="field-input" placeholder="Ex: Inspeção de segurança na base" required />
+                </div>
+                <div class="field-group">
+                  <label>Unidade / Local</label>
+                  <input name="local" class="field-input" placeholder="Ex: ERB Campinas" required />
+                </div>
+                <div class="field-group">
+                  <label>Cidade</label>
+                  <input name="cidade" class="field-input" value="São Paulo" required />
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Salvar no Planejamento</button>
+              </form>
+            `, (body) => {
+              body.querySelector('#formNewPlan').addEventListener('submit', (ev) => {
+                ev.preventDefault();
+                const fd = new FormData(ev.target);
+                executeMobileAction('CRIAR_ATIVIDADE', 'Cadastrando atividade...', {
+                  categoria: fd.get('categoria'),
+                  descricaoOriginal: fd.get('descricao'),
+                  local: fd.get('local'),
+                  cidade: fd.get('cidade'),
+                  estado: 'SP'
+                });
+              });
+            });
+          });
+
+          document.getElementById('btnNewDssAliado')?.addEventListener('click', () => {
+            openModal('Lançar DSS com Aliado', `
+              <form id="formDssAliado">
+                <div class="field-group">
+                  <label>Tema do Diálogo de Segurança</label>
+                  <input name="tema" class="field-input" placeholder="Ex: Trabalho em Altura NR-35" required />
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Registrar DSS</button>
+              </form>
+            `, (body) => {
+              body.querySelector('#formDssAliado').addEventListener('submit', (ev) => {
+                ev.preventDefault();
+                const fd = new FormData(ev.target);
+                executeMobileAction('CRIAR_DSS_ALIADO', 'Registrando DSS com Aliado...', {
+                  tema: fd.get('tema')
+                });
+              });
+            });
+          });
+
+          document.querySelectorAll('.btn-concluir-plan').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const id = btn.getAttribute('data-id');
+              const desc = decodeURIComponent(btn.getAttribute('data-desc') || '');
+              openModal('Concluir Atividade', `
+                <form id="formConcluirPlan">
+                  <div class="field-group">
+                    <label>Relato da Execução (enviado ao Relatório de Campo)</label>
+                    <input name="descricaoExecutada" class="field-input" value="${desc.replace(/"/g, '&quot;')}" required />
+                  </div>
+                  <button type="submit" class="btn btn-success btn-block">Confirmar Conclusão</button>
+                </form>
+              `, (body) => {
+                body.querySelector('#formConcluirPlan').addEventListener('submit', (ev) => {
+                  ev.preventDefault();
+                  const fd = new FormData(ev.target);
+                  executeMobileAction('CONCLUIR_ATIVIDADE', 'Concluindo atividade...', {
+                    id,
+                    descricaoExecutada: fd.get('descricaoExecutada'),
+                    gerarRelatorioCampo: true
+                  });
+                });
+              });
+            });
+          });
+          return;
+        }
+
+        if (state.activeTab === 'KM') {
+          const kms = d.quilometragens || [];
+          const abs = d.abastecimentos || [];
+          const openKm = kms.find(k => k.kmFinal == null);
+
+          elContent.innerHTML = `
+            <div class="sub-tabs">
+              <button class="sub-tab ${state.kmSubTab === 'KM' ? 'active' : ''}" data-sub="KM">Quilometragem (${kms.length})</button>
+              <button class="sub-tab ${state.kmSubTab === 'ABS' ? 'active' : ''}" data-sub="ABS">Abastecimentos (${abs.length})</button>
+            </div>
+            ${state.kmSubTab === 'KM' ? `
+              ${openKm ? `
+                <div class="m3-card" style="background:var(--purple-soft); border-color:rgba(102,0,153,0.25);">
+                  <span class="badge badge-purple">ROTA EM ANDAMENTO</span>
+                  <div style="font-size:16px; font-weight:900; color:var(--purple-dark); margin-top:6px;">KM Inicial: ${openKm.kmInicial} km</div>
+                  <div style="font-size:11px; color:var(--slate-600);">${openKm.diaSemana} • ${formatBrDate(openKm.dataInicial)}</div>
+                  <button id="btnFinishKm" class="btn btn-primary btn-block" style="margin-top:10px;">Encerrar KM do Dia</button>
+                </div>
+              ` : `
+                <div style="display:flex; gap:8px;">
+                  <button id="btnStartKm" class="btn btn-primary" style="flex:1;">🚗 Iniciar KM</button>
+                  <button id="btnNewMaint" class="btn btn-outline" style="flex:1;">🔧 Manutenção</button>
+                </div>
+              `}
+              ${kms.map(k => `
+                <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${formatBrDate(k.dataInicial)} (${k.diaSemana})</div>
+                    <div style="font-size:11px; color:var(--slate-600);">Inicial: ${k.kmInicial} km → Final: ${k.kmFinal ?? 'Em rota'}</div>
+                  </div>
+                  <span class="badge ${k.diferenca != null ? 'badge-green' : 'badge-amber'}">${k.diferenca != null ? `+${k.diferenca} km` : 'ABERTO'}</span>
+                </div>
+              `).join('')}
+            ` : `
+              <button id="btnNewAbs" class="btn btn-primary btn-block">⛽ Registrar Abastecimento / Despesa</button>
+              ${abs.map(a => `
+                <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${a.tipo}</div>
+                    <div style="font-size:11px; color:var(--slate-600);">${formatBrDate(a.data)}</div>
+                  </div>
+                  <div style="font-size:14px; font-weight:900; color:var(--purple);">${formatMoney(a.valor)}</div>
+                </div>
+              `).join('')}
+            `}
+          `;
+
+          elContent.querySelectorAll('.sub-tab').forEach(b => {
+            b.addEventListener('click', () => {
+              state.kmSubTab = b.getAttribute('data-sub');
+              render();
+            });
+          });
+
+          document.getElementById('btnStartKm')?.addEventListener('click', () => {
+            openModal('Iniciar KM do Dia', `
+              <form id="formStartKm">
+                <div class="field-group">
+                  <label>Hodômetro Inicial (KM)</label>
+                  <input name="kmInicial" type="number" step="0.1" class="field-input" placeholder="Ex: 45210" required />
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Iniciar Rota</button>
+              </form>
+            `, (body) => {
+              body.querySelector('#formStartKm').addEventListener('submit', (ev) => {
+                ev.preventDefault();
+                const fd = new FormData(ev.target);
+                executeMobileAction('INICIAR_KM', 'Registrando KM inicial...', {
+                  kmInicial: Number(fd.get('kmInicial'))
+                });
+              });
+            });
+          });
+
+          document.getElementById('btnFinishKm')?.addEventListener('click', () => {
+            openModal(`Encerrar KM (Inicial: ${openKm.kmInicial})`, `
+              <form id="formFinishKm">
+                <div class="field-group">
+                  <label>Hodômetro Final (KM)</label>
+                  <input name="kmFinal" type="number" step="0.1" min="${openKm.kmInicial}" class="field-input" placeholder="Ex: ${openKm.kmInicial + 65}" required />
+                </div>
+                <button type="submit" class="btn btn-success btn-block">Salvar KM Final</button>
+              </form>
+            `, (body) => {
+              body.querySelector('#formFinishKm').addEventListener('submit', (ev) => {
+                ev.preventDefault();
+                const fd = new FormData(ev.target);
+                executeMobileAction('FINALIZAR_KM', 'Encerrando rota...', {
+                  id: openKm.id,
+                  kmFinal: Number(fd.get('kmFinal'))
+                });
+              });
+            });
+          });
+
+          document.getElementById('btnNewAbs')?.addEventListener('click', () => {
+            openModal('Registrar Abastecimento', `
+              <form id="formNewAbs">
+                <div class="field-group">
+                  <label>Valor Total (R$)</label>
+                  <input name="valor" type="number" step="0.01" class="field-input" placeholder="Ex: 185.50" required />
+                </div>
+                <div class="field-group">
+                  <label>Tipo</label>
+                  <select name="tipo" class="field-input">
+                    <option value="ABASTECIMENTO">ABASTECIMENTO</option>
+                    <option value="PEDAGIO">PEDÁGIO</option>
+                    <option value="LAVAGEM">LAVAGEM</option>
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Salvar Abastecimento</button>
+              </form>
+            `, (body) => {
+              body.querySelector('#formNewAbs').addEventListener('submit', (ev) => {
+                ev.preventDefault();
+                const fd = new FormData(ev.target);
+                executeMobileAction('CRIAR_ABASTECIMENTO', 'Registrando abastecimento...', {
+                  valor: Number(fd.get('valor')),
+                  tipo: fd.get('tipo')
+                });
+              });
+            });
+          });
+
+          document.getElementById('btnNewMaint')?.addEventListener('click', () => {
+            openModal('Registrar Manutenção', `
+              <form id="formNewMaint">
+                <div class="field-group">
+                  <label>KM da Manutenção / Revisão</label>
+                  <input name="kmManutencao" type="number" class="field-input" placeholder="Ex: 50000" required />
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Salvar Manutenção</button>
+              </form>
+            `, (body) => {
+              body.querySelector('#formNewMaint').addEventListener('submit', (ev) => {
+                ev.preventDefault();
+                const fd = new FormData(ev.target);
+                executeMobileAction('CRIAR_MANUTENCAO', 'Salvando manutenção...', {
+                  kmManutencao: Number(fd.get('kmManutencao'))
+                });
+              });
+            });
+          });
+          return;
+        }
+
+        if (state.activeTab === 'CAMPO') {
+          const rels = d.relatoriosCampo || [];
+          const ncs = d.naoConformidades || [];
+
+          elContent.innerHTML = `
+            <div class="sub-tabs">
+              <button class="sub-tab ${state.campoSubTab === 'RELATORIOS' ? 'active' : ''}" data-sub="RELATORIOS">Relatórios (${rels.length})</button>
+              <button class="sub-tab ${state.campoSubTab === 'NC' ? 'active' : ''}" data-sub="NC">Não Conformidades (${ncs.length})</button>
+            </div>
+            ${state.campoSubTab === 'RELATORIOS' ? `
+              <button id="btnNewRelCampo" class="btn btn-primary btn-block">+ Novo Relatório de Atividade</button>
+              ${rels.map(r => `
+                <div class="m3-card">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span class="badge badge-purple">${r.projeto || 'SST'}</span>
+                    <span style="font-size:10px; color:var(--slate-600);">${formatBrDate(r.data)}</span>
+                  </div>
+                  <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${r.descricao}</div>
+                  <div style="font-size:10px; color:var(--slate-600); margin-top:3px;">${r.local} • ${r.cidadeUf}</div>
+                </div>
+              `).join('')}
+            ` : `
+              ${ncs.map(nc => `
+                <div class="m3-card">
+                  <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span class="badge badge-red">${nc.classificacao || 'NC'}</span>
+                    <span class="badge ${nc.status === 'RESOLVIDO' ? 'badge-green' : 'badge-amber'}">${nc.status}</span>
+                  </div>
+                  <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${nc.pergunta || nc.questionario}</div>
+                  <div style="font-size:10px; color:var(--slate-600); margin-top:2px;">Local: ${nc.localidade || nc.base} • ${formatBrDate(nc.dataAbertura)}</div>
+                  <button class="btn btn-outline btn-block btn-tratar-nc" data-id="${nc.id}" style="margin-top:8px;">Registrar Tratativa</button>
+                </div>
+              `).join('')}
+            `}
+          `;
+
+          elContent.querySelectorAll('.sub-tab').forEach(b => {
+            b.addEventListener('click', () => {
+              state.campoSubTab = b.getAttribute('data-sub');
+              render();
+            });
+          });
+
+          document.getElementById('btnNewRelCampo')?.addEventListener('click', () => {
+            openModal('Novo Relatório de Campo', `
+              <form id="formRelCampo">
+                <div class="field-group">
+                  <label>Projeto / Tipo</label>
+                  <input name="projeto" class="field-input" value="Inspeção SST" required />
+                </div>
+                <div class="field-group">
+                  <label>Unidade / Local</label>
+                  <input name="local" class="field-input" placeholder="Ex: Base Vivo" required />
+                </div>
+                <div class="field-group">
+                  <label>Cidade/UF</label>
+                  <input name="cidadeUf" class="field-input" value="São Paulo/SP" required />
+                </div>
+                <div class="field-group">
+                  <label>Descrição Executada</label>
+                  <input name="descricao" class="field-input" placeholder="Relato técnico da atividade" required />
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Salvar Relatório</button>
+              </form>
+            `, (body) => {
+              body.querySelector('#formRelCampo').addEventListener('submit', (ev) => {
+                ev.preventDefault();
+                const fd = new FormData(ev.target);
+                executeMobileAction('CRIAR_RELATORIO_CAMPO', 'Salvando relatório de campo...', {
+                  projeto: fd.get('projeto'),
+                  local: fd.get('local'),
+                  cidadeUf: fd.get('cidadeUf'),
+                  descricao: fd.get('descricao')
+                });
+              });
+            });
+          });
+
+          document.querySelectorAll('.btn-tratar-nc').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const id = btn.getAttribute('data-id');
+              openModal('Tratar Não Conformidade', `
+                <form id="formTratarNc">
+                  <div class="field-group">
+                    <label>Ação Corretiva Realizada</label>
+                    <input name="texto" class="field-input" placeholder="Descreva a regularização do item" required />
+                  </div>
+                  <div class="field-group">
+                    <label>Novo Status</label>
+                    <select name="status" class="field-input">
+                      <option value="RESOLVIDO">RESOLVIDO</option>
+                      <option value="EM_ANDAMENTO">EM ANDAMENTO</option>
+                    </select>
+                  </div>
+                  <button type="submit" class="btn btn-success btn-block">Salvar Tratativa</button>
+                </form>
+              `, (body) => {
+                body.querySelector('#formTratarNc').addEventListener('submit', (ev) => {
+                  ev.preventDefault();
+                  const fd = new FormData(ev.target);
+                  executeMobileAction('TRATAR_NC', 'Salvando tratativa da NC...', {
+                    id,
+                    texto: fd.get('texto'),
+                    status: fd.get('status')
+                  });
+                });
+              });
+            });
+          });
+          return;
+        }
+
+        if (state.activeTab === 'DOSSIE') {
+          const docs = d.documentos || [];
+          const reus = d.reunioes || [];
+
+          elContent.innerHTML = `
+            <div class="sub-tabs">
+              <button class="sub-tab ${state.dossieSubTab === 'DOCS' ? 'active' : ''}" data-sub="DOCS">Documentos (${docs.length})</button>
+              <button class="sub-tab ${state.dossieSubTab === 'REU' ? 'active' : ''}" data-sub="REU">Reuniões (${reus.length})</button>
+            </div>
+            ${state.dossieSubTab === 'DOCS' ? docs.map(doc => `
+              <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${doc.tipoNome}</div>
+                  <div style="font-size:10px; color:var(--slate-600);">Vencimento: ${formatBrDate(doc.dataVencimento)}</div>
+                </div>
+                <span class="badge ${doc.status === 'VENCIDO' ? 'badge-red' : doc.status === 'A_VENCER' ? 'badge-amber' : 'badge-green'}">${doc.status}</span>
+              </div>
+            `).join('') : reus.map(r => `
+              <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${r.assunto}</div>
+                  <div style="font-size:10px; color:var(--slate-600);">${formatBrDate(r.data)} • ${r.pontualidade}</div>
+                </div>
+                <span class="badge ${r.presenca === 'PRESENTE' ? 'badge-green' : 'badge-red'}">${r.presenca}</span>
+              </div>
+            `).join('')}
+          `;
+
+          elContent.querySelectorAll('.sub-tab').forEach(b => {
+            b.addEventListener('click', () => {
+              state.dossieSubTab = b.getAttribute('data-sub');
+              render();
+            });
+          });
+        }
+      }
+
+      // Inicialização: renderiza cache local do Room imediatamente e sincroniza com PostgreSQL
+      render();
+      trySyncWithServer(true);
+    })();
+  </script>
+</body>
+</html>
+

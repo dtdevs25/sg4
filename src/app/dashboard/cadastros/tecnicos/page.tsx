@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import {
   Users, UserPlus, Search, Edit2, Mail, Phone, Calendar, Trash2, Camera, Power, X, AlertCircle, Building, MapPin, Map, Navigation, Star
 } from 'lucide-react'
@@ -8,6 +8,7 @@ import { useSession } from 'next-auth/react'
 import { getTecnicos, saveTecnico, toggleTecnicoStatus, uploadFotoTecnico, deleteTecnico } from '@/app/actions/tecnicos'
 import { getUnidades } from '@/app/actions/unidades'
 import { calcularDistanciasBase } from '@/app/actions/distancias'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 export default function TecnicosPage({
   hideHeader = false,
@@ -31,6 +32,8 @@ export default function TecnicosPage({
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [saving, setSaving] = useState(false)
+  const submittingRef = useRef(false)
   
   // Form state
   const [form, setForm] = useState<{
@@ -139,59 +142,69 @@ export default function TecnicosPage({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.nome || !form.email) return
+    if (!form.nome || !form.email || submittingRef.current) return
+    submittingRef.current = true
+    setSaving(true)
 
     startTransition(async () => {
-      let finalFotoUrl = form.fotoUrl
+      try {
+        let finalFotoUrl = form.fotoUrl
 
-      if (fotoFile) {
-        const reader = new FileReader()
-        reader.readAsDataURL(fotoFile)
-        await new Promise((resolve) => {
-          reader.onload = async () => {
-            const base64 = reader.result
-            if (base64) {
-              const formData = new FormData();
-              formData.append('fileData', base64 as string);
-              formData.append('fileName', fotoFile.name);
-              formData.append('contentType', fotoFile.type);
-              const resUrl = await uploadFotoTecnico(formData)
-              if (resUrl.success) {
-                finalFotoUrl = resUrl.url as string
+        if (fotoFile) {
+          const reader = new FileReader()
+          reader.readAsDataURL(fotoFile)
+          await new Promise((resolve) => {
+            reader.onload = async () => {
+              const base64 = reader.result
+              if (base64) {
+                const formData = new FormData();
+                formData.append('fileData', base64 as string);
+                formData.append('fileName', fotoFile.name);
+                formData.append('contentType', fotoFile.type);
+                const resUrl = await uploadFotoTecnico(formData)
+                if (resUrl.success) {
+                  finalFotoUrl = resUrl.url as string
+                }
+                resolve(true)
+              } else {
+                resolve(false)
               }
-              resolve(true)
             }
-          }
+            reader.onerror = () => resolve(false)
+          })
+        }
+
+        await saveTecnico({
+          id: isEditing || undefined,
+          nome: form.nome,
+          email: form.email,
+          telefone: form.telefone,
+          admissao: form.admissao,
+          demissao: form.demissao || undefined,
+          fotoUrl: finalFotoUrl,
+          unidadeIds: form.unidadeIds,
+          baseFixaId: form.baseFixaId,
+          contaMeta: form.contaMeta,
+          ativo: form.ativo,
+          matriculaArkium: form.matriculaArkium,
+          matriculaVivo: form.matriculaVivo,
+          numeroGaus: form.numeroGaus,
+          dataNascimento: form.dataNascimento || undefined,
+          registroProfissional: form.registroProfissional,
+          cpf: form.cpf,
+          rg: form.rg,
+          patrimonioCelular: form.patrimonioCelular,
+          patrimonioNotebook: form.patrimonioNotebook,
+          veiculo: form.veiculo,
+          endereco: form.endereco
         })
+
+        setShowModal(false)
+        await load()
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
-
-      await saveTecnico({
-        id: isEditing || undefined,
-        nome: form.nome,
-        email: form.email,
-        telefone: form.telefone,
-        admissao: form.admissao,
-        demissao: form.demissao || undefined,
-        fotoUrl: finalFotoUrl,
-        unidadeIds: form.unidadeIds,
-        baseFixaId: form.baseFixaId,
-        contaMeta: form.contaMeta,
-        ativo: form.ativo,
-        matriculaArkium: form.matriculaArkium,
-        matriculaVivo: form.matriculaVivo,
-        numeroGaus: form.numeroGaus,
-        dataNascimento: form.dataNascimento || undefined,
-        registroProfissional: form.registroProfissional,
-        cpf: form.cpf,
-        rg: form.rg,
-        patrimonioCelular: form.patrimonioCelular,
-        patrimonioNotebook: form.patrimonioNotebook,
-        veiculo: form.veiculo,
-        endereco: form.endereco
-      })
-
-      setShowModal(false)
-      load()
     })
   }
 
@@ -230,15 +243,22 @@ export default function TecnicosPage({
   }
 
   function handleConfirmDelete() {
-    if (!deletingId) return
+    if (!deletingId || submittingRef.current) return
+    submittingRef.current = true
+    setSaving(true)
     startTransition(async () => {
-      const res = await deleteTecnico(deletingId)
-      if (!res.success) {
-        alert(res.error)
-      } else {
-        setShowDeleteModal(false)
-        setDeletingId(null)
-        load()
+      try {
+        const res = await deleteTecnico(deletingId)
+        if (!res.success) {
+          alert(res.error)
+        } else {
+          setShowDeleteModal(false)
+          setDeletingId(null)
+          await load()
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
@@ -747,6 +767,10 @@ export default function TecnicosPage({
         </div>
       )}
 
+      <ActionLoadingOverlay
+        open={pending || saving}
+        title={showDeleteModal ? 'Excluindo técnico...' : (isEditing ? 'Salvando alterações...' : 'Cadastrando técnico...')}
+      />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useTransition, useRef } from 'react'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 import {
   FileText,
   AlertTriangle,
@@ -347,6 +348,8 @@ export default function DocumentosTecnicosPage({
 
   const [notificandoEmail, setNotificandoEmail] = useState(false)
   const [enviandoDossieTecnicoId, setEnviandoDossieTecnicoId] = useState<string | null>(null)
+  const [salvandoTipo, setSalvandoTipo] = useState(false)
+  const submittingRef = useRef(false)
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'erro'; msg: string } | null>(null)
 
   // Auto-dismiss de mensagens de feedback em 10 segundos
@@ -667,6 +670,7 @@ export default function DocumentosTecnicosPage({
   // Submeter Upload de Documento
   const handleSubmitUpload = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submittingRef.current || uploadProgress) return
     if (!selectedTecnicoId || !selectedTipoId || !dataEmissao) {
       setFeedback({ tipo: 'erro', msg: 'Preencha todos os campos obrigatórios (Técnico, Tipo e Emissão).' })
       return
@@ -677,52 +681,62 @@ export default function DocumentosTecnicosPage({
       return
     }
 
+    submittingRef.current = true
     setUploadProgress(true)
     try {
       const reader = new FileReader()
       reader.readAsDataURL(arquivoFile)
       reader.onload = async () => {
-        const base64Data = reader.result as string
-        const formData = new FormData()
-        formData.append('fileData', base64Data)
-        formData.append('fileName', arquivoFile.name)
-        formData.append('contentType', arquivoFile.type)
+        try {
+          const base64Data = reader.result as string
+          const formData = new FormData()
+          formData.append('fileData', base64Data)
+          formData.append('fileName', arquivoFile.name)
+          formData.append('contentType', arquivoFile.type)
 
-        const uploadRes = await uploadArquivoDocumento(formData)
-        if (!uploadRes.success || !uploadRes.url) {
+          const uploadRes = await uploadArquivoDocumento(formData)
+          if (!uploadRes.success || !uploadRes.url) {
+            setFeedback({ tipo: 'erro', msg: uploadRes.error || 'Falha no upload do arquivo.' })
+            return
+          }
+
+          const dataVencFinal = usarVencimentoManual && dataVencimentoManual
+            ? dataVencimentoManual
+            : (vencimentoEstimado || null)
+
+          const saveRes = await salvarDocumentoTecnico({
+            tecnicoId: selectedTecnicoId,
+            tipoDocumentoId: selectedTipoId,
+            titulo: tituloDoc,
+            arquivoUrl: uploadRes.url,
+            arquivoNome: arquivoFile.name,
+            arquivoTamanho: uploadRes.sizeBytes,
+            dataEmissao,
+            dataVencimento: dataVencFinal,
+            observacoes,
+            itensEpi: isFichaEpi ? itensEpi : undefined,
+          })
+
+          if (saveRes.success) {
+            setModalUploadAberto(false)
+            limparFormUpload()
+            setFeedback({ tipo: 'sucesso', msg: 'Documento registrado e versionado com sucesso!' })
+            await carregarDados()
+          } else {
+            setFeedback({ tipo: 'erro', msg: saveRes.error || 'Erro ao registrar documento.' })
+          }
+        } finally {
+          submittingRef.current = false
           setUploadProgress(false)
-          setFeedback({ tipo: 'erro', msg: uploadRes.error || 'Falha no upload do arquivo.' })
-          return
-        }
-
-        const dataVencFinal = usarVencimentoManual && dataVencimentoManual
-          ? dataVencimentoManual
-          : (vencimentoEstimado || null)
-
-        const saveRes = await salvarDocumentoTecnico({
-          tecnicoId: selectedTecnicoId,
-          tipoDocumentoId: selectedTipoId,
-          titulo: tituloDoc,
-          arquivoUrl: uploadRes.url,
-          arquivoNome: arquivoFile.name,
-          arquivoTamanho: uploadRes.sizeBytes,
-          dataEmissao,
-          dataVencimento: dataVencFinal,
-          observacoes,
-          itensEpi: isFichaEpi ? itensEpi : undefined,
-        })
-
-        setUploadProgress(false)
-        if (saveRes.success) {
-          setModalUploadAberto(false)
-          limparFormUpload()
-          setFeedback({ tipo: 'sucesso', msg: 'Documento registrado e versionado com sucesso!' })
-          carregarDados()
-        } else {
-          setFeedback({ tipo: 'erro', msg: saveRes.error || 'Erro ao registrar documento.' })
         }
       }
+      reader.onerror = () => {
+        submittingRef.current = false
+        setUploadProgress(false)
+        setFeedback({ tipo: 'erro', msg: 'Ocorreu um erro ao ler o arquivo.' })
+      }
     } catch (err: any) {
+      submittingRef.current = false
       setUploadProgress(false)
       setFeedback({ tipo: 'erro', msg: 'Ocorreu um erro ao processar o envio.' })
     }
@@ -814,12 +828,13 @@ export default function DocumentosTecnicosPage({
   // Submeter Edição de Documento
   const handleSalvarEdicao = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!modalEditarDoc) return
+    if (!modalEditarDoc || submittingRef.current || editSalvando) return
     if (!editDataEmissao) {
       setFeedback({ tipo: 'erro', msg: 'Data de emissão é obrigatória.' })
       return
     }
 
+    submittingRef.current = true
     setEditSalvando(true)
     try {
       let arquivoUrl: string | undefined = undefined
@@ -841,7 +856,6 @@ export default function DocumentosTecnicosPage({
 
         const uploadRes = await uploadArquivoDocumento(formData)
         if (!uploadRes.success || !uploadRes.url) {
-          setEditSalvando(false)
           setFeedback({ tipo: 'erro', msg: uploadRes.error || 'Falha no upload do novo arquivo.' })
           return
         }
@@ -865,48 +879,56 @@ export default function DocumentosTecnicosPage({
         itensEpi: isDocEpi ? editItensEpi : undefined,
       })
 
-      setEditSalvando(false)
       if (res.success) {
         setModalEditarDoc(null)
         setFeedback({ tipo: 'sucesso', msg: 'Documento atualizado com sucesso!' })
-        carregarDados()
+        await carregarDados()
       } else {
         setFeedback({ tipo: 'erro', msg: res.error || 'Erro ao atualizar documento.' })
       }
     } catch (err: any) {
-      setEditSalvando(false)
       setFeedback({ tipo: 'erro', msg: 'Ocorreu um erro ao atualizar o documento.' })
+    } finally {
+      submittingRef.current = false
+      setEditSalvando(false)
     }
   }
 
   // Criar Novo Tipo de Documento
   const handleCriarTipo = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!novoTipoNome.trim()) return
+    if (!novoTipoNome.trim() || submittingRef.current) return
 
     const nomeCriado = novoTipoNome.trim()
+    submittingRef.current = true
+    setSalvandoTipo(true)
 
     startTransition(async () => {
-      const res = await createTipoDocumento({
-        nome: nomeCriado,
-        descricao: novoTipoDescricao,
-        validadeMeses: novoTipoValidadeMeses ? Number(novoTipoValidadeMeses) : null,
-        diasAlerta: novoTipoDiasAlerta || 45,
-        obrigatorio: novoTipoObrigatorio,
-      })
+      try {
+        const res = await createTipoDocumento({
+          nome: nomeCriado,
+          descricao: novoTipoDescricao,
+          validadeMeses: novoTipoValidadeMeses ? Number(novoTipoValidadeMeses) : null,
+          diasAlerta: novoTipoDiasAlerta || 45,
+          obrigatorio: novoTipoObrigatorio,
+        })
 
-      if (res.success) {
-        setNovoTipoNome('')
-        setNovoTipoDescricao('')
-        const msgSucesso = `Treinamento "${nomeCriado}" cadastrado com sucesso!`
-        setTipoFeedback({ tipo: 'sucesso', msg: msgSucesso })
-        setFeedback({ tipo: 'sucesso', msg: msgSucesso })
-        const tiposRes = await getTiposDocumentos()
-        if (tiposRes.success && tiposRes.data) setTiposDocs(tiposRes.data as any)
-      } else {
-        const msgErro = res.error || 'Erro ao criar tipo de documento.'
-        setTipoFeedback({ tipo: 'erro', msg: msgErro })
-        setFeedback({ tipo: 'erro', msg: msgErro })
+        if (res.success) {
+          setNovoTipoNome('')
+          setNovoTipoDescricao('')
+          const msgSucesso = `Treinamento "${nomeCriado}" cadastrado com sucesso!`
+          setTipoFeedback({ tipo: 'sucesso', msg: msgSucesso })
+          setFeedback({ tipo: 'sucesso', msg: msgSucesso })
+          const tiposRes = await getTiposDocumentos()
+          if (tiposRes.success && tiposRes.data) setTiposDocs(tiposRes.data as any)
+        } else {
+          const msgErro = res.error || 'Erro ao criar tipo de documento.'
+          setTipoFeedback({ tipo: 'erro', msg: msgErro })
+          setFeedback({ tipo: 'erro', msg: msgErro })
+        }
+      } finally {
+        submittingRef.current = false
+        setSalvandoTipo(false)
       }
     })
   }
@@ -4664,6 +4686,10 @@ export default function DocumentosTecnicosPage({
           </div>
         </div>
       )}
+      <ActionLoadingOverlay
+        open={uploadProgress || editSalvando || salvandoTipo || editTipoSalvando || !!modalConfirmacao.loading || notificandoEmail || !!enviandoDossieTecnicoId}
+        title={notificandoEmail || enviandoDossieTecnicoId ? 'Enviando e-mail...' : uploadProgress ? 'Enviando e registrando documento...' : 'Processando solicitação...'}
+      />
     </div>
   )
 }

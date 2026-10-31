@@ -13,6 +13,8 @@ export default auth((req) => {
   const isPublic =
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/cron') ||
+    pathname.startsWith('/api/mobile') ||
     pathname.startsWith('/reset-password')
 
   // Rota raiz: sempre redireciona para /login (middleware decide conforme sessão)

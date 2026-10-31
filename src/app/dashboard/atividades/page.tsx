@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 import {
   CalendarDays, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
   Plus, Edit2, CheckCircle2, AlertTriangle, User, MapPin, Search, FileText, 
@@ -161,6 +162,8 @@ export default function PlanejamentoPage() {
   // Concluir Direto
   const [showConcluirModal, setShowConcluirModal] = useState<any | null>(null)
   const [concluirLoading, setConcluirLoading] = useState(false)
+  const [savingAction, setSavingAction] = useState(false)
+  const submittingRef = useRef(false)
 
   useEffect(() => {
     getTecnicos().then(res => {
@@ -319,76 +322,84 @@ export default function PlanejamentoPage() {
 
   function handleSaveForm(e: React.FormEvent) {
     e.preventDefault()
-    startTransition(async () => {
-      const targetIds = isTst ? [form.tecnicoId] : (form.tecnicoIds && form.tecnicoIds.length > 0 ? form.tecnicoIds : [form.tecnicoId])
+    if (submittingRef.current) return
+    const targetIds = isTst ? [form.tecnicoId] : (form.tecnicoIds && form.tecnicoIds.length > 0 ? form.tecnicoIds : [form.tecnicoId])
 
-      if (!form.checklist || form.checklist.length === 0) {
-        alert('Por favor, adicione atividades na lista abaixo.');
-        return;
-      }
-      if (targetIds.length === 0 || !targetIds[0]) {
-        alert('Selecione pelo menos um técnico.');
-        return;
-      }
+    if (!form.checklist || form.checklist.length === 0) {
+      alert('Por favor, adicione atividades na lista abaixo.');
+      return;
+    }
+    if (targetIds.length === 0 || !targetIds[0]) {
+      alert('Selecione pelo menos um técnico.');
+      return;
+    }
 
-      const items: any[] = [];
-      for (const c of form.checklist) {
-        if (!c.dataAtividade) continue;
-        const dataInicial = new Date(c.dataAtividade);
-        let datasAtividade: Date[] = [dataInicial];
+    const items: any[] = [];
+    for (const c of form.checklist) {
+      if (!c.dataAtividade) continue;
+      const dataInicial = new Date(c.dataAtividade);
+      let datasAtividade: Date[] = [dataInicial];
+      
+      if (c.frequencia && c.frequencia !== 'UNICA' && c.dataFim) {
+        const dataFim = new Date(`${c.dataFim}T12:00:00Z`);
+        let curr = new Date(dataInicial);
+        datasAtividade = [];
         
-        if (c.frequencia && c.frequencia !== 'UNICA' && c.dataFim) {
-          const dataFim = new Date(`${c.dataFim}T12:00:00Z`);
-          let curr = new Date(dataInicial);
-          datasAtividade = [];
-          
-          while (curr <= dataFim) {
-            datasAtividade.push(new Date(curr));
-            if (c.frequencia === 'DIARIA') curr.setDate(curr.getDate() + 1);
-            else if (c.frequencia === 'SEMANAL') curr.setDate(curr.getDate() + 7);
-            else if (c.frequencia === 'QUINZENAL') curr.setDate(curr.getDate() + 15);
-            else if (c.frequencia === 'MENSAL') curr.setMonth(curr.getMonth() + 1);
-            else if (c.frequencia === 'BIMESTRAL') curr.setMonth(curr.getMonth() + 2);
-            else if (c.frequencia === 'TRIMESTRAL') curr.setMonth(curr.getMonth() + 3);
-            else break;
-          }
+        while (curr <= dataFim) {
+          datasAtividade.push(new Date(curr));
+          if (c.frequencia === 'DIARIA') curr.setDate(curr.getDate() + 1);
+          else if (c.frequencia === 'SEMANAL') curr.setDate(curr.getDate() + 7);
+          else if (c.frequencia === 'QUINZENAL') curr.setDate(curr.getDate() + 15);
+          else if (c.frequencia === 'MENSAL') curr.setMonth(curr.getMonth() + 1);
+          else if (c.frequencia === 'BIMESTRAL') curr.setMonth(curr.getMonth() + 2);
+          else if (c.frequencia === 'TRIMESTRAL') curr.setMonth(curr.getMonth() + 3);
+          else break;
         }
-        
-        for (const d of datasAtividade) {
-          items.push({
-            dataAtividade: d,
-            hora: c.hora || '12:00',
-            titulo: c.titulo || 'Atividade Planejada',
-            categoria: c.categoria || 'OUTROS',
-            descricaoOriginal: c.texto || '',
-            prioridade: (c.prioridade || 'MEDIA') as any,
-            local: c.local,
-            cidade: c.cidade,
-            estado: c.estado
-          })
-        }
-      }
-
-      if (items.length === 0) {
-        alert('Nenhuma atividade válida com data foi encontrada. Verifique as datas preenchidas.');
-        return;
-      }
-
-      const base = {
-        tecnicoId: targetIds[0],
-        tecnicoIds: targetIds,
-        equipe: form.equipe,
-        local: form.local === 'OUTROS' && form.outroLocal ? form.outroLocal : form.local,
-        cidade: form.cidade,
-        estado: form.estado,
       }
       
-      const res = await savePlanejamentoBatch(base, items)
-      if (res.success) {
-        setShowAddModal(false)
-        load()
-      } else {
-        alert(res.error)
+      for (const d of datasAtividade) {
+        items.push({
+          dataAtividade: d,
+          hora: c.hora || '12:00',
+          titulo: c.titulo || 'Atividade Planejada',
+          categoria: c.categoria || 'OUTROS',
+          descricaoOriginal: c.texto || '',
+          prioridade: (c.prioridade || 'MEDIA') as any,
+          local: c.local,
+          cidade: c.cidade,
+          estado: c.estado
+        })
+      }
+    }
+
+    if (items.length === 0) {
+      alert('Nenhuma atividade válida com data foi encontrada. Verifique as datas preenchidas.');
+      return;
+    }
+
+    submittingRef.current = true
+    setSavingAction(true)
+    startTransition(async () => {
+      try {
+        const base = {
+          tecnicoId: targetIds[0],
+          tecnicoIds: targetIds,
+          equipe: form.equipe,
+          local: form.local === 'OUTROS' && form.outroLocal ? form.outroLocal : form.local,
+          cidade: form.cidade,
+          estado: form.estado,
+        }
+        
+        const res = await savePlanejamentoBatch(base, items)
+        if (res.success) {
+          setShowAddModal(false)
+          await load()
+        } else {
+          alert(res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -522,50 +533,66 @@ export default function PlanejamentoPage() {
 
   async function handleSaveEditPlan(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      const res = await savePlanejamento({
-        id: editPlanForm.id || undefined,
-        tecnicoId: editPlanForm.tecnicoId,
-        tecnicoIds: editPlanForm.tecnicoIds,
-        dataAtividade: new Date(`${editPlanForm.dataAtividade}T12:00:00Z`),
-        hora: editPlanForm.hora,
-        titulo: editPlanForm.titulo,
-        categoria: editPlanForm.categoria === 'OUTROS' && editPlanForm.outraCategoria ? editPlanForm.outraCategoria : editPlanForm.categoria,
-        descricaoOriginal: editPlanForm.descricaoOriginal,
-        local: editPlanForm.local === 'OUTROS' && editPlanForm.outroLocal ? editPlanForm.outroLocal : editPlanForm.local,
-        cidade: editPlanForm.cidade,
-        estado: editPlanForm.estado,
-        prioridade: editPlanForm.prioridade as any,
-      })
-      if (res.success) {
-        setShowEditPlanModal(false)
-        load()
-      } else {
-        showAlert(res.error || 'Erro ao editar planejamento.', 'Erro', 'error')
+      try {
+        const res = await savePlanejamento({
+          id: editPlanForm.id || undefined,
+          tecnicoId: editPlanForm.tecnicoId,
+          tecnicoIds: editPlanForm.tecnicoIds,
+          dataAtividade: new Date(`${editPlanForm.dataAtividade}T12:00:00Z`),
+          hora: editPlanForm.hora,
+          titulo: editPlanForm.titulo,
+          categoria: editPlanForm.categoria === 'OUTROS' && editPlanForm.outraCategoria ? editPlanForm.outraCategoria : editPlanForm.categoria,
+          descricaoOriginal: editPlanForm.descricaoOriginal,
+          local: editPlanForm.local === 'OUTROS' && editPlanForm.outroLocal ? editPlanForm.outroLocal : editPlanForm.local,
+          cidade: editPlanForm.cidade,
+          estado: editPlanForm.estado,
+          prioridade: editPlanForm.prioridade as any,
+        })
+        if (res.success) {
+          setShowEditPlanModal(false)
+          await load()
+        } else {
+          showAlert(res.error || 'Erro ao editar planejamento.', 'Erro', 'error')
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
 
   function handleConfirmTransfer(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
     if (!transferDate) return showAlert('Selecione a data para a nova atividade', 'Campo Obrigatório', 'warning')
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      const { plan, completedItems, pendingItems } = showTransferPrompt
-      const res = await concluirETransferirPendencias(
-        plan.id, 
-        new Date(`${transferDate}T12:00:00Z`), 
-        completedItems, 
-        pendingItems,
-        execForm.descricaoExecutada,
-        pendingItems.map((c: any) => `- ${c.texto}`).join('\n'),
-        execForm.observacoes
-      )
-      if (res.success) {
-        setShowTransferPrompt(null)
-        setShowExecModal(null)
-        load()
-      } else {
-        showAlert(res.error || 'Erro ao transferir.', 'Erro', 'error')
+      try {
+        const { plan, completedItems, pendingItems } = showTransferPrompt
+        const res = await concluirETransferirPendencias(
+          plan.id, 
+          new Date(`${transferDate}T12:00:00Z`), 
+          completedItems, 
+          pendingItems,
+          execForm.descricaoExecutada,
+          pendingItems.map((c: any) => `- ${c.texto}`).join('\n'),
+          execForm.observacoes
+        )
+        if (res.success) {
+          setShowTransferPrompt(null)
+          setShowExecModal(null)
+          await load()
+        } else {
+          showAlert(res.error || 'Erro ao transferir.', 'Erro', 'error')
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -667,12 +694,19 @@ export default function PlanejamentoPage() {
   }
 
   function executeRevert() {
-    if(!confirmRevertId) return
+    if (!confirmRevertId || submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      await reverterPlanejamento(confirmRevertId)
-      setConfirmRevertId(null)
-      setShowExecModal(null)
-      load()
+      try {
+        await reverterPlanejamento(confirmRevertId)
+        setConfirmRevertId(null)
+        setShowExecModal(null)
+        await load()
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
+      }
     })
   }
 
@@ -681,12 +715,19 @@ export default function PlanejamentoPage() {
   }
 
   function executeDelete() {
-    if(!confirmDeleteId) return
+    if (!confirmDeleteId || submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      await deletePlanejamento(confirmDeleteId)
-      setConfirmDeleteId(null)
-      setShowExecModal(null)
-      load()
+      try {
+        await deletePlanejamento(confirmDeleteId)
+        setConfirmDeleteId(null)
+        setShowExecModal(null)
+        await load()
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
+      }
     })
   }
 
@@ -822,36 +863,42 @@ export default function PlanejamentoPage() {
   }
 
   async function confirmConcluirDireto() {
-    if (!showConcluirModal) return
+    if (!showConcluirModal || submittingRef.current) return
+    submittingRef.current = true
     setConcluirLoading(true)
-    const plan = showConcluirModal
-    
-    let newChecklist = plan.checklist || []
-    if (newChecklist.length > 0) {
-      newChecklist = newChecklist.map((c:any) => ({...c, concluido: true}))
-    }
-    
-    const resSave = await savePlanejamento({
-      id: plan.id, tecnicoId: plan.tecnicoId, dataAtividade: plan.dataAtividade,
-      categoria: plan.categoria, descricaoOriginal: plan.descricaoOriginal, checklist: newChecklist
-    })
-    
-    if (resSave.success) {
-      await modificarExecucao(plan.id, plan.descricaoExecutada || plan.descricaoOriginal, plan.observacoes)
-      startTransition(() => {
-        setPlanejamentos(prev => prev.map(p => p.id === plan.id ? { ...p, checklist: newChecklist, status: 'CONCLUIDO' } : p))
+    try {
+      const plan = showConcluirModal
+      
+      let newChecklist = plan.checklist || []
+      if (newChecklist.length > 0) {
+        newChecklist = newChecklist.map((c:any) => ({...c, concluido: true}))
+      }
+      
+      const resSave = await savePlanejamento({
+        id: plan.id, tecnicoId: plan.tecnicoId, dataAtividade: plan.dataAtividade,
+        categoria: plan.categoria, descricaoOriginal: plan.descricaoOriginal, checklist: newChecklist
       })
-      setShowConcluirModal(null)
-    } else {
-      alert(resSave.error)
+      
+      if (resSave.success) {
+        await modificarExecucao(plan.id, plan.descricaoExecutada || plan.descricaoOriginal, plan.observacoes)
+        startTransition(() => {
+          setPlanejamentos(prev => prev.map(p => p.id === plan.id ? { ...p, checklist: newChecklist, status: 'CONCLUIDO' } : p))
+        })
+        setShowConcluirModal(null)
+      } else {
+        alert(resSave.error)
+      }
+    } finally {
+      submittingRef.current = false
+      setConcluirLoading(false)
     }
-    setConcluirLoading(false)
   }
 
   async function handleAddRelatorio(e: React.FormEvent) {
     e.preventDefault()
-    if (!showFormRelatorio || savingRelatorio) return
+    if (!showFormRelatorio || savingRelatorio || submittingRef.current) return
 
+    submittingRef.current = true
     setSavingRelatorio(true)
     try {
       let finalFotoUrl = ''
@@ -865,74 +912,85 @@ export default function PlanejamentoPage() {
           finalFotoUrl = uploadRes.url
         } else {
           showAlert('Erro ao fazer upload da foto: ' + uploadRes.error, 'Erro', 'error')
+          submittingRef.current = false
           setSavingRelatorio(false)
           return
         }
       }
 
       startTransition(async () => {
-        // Usar a data do planejamento
-        const planDate = new Date(showFormRelatorio.plan.dataAtividade)
-        
-        const res = await addAtividade({
-          tecnicoId: showFormRelatorio.plan.tecnicoId,
-          data: planDate,
-          empresa: formRelatorio.empresa,
-          projeto: formRelatorio.projeto,
-          local: formRelatorio.local === 'OUTROS' ? formRelatorio.outroLocal : formRelatorio.local,
-          cidadeUf: formRelatorio.cidadeUf,
-          descricao: formRelatorio.descricao,
-          fotoUrl: finalFotoUrl
-        })
-        
-        if (res.success) {
-          confirmToggleItemChecklist(showFormRelatorio.plan.id, showFormRelatorio.itemId, true)
-          setShowFormRelatorio(null)
-        } else {
-          showAlert('Erro ao salvar relatório: ' + res.error, 'Erro', 'error')
+        try {
+          // Usar a data do planejamento
+          const planDate = new Date(showFormRelatorio.plan.dataAtividade)
+          
+          const res = await addAtividade({
+            tecnicoId: showFormRelatorio.plan.tecnicoId,
+            data: planDate,
+            empresa: formRelatorio.empresa,
+            projeto: formRelatorio.projeto,
+            local: formRelatorio.local === 'OUTROS' ? formRelatorio.outroLocal : formRelatorio.local,
+            cidadeUf: formRelatorio.cidadeUf,
+            descricao: formRelatorio.descricao,
+            fotoUrl: finalFotoUrl
+          })
+          
+          if (res.success) {
+            confirmToggleItemChecklist(showFormRelatorio.plan.id, showFormRelatorio.itemId, true)
+            setShowFormRelatorio(null)
+          } else {
+            showAlert('Erro ao salvar relatório: ' + res.error, 'Erro', 'error')
+          }
+        } finally {
+          submittingRef.current = false
+          setSavingRelatorio(false)
         }
-        setSavingRelatorio(false)
       })
     } catch (err: any) {
       showAlert('Erro ao salvar relatório: ' + err.message, 'Erro', 'error')
+      submittingRef.current = false
       setSavingRelatorio(false)
     }
   }
 
   async function handleSaveDssAliado(e: React.FormEvent) {
     e.preventDefault()
-    if (!showDssForm) return
+    if (!showDssForm || submittingRef.current) return
     if (!formDssAliado.tema.trim()) {
       showAlert('Informe o tema do DSS.', 'Campo Obrigatório', 'warning')
       return
     }
+    submittingRef.current = true
     setDssLoading(true)
-    const planDate = new Date(showDssForm.plan.dataAtividade)
-    const res = await saveDssAliado({
-      tecnicoId: showDssForm.plan.tecnicoId,
-      data: planDate,
-      tema: formDssAliado.tema,
-      fotoBase64: formDssAliado.fotoBase64 || undefined,
-      fileName: formDssAliado.fileName || undefined,
-      contentType: formDssAliado.contentType || undefined,
-      planejamentoItemRef: showDssForm.itemText
-    })
-    setDssLoading(false)
-    if (res.success) {
-      // Marca o item como concluído no checklist
-      confirmToggleItemChecklist(showDssForm.plan.id, showDssForm.itemId, true)
-      const tempShowDssForm = showDssForm
-      setShowDssForm(null)
-      setFormDssAliado({ tema: '', fotoBase64: '', fileName: '', contentType: '' })
-      setShowPromptRelatorio({
-        plan: tempShowDssForm.plan,
-        itemId: tempShowDssForm.itemId,
-        itemText: tempShowDssForm.itemText,
-        jaSalvoAliado: true,
-        jaPerguntouDss: true
+    try {
+      const planDate = new Date(showDssForm.plan.dataAtividade)
+      const res = await saveDssAliado({
+        tecnicoId: showDssForm.plan.tecnicoId,
+        data: planDate,
+        tema: formDssAliado.tema,
+        fotoBase64: formDssAliado.fotoBase64 || undefined,
+        fileName: formDssAliado.fileName || undefined,
+        contentType: formDssAliado.contentType || undefined,
+        planejamentoItemRef: showDssForm.itemText
       })
-    } else {
-      showAlert('Erro ao salvar DSS com Aliado: ' + res.error, 'Erro', 'error')
+      if (res.success) {
+        // Marca o item como concluído no checklist
+        confirmToggleItemChecklist(showDssForm.plan.id, showDssForm.itemId, true)
+        const tempShowDssForm = showDssForm
+        setShowDssForm(null)
+        setFormDssAliado({ tema: '', fotoBase64: '', fileName: '', contentType: '' })
+        setShowPromptRelatorio({
+          plan: tempShowDssForm.plan,
+          itemId: tempShowDssForm.itemId,
+          itemText: tempShowDssForm.itemText,
+          jaSalvoAliado: true,
+          jaPerguntouDss: true
+        })
+      } else {
+        showAlert('Erro ao salvar DSS com Aliado: ' + res.error, 'Erro', 'error')
+      }
+    } finally {
+      submittingRef.current = false
+      setDssLoading(false)
     }
   }
 
@@ -2516,6 +2574,10 @@ export default function PlanejamentoPage() {
       </div>
     )}
 
+    <ActionLoadingOverlay
+      open={savingAction || savingRelatorio || dssLoading || concluirLoading}
+      title={savingRelatorio ? 'Salvando relatório...' : dssLoading ? 'Salvando DSS...' : concluirLoading ? 'Concluindo atividade...' : 'Salvando planejamento...'}
+    />
     </div>
   )
 }

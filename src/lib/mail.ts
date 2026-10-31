@@ -23,12 +23,14 @@ export type MailAttachment = {
 export async function sendMail({
   to,
   cc,
+  bcc,
   subject,
   html,
   attachments,
 }: {
-  to: string
-  cc?: string
+  to: string | string[]
+  cc?: string | string[]
+  bcc?: string | string[]
   subject: string
   html: string
   attachments?: MailAttachment[]
@@ -38,6 +40,7 @@ export async function sendMail({
       from: `"SG4 - Gestão de Segurança do Trabalho" <${process.env.SMTP_USER || 'sg4@ehspro.com.br'}>`,
       to,
       cc,
+      bcc,
       subject,
       html,
       attachments,

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Users, Plus, Search, Shield, Trash2, Power, X, Sparkles, AlertCircle, Mail, Pencil } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Users, Plus, Search, Shield, Trash2, Power, X, Sparkles, AlertCircle, Mail, Pencil, Loader2 } from 'lucide-react'
 import { getUsuarios, toggleUserStatus, createUsuario, deleteUsuario, resendInvitation, updateUsuario } from '@/app/actions/usuarios'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { useSession } from 'next-auth/react'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 export default function UsuariosPage({
   hideHeader = false,
@@ -29,7 +30,11 @@ export default function UsuariosPage({
   const [editingUser, setEditingUser] = useState<any | null>(null)
   const [editForm, setEditForm] = useState({ name: '', role: 'TST', tecnicoId: '' })
   const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const actionLockRef = useRef(false)
 
   const [form, setForm] = useState({
     name: '',
@@ -48,14 +53,14 @@ export default function UsuariosPage({
       getUsuarios(),
       getTecnicos()
     ])
-    
+
     if (resUsers.success) setUsuarios(resUsers.data || [])
     if (resTecs.success) setTecnicos(resTecs.data || [])
     setLoading(false)
   }
 
-  const filtered = usuarios.filter(u => 
-    u.name.toLowerCase().includes(search.toLowerCase()) || 
+  const filtered = usuarios.filter(u =>
+    u.name.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -66,11 +71,19 @@ export default function UsuariosPage({
   }, [onOpenAddRef])
 
   async function handleToggle(id: string) {
-    const res = await toggleUserStatus(id)
-    if (res.success) {
-      setUsuarios(prev => prev.map(u => u.id === id ? { ...u, active: res.active } : u))
-    } else {
-      alert(res.error)
+    if (actionLockRef.current) return
+    actionLockRef.current = true
+    setTogglingId(id)
+    try {
+      const res = await toggleUserStatus(id)
+      if (res.success) {
+        setUsuarios(prev => prev.map(u => u.id === id ? { ...u, active: res.active } : u))
+      } else {
+        alert(res.error)
+      }
+    } finally {
+      setTogglingId(null)
+      actionLockRef.current = false
     }
   }
 
@@ -80,14 +93,21 @@ export default function UsuariosPage({
   }
 
   async function handleConfirmDelete() {
-    if (!deletingId) return
-    const res = await deleteUsuario(deletingId)
-    if (res.success) {
-      setUsuarios(prev => prev.filter(u => u.id !== deletingId))
-      setShowDeleteModal(false)
-      setDeletingId(null)
-    } else {
-      alert(res.error)
+    if (!deletingId || actionLockRef.current) return
+    actionLockRef.current = true
+    setIsDeleting(true)
+    try {
+      const res = await deleteUsuario(deletingId)
+      if (res.success) {
+        setUsuarios(prev => prev.filter(u => u.id !== deletingId))
+        setShowDeleteModal(false)
+        setDeletingId(null)
+      } else {
+        alert(res.error)
+      }
+    } finally {
+      setIsDeleting(false)
+      actionLockRef.current = false
     }
   }
 
@@ -103,16 +123,21 @@ export default function UsuariosPage({
 
   async function handleSaveEdit(e: React.FormEvent) {
     e.preventDefault()
-    if (!editingUser) return
+    if (!editingUser || actionLockRef.current) return
+    actionLockRef.current = true
     setIsSavingEdit(true)
-    const res = await updateUsuario(editingUser.id, editForm)
-    setIsSavingEdit(false)
-    if (res.success) {
-      setShowEditModal(false)
-      setEditingUser(null)
-      fetchData()
-    } else {
-      alert(res.error)
+    try {
+      const res = await updateUsuario(editingUser.id, editForm)
+      if (res.success) {
+        setShowEditModal(false)
+        setEditingUser(null)
+        fetchData()
+      } else {
+        alert(res.error)
+      }
+    } finally {
+      setIsSavingEdit(false)
+      actionLockRef.current = false
     }
   }
 
@@ -122,27 +147,40 @@ export default function UsuariosPage({
   }
 
   async function handleConfirmResend() {
-    if (!resendingId) return
+    if (!resendingId || actionLockRef.current) return
+    actionLockRef.current = true
     setIsResending(true)
-    const res = await resendInvitation(resendingId)
-    setIsResending(false)
-    if (res.success) {
-      setShowResendModal(false)
-      setResendingId(null)
-    } else {
-      alert(res.error)
+    try {
+      const res = await resendInvitation(resendingId)
+      if (res.success) {
+        setShowResendModal(false)
+        setResendingId(null)
+      } else {
+        alert(res.error)
+      }
+    } finally {
+      setIsResending(false)
+      actionLockRef.current = false
     }
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    const res = await createUsuario(form)
-    if (res.success) {
-      setShowAddModal(false)
-      setForm({ name: '', email: '', role: 'TST', tecnicoId: '' })
-      fetchData()
-    } else {
-      alert(res.error)
+    if (actionLockRef.current) return
+    actionLockRef.current = true
+    setIsCreating(true)
+    try {
+      const res = await createUsuario(form)
+      if (res.success) {
+        setShowAddModal(false)
+        setForm({ name: '', email: '', role: 'TST', tecnicoId: '' })
+        fetchData()
+      } else {
+        alert(res.error)
+      }
+    } finally {
+      setIsCreating(false)
+      actionLockRef.current = false
     }
   }
 
@@ -255,7 +293,7 @@ export default function UsuariosPage({
                       <button onClick={() => handleOpenEdit(u)} style={{ background: 'transparent', border: 'none', color: '#660099', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Editar Usuário">
                         <Pencil size={18} />
                       </button>
-                      <button onClick={() => handleToggle(u.id)} style={{ background: 'transparent', border: 'none', color: u.active ? '#f59e0b' : '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title={u.active ? 'Bloquear' : 'Ativar'}>
+                      <button disabled={togglingId === u.id} onClick={() => handleToggle(u.id)} style={{ background: 'transparent', border: 'none', color: u.active ? '#f59e0b' : '#10b981', cursor: togglingId === u.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }} title={u.active ? 'Bloquear' : 'Ativar'}>
                         <Power size={18} />
                       </button>
                       <button onClick={() => handleOpenResend(u.id)} style={{ background: 'transparent', border: 'none', color: '#6366f1', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Reenviar e-mail de definição de senha">
@@ -316,10 +354,10 @@ export default function UsuariosPage({
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <button type="button" onClick={() => setShowEditModal(false)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                <button type="button" disabled={isSavingEdit} onClick={() => setShowEditModal(false)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" disabled={isSavingEdit} style={{ flex: 1, padding: '12px', background: '#660099', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: isSavingEdit ? 0.7 : 1 }}>
+                <button type="submit" disabled={isSavingEdit} style={{ flex: 1, padding: '12px', background: '#660099', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isSavingEdit ? 'not-allowed' : 'pointer', opacity: isSavingEdit ? 0.7 : 1 }}>
                   {isSavingEdit ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
               </div>
@@ -377,11 +415,11 @@ export default function UsuariosPage({
               </div>
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                <button type="button" onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                <button type="button" disabled={isCreating} onClick={() => setShowAddModal(false)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: isCreating ? 0.7 : 1 }}>
                   Cancelar
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', background: '#660099', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                  Salvar Usuário
+                <button type="submit" disabled={isCreating} style={{ flex: 1, padding: '12px', background: '#660099', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isCreating ? 'not-allowed' : 'pointer', opacity: isCreating ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {isCreating ? <><Loader2 size={16} className="animate-spin" /> Salvando...</> : 'Salvar Usuário'}
                 </button>
               </div>
             </form>
@@ -403,11 +441,11 @@ export default function UsuariosPage({
               Tem certeza que deseja excluir permanentemente este usuário? Esta ação <b>não poderá ser desfeita</b> e ele perderá o acesso ao sistema.
             </p>
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setShowDeleteModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              <button disabled={isDeleting} onClick={() => setShowDeleteModal(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: isDeleting ? 0.7 : 1 }}>
                 Cancelar
               </button>
-              <button onClick={handleConfirmDelete} style={{ flex: 1, padding: '10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                Sim, Excluir
+              <button disabled={isDeleting} onClick={handleConfirmDelete} style={{ flex: 1, padding: '10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {isDeleting ? <><Loader2 size={16} className="animate-spin" /> Excluindo...</> : 'Sim, Excluir'}
               </button>
             </div>
           </div>
@@ -438,6 +476,21 @@ export default function UsuariosPage({
           </div>
         </div>
       )}
+
+      <ActionLoadingOverlay
+        open={isCreating || isSavingEdit || isDeleting || isResending || !!togglingId}
+        title={
+          isCreating
+            ? 'Cadastrando usuário e enviando e-mail...'
+            : isSavingEdit
+              ? 'Salvando alterações do usuário...'
+              : isDeleting
+                ? 'Excluindo usuário...'
+                : isResending
+                  ? 'Reenviando e-mail de acesso...'
+                  : 'Atualizando status do usuário...'
+        }
+      />
     </div>
   )
 }

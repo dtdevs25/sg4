@@ -14,6 +14,7 @@ import {
 import { getAnosComDados } from '@/app/actions/anos'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getManutencoes, registrarManutencao, excluirManutencao } from '@/app/actions/manutencao'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 export default function QuilometragemPage() {
 
@@ -42,6 +43,8 @@ export default function QuilometragemPage() {
   const [activeTab, setActiveTab] = useState<'km' | 'abastecimento' | 'manutencao'>('km')
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
+  const [saving, setSaving] = useState(false)
+  const submittingRef = useRef(false)
 
   const [tecnicos, setTecnicos] = useState<any[]>([])
   const [kms, setKms] = useState<any[]>([])
@@ -166,213 +169,259 @@ export default function QuilometragemPage() {
   // --- ACTIONS ---
   async function handleStartKm(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
     if (!formStart.tecnicoId || !formStart.dataInicial || !formStart.kmInicial || !formStart.fotoBase64) return alert('Preencha todos os campos e anexe a foto do odômetro inicial.')
+    submittingRef.current = true
+    setSaving(true)
     
     startTransition(async () => {
-      let fotoUrl = undefined
-      if (formStart.fotoBase64) {
-        const formData = new FormData();
-        formData.append('fileData', formStart.fotoBase64);
-        formData.append('fileName', formStart.fileName);
-        formData.append('contentType', formStart.contentType);
-        const uploadRes = await uploadFotoKm(formData)
-        if (uploadRes.success) fotoUrl = uploadRes.url
-        else return alert('Falha ao subir foto')
-      }
+      try {
+        let fotoUrl = undefined
+        if (formStart.fotoBase64) {
+          const formData = new FormData();
+          formData.append('fileData', formStart.fotoBase64);
+          formData.append('fileName', formStart.fileName);
+          formData.append('contentType', formStart.contentType);
+          const uploadRes = await uploadFotoKm(formData)
+          if (uploadRes.success) fotoUrl = uploadRes.url
+          else return alert('Falha ao subir foto')
+        }
 
-      const jsDate = new Date(formStart.dataInicial + 'T12:00:00Z')
-      const ds = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][jsDate.getUTCDay()]
+        const jsDate = new Date(formStart.dataInicial + 'T12:00:00Z')
+        const ds = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][jsDate.getUTCDay()]
 
-      const res = await createQuilometragem({
-        tecnicoId: formStart.tecnicoId,
-        diaSemana: ds,
-        dataInicial: jsDate,
-        kmInicial: parseFormattedNumber(formStart.kmInicial),
-        fotoInicial: fotoUrl
-      })
+        const res = await createQuilometragem({
+          tecnicoId: formStart.tecnicoId,
+          diaSemana: ds,
+          dataInicial: jsDate,
+          kmInicial: parseFormattedNumber(formStart.kmInicial),
+          fotoInicial: fotoUrl
+        })
 
-      if (res.success) {
-        setShowStartModal(false)
-        setFormStart(p => ({ ...p, kmInicial: '', fotoBase64: '', fileName: '', contentType: '' }))
-        loadData()
-      } else {
-        alert(res.error)
+        if (res.success) {
+          setShowStartModal(false)
+          setFormStart(p => ({ ...p, kmInicial: '', fotoBase64: '', fileName: '', contentType: '' }))
+          await loadData()
+        } else {
+          alert(res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
 
   async function handleEndKm(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
     if (!showEndModal || !formEnd.kmFinal || !formEnd.fotoBase64) return alert('Preencha o KM final e tire a foto.')
+    submittingRef.current = true
+    setSaving(true)
     
     startTransition(async () => {
-      let fotoUrl = undefined
-      if (formEnd.fotoBase64) {
-        const formData = new FormData();
-        formData.append('fileData', formEnd.fotoBase64);
-        formData.append('fileName', formEnd.fileName);
-        formData.append('contentType', formEnd.contentType);
-        const uploadRes = await uploadFotoKm(formData)
-        if (uploadRes.success) fotoUrl = uploadRes.url
-        else return alert('Falha ao subir foto')
-      }
+      try {
+        let fotoUrl = undefined
+        if (formEnd.fotoBase64) {
+          const formData = new FormData();
+          formData.append('fileData', formEnd.fotoBase64);
+          formData.append('fileName', formEnd.fileName);
+          formData.append('contentType', formEnd.contentType);
+          const uploadRes = await uploadFotoKm(formData)
+          if (uploadRes.success) fotoUrl = uploadRes.url
+          else return alert('Falha ao subir foto')
+        }
 
-      const dtFinal = formEnd.dataFinal ? new Date(formEnd.dataFinal + 'T12:00:00Z') : undefined
-      const res = await fecharQuilometragem(showEndModal, parseFormattedNumber(formEnd.kmFinal), fotoUrl, dtFinal)
-      if (res.success) {
-        setShowEndModal(null)
-        setFormEnd({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
-        loadData()
-      } else {
-        alert(res.error)
+        const dtFinal = formEnd.dataFinal ? new Date(formEnd.dataFinal + 'T12:00:00Z') : undefined
+        const res = await fecharQuilometragem(showEndModal, parseFormattedNumber(formEnd.kmFinal), fotoUrl, dtFinal)
+        if (res.success) {
+          setShowEndModal(null)
+          setFormEnd({ dataFinal: '', kmFinal: '', fotoBase64: '', fileName: '', contentType: '' })
+          await loadData()
+        } else {
+          alert(res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
 
   async function handleCreateAbs(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
     if (!formAbs.tecnicoId || !formAbs.data || !formAbs.valor || !formAbs.fotoBase64) return alert('Preencha os dados e anexe o cupom fiscal.')
+    submittingRef.current = true
+    setSaving(true)
     
     startTransition(async () => {
-      let fotoUrl = undefined
-      if (formAbs.fotoBase64) {
-        const formData = new FormData();
-        formData.append('fileData', formAbs.fotoBase64);
-        formData.append('fileName', formAbs.fileName);
-        formData.append('contentType', formAbs.contentType);
-        const uploadRes = await uploadFotoKm(formData)
-        if (uploadRes.success) fotoUrl = uploadRes.url
-        else return alert('Falha ao subir foto')
-      }
+      try {
+        let fotoUrl = undefined
+        if (formAbs.fotoBase64) {
+          const formData = new FormData();
+          formData.append('fileData', formAbs.fotoBase64);
+          formData.append('fileName', formAbs.fileName);
+          formData.append('contentType', formAbs.contentType);
+          const uploadRes = await uploadFotoKm(formData)
+          if (uploadRes.success) fotoUrl = uploadRes.url
+          else return alert('Falha ao subir foto')
+        }
 
-      const res = await createAbastecimento({
-        tecnicoId: formAbs.tecnicoId,
-        data: new Date(formAbs.data + 'T12:00:00Z'),
-        valor: parseFormattedNumber(formAbs.valor),
-        fotoCupom: fotoUrl,
-        tipo: formAbs.tipo
-      })
+        const res = await createAbastecimento({
+          tecnicoId: formAbs.tecnicoId,
+          data: new Date(formAbs.data + 'T12:00:00Z'),
+          valor: parseFormattedNumber(formAbs.valor),
+          fotoCupom: fotoUrl,
+          tipo: formAbs.tipo
+        })
 
-      if (res.success) {
-        setShowAbsModal(false)
-        setFormAbs(p => ({ ...p, data: new Date().toISOString().split('T')[0], valor: '', tipo: 'ABASTECIMENTO', fotoBase64: '', fileName: '', contentType: '' }))
-        loadData()
-      } else {
-        alert(res.error)
+        if (res.success) {
+          setShowAbsModal(false)
+          setFormAbs(p => ({ ...p, data: new Date().toISOString().split('T')[0], valor: '', tipo: 'ABASTECIMENTO', fotoBase64: '', fileName: '', contentType: '' }))
+          await loadData()
+        } else {
+          alert(res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
 
   async function handleEditKm(e: React.FormEvent) {
     e.preventDefault()
-    if (!showEditKmModal) return
+    if (!showEditKmModal || submittingRef.current) return
+    submittingRef.current = true
+    setSaving(true)
 
     startTransition(async () => {
-      let fotoInUrl = undefined
-      let fotoFiUrl = undefined
+      try {
+        let fotoInUrl = undefined
+        let fotoFiUrl = undefined
 
-      if (formEditKm.fotoInicialBase64) {
-        const formData = new FormData();
-        formData.append('fileData', formEditKm.fotoInicialBase64);
-        formData.append('fileName', 'edit_in.jpg');
-        formData.append('contentType', 'image/jpeg');
-        const upIn = await uploadFotoKm(formData)
-        if (upIn.success) fotoInUrl = upIn.url
-      }
-      if (formEditKm.fotoFinalBase64) {
-        const formData = new FormData();
-        formData.append('fileData', formEditKm.fotoFinalBase64);
-        formData.append('fileName', 'edit_fi.jpg');
-        formData.append('contentType', 'image/jpeg');
-        const upFi = await uploadFotoKm(formData)
-        if (upFi.success) fotoFiUrl = upFi.url
-      }
+        if (formEditKm.fotoInicialBase64) {
+          const formData = new FormData();
+          formData.append('fileData', formEditKm.fotoInicialBase64);
+          formData.append('fileName', 'edit_in.jpg');
+          formData.append('contentType', 'image/jpeg');
+          const upIn = await uploadFotoKm(formData)
+          if (upIn.success) fotoInUrl = upIn.url
+        }
+        if (formEditKm.fotoFinalBase64) {
+          const formData = new FormData();
+          formData.append('fileData', formEditKm.fotoFinalBase64);
+          formData.append('fileName', 'edit_fi.jpg');
+          formData.append('contentType', 'image/jpeg');
+          const upFi = await uploadFotoKm(formData)
+          if (upFi.success) fotoFiUrl = upFi.url
+        }
 
-      const jsDate = new Date(formEditKm.dataInicial + 'T12:00:00Z')
-      const ds = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][jsDate.getUTCDay()]
-      
-      const jsDateFinal = formEditKm.dataFinal ? new Date(formEditKm.dataFinal + 'T12:00:00Z') : null
+        const jsDate = new Date(formEditKm.dataInicial + 'T12:00:00Z')
+        const ds = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'][jsDate.getUTCDay()]
+        
+        const jsDateFinal = formEditKm.dataFinal ? new Date(formEditKm.dataFinal + 'T12:00:00Z') : null
 
-      const res = await updateQuilometragem(showEditKmModal.id, {
-        dataInicial: jsDate,
-        diaSemana: ds,
-        kmInicial: formEditKm.kmInicial ? parseFormattedNumber(formEditKm.kmInicial) : undefined,
-        fotoInicial: fotoInUrl,
-        dataFinal: jsDateFinal,
-        kmFinal: formEditKm.kmFinal ? parseFormattedNumber(formEditKm.kmFinal) : null,
-        fotoFinal: fotoFiUrl
-      })
+        const res = await updateQuilometragem(showEditKmModal.id, {
+          dataInicial: jsDate,
+          diaSemana: ds,
+          kmInicial: formEditKm.kmInicial ? parseFormattedNumber(formEditKm.kmInicial) : undefined,
+          fotoInicial: fotoInUrl,
+          dataFinal: jsDateFinal,
+          kmFinal: formEditKm.kmFinal ? parseFormattedNumber(formEditKm.kmFinal) : null,
+          fotoFinal: fotoFiUrl
+        })
 
-      if (res.success) {
-        setShowEditKmModal(null)
-        loadData()
-      } else {
-        alert(res.error)
+        if (res.success) {
+          setShowEditKmModal(null)
+          await loadData()
+        } else {
+          alert(res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
 
   async function handleEditAbs(e: React.FormEvent) {
     e.preventDefault()
-    if (!showEditAbsModal) return
+    if (!showEditAbsModal || submittingRef.current) return
+    submittingRef.current = true
+    setSaving(true)
 
     startTransition(async () => {
-      let fotoUrl = undefined
-      if (formEditAbs.fotoCupomBase64) {
-        const formData = new FormData();
-        formData.append('fileData', formEditAbs.fotoCupomBase64);
-        formData.append('fileName', 'edit_abs.jpg');
-        formData.append('contentType', 'image/jpeg');
-        const up = await uploadFotoKm(formData)
-        if (up.success) fotoUrl = up.url
-      }
+      try {
+        let fotoUrl = undefined
+        if (formEditAbs.fotoCupomBase64) {
+          const formData = new FormData();
+          formData.append('fileData', formEditAbs.fotoCupomBase64);
+          formData.append('fileName', 'edit_abs.jpg');
+          formData.append('contentType', 'image/jpeg');
+          const up = await uploadFotoKm(formData)
+          if (up.success) fotoUrl = up.url
+        }
 
-      const dt = formEditAbs.data ? new Date(formEditAbs.data + 'T12:00:00Z') : undefined
-      const res = await updateAbastecimento(showEditAbsModal.id, {
-        data: dt,
-        valor: formEditAbs.valor ? parseFormattedNumber(formEditAbs.valor) : undefined,
-        fotoCupom: fotoUrl,
-        tipo: formEditAbs.tipo
-      })
+        const dt = formEditAbs.data ? new Date(formEditAbs.data + 'T12:00:00Z') : undefined
+        const res = await updateAbastecimento(showEditAbsModal.id, {
+          data: dt,
+          valor: formEditAbs.valor ? parseFormattedNumber(formEditAbs.valor) : undefined,
+          fotoCupom: fotoUrl,
+          tipo: formEditAbs.tipo
+        })
 
-      if (res.success) {
-        setShowEditAbsModal(null)
-        loadData()
-      } else {
-        alert(res.error)
+        if (res.success) {
+          setShowEditAbsModal(null)
+          await loadData()
+        } else {
+          alert(res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
 
   async function handleCreateMaint(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
     if (!formMaint.tecnicoId || !formMaint.dataManutencao || !formMaint.kmManutencao) return alert('Preencha os dados obrigatórios.')
+    submittingRef.current = true
+    setSaving(true)
     
     startTransition(async () => {
-      let fotoUrl = undefined
-      if (formMaint.fotoBase64) {
-        const formData = new FormData();
-        formData.append('fileData', formMaint.fotoBase64);
-        formData.append('fileName', formMaint.fileName);
-        formData.append('contentType', formMaint.contentType);
-        const uploadRes = await uploadFotoKm(formData)
-        if (uploadRes.success) fotoUrl = uploadRes.url
-        else return alert('Falha ao subir foto do comprovante')
-      }
+      try {
+        let fotoUrl = undefined
+        if (formMaint.fotoBase64) {
+          const formData = new FormData();
+          formData.append('fileData', formMaint.fotoBase64);
+          formData.append('fileName', formMaint.fileName);
+          formData.append('contentType', formMaint.contentType);
+          const uploadRes = await uploadFotoKm(formData)
+          if (uploadRes.success) fotoUrl = uploadRes.url
+          else return alert('Falha ao subir foto do comprovante')
+        }
 
-      const res = await registrarManutencao({
-        tecnicoId: formMaint.tecnicoId,
-        dataManutencao: new Date(formMaint.dataManutencao + 'T12:00:00Z'),
-        kmManutencao: parseFormattedNumber(formMaint.kmManutencao),
-        comprovanteUrl: fotoUrl
-      })
+        const res = await registrarManutencao({
+          tecnicoId: formMaint.tecnicoId,
+          dataManutencao: new Date(formMaint.dataManutencao + 'T12:00:00Z'),
+          kmManutencao: parseFormattedNumber(formMaint.kmManutencao),
+          comprovanteUrl: fotoUrl
+        })
 
-      if (res.success) {
-        setShowMaintModal(false)
-        setFormMaint(p => ({ ...p, kmManutencao: '', fotoBase64: '', fileName: '', contentType: '' }))
-        loadData()
-      } else {
-        alert(res.error)
+        if (res.success) {
+          setShowMaintModal(false)
+          setFormMaint(p => ({ ...p, kmManutencao: '', fotoBase64: '', fileName: '', contentType: '' }))
+          await loadData()
+        } else {
+          alert(res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
@@ -382,18 +431,25 @@ export default function QuilometragemPage() {
   }
 
   async function processDelete() {
-    if(!showDeleteModal) return
+    if (!showDeleteModal || submittingRef.current) return
+    submittingRef.current = true
+    setSaving(true)
     startTransition(async () => {
-      if (showDeleteModal.type === 'km') {
-        const res = await deleteQuilometragem(showDeleteModal.id)
-        if (res.success) loadData()
-        else alert(res.error)
-      } else if (showDeleteModal.type === 'abs') {
-        const res = await deleteAbastecimento(showDeleteModal.id)
-        if (res.success) loadData()
-        else alert(res.error)
+      try {
+        if (showDeleteModal.type === 'km') {
+          const res = await deleteQuilometragem(showDeleteModal.id)
+          if (res.success) await loadData()
+          else alert(res.error)
+        } else if (showDeleteModal.type === 'abs') {
+          const res = await deleteAbastecimento(showDeleteModal.id)
+          if (res.success) await loadData()
+          else alert(res.error)
+        }
+        setShowDeleteModal(null)
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
-      setShowDeleteModal(null)
     })
   }
 
@@ -1424,6 +1480,10 @@ export default function QuilometragemPage() {
           </div>
         </div>
       )}
+      <ActionLoadingOverlay
+        open={pending || saving}
+        title={showDeleteModal ? 'Excluindo registro...' : 'Salvando lançamento...'}
+      />
     </div>
   )
 }

@@ -32,6 +32,7 @@ import {
   getMultasParaVinculo
 } from '@/app/actions/medidasAdministrativas'
 import { getTecnicos } from '@/app/actions/tecnicos'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 const PURPLE = '#660099'
 const PURPLE_BG = 'rgba(102,0,153,0.08)'
@@ -244,6 +245,8 @@ export default function MedidasAdministrativasPage({
   const [docFileType, setDocFileType] = useState<string | null>(null)
   const [docUrlExistente, setDocUrlExistente] = useState<string | null>(null)
   const [isUploadingDoc, setIsUploadingDoc] = useState(false)
+  const [savingAction, setSavingAction] = useState(false)
+  const submittingRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Toast
@@ -393,6 +396,7 @@ export default function MedidasAdministrativasPage({
   // Salvar
   function handleSalvar(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
     if (!formTecnicoId) {
       alert('Selecione o colaborador/técnico.')
       return
@@ -401,85 +405,100 @@ export default function MedidasAdministrativasPage({
       alert('Informe o motivo da medida administrativa.')
       return
     }
+    submittingRef.current = true
+    setSavingAction(true)
 
     startTransition(async () => {
-      let finalDocUrl = docUrlExistente
+      try {
+        let finalDocUrl = docUrlExistente
 
-      if (docFileBase64 && docFileName) {
-        setIsUploadingDoc(true)
-        const formData = new FormData()
-        formData.append('fileData', docFileBase64)
-        formData.append('fileName', docFileName)
-        formData.append('contentType', docFileType || 'application/pdf')
+        if (docFileBase64 && docFileName) {
+          setIsUploadingDoc(true)
+          const formData = new FormData()
+          formData.append('fileData', docFileBase64)
+          formData.append('fileName', docFileName)
+          formData.append('contentType', docFileType || 'application/pdf')
 
-        const uploadRes = await uploadDocumentoMedida(formData)
+          const uploadRes = await uploadDocumentoMedida(formData)
+          setIsUploadingDoc(false)
+
+          if (uploadRes.success && uploadRes.url) {
+            finalDocUrl = uploadRes.url
+          } else {
+            showToast(uploadRes.error || 'Erro ao enviar termo assinado para o bucket', 'error')
+            return
+          }
+        }
+
+        if (itemEdicao) {
+          // Atualizar
+          const res = await updateMedidaAdministrativa(itemEdicao.id, {
+            tecnicoId: formTecnicoId,
+            tipo: formTipo,
+            data: formDataMedida,
+            motivo: formMotivo,
+            descricao: formDescricao,
+            status: formStatus,
+            aplicadoPor: formAplicadoPor,
+            multaAvariaId: formMultaAvariaId || null,
+            documentoUrl: finalDocUrl || null,
+          })
+
+          if (res.success) {
+            showToast('Medida administrativa atualizada!')
+            setModalAberto(false)
+            carregarDados()
+          } else {
+            showToast(res.error || 'Erro ao atualizar', 'error')
+          }
+        } else {
+          // Criar
+          const res = await createMedidaAdministrativa({
+            tecnicoId: formTecnicoId,
+            tipo: formTipo,
+            data: formDataMedida,
+            motivo: formMotivo,
+            descricao: formDescricao,
+            status: formStatus,
+            aplicadoPor: formAplicadoPor,
+            multaAvariaId: formMultaAvariaId || undefined,
+            documentoUrl: finalDocUrl || undefined,
+          })
+
+          if (res.success) {
+            showToast('Medida administrativa registrada!')
+            setModalAberto(false)
+            carregarDados()
+          } else {
+            showToast(res.error || 'Erro ao registrar', 'error')
+          }
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
         setIsUploadingDoc(false)
-
-        if (uploadRes.success && uploadRes.url) {
-          finalDocUrl = uploadRes.url
-        } else {
-          showToast(uploadRes.error || 'Erro ao enviar termo assinado para o bucket', 'error')
-          return
-        }
-      }
-
-      if (itemEdicao) {
-        // Atualizar
-        const res = await updateMedidaAdministrativa(itemEdicao.id, {
-          tecnicoId: formTecnicoId,
-          tipo: formTipo,
-          data: formDataMedida,
-          motivo: formMotivo,
-          descricao: formDescricao,
-          status: formStatus,
-          aplicadoPor: formAplicadoPor,
-          multaAvariaId: formMultaAvariaId || null,
-          documentoUrl: finalDocUrl || null,
-        })
-
-        if (res.success) {
-          showToast('Medida administrativa atualizada!')
-          setModalAberto(false)
-          carregarDados()
-        } else {
-          showToast(res.error || 'Erro ao atualizar', 'error')
-        }
-      } else {
-        // Criar
-        const res = await createMedidaAdministrativa({
-          tecnicoId: formTecnicoId,
-          tipo: formTipo,
-          data: formDataMedida,
-          motivo: formMotivo,
-          descricao: formDescricao,
-          status: formStatus,
-          aplicadoPor: formAplicadoPor,
-          multaAvariaId: formMultaAvariaId || undefined,
-          documentoUrl: finalDocUrl || undefined,
-        })
-
-        if (res.success) {
-          showToast('Medida administrativa registrada!')
-          setModalAberto(false)
-          carregarDados()
-        } else {
-          showToast(res.error || 'Erro ao registrar', 'error')
-        }
       }
     })
   }
 
   // Confirmar Exclusão
   function handleConfirmarExclusao() {
-    if (!itemExclusao) return
+    if (!itemExclusao || submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      const res = await deleteMedidaAdministrativa(itemExclusao.id)
-      if (res.success) {
-        showToast('Medida administrativa excluída com sucesso!')
-        setItemExclusao(null)
-        carregarDados()
-      } else {
-        showToast(res.error || 'Erro ao excluir', 'error')
+      try {
+        const res = await deleteMedidaAdministrativa(itemExclusao.id)
+        if (res.success) {
+          showToast('Medida administrativa excluída com sucesso!')
+          setItemExclusao(null)
+          carregarDados()
+        } else {
+          showToast(res.error || 'Erro ao excluir', 'error')
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -1957,6 +1976,10 @@ export default function MedidasAdministrativasPage({
           </div>
         </div>
       )}
+      <ActionLoadingOverlay
+        open={savingAction || isUploadingDoc}
+        title={itemExclusao ? 'Excluindo medida administrativa...' : 'Salvando medida administrativa...'}
+      />
     </div>
   )
 }

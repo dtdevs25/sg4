@@ -4,12 +4,22 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { sendMail } from '@/lib/mail'
-import { getBusinessDaysInMonth, getBusinessDaysPassedInMonth, getValidMonthsCount, isPenultimoDiaUtil } from '@/lib/businessDays'
+import {
+  getBusinessDaysInMonth,
+  getBusinessDaysPassedInMonth,
+  getDataBrasilParts,
+  getValidMonthsCount,
+  isAntepenultimoDiaUtil,
+  isJanelaAntepenultimoDiaUtil,
+  isPenultimoDiaUtil,
+} from '@/lib/businessDays'
 
-export async function getResumoOrcamentoMes(ano: number, meses: number[]) {
+export async function getResumoOrcamentoMes(ano: number, meses: number[], internalBypassAuth: boolean = false) {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    if (!internalBypassAuth) {
+      const session = await auth()
+      if (!session?.user) return { success: false, error: 'Não autorizado' }
+    }
     
     const tecnicos = await prisma.tecnico.findMany({
       where: { ativo: true },
@@ -17,8 +27,7 @@ export async function getResumoOrcamentoMes(ano: number, meses: number[]) {
     })
 
     const isConsolidado = ano === 0 || meses.length === 0
-    const currentYear = new Date().getFullYear()
-    const currentMonth = new Date().getMonth() + 1
+    const { ano: currentYear, mes1: currentMonth } = getDataBrasilParts(new Date())
     const targetAno = isConsolidado ? currentYear : ano
     const targetMeses = isConsolidado ? Array.from({ length: currentMonth }, (_, i) => i + 1) : meses
 
@@ -841,21 +850,23 @@ export interface PrevisaoDepositosResultado {
   economiaEstimada: number
   qtdTecnicos: number
   isPenultimoDiaUtilHoje: boolean
+  isAntepenultimoDiaUtilHoje: boolean
   itens: ItemPrevisaoDeposito[]
 }
 
-export async function getPrevisaoDepositosProximoMes(): Promise<{
+export async function getPrevisaoDepositosProximoMes(internalBypassAuth: boolean = false): Promise<{
   success: boolean
   data?: PrevisaoDepositosResultado
   error?: string
 }> {
   try {
-    const session = await auth()
-    if (!session?.user) return { success: false, error: 'Não autorizado' }
+    if (!internalBypassAuth) {
+      const session = await auth()
+      if (!session?.user) return { success: false, error: 'Não autorizado' }
+    }
 
     const hoje = new Date()
-    const anoAtual = hoje.getFullYear()
-    const mesAtual = hoje.getMonth() + 1 // 1 a 12
+    const { ano: anoAtual, mes1: mesAtual } = getDataBrasilParts(hoje) // 1 a 12
 
     // Mês Alvo (próximo mês a receber o depósito no dia 1º)
     let anoAlvo = anoAtual
@@ -935,7 +946,7 @@ export async function getPrevisaoDepositosProximoMes(): Promise<{
     })
 
     // Busca resumo orçamentário do mês atual para obter os saldos consolidados
-    const resumoMesAtual = await getResumoOrcamentoMes(anoAtual, [mesAtual])
+    const resumoMesAtual = await getResumoOrcamentoMes(anoAtual, [mesAtual], internalBypassAuth)
     const resumosMap = new Map<string, any>()
     if (resumoMesAtual.success && resumoMesAtual.data) {
       for (const r of resumoMesAtual.data) {
@@ -1016,6 +1027,7 @@ export async function getPrevisaoDepositosProximoMes(): Promise<{
     const economiaEstimada = Math.max(0, totalCotaFixa - totalSugerido)
 
     const isPenultimoDiaUtilHoje = isPenultimoDiaUtil(hoje)
+    const isAntepenultimoDiaUtilHoje = isAntepenultimoDiaUtil(hoje)
 
     return {
       success: true,
@@ -1027,6 +1039,7 @@ export async function getPrevisaoDepositosProximoMes(): Promise<{
         economiaEstimada: Number(economiaEstimada.toFixed(2)),
         qtdTecnicos: itens.length,
         isPenultimoDiaUtilHoje,
+        isAntepenultimoDiaUtilHoje,
         itens,
       }
     }
@@ -1036,27 +1049,88 @@ export async function getPrevisaoDepositosProximoMes(): Promise<{
   }
 }
 
-export async function dispararNotificacaoPrevisaoDepositos(forcarEnvio: boolean = false) {
+let enviandoPrevisaoEmAndamento = false
+
+export async function dispararNotificacaoPrevisaoDepositos(
+  forcarEnvio: boolean = false,
+  permitirJanelaRecuperacao: boolean = false
+) {
+  if (enviandoPrevisaoEmAndamento && !forcarEnvio) {
+    return {
+      success: true,
+      jaEnviado: true,
+      emailEnviado: false,
+      message: 'Envio de previsão já está em processamento.'
+    }
+  }
+
+  enviandoPrevisaoEmAndamento = true
   try {
-    const session = await auth()
-    const userId = (session?.user as any)?.id || 'CRON_SYSTEM'
+    let userId = 'CRON_SYSTEM'
+    try {
+      const session = await auth()
+      if ((session?.user as any)?.id) {
+        userId = (session?.user as any).id
+      }
+    } catch {
+      // Chamada fora de contexto de request HTTP (ex: agendador interno)
+    }
 
     const hoje = new Date()
-    const isPenultimo = isPenultimoDiaUtil(hoje)
+    const isAntepenultimo = isAntepenultimoDiaUtil(hoje)
+    const isDentroJanela = permitirJanelaRecuperacao && isJanelaAntepenultimoDiaUtil(hoje)
 
-    if (!isPenultimo && !forcarEnvio) {
+    if (!isAntepenultimo && !isDentroJanela && !forcarEnvio) {
       return {
         success: false,
-        error: 'Hoje não é o penúltimo dia útil do mês. Para testar ou enviar agora, utilize o envio manual.'
+        error: 'Hoje não é o antepenúltimo dia útil do mês. Para testar ou enviar agora, utilize o envio manual.'
       }
     }
 
-    const resPrevisao = await getPrevisaoDepositosProximoMes()
+    // Sempre passa internalBypassAuth = true para funcionar tanto via UI quanto via Cron/Scheduler
+    const resPrevisao = await getPrevisaoDepositosProximoMes(true)
     if (!resPrevisao.success || !resPrevisao.data) {
       return { success: false, error: resPrevisao.error || 'Erro ao gerar previsão de depósitos.' }
     }
 
     const data = resPrevisao.data
+
+    // Garantia de idempotência para execuções automáticas (evita duplicidade no mesmo mês)
+    if (!forcarEnvio) {
+      const { ano: anoBr, mes1: mesBr } = getDataBrasilParts(hoje)
+      const inicioMesAtual = getInicioDiaBrasil(`${anoBr}-${String(mesBr).padStart(2, '0')}-01`)
+      const logsRecentes = await prisma.auditLog.findMany({
+        where: {
+          action: 'PREVISAO_PAGAMENTOS_ABASTECIMENTO',
+          createdAt: { gte: inicioMesAtual },
+        },
+        select: { details: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      const jaEnviado = logsRecentes.some(log => {
+        if (!log.details) return false
+        try {
+          const parsed =
+            typeof log.details === 'string'
+              ? JSON.parse(log.details)
+              : (log.details as Record<string, any>)
+          return parsed?.emailEnviado === true && parsed?.mesReferencia === data.mesReferencia
+        } catch {
+          return false
+        }
+      })
+
+      if (jaEnviado) {
+        return {
+          success: true,
+          jaEnviado: true,
+          emailEnviado: false,
+          data,
+          message: `O e-mail de previsão para ${data.mesReferencia} já foi enviado neste mês.`
+        }
+      }
+    }
 
     // 1. Busca os administradores ativos do sistema
     const admins = await prisma.user.findMany({
@@ -1277,6 +1351,8 @@ export async function dispararNotificacaoPrevisaoDepositos(forcarEnvio: boolean 
   } catch (error: any) {
     console.error('Erro ao disparar notificação de previsão de depósitos:', error)
     return { success: false, error: 'Falha ao processar previsão de pagamentos.' }
+  } finally {
+    enviandoPrevisaoEmAndamento = false
   }
 }
 

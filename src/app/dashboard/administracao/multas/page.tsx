@@ -30,6 +30,7 @@ import {
   uploadFotoMulta
 } from '@/app/actions/multas'
 import { getTecnicos } from '@/app/actions/tecnicos'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 const PURPLE = '#660099'
 const PURPLE_BG = 'rgba(102,0,153,0.08)'
@@ -195,6 +196,8 @@ export default function MultasAvariasPage({
   const [arquivosLocais, setArquivosLocais] = useState<{ base64: string; name: string; type: string }[]>([])
   const [urlsExistentes, setUrlsExistentes] = useState<string[]>([])
   const [isUploadingFoto, setIsUploadingFoto] = useState(false)
+  const [savingAction, setSavingAction] = useState(false)
+  const submittingRef = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Feedback Notification
@@ -350,6 +353,7 @@ export default function MultasAvariasPage({
   // Salvar (Criar ou Atualizar)
   function handleSalvar(e: React.FormEvent) {
     e.preventDefault()
+    if (submittingRef.current) return
     if (!formTecnicoId) {
       alert('Selecione o técnico responsável.')
       return
@@ -358,89 +362,104 @@ export default function MultasAvariasPage({
       alert('Informe a data da ocorrência.')
       return
     }
+    submittingRef.current = true
+    setSavingAction(true)
 
     startTransition(async () => {
-      let finalUrls = [...urlsExistentes]
+      try {
+        let finalUrls = [...urlsExistentes]
 
-      if (arquivosLocais.length > 0) {
-        setIsUploadingFoto(true)
-        for (const file of arquivosLocais) {
-          const formData = new FormData()
-          formData.append('fileData', file.base64)
-          formData.append('fileName', file.name)
-          formData.append('contentType', file.type)
+        if (arquivosLocais.length > 0) {
+          setIsUploadingFoto(true)
+          for (const file of arquivosLocais) {
+            const formData = new FormData()
+            formData.append('fileData', file.base64)
+            formData.append('fileName', file.name)
+            formData.append('contentType', file.type)
 
-          const uploadRes = await uploadFotoMulta(formData)
-          if (uploadRes.success && uploadRes.url) {
-            finalUrls.push(uploadRes.url)
+            const uploadRes = await uploadFotoMulta(formData)
+            if (uploadRes.success && uploadRes.url) {
+              finalUrls.push(uploadRes.url)
+            } else {
+              showToast(`Erro ao enviar arquivo ${file.name}`, 'error')
+            }
+          }
+          setIsUploadingFoto(false)
+        }
+        const combinedUrls = finalUrls.join(',')
+
+        const valorLimpo = formValor.replace(/\./g, '').replace(',', '.');
+        const valorNumerico = formValor ? parseFloat(valorLimpo) : 0;
+
+        if (itemEdicao) {
+          // Atualizar
+          const res = await updateMultaAvaria(itemEdicao.id, {
+            tecnicoId: formTecnicoId,
+            tipo: formTipo,
+            placaVeiculo: formPlacaVeiculo,
+            dataOcorrencia: formDataOcorrencia,
+            valor: isNaN(valorNumerico) ? 0 : valorNumerico,
+            status: formStatus,
+            descricao: formDescricao,
+            localidade: formLocalidade,
+            fotoUrl: combinedUrls || undefined,
+          })
+
+          if (res.success) {
+            showToast('Registro atualizado com sucesso!')
+            setModalAberto(false)
+            carregarDados()
           } else {
-            showToast(`Erro ao enviar arquivo ${file.name}`, 'error')
+            showToast(res.error || 'Erro ao atualizar registro', 'error')
+          }
+        } else {
+          // Criar
+          const res = await createMultaAvaria({
+            tecnicoId: formTecnicoId,
+            tipo: formTipo,
+            placaVeiculo: formPlacaVeiculo,
+            dataOcorrencia: formDataOcorrencia,
+            valor: isNaN(valorNumerico) ? 0 : valorNumerico,
+            status: formStatus,
+            descricao: formDescricao,
+            localidade: formLocalidade,
+            fotoUrl: combinedUrls || undefined,
+          })
+
+          if (res.success) {
+            showToast('Registro criado com sucesso!')
+            setModalAberto(false)
+            carregarDados()
+          } else {
+            showToast(res.error || 'Erro ao criar registro', 'error')
           }
         }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
         setIsUploadingFoto(false)
-      }
-      const combinedUrls = finalUrls.join(',')
-
-      const valorLimpo = formValor.replace(/\./g, '').replace(',', '.');
-      const valorNumerico = formValor ? parseFloat(valorLimpo) : 0;
-
-      if (itemEdicao) {
-        // Atualizar
-        const res = await updateMultaAvaria(itemEdicao.id, {
-          tecnicoId: formTecnicoId,
-          tipo: formTipo,
-          placaVeiculo: formPlacaVeiculo,
-          dataOcorrencia: formDataOcorrencia,
-          valor: isNaN(valorNumerico) ? 0 : valorNumerico,
-          status: formStatus,
-          descricao: formDescricao,
-          localidade: formLocalidade,
-          fotoUrl: combinedUrls || undefined,
-        })
-
-        if (res.success) {
-          showToast('Registro atualizado com sucesso!')
-          setModalAberto(false)
-          carregarDados()
-        } else {
-          showToast(res.error || 'Erro ao atualizar registro', 'error')
-        }
-      } else {
-        // Criar
-        const res = await createMultaAvaria({
-          tecnicoId: formTecnicoId,
-          tipo: formTipo,
-          placaVeiculo: formPlacaVeiculo,
-          dataOcorrencia: formDataOcorrencia,
-          valor: isNaN(valorNumerico) ? 0 : valorNumerico,
-          status: formStatus,
-          descricao: formDescricao,
-          localidade: formLocalidade,
-          fotoUrl: combinedUrls || undefined,
-        })
-
-        if (res.success) {
-          showToast('Registro criado com sucesso!')
-          setModalAberto(false)
-          carregarDados()
-        } else {
-          showToast(res.error || 'Erro ao criar registro', 'error')
-        }
       }
     })
   }
 
   // Confirmar Exclusão
   function handleConfirmarExclusao() {
-    if (!itemExclusao) return
+    if (!itemExclusao || submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      const res = await deleteMultaAvaria(itemExclusao.id)
-      if (res.success) {
-        showToast('Registro excluído com sucesso!')
-        setItemExclusao(null)
-        carregarDados()
-      } else {
-        showToast(res.error || 'Erro ao excluir registro', 'error')
+      try {
+        const res = await deleteMultaAvaria(itemExclusao.id)
+        if (res.success) {
+          showToast('Registro excluído com sucesso!')
+          setItemExclusao(null)
+          carregarDados()
+        } else {
+          showToast(res.error || 'Erro ao excluir registro', 'error')
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -1978,6 +1997,10 @@ export default function MultasAvariasPage({
           </div>
         </div>
       )}
+      <ActionLoadingOverlay
+        open={savingAction || isUploadingFoto}
+        title={itemExclusao ? 'Excluindo registro...' : 'Salvando registro...'}
+      />
     </div>
   )
 }

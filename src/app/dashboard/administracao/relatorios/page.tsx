@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 import {
   BarChart3, FileText, ShieldAlert, AlertTriangle, Clock,
   Users, Car, Trophy, Search, ChevronDown, FileSpreadsheet,
@@ -124,6 +125,7 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
   const [exportando, setExportando] = useState<'pdf' | 'excel' | 'email' | null>(null)
   const [sucesso, setSucesso]     = useState(false)
   const [destinatarioId, setDestinatarioId] = useState('')
+  const submittingRef = useRef(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('tstDestinoEmailId')
@@ -149,19 +151,27 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
 
   async function setarRecebedorAutomatico() {
     if (!destinatarioId) return setErro('Selecione um técnico primeiro.')
+    if (submittingRef.current) return
+    submittingRef.current = true
     startT(async () => {
-      setErro('')
-      const res = await definirRecebedorRelatorioProdutividade(destinatarioId)
-      if (res.success) {
-        setSucesso(true)
-        setTimeout(() => setSucesso(false), 3000)
-      } else {
-        setErro(res.error || 'Erro ao definir recebedor')
+      try {
+        setErro('')
+        const res = await definirRecebedorRelatorioProdutividade(destinatarioId)
+        if (res.success) {
+          setSucesso(true)
+          setTimeout(() => setSucesso(false), 3000)
+        } else {
+          setErro(res.error || 'Erro ao definir recebedor')
+        }
+      } finally {
+        submittingRef.current = false
       }
     })
   }
 
   async function gerar(formato: 'pdf' | 'excel' | 'email') {
+    if (submittingRef.current) return
+    submittingRef.current = true
     const filtros: FiltrosRelatorio = {
       tecnicoId: tecnicoId || undefined,
       dataInicio, dataFim,
@@ -281,6 +291,7 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
         setErro(e?.message ?? 'Erro ao gerar relatório')
       } finally {
         setExportando(null)
+        submittingRef.current = false
       }
     })
   }
@@ -437,7 +448,7 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
                   <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
                     <button onClick={setarRecebedorAutomatico} disabled={loading || !destinatarioId}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'transparent', border: '1px solid #cbd5e1', borderRadius: 6, color: '#475569', fontSize: 12, fontWeight: 600, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1 }}>
-                      <Clock size={14} /> Salvar Recebedor (Todo 5º Dia Útil)
+                      <Clock size={14} /> Salvar Recebedor (Todo 1º Dia Útil)
                     </button>
                   </div>
                 </div>
@@ -464,6 +475,18 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
         @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
       `}</style>
+      <ActionLoadingOverlay
+        open={loading || !!exportando}
+        title={
+          exportando === 'email'
+            ? 'Enviando relatório por e-mail...'
+            : exportando === 'excel'
+              ? 'Gerando planilha Excel...'
+              : exportando === 'pdf'
+                ? 'Gerando relatório PDF...'
+                : 'Processando solicitação...'
+        }
+      />
     </div>
   )
 }

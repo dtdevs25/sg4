@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 import {
   getResumoOrcamentoMes,
   updateOrcamentoTecnico,
@@ -88,6 +89,8 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   const [enviandoEmail, setEnviandoEmail] = useState(false)
   const [buscaTecnicoPrevisao, setBuscaTecnicoPrevisao] = useState('')
   const [salvandoDepositos, setSalvandoDepositos] = useState(false)
+  const [savingAction, setSavingAction] = useState(false)
+  const submittingRef = useRef(false)
 
   function abreviarNome(nome: string): string {
     if (!nome) return ''
@@ -254,64 +257,78 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
 
   function handleSalvarEdicao(e: React.FormEvent) {
     e.preventDefault()
-    if (!editModal) return
+    if (!editModal || submittingRef.current) return
     const valor = parseFloat(novoValor.replace(',', '.'))
     if (isNaN(valor) || valor < 0) return setNotification({ type: 'error', title: 'Valor Inválido', message: 'O valor não pode ser negativo.' })
+    submittingRef.current = true
+    setSavingAction(true)
     
     startTransition(async () => {
-      // Define a data baseada no mês que o usuário está visualizando (o maior selecionado, ou o mês atual)
-      const maxMesSelecionado = mesesSelecionados.length > 0 ? Math.max(...mesesSelecionados) : new Date().getMonth() + 1
-      const anoSelecionado = ano === 0 ? new Date().getFullYear() : ano
-      const dataDestino = new Date(anoSelecionado, maxMesSelecionado - 1, 15) // Dia 15 para garantir que cai no meio do mês
-      
-      if (tipoEdicao === 'definitivo') {
-        const res = await updateOrcamentoTecnico(editModal.id, valor)
-        if (res.success) {
-          setEditModal(null)
-          setNotification({ type: 'success', title: 'Sucesso', message: 'Orçamento atualizado para todos os meses!' })
-          load()
+      try {
+        // Define a data baseada no mês que o usuário está visualizando (o maior selecionado, ou o mês atual)
+        const maxMesSelecionado = mesesSelecionados.length > 0 ? Math.max(...mesesSelecionados) : new Date().getMonth() + 1
+        const anoSelecionado = ano === 0 ? new Date().getFullYear() : ano
+        const dataDestino = new Date(anoSelecionado, maxMesSelecionado - 1, 15) // Dia 15 para garantir que cai no meio do mês
+        
+        if (tipoEdicao === 'definitivo') {
+          const res = await updateOrcamentoTecnico(editModal.id, valor)
+          if (res.success) {
+            setEditModal(null)
+            setNotification({ type: 'success', title: 'Sucesso', message: 'Orçamento atualizado para todos os meses!' })
+            load()
+          } else {
+            setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao atualizar orçamento' })
+          }
         } else {
-          setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao atualizar orçamento' })
+          const res = await createRecargaExtra(editModal.id, valor, `Ajuste manual (substituição) da verba base do mês`, dataDestino, true)
+          if (res.success) {
+            setEditModal(null)
+            setNotification({ type: 'success', title: 'Sucesso', message: `Base alterada apenas para o mês selecionado (${MESES_NOME[maxMesSelecionado-1]})!` })
+            load()
+          } else {
+            setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao alterar base do mês' })
+          }
         }
-      } else {
-        const res = await createRecargaExtra(editModal.id, valor, `Ajuste manual (substituição) da verba base do mês`, dataDestino, true)
-        if (res.success) {
-          setEditModal(null)
-          setNotification({ type: 'success', title: 'Sucesso', message: `Base alterada apenas para o mês selecionado (${MESES_NOME[maxMesSelecionado-1]})!` })
-          load()
-        } else {
-          setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao alterar base do mês' })
-        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
 
   function handleSalvarRecarga(e: React.FormEvent) {
     e.preventDefault()
-    if (!recargaModal) return
+    if (!recargaModal || submittingRef.current) return
     const valor = parseFloat(recargaValor.replace(',', '.'))
     if (isNaN(valor) || valor <= 0) return setNotification({ type: 'error', title: 'Valor Inválido', message: 'A recarga precisa ser maior que zero.' })
+    submittingRef.current = true
+    setSavingAction(true)
     
     startTransition(async () => {
-      let dataDestino: Date
-      if (recargaData) {
-        const [anoD, mesD, diaD] = recargaData.split('-').map(Number)
-        const agora = new Date()
-        dataDestino = new Date(anoD, mesD - 1, diaD, agora.getHours(), agora.getMinutes(), agora.getSeconds())
-      } else {
-        dataDestino = new Date()
-      }
+      try {
+        let dataDestino: Date
+        if (recargaData) {
+          const [anoD, mesD, diaD] = recargaData.split('-').map(Number)
+          const agora = new Date()
+          dataDestino = new Date(anoD, mesD - 1, diaD, agora.getHours(), agora.getMinutes(), agora.getSeconds())
+        } else {
+          dataDestino = new Date()
+        }
 
-      const res = await createRecargaExtra(recargaModal.id, valor, recargaObs, dataDestino)
-      if (res.success) {
-        setRecargaModal(null)
-        setRecargaValor('')
-        setRecargaObs('')
-        setRecargaData('')
-        setNotification({ type: 'success', title: 'Sucesso', message: 'Aditivo / recarga extra lançada com sucesso!' })
-        load()
-      } else {
-        setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao registrar recarga extra' })
+        const res = await createRecargaExtra(recargaModal.id, valor, recargaObs, dataDestino)
+        if (res.success) {
+          setRecargaModal(null)
+          setRecargaValor('')
+          setRecargaObs('')
+          setRecargaData('')
+          setNotification({ type: 'success', title: 'Sucesso', message: 'Aditivo / recarga extra lançada com sucesso!' })
+          load()
+        } else {
+          setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao registrar recarga extra' })
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -361,10 +378,11 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   }
 
   async function handleEfetivarDepositos() {
-    if (!dadosPrevisao) return
+    if (!dadosPrevisao || submittingRef.current) return
     const confirma = confirm(`Deseja efetivar esses valores como o depósito de ${dadosPrevisao.mesReferencia} para os técnicos no sistema?`)
     if (!confirma) return
 
+    submittingRef.current = true
     setSalvandoDepositos(true)
     try {
       const itens = dadosPrevisao.itens.map(i => ({
@@ -393,11 +411,14 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
         message: err.message || 'Falha ao efetivar depósitos.',
       })
     } finally {
+      submittingRef.current = false
       setSalvandoDepositos(false)
     }
   }
 
   async function handleDispararEmail() {
+    if (submittingRef.current) return
+    submittingRef.current = true
     setEnviandoEmail(true)
     try {
       const res = await dispararNotificacaoPrevisaoDepositos(true)
@@ -429,6 +450,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
         message: err.message || 'Falha ao acionar envio de e-mail.',
       })
     } finally {
+      submittingRef.current = false
       setEnviandoEmail(false)
     }
   }
@@ -1891,6 +1913,10 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
           </div>
         </div>
       )}
+      <ActionLoadingOverlay
+        open={savingAction || salvandoDepositos || enviandoEmail}
+        title={enviandoEmail ? 'Enviando e-mail...' : salvandoDepositos ? 'Efetivando depósitos...' : 'Salvando lançamento...'}
+      />
     </div>
   )
 }

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useTransition, Suspense } from 'react'
+import { useState, useTransition, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { resetPassword } from '@/app/actions/authActions'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 function ResetForm() {
   const router = useRouter()
@@ -10,6 +11,8 @@ function ResetForm() {
   const token = searchParams.get('token')
 
   const [pending, startTransition] = useTransition()
+  const [saving, setSaving] = useState(false)
+  const submittingRef = useRef(false)
   const [showPwd, setShowPwd] = useState(false)
   const [showConfirmPwd, setShowConfirmPwd] = useState(false)
   const [form, setForm] = useState({ password: '', confirmPassword: '' })
@@ -30,17 +33,25 @@ function ResetForm() {
       setError('As senhas não coincidem.')
       return
     }
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSaving(true)
 
     setError('')
     startTransition(async () => {
-      const res = await resetPassword(token, form.password)
-      if (res.success) {
-        setSuccess(true)
-        setTimeout(() => {
-          router.push('/login')
-        }, 3000)
-      } else {
-        setError(res.error || 'Erro desconhecido. Tente novamente.')
+      try {
+        const res = await resetPassword(token, form.password)
+        if (res.success) {
+          setSuccess(true)
+          setTimeout(() => {
+            router.push('/login')
+          }, 3000)
+        } else {
+          setError(res.error || 'Erro desconhecido. Tente novamente.')
+        }
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
       }
     })
   }
@@ -144,12 +155,13 @@ function ResetForm() {
           </button>
         </div>
 
-        <button type="submit" className="btn-login" disabled={pending} style={{ marginTop: 12 }}>
-          {pending ? 'Salvando...' : 'Salvar Nova Senha'}
+        <button type="submit" className="btn-login" disabled={pending || saving} style={{ marginTop: 12 }}>
+          {pending || saving ? 'Salvando...' : 'Salvar Nova Senha'}
         </button>
 
         {error && <div className="error-msg" role="alert">{error}</div>}
       </form>
+      <ActionLoadingOverlay open={pending || saving} title="Redefinindo senha..." />
     </main>
   )
 }

@@ -23,6 +23,7 @@ import {
 } from '@/app/actions/naoConformidades'
 import { optimizeTextWithAI } from '@/app/actions/ai'
 import { getLastImportTime } from '@/app/actions/logs'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
 
@@ -249,6 +250,8 @@ export default function NaoConformidadesPage() {
   const [isAiLoadingBatch, setIsAiLoadingBatch] = useState(false)
 
   const [pending, startTransition] = useTransition()
+  const [savingAction, setSavingAction] = useState(false)
+  const submittingRef = useRef(false)
 
   // Handle clicking outside the custom technician dropdown filter to close it
   useEffect(() => {
@@ -699,37 +702,45 @@ export default function NaoConformidadesPage() {
   const handleAddUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedItem || !newUpdateText.trim()) return
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
 
     startTransition(async () => {
-      let uploadedUrls: string[] = []
-      if (fotosUpload.length > 0) {
-        setIsUploading(true)
-        for (const foto of fotosUpload) {
-          const formData = new FormData()
-          formData.append('fileData', foto.base64)
-          formData.append('fileName', foto.name)
-          formData.append('contentType', foto.type)
-          const uploadRes = await uploadNaoConformidadeEvidencia(formData)
-          if (uploadRes.success && uploadRes.url) {
-            uploadedUrls.push(uploadRes.url)
-          } else {
-            alert("Erro ao fazer upload da foto " + foto.name + ": " + uploadRes.error)
-            setIsUploading(false)
-            return
+      try {
+        let uploadedUrls: string[] = []
+        if (fotosUpload.length > 0) {
+          setIsUploading(true)
+          for (const foto of fotosUpload) {
+            const formData = new FormData()
+            formData.append('fileData', foto.base64)
+            formData.append('fileName', foto.name)
+            formData.append('contentType', foto.type)
+            const uploadRes = await uploadNaoConformidadeEvidencia(formData)
+            if (uploadRes.success && uploadRes.url) {
+              uploadedUrls.push(uploadRes.url)
+            } else {
+              alert("Erro ao fazer upload da foto " + foto.name + ": " + uploadRes.error)
+              setIsUploading(false)
+              return
+            }
           }
+          setIsUploading(false)
         }
-        setIsUploading(false)
-      }
 
-      const res = await addNaoConformidadeUpdate(selectedItem.id, newUpdateText, modalStatus, actionDate, undefined, uploadedUrls.length > 0 ? uploadedUrls : undefined)
-      if (res.success && res.data) {
-        setSelectedItem(res.data as any)
-        setNewUpdateText('')
-        setFotosUpload([])
-        setActionDate(new Date().toISOString().split('T')[0])
-        await loadData()
-      } else {
-        alert("Erro ao salvar atualização: " + res.error)
+        const res = await addNaoConformidadeUpdate(selectedItem.id, newUpdateText, modalStatus, actionDate, undefined, uploadedUrls.length > 0 ? uploadedUrls : undefined)
+        if (res.success && res.data) {
+          setSelectedItem(res.data as any)
+          setNewUpdateText('')
+          setFotosUpload([])
+          setActionDate(new Date().toISOString().split('T')[0])
+          await loadData()
+        } else {
+          alert("Erro ao salvar atualização: " + res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -737,76 +748,100 @@ export default function NaoConformidadesPage() {
   const handleBatchUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedIds.length === 0 || !batchUpdateText.trim()) return
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
 
     startTransition(async () => {
-      let uploadedUrls: string[] = []
-      if (fotosUpload.length > 0) {
-        setIsUploading(true)
-        for (const foto of fotosUpload) {
-          const formData = new FormData()
-          formData.append('fileData', foto.base64)
-          formData.append('fileName', foto.name)
-          formData.append('contentType', foto.type)
-          const uploadRes = await uploadNaoConformidadeEvidencia(formData)
-          if (uploadRes.success && uploadRes.url) {
-            uploadedUrls.push(uploadRes.url)
-          } else {
-            alert("Erro ao fazer upload da foto " + foto.name + ": " + uploadRes.error)
-            setIsUploading(false)
-            return
+      try {
+        let uploadedUrls: string[] = []
+        if (fotosUpload.length > 0) {
+          setIsUploading(true)
+          for (const foto of fotosUpload) {
+            const formData = new FormData()
+            formData.append('fileData', foto.base64)
+            formData.append('fileName', foto.name)
+            formData.append('contentType', foto.type)
+            const uploadRes = await uploadNaoConformidadeEvidencia(formData)
+            if (uploadRes.success && uploadRes.url) {
+              uploadedUrls.push(uploadRes.url)
+            } else {
+              alert("Erro ao fazer upload da foto " + foto.name + ": " + uploadRes.error)
+              setIsUploading(false)
+              return
+            }
           }
+          setIsUploading(false)
         }
-        setIsUploading(false)
-      }
 
-      const res = await addNaoConformidadeUpdatesBatch(
-        selectedIds,
-        batchUpdateText,
-        batchStatus || undefined,
-        batchActionDate,
-        undefined,
-        uploadedUrls.length > 0 ? uploadedUrls : undefined
-      )
+        const res = await addNaoConformidadeUpdatesBatch(
+          selectedIds,
+          batchUpdateText,
+          batchStatus || undefined,
+          batchActionDate,
+          undefined,
+          uploadedUrls.length > 0 ? uploadedUrls : undefined
+        )
 
-      if (res.success) {
-        setBatchUpdateText('')
-        setFotosUpload([])
-        setBatchStatus('')
-        setBatchActionDate(new Date().toISOString().split('T')[0])
-        setSelectedIds([])
-        setShowBatchModal(false)
-        await loadData()
-        alert("Ações registradas em lote com sucesso!")
-      } else {
-        alert("Erro ao salvar atualizações: " + res.error)
+        if (res.success) {
+          setBatchUpdateText('')
+          setFotosUpload([])
+          setBatchStatus('')
+          setBatchActionDate(new Date().toISOString().split('T')[0])
+          setSelectedIds([])
+          setShowBatchModal(false)
+          await loadData()
+          alert("Ações registradas em lote com sucesso!")
+        } else {
+          alert("Erro ao salvar atualizações: " + res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
 
   const handleStatusChange = async (newStatus: 'PENDENTE_VENCIDA' | 'PENDENTE_NAO_VENCIDA' | 'EM_ANDAMENTO' | 'RESOLVIDO') => {
     if (!selectedItem) return
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     setModalStatus(newStatus)
     startTransition(async () => {
-      const res = await updateNaoConformidadeStatus(selectedItem.id, newStatus)
-      if (res.success && res.data) {
-        setSelectedItem(res.data as any)
-        await loadData()
-      } else {
-        alert("Erro ao atualizar status: " + res.error)
+      try {
+        const res = await updateNaoConformidadeStatus(selectedItem.id, newStatus)
+        if (res.success && res.data) {
+          setSelectedItem(res.data as any)
+          await loadData()
+        } else {
+          alert("Erro ao atualizar status: " + res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
 
   const handleDeleteUpdate = async (updateDate: string) => {
     if (!selectedItem) return
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
 
     startTransition(async () => {
-      const res = await deleteNaoConformidadeUpdate(selectedItem.id, updateDate)
-      if (res.success && res.data) {
-        setSelectedItem(res.data as any)
-        await loadData()
-      } else {
-        alert("Erro ao excluir ação: " + res.error)
+      try {
+        const res = await deleteNaoConformidadeUpdate(selectedItem.id, updateDate)
+        if (res.success && res.data) {
+          setSelectedItem(res.data as any)
+          await loadData()
+        } else {
+          alert("Erro ao excluir ação: " + res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -818,49 +853,69 @@ export default function NaoConformidadesPage() {
       alert("A imagem não deve exceder 5MB.")
       return
     }
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
 
     const reader = new FileReader()
     reader.onload = async (evt) => {
       const base64 = evt.target?.result as string
       
       startTransition(async () => {
-        setIsUploading(true)
-        const formData = new FormData()
-        formData.append('fileData', base64)
-        formData.append('fileName', file.name)
-        formData.append('contentType', file.type)
-        
-        const uploadRes = await uploadNaoConformidadeEvidencia(formData)
-        setIsUploading(false)
-        
-        if (uploadRes.success && uploadRes.url) {
-          const res = await replaceNaoConformidadeUpdateImage(selectedItem.id, replacingUpdateDate, uploadRes.url)
-          if (res.success && res.data) {
-            setSelectedItem(res.data as any)
-            await loadData()
+        try {
+          setIsUploading(true)
+          const formData = new FormData()
+          formData.append('fileData', base64)
+          formData.append('fileName', file.name)
+          formData.append('contentType', file.type)
+          
+          const uploadRes = await uploadNaoConformidadeEvidencia(formData)
+          setIsUploading(false)
+          
+          if (uploadRes.success && uploadRes.url) {
+            const res = await replaceNaoConformidadeUpdateImage(selectedItem.id, replacingUpdateDate, uploadRes.url)
+            if (res.success && res.data) {
+              setSelectedItem(res.data as any)
+              await loadData()
+            } else {
+              alert("Erro ao associar a nova foto: " + res.error)
+            }
           } else {
-            alert("Erro ao associar a nova foto: " + res.error)
+            alert("Erro ao fazer upload da nova foto: " + uploadRes.error)
           }
-        } else {
-          alert("Erro ao fazer upload da nova foto: " + uploadRes.error)
+          
+          setReplacingUpdateDate(null)
+          if (replaceImageInputRef.current) replaceImageInputRef.current.value = ''
+        } finally {
+          submittingRef.current = false
+          setSavingAction(false)
         }
-        
-        setReplacingUpdateDate(null)
-        if (replaceImageInputRef.current) replaceImageInputRef.current.value = ''
       })
+    }
+    reader.onerror = () => {
+      submittingRef.current = false
+      setSavingAction(false)
     }
     reader.readAsDataURL(file)
   }
 
   const handleDeleteItem = (id: string) => {
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      const res = await deleteNaoConformidade(id)
-      if (res.success) {
-        setDeleteConfirmId(null)
-        setSelectedItem(null)
-        await loadData()
-      } else {
-        alert("Erro ao excluir: " + res.error)
+      try {
+        const res = await deleteNaoConformidade(id)
+        if (res.success) {
+          setDeleteConfirmId(null)
+          setSelectedItem(null)
+          await loadData()
+        } else {
+          alert("Erro ao excluir: " + res.error)
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -2663,6 +2718,10 @@ export default function NaoConformidadesPage() {
         )
       })()}
 
+      <ActionLoadingOverlay
+        open={savingAction || isUploading || isAiLoadingSingle || isAiLoadingBatch}
+        title={isAiLoadingSingle || isAiLoadingBatch ? 'Otimizando texto com IA...' : 'Processando não conformidade...'}
+      />
     </div>
   )
 }

@@ -1,13 +1,16 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { forgotPassword } from '@/app/actions/authActions'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 export default function LoginPage() {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [signingIn, setSigningIn] = useState(false)
+  const submittingRef = useRef(false)
   const [showPwd, setShowPwd] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState({ show: false, msg: '' })
@@ -32,19 +35,31 @@ export default function LoginPage() {
       showToastMsg('⚠️ Preencha usuário e senha.')
       return
     }
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSigningIn(true)
     startTransition(async () => {
-      const res = await signIn('credentials', {
-        email: form.email,
-        password: form.password,
-        redirect: false,
-      })
-      if (res?.error === 'ACCOUNT_LOCKED') {
-        setError('Conta bloqueada por 15 min. Muitas tentativas.')
-      } else if (res?.error) {
-        setError('E-mail ou senha incorretos.')
-      } else {
-        router.push('/dashboard')
-        router.refresh()
+      try {
+        const res = await signIn('credentials', {
+          email: form.email,
+          password: form.password,
+          redirect: false,
+        })
+        if (res?.error === 'ACCOUNT_LOCKED') {
+          setError('Conta bloqueada por 15 min. Muitas tentativas.')
+          submittingRef.current = false
+          setSigningIn(false)
+        } else if (res?.error) {
+          setError('E-mail ou senha incorretos.')
+          submittingRef.current = false
+          setSigningIn(false)
+        } else {
+          router.push('/dashboard')
+          router.refresh()
+        }
+      } catch {
+        submittingRef.current = false
+        setSigningIn(false)
       }
     })
   }
@@ -54,19 +69,24 @@ export default function LoginPage() {
       showToastMsg('⚠️ Informe um e-mail válido.')
       return
     }
-    
+    if (submittingRef.current) return
+    submittingRef.current = true
+
     setLoadingForgot(true)
-    const res = await forgotPassword(forgotEmail)
-    setLoadingForgot(false)
+    try {
+      const res = await forgotPassword(forgotEmail)
+      if (!res.success) {
+        showToastMsg('⚠️ ' + res.error)
+        return
+      }
 
-    if (!res.success) {
-      showToastMsg('⚠️ ' + res.error)
-      return
+      setShowForgot(false)
+      setForgotEmail('')
+      showToastMsg('📧 Link de recuperação enviado para ' + forgotEmail)
+    } finally {
+      setLoadingForgot(false)
+      submittingRef.current = false
     }
-
-    setShowForgot(false)
-    setForgotEmail('')
-    showToastMsg('📧 Link de recuperação enviado para ' + forgotEmail)
   }
 
   return (
@@ -395,13 +415,13 @@ export default function LoginPage() {
 
         {/* Floating particles */}
         {[
-          { w: 8,  l: '10%', d: '12s', delay: '0s'   },
-          { w: 5,  l: '25%', d: '9s',  delay: '2s'   },
-          { w: 12, l: '40%', d: '15s', delay: '1s'   },
-          { w: 6,  l: '60%', d: '11s', delay: '3s'   },
-          { w: 9,  l: '75%', d: '13s', delay: '0.5s' },
-          { w: 4,  l: '88%', d: '10s', delay: '4s'   },
-          { w: 7,  l: '50%', d: '14s', delay: '1.5s' },
+          { w: 8, l: '10%', d: '12s', delay: '0s' },
+          { w: 5, l: '25%', d: '9s', delay: '2s' },
+          { w: 12, l: '40%', d: '15s', delay: '1s' },
+          { w: 6, l: '60%', d: '11s', delay: '3s' },
+          { w: 9, l: '75%', d: '13s', delay: '0.5s' },
+          { w: 4, l: '88%', d: '10s', delay: '4s' },
+          { w: 7, l: '50%', d: '14s', delay: '1.5s' },
         ].map((p, i) => (
           <span
             key={i}
@@ -436,8 +456,8 @@ export default function LoginPage() {
             <div className="input-wrap">
               <span className="input-icon" aria-hidden="true">
                 <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
                 </svg>
               </span>
               <input
@@ -458,8 +478,8 @@ export default function LoginPage() {
             <div className="input-wrap">
               <span className="input-icon" aria-hidden="true">
                 <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2"/>
-                  <path strokeLinecap="round" d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  <rect x="3" y="11" width="18" height="11" rx="2" />
+                  <path strokeLinecap="round" d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
               </span>
               <input
@@ -481,12 +501,12 @@ export default function LoginPage() {
               >
                 {showPwd ? (
                   <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-6.364 0-10-7-10-7a17.83 17.83 0 0 1 4.95-6.03M9.9 4.24A9.12 9.12 0 0 1 12 4c6.364 0 10 7 10 7a17.82 17.82 0 0 1-2.58 3.58M3 3l18 18"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-6.364 0-10-7-10-7a17.83 17.83 0 0 1 4.95-6.03M9.9 4.24A9.12 9.12 0 0 1 12 4c6.364 0 10 7 10 7a17.82 17.82 0 0 1-2.58 3.58M3 3l18 18" />
                   </svg>
                 ) : (
                   <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2 12s3.636-7 10-7 10 7 10 7-3.636 7-10 7S2 12 2 12z"/>
-                    <circle cx="12" cy="12" r="3"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2 12s3.636-7 10-7 10 7 10 7-3.636 7-10 7S2 12 2 12z" />
+                    <circle cx="12" cy="12" r="3" />
                   </svg>
                 )}
               </button>
@@ -512,8 +532,8 @@ export default function LoginPage() {
               {pending ? (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   <svg style={{ animation: 'spin 0.7s linear infinite' }} width="18" height="18" fill="none" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="10" stroke="rgba(180,0,0,0.3)" strokeWidth="3"/>
-                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#9b0000" strokeWidth="3" strokeLinecap="round"/>
+                    <circle cx="12" cy="12" r="10" stroke="rgba(180,0,0,0.3)" strokeWidth="3" />
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="#9b0000" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                   Entrando…
                 </span>
@@ -541,8 +561,8 @@ export default function LoginPage() {
               <div className="input-wrap">
                 <span className="input-icon" aria-hidden="true">
                   <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <rect x="2" y="4" width="20" height="16" rx="2"/>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m2 7 10 7 10-7"/>
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m2 7 10 7 10-7" />
                   </svg>
                 </span>
                 <input
@@ -576,6 +596,10 @@ export default function LoginPage() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+      <ActionLoadingOverlay
+        open={pending || signingIn || loadingForgot}
+        title={loadingForgot ? 'Enviando link de recuperação...' : 'Autenticando no sistema...'}
+      />
     </>
   )
 }

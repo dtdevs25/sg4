@@ -20,6 +20,7 @@ import {
 import { checkAndTriggerMetaNotification } from '@/app/actions/metas'
 import { getLastImportTime } from '@/app/actions/logs'
 import { upsertAprBatch } from '@/app/actions/apr'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 type MesKey = 'jan' | 'fev' | 'mar' | 'abr' | 'mai' | 'jun' | 'jul' | 'ago' | 'set' | 'out' | 'nov' | 'dez'
 
@@ -100,6 +101,8 @@ export default function InspecoesPage() {
 
   const [activeTab, setActiveTab] = useState<'consolidado' | 'arkium'>('consolidado')
   const [pending, startTransition] = useTransition()
+  const [savingAction, setSavingAction] = useState(false)
+  const submittingRef = useRef(false)
 
   // --- ESTADO: Visão Consolidada ---
   const [data, setData] = useState<any[]>([])
@@ -322,22 +325,30 @@ export default function InspecoesPage() {
 
   function saveEdit(id: string) {
     if (selectedMonths.length === 1) {
+      if (submittingRef.current) return
+      submittingRef.current = true
+      setSavingAction(true)
       const monthKey = selectedMonths[0]
       const dbMes = MES_MAP[monthKey]
       
       startTransition(async () => {
-         if (selectedYear === 'ALL') {
+        try {
+          if (selectedYear === 'ALL') {
             alert('Selecione um ano específico para poder editar os valores manuais da matriz.')
             setEditingId(null)
             return
-         }
-         const res = await upsertAtividadeMes(id, 'INSPECAO', selectedYear as number, dbMes, editValue)
-         if (res.success) {
-           setData(prev => prev.map(t => t.id === id ? { ...t, [monthKey]: editValue } : t))
-         } else {
-           alert('Erro ao salvar no banco.')
-         }
-         setEditingId(null)
+          }
+          const res = await upsertAtividadeMes(id, 'INSPECAO', selectedYear as number, dbMes, editValue)
+          if (res.success) {
+            setData(prev => prev.map(t => t.id === id ? { ...t, [monthKey]: editValue } : t))
+          } else {
+            alert('Erro ao salvar no banco.')
+          }
+          setEditingId(null)
+        } finally {
+          submittingRef.current = false
+          setSavingAction(false)
+        }
       })
     } else {
       alert("Selecione apenas 1 mês para editar os valores na tabela.")
@@ -669,13 +680,21 @@ export default function InspecoesPage() {
   }
 
   function handleDeleteArkium(id: string) {
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setSavingAction(true)
     startTransition(async () => {
-      const res = await deleteInspecoesArkiumItem(id)
-      if (res.success) {
-        setArkiumData(prev => prev.filter(t => t.id !== id))
-        setDeleteArkiumConfirmId(null)
-      } else {
-        alert("Erro ao excluir registro.")
+      try {
+        const res = await deleteInspecoesArkiumItem(id)
+        if (res.success) {
+          setArkiumData(prev => prev.filter(t => t.id !== id))
+          setDeleteArkiumConfirmId(null)
+        } else {
+          alert("Erro ao excluir registro.")
+        }
+      } finally {
+        submittingRef.current = false
+        setSavingAction(false)
       }
     })
   }
@@ -1726,6 +1745,7 @@ export default function InspecoesPage() {
         )
       })()}
 
+      <ActionLoadingOverlay open={savingAction} title="Processando inspeção..." />
     </div>
   )
 }

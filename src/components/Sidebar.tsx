@@ -9,7 +9,7 @@ import {
   Activity, Calendar, CalendarCheck, FileCheck,
   ChevronLeft, ChevronRight, Menu, X, User as UserIcon,
   Settings, ShieldAlert, FileText, ChevronDown, Car, CalendarDays,
-  ShieldCheck, HardHat, AlertTriangle, Brain
+  ShieldCheck, HardHat, AlertTriangle, Brain, Smartphone
 } from 'lucide-react'
 
 type NavItemType = {
@@ -30,6 +30,7 @@ const NAV: NavItemType[] = [
   { href: '/dashboard/quilometragem',label: 'Quilometragem',icon: Car              },
   // { href: '/dashboard/epi',         label: 'EPI',         icon: HardHat          },
   { href: '/dashboard/relatorios',  label: 'Relatórios',  icon: FileText         },
+  { href: '/dashboard/app-celular', label: 'App Celular', icon: Smartphone       },
   { href: '/dashboard/cadastros',   label: 'Cadastros',   icon: UserIcon         },
   { href: '/dashboard/administracao', label: 'Administração', icon: ShieldAlert },
 ]

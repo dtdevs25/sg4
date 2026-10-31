@@ -16,6 +16,7 @@ import { getTecnicos } from '@/app/actions/tecnicos'
 import { getUnidades } from '@/app/actions/unidades'
 import { gerarPdfRelatorio } from '@/app/utils/generateRelatorioPdf'
 import { uploadRelatorioPdf, getRelatoriosPdf, deleteRelatorioPdf } from '@/app/actions/relatoriosPdf'
+import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 
 const MES_MAP: Record<string, string> = {
   jan: 'JANEIRO', fev: 'FEVEREIRO', mar: 'MARCO', abr: 'ABRIL', mai: 'MAIO', jun: 'JUNHO',
@@ -47,6 +48,9 @@ export default function RelatoriosAtividadesPage() {
   const [pending, startTransition] = useTransition()
   const [saving, setSaving] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+  const [deletingPdf, setDeletingPdf] = useState(false)
+  const submittingRef = useRef(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
 
@@ -116,6 +120,8 @@ export default function RelatoriosAtividadesPage() {
       console.error("Erro ao carregar dados:", err)
       setTodasAtividades([])
     } finally {
+      submittingRef.current = false
+      setGeneratingPdf(false)
       setLoading(false)
     }
   }
@@ -130,6 +136,8 @@ export default function RelatoriosAtividadesPage() {
     } catch (err) {
       console.error(err)
     } finally {
+      submittingRef.current = false
+      setGeneratingPdf(false)
       setLoading(false)
     }
   }
@@ -145,9 +153,9 @@ export default function RelatoriosAtividadesPage() {
   const filteredAtividades = atividades.filter(a => {
     const term = search.toLowerCase()
     return (a.tecnico?.nome?.toLowerCase() || '').includes(term) ||
-           (a.empresa?.toLowerCase() || '').includes(term) ||
-           (a.projeto?.toLowerCase() || '').includes(term) ||
-           (a.local?.toLowerCase() || '').includes(term)
+      (a.empresa?.toLowerCase() || '').includes(term) ||
+      (a.projeto?.toLowerCase() || '').includes(term) ||
+      (a.local?.toLowerCase() || '').includes(term)
   }).sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
 
   useEffect(() => {
@@ -165,12 +173,12 @@ export default function RelatoriosAtividadesPage() {
   // Aplica o mesmo filtro de busca no total do ano (para o gráfico respeitar a pessoa filtrada)
   const todasFiltradas = search.trim()
     ? todasAtividades.filter(a => {
-        const term = search.toLowerCase()
-        return (a.tecnico?.nome?.toLowerCase() || '').includes(term) ||
-               (a.empresa?.toLowerCase() || '').includes(term) ||
-               (a.projeto?.toLowerCase() || '').includes(term) ||
-               (a.local?.toLowerCase() || '').includes(term)
-      })
+      const term = search.toLowerCase()
+      return (a.tecnico?.nome?.toLowerCase() || '').includes(term) ||
+        (a.empresa?.toLowerCase() || '').includes(term) ||
+        (a.projeto?.toLowerCase() || '').includes(term) ||
+        (a.local?.toLowerCase() || '').includes(term)
+    })
     : todasAtividades
 
   // Dados para o gráfico mês a mês (respeitando filtro de busca)
@@ -292,7 +300,8 @@ export default function RelatoriosAtividadesPage() {
 
   async function handleAddAtividade(e: React.FormEvent) {
     e.preventDefault()
-    if (saving) return
+    if (saving || submittingRef.current) return
+    submittingRef.current = true
     setSaving(true)
     try {
       let fUrl = undefined
@@ -305,6 +314,7 @@ export default function RelatoriosAtividadesPage() {
         if (up.success) fUrl = up.url
         else {
           alert('Erro no upload da foto')
+          submittingRef.current = false
           setSaving(false)
           return
         }
@@ -313,6 +323,7 @@ export default function RelatoriosAtividadesPage() {
       const tId = role === 'TST' ? (session?.user as any).tecnicoId : formAtiv.tecnicoId
       if (!tId) {
         alert('Selecione o técnico')
+        submittingRef.current = false
         setSaving(false)
         return
       }
@@ -320,47 +331,53 @@ export default function RelatoriosAtividadesPage() {
       const finalLocal = formAtiv.local === 'OUTROS' && formAtiv.outroLocal ? formAtiv.outroLocal : formAtiv.local
 
       startTransition(async () => {
-        const res = await addAtividade({
-          tecnicoId: tId,
-          data: new Date(formAtiv.data + 'T12:00:00Z'),
-          empresa: formAtiv.empresa,
-          projeto: formAtiv.projeto,
-          local: finalLocal,
-          cidadeUf: formAtiv.cidadeUf,
-          descricao: formAtiv.descricao,
-          fotoUrl: fUrl
-        })
+        try {
+          const res = await addAtividade({
+            tecnicoId: tId,
+            data: new Date(formAtiv.data + 'T12:00:00Z'),
+            empresa: formAtiv.empresa,
+            projeto: formAtiv.projeto,
+            local: finalLocal,
+            cidadeUf: formAtiv.cidadeUf,
+            descricao: formAtiv.descricao,
+            fotoUrl: fUrl
+          })
 
-        if (res.success) {
-          // Se marcado como DSS com Aliado, salva também no DssAliado
-          if (formAtiv.isDssAliado && formAtiv.dssTema.trim()) {
-            await saveDssAliado({
-              tecnicoId: tId,
-              data: new Date(formAtiv.data + 'T12:00:00Z'),
-              tema: formAtiv.dssTema,
-              fotoBase64: formAtiv.dssFotoBase64 || undefined,
-              fileName: formAtiv.dssFotoFileName || undefined,
-              contentType: formAtiv.dssFotoContentType || undefined,
-            })
+          if (res.success) {
+            // Se marcado como DSS com Aliado, salva também no DssAliado
+            if (formAtiv.isDssAliado && formAtiv.dssTema.trim()) {
+              await saveDssAliado({
+                tecnicoId: tId,
+                data: new Date(formAtiv.data + 'T12:00:00Z'),
+                tema: formAtiv.dssTema,
+                fotoBase64: formAtiv.dssFotoBase64 || undefined,
+                fileName: formAtiv.dssFotoFileName || undefined,
+                contentType: formAtiv.dssFotoContentType || undefined,
+              })
+            }
+            setShowNovaAtividade(false)
+            setFormAtiv({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '', isDssAliado: false, dssTema: '', dssFotoBase64: '', dssFotoFileName: '', dssFotoContentType: '' })
+            await loadData()
+          } else {
+            alert(res.error)
           }
-          setShowNovaAtividade(false)
-          setFormAtiv({ tecnicoId: '', data: '', empresa: 'Telefônica Brasil S.A', projeto: 'VIVO', local: '', outroLocal: '', cidadeUf: '', descricao: '', fotoBase64: '', fileName: '', contentType: '', isDssAliado: false, dssTema: '', dssFotoBase64: '', dssFotoFileName: '', dssFotoContentType: '' })
-          loadData()
-        } else {
-          alert(res.error)
+        } finally {
+          submittingRef.current = false
+          setSaving(false)
         }
-        setSaving(false)
       })
     } catch (err: any) {
       alert('Erro ao salvar relatório: ' + err.message)
+      submittingRef.current = false
       setSaving(false)
     }
   }
 
   async function handleEditAtividade(e: React.FormEvent) {
     e.preventDefault()
-    if (!showEditModal || saving) return
+    if (!showEditModal || saving || submittingRef.current) return
 
+    submittingRef.current = true
     setSaving(true)
     try {
       let fUrl = undefined
@@ -373,6 +390,7 @@ export default function RelatoriosAtividadesPage() {
         if (up.success) fUrl = up.url
         else {
           alert('Erro no upload da nova foto')
+          submittingRef.current = false
           setSaving(false)
           return
         }
@@ -381,37 +399,49 @@ export default function RelatoriosAtividadesPage() {
       const finalLocal = formEdit.local === 'OUTROS' && formEdit.outroLocal ? formEdit.outroLocal : formEdit.local
 
       startTransition(async () => {
-        const res = await updateAtividade(showEditModal.id, {
-          data: new Date(formEdit.data + 'T12:00:00Z'),
-          empresa: formEdit.empresa,
-          projeto: formEdit.projeto,
-          local: finalLocal,
-          cidadeUf: formEdit.cidadeUf,
-          descricao: formEdit.descricao,
-          fotoUrl: fUrl
-        })
+        try {
+          const res = await updateAtividade(showEditModal.id, {
+            data: new Date(formEdit.data + 'T12:00:00Z'),
+            empresa: formEdit.empresa,
+            projeto: formEdit.projeto,
+            local: finalLocal,
+            cidadeUf: formEdit.cidadeUf,
+            descricao: formEdit.descricao,
+            fotoUrl: fUrl
+          })
 
-        if (res.success) {
-          setShowEditModal(null)
-          loadData()
-        } else {
-          alert(res.error)
+          if (res.success) {
+            setShowEditModal(null)
+            await loadData()
+          } else {
+            alert(res.error)
+          }
+        } finally {
+          submittingRef.current = false
+          setSaving(false)
         }
-        setSaving(false)
       })
     } catch (err: any) {
       alert('Erro ao editar atividade: ' + err.message)
+      submittingRef.current = false
       setSaving(false)
     }
   }
 
   async function handleDeleteConfirm() {
-    if (!showDeleteModal) return
+    if (!showDeleteModal || submittingRef.current) return
+    submittingRef.current = true
+    setSaving(true)
     startTransition(async () => {
-      const res = await deleteAtividade(showDeleteModal)
-      if (res.success) loadData()
-      else alert(res.error)
-      setShowDeleteModal(null)
+      try {
+        const res = await deleteAtividade(showDeleteModal)
+        if (res.success) await loadData()
+        else alert(res.error)
+        setShowDeleteModal(null)
+      } finally {
+        submittingRef.current = false
+        setSaving(false)
+      }
     })
   }
 
@@ -439,9 +469,9 @@ export default function RelatoriosAtividadesPage() {
 
     if (res.success && res.text) {
       if (isEdit) {
-        setFormEdit(p => ({...p, descricao: res.text}))
+        setFormEdit(p => ({ ...p, descricao: res.text }))
       } else {
-        setFormAtiv(p => ({...p, descricao: res.text}))
+        setFormAtiv(p => ({ ...p, descricao: res.text }))
       }
     } else {
       alert(res.error || 'Erro ao otimizar o texto.')
@@ -449,17 +479,20 @@ export default function RelatoriosAtividadesPage() {
   }
 
   async function handleGeneratePdf() {
+    if (submittingRef.current) return
     if (role !== 'TST' && !formPdf.tecnicoId) {
       alert('Selecione todos os campos obrigatórios')
       return
     }
-    
+    submittingRef.current = true
+    setGeneratingPdf(true)
+
     try {
       setLoading(true)
       let tIdParaGerar = role === 'TST' ? (session?.user as any)?.tecnicoId : formPdf.tecnicoId;
       if (role === 'TST' && !tIdParaGerar && tecnicos.length > 0) {
-        const found = tecnicos.find(t => 
-          (session?.user?.id && t.userId === session?.user?.id) || 
+        const found = tecnicos.find(t =>
+          (session?.user?.id && t.userId === session?.user?.id) ||
           (session?.user?.email && t.email?.toLowerCase() === session?.user?.email?.toLowerCase()) ||
           (session?.user?.name && t.nome?.toLowerCase() === session?.user?.name?.toLowerCase())
         )
@@ -467,7 +500,7 @@ export default function RelatoriosAtividadesPage() {
       }
 
       const data = await getAtividadesForPrint(formPdf.mes, formPdf.ano, 'VIVO', tIdParaGerar)
-      
+
       let elaborador = 'Não Identificado'
       if (role === 'TST') {
         const tecnicoData = tIdParaGerar ? tecnicos.find(t => t.id === tIdParaGerar) : null
@@ -515,6 +548,8 @@ export default function RelatoriosAtividadesPage() {
       console.error(err)
       alert('Erro ao gerar o PDF.')
     } finally {
+      submittingRef.current = false
+      setGeneratingPdf(false)
       setLoading(false)
     }
   }
@@ -522,7 +557,7 @@ export default function RelatoriosAtividadesPage() {
   // --- Render ---
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
-      
+
       {/* HEADER */}
       <div style={{
         background: '#fff',
@@ -542,7 +577,7 @@ export default function RelatoriosAtividadesPage() {
             Lançamento de Atividades (Relatórios)
           </h1>
         </div>
-        
+
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           {activeTab === 'gerador' && (
             <>
@@ -564,227 +599,227 @@ export default function RelatoriosAtividadesPage() {
 
       {activeTab === 'gerador' ? (
         <>
-      {/* DASHBOARD CONSOLIDADO & FILTROS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-        
-        {/* FILTROS DE MESES E ANO */}
-        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
-            <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer' }}>
-              <option value="ALL">Todos os Anos</option>
-              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {MONTHS_LIST.slice(0, 6).map(m => {
-                const isSelected = selectedMonths.includes(m.key)
-                return (
-                  <button
-                    key={m.key}
-                    onClick={() => handleMonthClick(m.key)}
-                    style={{
-                      flex: 1, padding: '8px 0', borderRadius: 6,
-                      border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
-                      background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
-                      color: isSelected ? '#660099' : '#64748b',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                      userSelect: 'none'
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                )
-              })}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {MONTHS_LIST.slice(6, 12).map(m => {
-                const isSelected = selectedMonths.includes(m.key)
-                return (
-                  <button
-                    key={m.key}
-                    onClick={() => handleMonthClick(m.key)}
-                    style={{
-                      flex: 1, padding: '8px 0', borderRadius: 6,
-                      border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
-                      background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
-                      color: isSelected ? '#660099' : '#64748b',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                      userSelect: 'none'
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
+          {/* DASHBOARD CONSOLIDADO & FILTROS */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
 
-        {/* CARD CONSOLIDADO */}
-        <div
-          onClick={() => setShowGraficoModal(true)}
-          style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-          onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(102,0,153,0.15)')}
-          onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)')}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Consolidado do Período</span>
-            <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
-              {selectedMonths.length} MÊS(ES)
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 32, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalAtividades}</span>
-            <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>atividades</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ flex: 1, height: 6, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
-              <div style={{ width: `${percentualDoTotal}%`, height: '100%', background: 'linear-gradient(90deg, #660099, #9333ea)', borderRadius: 99, transition: 'width 0.5s' }} />
-            </div>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#660099', whiteSpace: 'nowrap' }}>{percentualDoTotal}% do ano</span>
-          </div>
-          <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 8, fontWeight: 600 }}>📊 Clique para ver gráfico mês a mês</span>
-        </div>
-      </div>
+            {/* FILTROS DE MESES E ANO */}
+            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Selecionar Período</span>
+                <select value={selectedYear} onChange={e => setSelectedYear(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, fontWeight: 600, color: '#334155', outline: 'none', cursor: 'pointer' }}>
+                  <option value="ALL">Todos os Anos</option>
+                  {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
 
-      {/* TABELA GERAL */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Search Bar matching other modules */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
-          <div style={{ position: 'relative', width: 300 }}>
-            <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
-            <input
-              type="text"
-              placeholder="Filtrar atividades..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
-            />
-          </div>
-        </div>
-
-        <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                <tr>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>DATA</th>
-                  {(role === 'MASTER' || role === 'ADMIN') && (
-                    <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>TÉCNICO</th>
-                  )}
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>EMPRESA / PROJETO</th>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>LOCAL / DESCRIÇÃO</th>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center', whiteSpace: 'nowrap' }}>FOTO</th>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>AÇÕES</th>
-                </tr>
-              </thead>
-              <tbody>
-              {loading ? (
-                <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center' }}><Loader2 className="animate-spin inline" color="#660099" size={32} /></td></tr>
-              ) : paginatedAtividades.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>Nenhuma atividade registrada.</td></tr>
-              ) : paginatedAtividades.map(a => (
-                <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
-                    {new Date(a.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}
-                  </td>
-                  {(role === 'MASTER' || role === 'ADMIN') && (
-                    <td style={{ padding: '14px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        {a.tecnico?.fotoUrl ? (
-                          <img src={a.tecnico.fotoUrl} alt={a.tecnico.nome} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff' }} />
-                        ) : (
-                          <div style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', background: 'linear-gradient(135deg, #660099, #9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
-                            {a.tecnico?.nome.substring(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.tecnico?.nome}</span>
-                          {a.tecnico?.admissao && (
-                            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Admissão: {new Date(a.tecnico.admissao).toLocaleDateString('pt-BR')}</span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                  )}
-                  <td style={{ padding: '14px 20px' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.empresa}</div>
-                    <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{a.projeto}</div>
-                  </td>
-                  <td style={{ padding: '14px 20px' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#660099', marginBottom: 4 }}><MapPin size={12} className="inline mr-1"/> {a.local} - {a.cidadeUf}</div>
-                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4, maxWidth: 400 }}>{a.descricao}</div>
-                  </td>
-                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                    {a.fotoUrl ? (
-                      <img src={a.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios')} alt="Foto" onClick={() => setShowPhotoModal(a.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios'))} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', margin: '0 auto', border: '1px solid #e2e8f0' }} />
-                    ) : (
-                      <span style={{ fontSize: 10, color: '#94a3b8', background: '#f1f5f9', padding: '4px 8px', borderRadius: 12, fontWeight: 700, textTransform: 'uppercase' }}>NÃO SE APLICA</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-                      <button onClick={() => openEdit(a)} style={{ background: 'transparent', border: 'none', color: '#660099', cursor: 'pointer', padding: 4 }} title="Editar">
-                        <Edit3 size={16} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {MONTHS_LIST.slice(0, 6).map(m => {
+                    const isSelected = selectedMonths.includes(m.key)
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={() => handleMonthClick(m.key)}
+                        style={{
+                          flex: 1, padding: '8px 0', borderRadius: 6,
+                          border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                          background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                          color: isSelected ? '#660099' : '#64748b',
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
+                        }}
+                      >
+                        {m.label}
                       </button>
-                      <button onClick={() => setShowDeleteModal(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
-                        <Trash2 size={16} />
+                    )
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {MONTHS_LIST.slice(6, 12).map(m => {
+                    const isSelected = selectedMonths.includes(m.key)
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={() => handleMonthClick(m.key)}
+                        style={{
+                          flex: 1, padding: '8px 0', borderRadius: 6,
+                          border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0',
+                          background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc',
+                          color: isSelected ? '#660099' : '#64748b',
+                          fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                          userSelect: 'none'
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* CARD CONSOLIDADO */}
+            <div
+              onClick={() => setShowGraficoModal(true)}
+              style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(102,0,153,0.15)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)')}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Consolidado do Período</span>
+                <span style={{ background: 'rgba(102,0,153,0.1)', color: '#660099', fontSize: 10, fontWeight: 800, padding: '4px 8px', borderRadius: 4, textTransform: 'uppercase' }}>
+                  {selectedMonths.length} MÊS(ES)
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 32, fontWeight: 800, color: '#1e293b', lineHeight: 1 }}>{totalAtividades}</span>
+                <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>atividades</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ flex: 1, height: 6, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{ width: `${percentualDoTotal}%`, height: '100%', background: 'linear-gradient(90deg, #660099, #9333ea)', borderRadius: 99, transition: 'width 0.5s' }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#660099', whiteSpace: 'nowrap' }}>{percentualDoTotal}% do ano</span>
+              </div>
+              <span style={{ fontSize: 10, color: '#94a3b8', marginTop: 8, fontWeight: 600 }}>📊 Clique para ver gráfico mês a mês</span>
+            </div>
+          </div>
+
+          {/* TABELA GERAL */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Search Bar matching other modules */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '12px 20px', borderRadius: 10, border: '1px solid #f1f5f9' }}>
+              <div style={{ position: 'relative', width: 300 }}>
+                <Search size={16} style={{ position: 'absolute', left: 12, top: 10, color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  placeholder="Filtrar atividades..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{ width: '100%', padding: '8px 16px 8px 36px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, outline: 'none' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead style={{ background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                    <tr>
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>DATA</th>
+                      {(role === 'MASTER' || role === 'ADMIN') && (
+                        <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>TÉCNICO</th>
+                      )}
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>EMPRESA / PROJETO</th>
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>LOCAL / DESCRIÇÃO</th>
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center', whiteSpace: 'nowrap' }}>FOTO</th>
+                      <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>AÇÕES</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center' }}><Loader2 className="animate-spin inline" color="#660099" size={32} /></td></tr>
+                    ) : paginatedAtividades.length === 0 ? (
+                      <tr><td colSpan={6} style={{ padding: 60, textAlign: 'center', color: '#64748b' }}>Nenhuma atividade registrada.</td></tr>
+                    ) : paginatedAtividades.map(a => (
+                      <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '14px 20px', fontSize: 13, fontWeight: 700, color: '#334155' }}>
+                          {new Date(a.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                        </td>
+                        {(role === 'MASTER' || role === 'ADMIN') && (
+                          <td style={{ padding: '14px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              {a.tecnico?.fotoUrl ? (
+                                <img src={a.tecnico.fotoUrl} alt={a.tecnico.nome} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff' }} />
+                              ) : (
+                                <div style={{ width: 56, height: 56, flexShrink: 0, borderRadius: '50%', background: 'linear-gradient(135deg, #660099, #9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff' }}>
+                                  {a.tecnico?.nome.substring(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.tecnico?.nome}</span>
+                                {a.tecnico?.admissao && (
+                                  <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>Admissão: {new Date(a.tecnico.admissao).toLocaleDateString('pt-BR')}</span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        )}
+                        <td style={{ padding: '14px 20px' }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{a.empresa}</div>
+                          <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{a.projeto}</div>
+                        </td>
+                        <td style={{ padding: '14px 20px' }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#660099', marginBottom: 4 }}><MapPin size={12} className="inline mr-1" /> {a.local} - {a.cidadeUf}</div>
+                          <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4, maxWidth: 400 }}>{a.descricao}</div>
+                        </td>
+                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                          {a.fotoUrl ? (
+                            <img src={a.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios')} alt="Foto" onClick={() => setShowPhotoModal(a.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios'))} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', margin: '0 auto', border: '1px solid #e2e8f0' }} />
+                          ) : (
+                            <span style={{ fontSize: 10, color: '#94a3b8', background: '#f1f5f9', padding: '4px 8px', borderRadius: 12, fontWeight: 700, textTransform: 'uppercase' }}>NÃO SE APLICA</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                            <button onClick={() => openEdit(a)} style={{ background: 'transparent', border: 'none', color: '#660099', cursor: 'pointer', padding: 4 }} title="Editar">
+                              <Edit3 size={16} />
+                            </button>
+                            <button onClick={() => setShowDeleteModal(a.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }} title="Excluir">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* PAGINATION CONTROLS */}
+              {filteredAtividades.length > 0 && (
+                <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                      Mostrando de {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, filteredAtividades.length)} de {filteredAtividades.length} atividades
+                    </span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => {
+                        setItemsPerPage(Number(e.target.value))
+                        setCurrentPage(1)
+                      }}
+                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', cursor: 'pointer' }}
+                    >
+                      <option value={10}>10 por página</option>
+                      <option value={20}>20 por página</option>
+                      <option value={50}>50 por página</option>
+                      <option value={100}>100 por página</option>
+                    </select>
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f1f5f9' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f1f5f9' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                      >
+                        Próxima
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* PAGINATION CONTROLS */}
-        {filteredAtividades.length > 0 && (
-          <div style={{ padding: '16px 20px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
-                Mostrando de {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, filteredAtividades.length)} de {filteredAtividades.length} atividades
-              </span>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value))
-                  setCurrentPage(1)
-                }}
-                style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', cursor: 'pointer' }}
-              >
-                <option value={10}>10 por página</option>
-                <option value={20}>20 por página</option>
-                <option value={50}>50 por página</option>
-                <option value={100}>100 por página</option>
-              </select>
+                  )}
+                </div>
+              )}
             </div>
-            
-            {totalPages > 1 && (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === 1 ? '#f1f5f9' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
-                >
-                  Anterior
-                </button>
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #cbd5e1', background: currentPage === totalPages ? '#f1f5f9' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', fontSize: 12, fontWeight: 700, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
-                >
-                  Próxima
-                </button>
-              </div>
-            )}
           </div>
-        )}
-      </div>
-      </div>
         </>
       ) : (
         /* ABA RELATÓRIOS SALVOS */
@@ -945,21 +980,30 @@ export default function RelatoriosAtividadesPage() {
               <button onClick={() => setShowDeletePdfModal(null)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: '#f1f5f9', color: '#475569', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
                 Cancelar
               </button>
-              <button 
+              <button
+                disabled={deletingPdf}
                 onClick={async () => {
+                  if (submittingRef.current) return
+                  submittingRef.current = true
+                  setDeletingPdf(true)
                   setLoading(true)
-                  const res = await deleteRelatorioPdf(showDeletePdfModal)
-                  if (res.success) {
-                    setShowDeletePdfModal(null)
-                    loadRelatoriosSalvos()
-                  } else {
-                    alert(res.error)
-                    setLoading(false)
+                  try {
+                    const res = await deleteRelatorioPdf(showDeletePdfModal)
+                    if (res.success) {
+                      setShowDeletePdfModal(null)
+                      await loadRelatoriosSalvos()
+                    } else {
+                      alert(res.error)
+                      setLoading(false)
+                    }
+                  } finally {
+                    submittingRef.current = false
+                    setDeletingPdf(false)
                   }
-                }} 
-                style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: '#ef4444', color: '#fff', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+                }}
+                style={{ flex: 1, padding: '10px 0', borderRadius: 8, background: '#ef4444', color: '#fff', fontWeight: 700, border: 'none', cursor: deletingPdf ? 'not-allowed' : 'pointer', opacity: deletingPdf ? 0.7 : 1 }}
               >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : 'Sim, Excluir'}
+                {deletingPdf || loading ? <Loader2 size={16} className="animate-spin" /> : 'Sim, Excluir'}
               </button>
             </div>
           </div>
@@ -970,7 +1014,7 @@ export default function RelatoriosAtividadesPage() {
       {/* MODAL NOVA ATIVIDADE */}
       {showNovaAtividade && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ 
+          <div style={{
             background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600,
             display: 'flex', flexDirection: 'column',
             maxHeight: '90vh', overflow: 'hidden'
@@ -984,11 +1028,11 @@ export default function RelatoriosAtividadesPage() {
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Lançar Nova Atividade</h2>
               <button onClick={() => setShowNovaAtividade(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff' }}>X</button>
             </div>
-            
+
             {/* Modal Body com Scroll */}
             <div style={{ padding: 24, overflowY: 'auto' }}>
               <form onSubmit={handleAddAtividade} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                
+
                 {(role === 'MASTER' || role === 'ADMIN') && (
                   <div style={{ position: 'relative' }}>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Técnico Responsável</label>
@@ -998,27 +1042,27 @@ export default function RelatoriosAtividadesPage() {
                     >
                       {formAtiv.tecnicoId ? (() => {
                         const t = tecnicos.find(x => x.id === formAtiv.tecnicoId)
-                        return t ? (<>{t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}<span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span></>) : null
+                        return t ? (<>{t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{t.nome.substring(0, 2).toUpperCase()}</div>)}<span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span></>) : null
                       })() : (<span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico...</span>)}
                       <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>{showTecnicoDropdown ? '▲' : '▼'}</span>
                     </div>
                     {showTecnicoDropdown && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 240, overflowY: 'auto' }}>
                         {tecnicos.filter(t => t.ativo).map(t => (
-                          <div key={t.id} onClick={() => { setFormAtiv(p => ({...p, tecnicoId: t.id})); setShowTecnicoDropdown(false) }}
+                          <div key={t.id} onClick={() => { setFormAtiv(p => ({ ...p, tecnicoId: t.id })); setShowTecnicoDropdown(false) }}
                             style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formAtiv.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
                             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
                             onMouseLeave={e => (e.currentTarget.style.background = formAtiv.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
                           >
-                            {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                            {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{t.nome.substring(0, 2).toUpperCase()}</div>)}
                             <div><div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div><div style={{ fontSize: 11, color: '#94a3b8' }}>{t.cargo || 'Técnico de Segurança'}</div></div>
-                            {formAtiv.tecnicoId === t.id && <span style={{ marginLeft:'auto', color:'#660099', fontWeight:800 }}>✓</span>}
+                            {formAtiv.tecnicoId === t.id && <span style={{ marginLeft: 'auto', color: '#660099', fontWeight: 800 }}>✓</span>}
                           </div>
                         ))}
                         {tecnicos.filter(t => t.ativo).length === 0 && (<div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhum técnico ativo encontrado.</div>)}
                       </div>
                     )}
-                    <input type="hidden" required value={formAtiv.tecnicoId} onChange={() => {}} />
+                    <input type="hidden" required value={formAtiv.tecnicoId} onChange={() => { }} />
                   </div>
                 )}
 
@@ -1031,7 +1075,7 @@ export default function RelatoriosAtividadesPage() {
                       {t.fotoUrl ? (
                         <img src={t.fotoUrl} alt={t.nome} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />
                       ) : (
-                        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>
+                        <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{t.nome.substring(0, 2).toUpperCase()}</div>
                       )}
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{t.nome}</div>
@@ -1045,11 +1089,11 @@ export default function RelatoriosAtividadesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Empresa Cliente</label>
-                    <input required placeholder="Ex: Vivo S/A" value={formAtiv.empresa} onChange={e => setFormAtiv(p => ({...p, empresa: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                    <input required placeholder="Ex: Vivo S/A" value={formAtiv.empresa} onChange={e => setFormAtiv(p => ({ ...p, empresa: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Projeto / Área</label>
-                    <input required placeholder="Ex: Infraestrutura" value={formAtiv.projeto} onChange={e => setFormAtiv(p => ({...p, projeto: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                    <input required placeholder="Ex: Infraestrutura" value={formAtiv.projeto} onChange={e => setFormAtiv(p => ({ ...p, projeto: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                   </div>
                 </div>
 
@@ -1067,7 +1111,7 @@ export default function RelatoriosAtividadesPage() {
                         style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showUnidadeDropdownAdd ? '#660099' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.2s' }}
                       >
                         <span style={{ fontSize: 13, color: formAtiv.local ? '#1e293b' : '#94a3b8', fontWeight: formAtiv.local ? 700 : 400 }}>
-                          {formAtiv.local ? (unidsDoTecnico.find((u:any) => u.nome === formAtiv.local) ? formAtiv.local : formAtiv.local === 'OUTROS' ? 'Outros...' : formAtiv.local) : 'Selecione ou busque a unidade...'}
+                          {formAtiv.local ? (unidsDoTecnico.find((u: any) => u.nome === formAtiv.local) ? formAtiv.local : formAtiv.local === 'OUTROS' ? 'Outros...' : formAtiv.local) : 'Selecione ou busque a unidade...'}
                         </span>
                         <span style={{ color: '#94a3b8', fontSize: 12 }}>{showUnidadeDropdownAdd ? '▲' : '▼'}</span>
                       </div>
@@ -1077,46 +1121,46 @@ export default function RelatoriosAtividadesPage() {
                           <div style={{ padding: 8, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                               <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10 }} />
-                              <input 
-                                autoFocus 
-                                type="text" 
-                                placeholder="Buscar unidade..." 
+                              <input
+                                autoFocus
+                                type="text"
+                                placeholder="Buscar unidade..."
                                 value={unidadeSearchTermAdd}
                                 onChange={e => setUnidadeSearchTermAdd(e.target.value)}
-                                onKeyDown={e => { if(e.key === 'Enter') e.preventDefault() }}
+                                onKeyDown={e => { if (e.key === 'Enter') e.preventDefault() }}
                                 style={{ width: '100%', padding: '8px 8px 8px 30px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
                               />
                             </div>
                           </div>
                           <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                            {Array.from(new Map(unidsDoTecnico.map((u:any) => [u.id, u])).values())
-                              .filter((u:any) => u.nome.toLowerCase().includes(unidadeSearchTermAdd.toLowerCase()) || (u.cidade || '').toLowerCase().includes(unidadeSearchTermAdd.toLowerCase()))
-                              .map((u:any) => (
-                              <div key={u.id} onClick={() => { 
-                                setFormAtiv(p => ({...p, local: u.nome, outroLocal: '', cidadeUf: `${u.cidade || ''} / ${u.estado || ''}`.replace(/^ \/ | \/ $/g, '')}));
-                                setShowUnidadeDropdownAdd(false);
-                                setUnidadeSearchTermAdd('');
-                              }}
-                                style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formAtiv.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
-                                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
-                                onMouseLeave={e => (e.currentTarget.style.background = formAtiv.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff')}
-                              >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <span style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{u.nome}</span>
+                            {Array.from(new Map(unidsDoTecnico.map((u: any) => [u.id, u])).values())
+                              .filter((u: any) => u.nome.toLowerCase().includes(unidadeSearchTermAdd.toLowerCase()) || (u.cidade || '').toLowerCase().includes(unidadeSearchTermAdd.toLowerCase()))
+                              .map((u: any) => (
+                                <div key={u.id} onClick={() => {
+                                  setFormAtiv(p => ({ ...p, local: u.nome, outroLocal: '', cidadeUf: `${u.cidade || ''} / ${u.estado || ''}`.replace(/^ \/ | \/ $/g, '') }));
+                                  setShowUnidadeDropdownAdd(false);
+                                  setUnidadeSearchTermAdd('');
+                                }}
+                                  style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formAtiv.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = formAtiv.local === u.nome ? 'rgba(102,0,153,0.06)' : '#fff')}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{u.nome}</span>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                                    {u.endereco ? u.endereco + ' - ' : ''}{u.cidade}/{u.estado}
+                                  </div>
                                 </div>
-                                <div style={{ fontSize: 11, color: '#64748b' }}>
-                                  {u.endereco ? u.endereco + ' - ' : ''}{u.cidade}/{u.estado}
-                                </div>
-                              </div>
-                            ))}
-                            {unidsDoTecnico.filter((u:any) => u.nome.toLowerCase().includes(unidadeSearchTermAdd.toLowerCase())).length === 0 && (
+                              ))}
+                            {unidsDoTecnico.filter((u: any) => u.nome.toLowerCase().includes(unidadeSearchTermAdd.toLowerCase())).length === 0 && (
                               <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhuma unidade encontrada.</div>
                             )}
-                            <div onClick={() => { 
-                                setFormAtiv(p => ({...p, local: 'OUTROS', outroLocal: '', cidadeUf: ''}));
-                                setShowUnidadeDropdownAdd(false);
-                                setUnidadeSearchTermAdd('');
-                              }}
+                            <div onClick={() => {
+                              setFormAtiv(p => ({ ...p, local: 'OUTROS', outroLocal: '', cidadeUf: '' }));
+                              setShowUnidadeDropdownAdd(false);
+                              setUnidadeSearchTermAdd('');
+                            }}
                               style={{ padding: '10px 14px', cursor: 'pointer', background: formAtiv.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
                               onMouseLeave={e => (e.currentTarget.style.background = formAtiv.local === 'OUTROS' ? 'rgba(102,0,153,0.06)' : '#fff')}
@@ -1133,46 +1177,46 @@ export default function RelatoriosAtividadesPage() {
                 {formAtiv.local === 'OUTROS' && (
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Qual o nome do Local?</label>
-                    <input type="text" placeholder="Especifique o local..." required value={formAtiv.outroLocal} onChange={e => setFormAtiv(p => ({...p, outroLocal: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                    <input type="text" placeholder="Especifique o local..." required value={formAtiv.outroLocal} onChange={e => setFormAtiv(p => ({ ...p, outroLocal: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                   </div>
                 )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Data da Atividade</label>
-                    <input type="date" required value={formAtiv.data} onChange={e => setFormAtiv(p => ({...p, data: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                    <input type="date" required value={formAtiv.data} onChange={e => setFormAtiv(p => ({ ...p, data: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Cidade / UF</label>
-                    <input required placeholder="Ex: João Pessoa/PB" value={formAtiv.cidadeUf} onChange={e => setFormAtiv(p => ({...p, cidadeUf: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                    <input required placeholder="Ex: João Pessoa/PB" value={formAtiv.cidadeUf} onChange={e => setFormAtiv(p => ({ ...p, cidadeUf: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                   </div>
                 </div>
-                
+
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                     <label style={{ fontSize: 12, fontWeight: 700 }}>Descrição / Relato da Atividade</label>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => handleOptimizeText(false)}
                       disabled={aiLoading}
-                      style={{ 
-                        fontSize: 11, fontWeight: 700, padding: '4px 10px', 
+                      style={{
+                        fontSize: 11, fontWeight: 700, padding: '4px 10px',
                         borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
-                        cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
+                        cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6
                       }}
                     >
                       {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
                     </button>
                   </div>
-                  <textarea required rows={3} placeholder="O que foi feito?" value={formAtiv.descricao} onChange={e => setFormAtiv(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
+                  <textarea required rows={3} placeholder="O que foi feito?" value={formAtiv.descricao} onChange={e => setFormAtiv(p => ({ ...p, descricao: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
                 </div>
-                
+
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Registro Fotográfico (Opcional)</label>
                   {formAtiv.fotoBase64 ? (
                     <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
                       <img src={formAtiv.fotoBase64} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
-                      <button type="button" onClick={() => setFormAtiv(p => ({...p, fotoBase64: ''}))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
+                      <button type="button" onClick={() => setFormAtiv(p => ({ ...p, fotoBase64: '' }))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
                     </div>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -1245,8 +1289,8 @@ export default function RelatoriosAtividadesPage() {
                             </button>
                           </div>
                         )}
-                        <input id="dssFotoGaleriaRel" type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload = ev => setFormAtiv(p => ({...p, dssFotoBase64: ev.target?.result as string, dssFotoFileName: f.name, dssFotoContentType: f.type})); r.readAsDataURL(f) }}} style={{ display: 'none' }} />
-                        <input id="dssFotoCameraRel" type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files?.[0]; if(f) { const r = new FileReader(); r.onload = ev => setFormAtiv(p => ({...p, dssFotoBase64: ev.target?.result as string, dssFotoFileName: f.name, dssFotoContentType: f.type})); r.readAsDataURL(f) }}} style={{ display: 'none' }} />
+                        <input id="dssFotoGaleriaRel" type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = ev => setFormAtiv(p => ({ ...p, dssFotoBase64: ev.target?.result as string, dssFotoFileName: f.name, dssFotoContentType: f.type })); r.readAsDataURL(f) } }} style={{ display: 'none' }} />
+                        <input id="dssFotoCameraRel" type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = ev => setFormAtiv(p => ({ ...p, dssFotoBase64: ev.target?.result as string, dssFotoFileName: f.name, dssFotoContentType: f.type })); r.readAsDataURL(f) } }} style={{ display: 'none' }} />
                       </div>
                     </div>
                   )}
@@ -1267,7 +1311,7 @@ export default function RelatoriosAtividadesPage() {
       {/* MODAL EDITAR ATIVIDADE */}
       {showEditModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ 
+          <div style={{
             background: '#fff', borderRadius: 16, width: '100%', maxWidth: 600,
             display: 'flex', flexDirection: 'column',
             maxHeight: '90vh', overflow: 'hidden'
@@ -1280,163 +1324,163 @@ export default function RelatoriosAtividadesPage() {
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Editar Atividade</h2>
               <button onClick={() => setShowEditModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 'bold' }}>X</button>
             </div>
-            
+
             <div style={{ padding: 24, overflowY: 'auto' }}>
               <form onSubmit={handleEditAtividade} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Empresa Cliente</label>
-                  <input required value={formEdit.empresa} onChange={e => setFormEdit(p => ({...p, empresa: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Empresa Cliente</label>
+                    <input required value={formEdit.empresa} onChange={e => setFormEdit(p => ({ ...p, empresa: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Projeto / Área</label>
+                    <input required value={formEdit.projeto} onChange={e => setFormEdit(p => ({ ...p, projeto: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                  </div>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Projeto / Área</label>
-                  <input required value={formEdit.projeto} onChange={e => setFormEdit(p => ({...p, projeto: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                </div>
-              </div>
 
-              {(() => {
-                const tId = showEditModal?.tecnicoId || showEditModal?.tecnico?.id;
-                const tecnicoSel = tId ? tecnicos.find(t => t.id === tId) : null;
-                const bases = tecnicoSel?.unidades || [];
-                const unidsDoTecnico = (role === 'MASTER' || role === 'ADMIN') ? unidades : bases;
+                {(() => {
+                  const tId = showEditModal?.tecnicoId || showEditModal?.tecnico?.id;
+                  const tecnicoSel = tId ? tecnicos.find(t => t.id === tId) : null;
+                  const bases = tecnicoSel?.unidades || [];
+                  const unidsDoTecnico = (role === 'MASTER' || role === 'ADMIN') ? unidades : bases;
 
-                return (
-                  <div style={{ marginBottom: 12, position: 'relative' }}>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4, color: '#3b82f6' }}>📍 Unidade / Local</label>
-                    <div
-                      onClick={() => setShowUnidadeDropdownEdit(v => !v)}
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showUnidadeDropdownEdit ? '#3b82f6' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.2s' }}
-                    >
-                      <span style={{ fontSize: 13, color: formEdit.local ? '#1e293b' : '#94a3b8', fontWeight: formEdit.local ? 700 : 400 }}>
-                        {formEdit.local ? (unidsDoTecnico.find((u:any) => u.nome === formEdit.local) ? formEdit.local : formEdit.local === 'OUTROS' ? 'Outros...' : formEdit.local) : 'Selecione ou busque a unidade...'}
-                      </span>
-                      <span style={{ color: '#94a3b8', fontSize: 12 }}>{showUnidadeDropdownEdit ? '▲' : '▼'}</span>
-                    </div>
-
-                    {showUnidadeDropdownEdit && (
-                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <div style={{ padding: 8, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                            <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10 }} />
-                            <input 
-                              autoFocus 
-                              type="text" 
-                              placeholder="Buscar unidade..." 
-                              value={unidadeSearchTermEdit}
-                              onChange={e => setUnidadeSearchTermEdit(e.target.value)}
-                              onKeyDown={e => { if(e.key === 'Enter') e.preventDefault() }}
-                              style={{ width: '100%', padding: '8px 8px 8px 30px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
-                            />
-                          </div>
-                        </div>
-                        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                          {Array.from(new Map(unidsDoTecnico.map((u:any) => [u.id, u])).values())
-                            .filter((u:any) => u.nome.toLowerCase().includes(unidadeSearchTermEdit.toLowerCase()) || (u.cidade || '').toLowerCase().includes(unidadeSearchTermEdit.toLowerCase()))
-                            .map((u:any) => (
-                            <div key={u.id} onClick={() => { 
-                              setFormEdit(p => ({...p, local: u.nome, outroLocal: '', cidadeUf: `${u.cidade || ''} / ${u.estado || ''}`.replace(/^ \/ | \/ $/g, '')}));
-                              setShowUnidadeDropdownEdit(false);
-                              setUnidadeSearchTermEdit('');
-                            }}
-                              style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formEdit.local === u.nome ? 'rgba(59,130,246,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
-                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.08)')}
-                              onMouseLeave={e => (e.currentTarget.style.background = formEdit.local === u.nome ? 'rgba(59,130,246,0.06)' : '#fff')}
-                            >
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{u.nome}</span>
-                              </div>
-                              <div style={{ fontSize: 11, color: '#64748b' }}>
-                                {u.endereco ? u.endereco + ' - ' : ''}{u.cidade}/{u.estado}
-                              </div>
-                            </div>
-                          ))}
-                          {unidsDoTecnico.filter((u:any) => u.nome.toLowerCase().includes(unidadeSearchTermEdit.toLowerCase())).length === 0 && (
-                            <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhuma unidade encontrada.</div>
-                          )}
-                          <div onClick={() => { 
-                              setFormEdit(p => ({...p, local: 'OUTROS', outroLocal: '', cidadeUf: ''}));
-                              setShowUnidadeDropdownEdit(false);
-                              setUnidadeSearchTermEdit('');
-                            }}
-                            style={{ padding: '10px 14px', cursor: 'pointer', background: formEdit.local === 'OUTROS' ? 'rgba(59,130,246,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.08)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = formEdit.local === 'OUTROS' ? 'rgba(59,130,246,0.06)' : '#fff')}
-                          >
-                            <span>Outros...</span>
-                          </div>
-                        </div>
+                  return (
+                    <div style={{ marginBottom: 12, position: 'relative' }}>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4, color: '#3b82f6' }}>📍 Unidade / Local</label>
+                      <div
+                        onClick={() => setShowUnidadeDropdownEdit(v => !v)}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: `1px solid ${showUnidadeDropdownEdit ? '#3b82f6' : '#cbd5e1'}`, cursor: 'pointer', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.2s' }}
+                      >
+                        <span style={{ fontSize: 13, color: formEdit.local ? '#1e293b' : '#94a3b8', fontWeight: formEdit.local ? 700 : 400 }}>
+                          {formEdit.local ? (unidsDoTecnico.find((u: any) => u.nome === formEdit.local) ? formEdit.local : formEdit.local === 'OUTROS' ? 'Outros...' : formEdit.local) : 'Selecione ou busque a unidade...'}
+                        </span>
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>{showUnidadeDropdownEdit ? '▲' : '▼'}</span>
                       </div>
-                    )}
-                  </div>
-                )
-              })()}
 
-              {formEdit.local === 'OUTROS' && (
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Qual o nome do Local?</label>
-                  <input type="text" placeholder="Especifique o local..." required value={formEdit.outroLocal} onChange={e => setFormEdit(p => ({...p, outroLocal: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Data da Atividade</label>
-                  <input type="date" required value={formEdit.data} onChange={e => setFormEdit(p => ({...p, data: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Cidade / UF</label>
-                  <input required value={formEdit.cidadeUf} onChange={e => setFormEdit(p => ({...p, cidadeUf: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
-                </div>
-              </div>
-              
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700 }}>Descrição</label>
-                  <button 
-                    type="button" 
-                    onClick={() => handleOptimizeText(true)}
-                    disabled={aiLoading}
-                    style={{ 
-                      fontSize: 11, fontWeight: 700, padding: '4px 10px', 
-                      borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
-                      cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 
-                    }}
-                  >
-                    {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
-                  </button>
-                </div>
-                <textarea required rows={3} value={formEdit.descricao} onChange={e => setFormEdit(p => ({...p, descricao: e.target.value}))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
-              </div>
-              
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Alterar Foto (Opcional)</label>
-                {showEditModal.fotoUrl && !formEdit.fotoBase64 && (
-                  <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <img src={showEditModal.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios')} alt="Atual" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0' }} />
-                    <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Imagem Atual</span>
-                      <button type="button" onClick={() => { const input = document.getElementById('editAtivPic') as HTMLInputElement; input?.click() }} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Trocar Imagem</button>
+                      {showUnidadeDropdownEdit && (
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                          <div style={{ padding: 8, borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                              <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: 10 }} />
+                              <input
+                                autoFocus
+                                type="text"
+                                placeholder="Buscar unidade..."
+                                value={unidadeSearchTermEdit}
+                                onChange={e => setUnidadeSearchTermEdit(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') e.preventDefault() }}
+                                style={{ width: '100%', padding: '8px 8px 8px 30px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, outline: 'none' }}
+                              />
+                            </div>
+                          </div>
+                          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                            {Array.from(new Map(unidsDoTecnico.map((u: any) => [u.id, u])).values())
+                              .filter((u: any) => u.nome.toLowerCase().includes(unidadeSearchTermEdit.toLowerCase()) || (u.cidade || '').toLowerCase().includes(unidadeSearchTermEdit.toLowerCase()))
+                              .map((u: any) => (
+                                <div key={u.id} onClick={() => {
+                                  setFormEdit(p => ({ ...p, local: u.nome, outroLocal: '', cidadeUf: `${u.cidade || ''} / ${u.estado || ''}`.replace(/^ \/ | \/ $/g, '') }));
+                                  setShowUnidadeDropdownEdit(false);
+                                  setUnidadeSearchTermEdit('');
+                                }}
+                                  style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formEdit.local === u.nome ? 'rgba(59,130,246,0.06)' : '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.08)')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = formEdit.local === u.nome ? 'rgba(59,130,246,0.06)' : '#fff')}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 13, color: '#334155', fontWeight: 700 }}>{u.nome}</span>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                                    {u.endereco ? u.endereco + ' - ' : ''}{u.cidade}/{u.estado}
+                                  </div>
+                                </div>
+                              ))}
+                            {unidsDoTecnico.filter((u: any) => u.nome.toLowerCase().includes(unidadeSearchTermEdit.toLowerCase())).length === 0 && (
+                              <div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhuma unidade encontrada.</div>
+                            )}
+                            <div onClick={() => {
+                              setFormEdit(p => ({ ...p, local: 'OUTROS', outroLocal: '', cidadeUf: '' }));
+                              setShowUnidadeDropdownEdit(false);
+                              setUnidadeSearchTermEdit('');
+                            }}
+                              style={{ padding: '10px 14px', cursor: 'pointer', background: formEdit.local === 'OUTROS' ? 'rgba(59,130,246,0.06)' : '#fff', fontSize: 13, color: '#334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.08)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = formEdit.local === 'OUTROS' ? 'rgba(59,130,246,0.06)' : '#fff')}
+                            >
+                              <span>Outros...</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  )
+                })()}
+
+                {formEdit.local === 'OUTROS' && (
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Qual o nome do Local?</label>
+                    <input type="text" placeholder="Especifique o local..." required value={formEdit.outroLocal} onChange={e => setFormEdit(p => ({ ...p, outroLocal: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                   </div>
                 )}
-                {formEdit.fotoBase64 && (
-                  <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <img src={formEdit.fotoBase64} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
-                    <button type="button" onClick={() => setFormEdit(p => ({...p, fotoBase64: ''}))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Data da Atividade</label>
+                    <input type="date" required value={formEdit.data} onChange={e => setFormEdit(p => ({ ...p, data: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
                   </div>
-                )}
-                {(!showEditModal.fotoUrl && !formEdit.fotoBase64) && (
-                   <div 
-                     onClick={() => document.getElementById('editAtivPic')?.click()}
-                     style={{ border: '2px dashed #cbd5e1', borderRadius: 8, padding: '24px 20px', cursor: 'pointer', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}
-                   >
-                     <UploadCloud color="#64748b" size={28} />
-                     <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Clique para escolher nova imagem</span>
-                   </div>
-                )}
-                <input id="editAtivPic" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormEdit)} style={{ display: 'none' }} />
-              </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Cidade / UF</label>
+                    <input required value={formEdit.cidadeUf} onChange={e => setFormEdit(p => ({ ...p, cidadeUf: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700 }}>Descrição</label>
+                    <button
+                      type="button"
+                      onClick={() => handleOptimizeText(true)}
+                      disabled={aiLoading}
+                      style={{
+                        fontSize: 11, fontWeight: 700, padding: '4px 10px',
+                        borderRadius: 6, border: 'none', background: '#f3e8ff', color: '#7e22ce',
+                        cursor: aiLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6
+                      }}
+                    >
+                      {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <span>✨ Corrigir com IA</span>}
+                    </button>
+                  </div>
+                  <textarea required rows={3} value={formEdit.descricao} onChange={e => setFormEdit(p => ({ ...p, descricao: e.target.value }))} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #cbd5e1', resize: 'none' }} />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Alterar Foto (Opcional)</label>
+                  {showEditModal.fotoUrl && !formEdit.fotoBase64 && (
+                    <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <img src={showEditModal.fotoUrl.replace('//sg4-relatorios', '/sg4-relatorios')} alt="Atual" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0' }} />
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 4 }}>Imagem Atual</span>
+                        <button type="button" onClick={() => { const input = document.getElementById('editAtivPic') as HTMLInputElement; input?.click() }} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>Trocar Imagem</button>
+                      </div>
+                    </div>
+                  )}
+                  {formEdit.fotoBase64 && (
+                    <div style={{ marginBottom: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <img src={formEdit.fotoBase64} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6 }} />
+                      <button type="button" onClick={() => setFormEdit(p => ({ ...p, fotoBase64: '' }))} style={{ background: '#fee2e2', color: '#ef4444', padding: '6px 12px', borderRadius: 6, border: 'none', fontWeight: 600 }}>Remover</button>
+                    </div>
+                  )}
+                  {(!showEditModal.fotoUrl && !formEdit.fotoBase64) && (
+                    <div
+                      onClick={() => document.getElementById('editAtivPic')?.click()}
+                      style={{ border: '2px dashed #cbd5e1', borderRadius: 8, padding: '24px 20px', cursor: 'pointer', background: '#f8fafc', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all 0.2s' }}
+                    >
+                      <UploadCloud color="#64748b" size={28} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#64748b' }}>Clique para escolher nova imagem</span>
+                    </div>
+                  )}
+                  <input id="editAtivPic" type="file" accept="image/*" onChange={e => handleFileChange(e, setFormEdit)} style={{ display: 'none' }} />
+                </div>
 
                 <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
                   <button type="button" disabled={pending || saving} onClick={() => setShowEditModal(null)} style={{ flex: 1, padding: '12px', background: '#e2e8f0', color: '#475569', borderRadius: 8, fontWeight: 700, border: 'none' }}>Cancelar</button>
@@ -1453,7 +1497,7 @@ export default function RelatoriosAtividadesPage() {
       {/* MODAL GERAR PDF */}
       {showGerarPdfModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ 
+          <div style={{
             background: '#fff', borderRadius: 16, width: '100%', maxWidth: 450,
             display: 'flex', flexDirection: 'column',
             maxHeight: '90vh', overflow: 'hidden'
@@ -1466,9 +1510,9 @@ export default function RelatoriosAtividadesPage() {
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 }}>Gerar Relatório PDF</h2>
               <button onClick={() => setShowGerarPdfModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', fontSize: 16, fontWeight: 'bold' }}>X</button>
             </div>
-            
+
             <div style={{ padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              
+
               {(role === 'MASTER' || role === 'ADMIN') && (
                 <div style={{ position: 'relative' }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual técnico?</label>
@@ -1478,41 +1522,41 @@ export default function RelatoriosAtividadesPage() {
                   >
                     {formPdf.tecnicoId ? (() => {
                       const t = tecnicos.find(x => x.id === formPdf.tecnicoId)
-                      return t ? (<>{t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}<span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span></>) : null
+                      return t ? (<>{t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />) : (<div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{t.nome.substring(0, 2).toUpperCase()}</div>)}<span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</span></>) : null
                     })() : (<span style={{ fontSize: 13, color: '#94a3b8' }}>Selecione um técnico...</span>)}
                     <span style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>{showTecnicoPdfDropdown ? '▲' : '▼'}</span>
                   </div>
                   {showTecnicoPdfDropdown && (
                     <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 999, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, maxHeight: 240, overflowY: 'auto' }}>
                       {tecnicos.filter(t => t.ativo).map(t => (
-                        <div key={t.id} onClick={() => { setFormPdf(p => ({...p, tecnicoId: t.id})); setShowTecnicoPdfDropdown(false) }}
+                        <div key={t.id} onClick={() => { setFormPdf(p => ({ ...p, tecnicoId: t.id })); setShowTecnicoPdfDropdown(false) }}
                           style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', background: formPdf.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff', transition: 'background 0.15s' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(102,0,153,0.08)')}
                           onMouseLeave={e => (e.currentTarget.style.background = formPdf.tecnicoId === t.id ? 'rgba(102,0,153,0.06)' : '#fff')}
                         >
-                          {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0 }}>{t.nome.substring(0,2).toUpperCase()}</div>)}
+                          {t.fotoUrl ? (<img src={t.fotoUrl} alt={t.nome} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9d5ff', flexShrink: 0 }} />) : (<div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#660099,#9333ea)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{t.nome.substring(0, 2).toUpperCase()}</div>)}
                           <div><div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{t.nome}</div><div style={{ fontSize: 11, color: '#94a3b8' }}>{t.cargo || 'Técnico de Segurança'}</div></div>
-                          {formPdf.tecnicoId === t.id && <span style={{ marginLeft:'auto', color:'#660099', fontWeight:800 }}>✓</span>}
+                          {formPdf.tecnicoId === t.id && <span style={{ marginLeft: 'auto', color: '#660099', fontWeight: 800 }}>✓</span>}
                         </div>
                       ))}
                       {tecnicos.filter(t => t.ativo).length === 0 && (<div style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>Nenhum técnico ativo encontrado.</div>)}
                     </div>
                   )}
-                  <input type="hidden" required value={formPdf.tecnicoId} onChange={() => {}} />
+                  <input type="hidden" required value={formPdf.tecnicoId} onChange={() => { }} />
                 </div>
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual Mês?</label>
-                  <select value={formPdf.mes} onChange={(e) => setFormPdf(p => ({...p, mes: Number(e.target.value)}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
-                    {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{new Date(2000, i).toLocaleString('pt-BR', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}</option>)}
+                  <select value={formPdf.mes} onChange={(e) => setFormPdf(p => ({ ...p, mes: Number(e.target.value) }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
+                    {Array.from({ length: 12 }).map((_, i) => <option key={i + 1} value={i + 1}>{new Date(2000, i).toLocaleString('pt-BR', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}</option>)}
                   </select>
                 </div>
 
                 <div>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>De qual Ano?</label>
-                  <select value={formPdf.ano} onChange={(e) => setFormPdf(p => ({...p, ano: Number(e.target.value)}))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
+                  <select value={formPdf.ano} onChange={(e) => setFormPdf(p => ({ ...p, ano: Number(e.target.value) }))} style={{ width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid #cbd5e1', outline: 'none' }}>
                     {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
@@ -1522,7 +1566,7 @@ export default function RelatoriosAtividadesPage() {
 
               <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                 <button onClick={() => setShowGerarPdfModal(false)} style={{ flex: 1, padding: 12, background: '#f1f5f9', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
-                <button 
+                <button
                   onClick={handleGeneratePdf}
                   disabled={loading}
                   style={{ flex: 1, padding: 12, background: '#22c55e', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: loading ? 'not-allowed' : 'pointer' }}
@@ -1574,7 +1618,7 @@ export default function RelatoriosAtividadesPage() {
           return acc
         }, {})
         const slices = Object.entries(byTecnico).sort((a, b) => b[1] - a[1])
-        const COLORS = ['#660099','#9333ea','#06b6d4','#f59e0b','#ef4444','#22c55e','#3b82f6','#ec4899','#8b5cf6','#14b8a6']
+        const COLORS = ['#660099', '#9333ea', '#06b6d4', '#f59e0b', '#ef4444', '#22c55e', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6']
 
         // Função para calcular arcos SVG do gráfico de pizza
         const buildPie = () => {
@@ -1678,30 +1722,30 @@ export default function RelatoriosAtividadesPage() {
                       <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14, fontWeight: 600 }}>Nenhuma atividade neste mês.</div>
                     ) : (
                       <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                      {/* SVG Pizza */}
-                      <svg width="200" height="200" viewBox="0 0 200 200">
-                        {pieSlices.map((s, i) => (
-                          <path key={i} d={s.d} fill={s.color} stroke="#fff" strokeWidth="2" />
-                        ))}
-                        {/* Centro branco para efeito donut */}
-                        <circle cx="100" cy="100" r="42" fill="#fff" />
-                        <text x="100" y="96" textAnchor="middle" fontSize="18" fontWeight="800" fill="#1e293b">{totalMes}</text>
-                        <text x="100" y="112" textAnchor="middle" fontSize="10" fontWeight="600" fill="#94a3b8">atividades</text>
-                      </svg>
+                        {/* SVG Pizza */}
+                        <svg width="200" height="200" viewBox="0 0 200 200">
+                          {pieSlices.map((s, i) => (
+                            <path key={i} d={s.d} fill={s.color} stroke="#fff" strokeWidth="2" />
+                          ))}
+                          {/* Centro branco para efeito donut */}
+                          <circle cx="100" cy="100" r="42" fill="#fff" />
+                          <text x="100" y="96" textAnchor="middle" fontSize="18" fontWeight="800" fill="#1e293b">{totalMes}</text>
+                          <text x="100" y="112" textAnchor="middle" fontSize="10" fontWeight="600" fill="#94a3b8">atividades</text>
+                        </svg>
 
-                      {/* Legenda */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 200 }}>
-                        {pieSlices.map((s, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: `1px solid ${s.color}22` }}>
-                            <span style={{ width: 12, height: 12, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', flex: 1 }}>{s.nome}</span>
-                            <span style={{ fontSize: 13, fontWeight: 800, color: s.color }}>{s.count}</span>
-                            <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, minWidth: 36, textAlign: 'right' }}>{s.pct}%</span>
-                          </div>
-                        ))}
+                        {/* Legenda */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 200 }}>
+                          {pieSlices.map((s, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: `1px solid ${s.color}22` }}>
+                              <span style={{ width: 12, height: 12, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', flex: 1 }}>{s.nome}</span>
+                              <span style={{ fontSize: 13, fontWeight: 800, color: s.color }}>{s.count}</span>
+                              <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 700, minWidth: 36, textAlign: 'right' }}>{s.pct}%</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                   </div>
                 )}
               </div>
@@ -1712,6 +1756,10 @@ export default function RelatoriosAtividadesPage() {
 
 
 
+      <ActionLoadingOverlay
+        open={saving || pending || generatingPdf || deletingPdf || aiLoading}
+        title={generatingPdf ? 'Gerando PDF do Relatório...' : aiLoading ? 'Otimizando texto com IA...' : deletingPdf ? 'Excluindo relatório PDF...' : 'Salvando atividade...'}
+      />
     </div>
   )
 }
