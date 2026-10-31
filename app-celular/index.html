@@ -107,6 +107,31 @@
     }
 
     /* Top AppBar */
+    
+    /* Indicador ON/OFF com bolinha piscante */
+    @keyframes pulseGreenDot {
+      0% { transform: scale(0.9); opacity: 0.4; }
+      50% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.4; }
+    }
+    .status-dot-on {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: inline-block;
+      animation: pulseGreenDot 1.4s infinite;
+      box-shadow: 0 0 6px #22c55e;
+    }
+    .status-dot-off {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      display: inline-block;
+      box-shadow: 0 0 6px #ef4444;
+    }
+
     .app-header {
       background: var(--purple);
       color: #fff;
@@ -280,6 +305,47 @@
       font-size: 13px;
       font-weight: 800;
     }
+        /* Botões de Atalho Compactos (apenas ícones por padrão; 1º clique expande, 2º clique executa) */
+    .btn-action-icon {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--slate-300);
+      background: #f1f5f9;
+      color: var(--slate-700);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .btn-action-icon .action-text {
+      display: none;
+    }
+    .btn-action-icon.expanded {
+      background: var(--purple);
+      color: #fff;
+      border-color: var(--purple);
+      padding: 6px 10px;
+    }
+    .btn-action-icon.expanded .action-text {
+      display: inline;
+    }
+    .btn-action-icon.expanded.btn-del {
+      background: var(--red);
+      border-color: var(--red);
+    }
+    .btn-action-icon.expanded.btn-rev {
+      background: var(--amber);
+      border-color: var(--amber);
+    }
+    .btn-action-icon.expanded.btn-move {
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
     .fab-btn:hover .fab-label,
     .fab-btn:focus .fab-label,
     .fab-btn.expanded .fab-label {
@@ -446,11 +512,33 @@
       display: flex;
     }
     .modal-card {
-      background: #fff;
+      background: #ffffff !important;
+      color: #0f172a !important;
       width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
       border-radius: 20px;
-      padding: 18px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+      padding: 22px 18px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.28);
+      border: 1px solid #e2e8f0;
+    }
+    .modal-card h3 {
+      color: #0f172a !important;
+      font-weight: 800 !important;
+      font-size: 16px !important;
+    }
+    .modal-card label {
+      color: #0f172a !important;
+      font-weight: 800 !important;
+      font-size: 11px !important;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .modal-card .field-input {
+      color: #0f172a !important;
+      background: #ffffff !important;
+      border: 1.5px solid #94a3b8 !important;
+      font-weight: 600 !important;
     }
 
     /* Overlay Bloqueante Anti-Duplo-Clique */
@@ -672,10 +760,12 @@
           </div>
           <div id="headerSub" style="font-size:11px; color:rgba(255,255,255,0.9); font-weight:700;">Sincronizado</div>
         </div>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span id="connBadge" class="status-pill online" style="background:rgba(255,255,255,0.2); color:#ffffff; border:1px solid rgba(255,255,255,0.35);">ONLINE</span>
-          <button id="btnSyncNow" class="btn" style="background:rgba(255,255,255,0.18); color:#ffffff; border:1px solid rgba(255,255,255,0.35); padding:5px 9px; font-size:12px;" title="Sincronizar com o Banco">↻</button>
-          <button id="btnLogout" class="btn" style="background:rgba(255,255,255,0.18); color:#ffffff; border:1px solid rgba(255,255,255,0.35); padding:5px 9px; font-size:12px;" title="Sair">⎋</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div id="connStatusWrap" style="display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.2); border-radius:99px; padding:3px 9px; border:1px solid rgba(255,255,255,0.35);">
+            <span id="statusDot" class="status-dot-on"></span>
+            <span id="statusText" style="font-size:11px; font-weight:800; color:#ffffff;">On</span>
+          </div>
+          <button id="btnSyncNow" class="btn" style="background:rgba(255,255,255,0.2); color:#ffffff; border:1px solid rgba(255,255,255,0.35); padding:5px 9px; font-size:12px;" title="Sincronizar com o Banco">↻</button>
         </div>
       </div>
 
@@ -843,6 +933,12 @@
         state.isSubmitting = active;
         if (title) elBlockingTitle.textContent = title;
         elBlocking.classList.toggle('open', active);
+      }
+
+      function formatKmNumber(val) {
+        const digits = String(val).replace(/\D/g, '');
+        if (!digits) return '';
+        return Number(digits).toLocaleString('pt-BR');
       }
 
       function formatBrDate(iso) {
@@ -1149,8 +1245,12 @@
         const tec = d.currentTecnico || {};
         const isMasterOrAdmin = (d.user?.role || '').toUpperCase() === 'MASTER' || (d.user?.role || '').toUpperCase() === 'ADMIN';
 
-        elConnBadge.textContent = state.isOnline ? 'ONLINE' : 'OFFLINE (ROOM)';
-        elConnBadge.className = 'status-pill ' + (state.isOnline ? 'online' : 'offline');
+        const dot = document.getElementById('statusDot');
+        const txt = document.getElementById('statusText');
+        if (dot && txt) {
+          dot.className = state.isOnline ? 'status-dot-on' : 'status-dot-off';
+          txt.textContent = state.isOnline ? 'On' : 'Off';
+        }
         elHeaderSub.textContent = tec.nome ? tec.nome : 'SG4 Mobile';
 
         // ══════════════════════════════════════════════════════════════════════
@@ -1164,12 +1264,20 @@
 
           const filtered = monthlyStats.filter(s => s.year === currentYear && selectedMonths.includes(s.month));
 
+          const isAll = !state.selectedTecnicoId || state.selectedTecnicoId === 'ALL';
+          const tecnicosAtivosCount = d.tecnicosAtivosCount || (d.tecnicos ? d.tecnicos.filter(t => t.id !== 'ALL').length : 1);
+          const multiplicadorTecnicos = isAll ? Math.max(1, tecnicosAtivosCount) : 1;
+
           const dssCount = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.dssCount || 0), 0) : sum.dssRealizadosMes || 0;
-          const dssMeta = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.dssMeta || 8), 0) : 8 * activeMonthsCount;
+          const dssMeta = filtered.length > 0
+            ? filtered.reduce((a, b) => a + (b.dssMeta || (8 * multiplicadorTecnicos)), 0)
+            : 8 * activeMonthsCount * multiplicadorTecnicos;
           const dssPct = dssMeta > 0 ? Math.min(100, Math.round((dssCount / dssMeta) * 100)) : 0;
 
           const inspCount = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.inspecoesCount || 0), 0) : sum.inspecoesRealizadasMes || 0;
-          const inspMeta = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.inspecoesMeta || 20), 0) : 20 * activeMonthsCount;
+          const inspMeta = filtered.length > 0
+            ? filtered.reduce((a, b) => a + (b.inspecoesMeta || (20 * multiplicadorTecnicos)), 0)
+            : 20 * activeMonthsCount * multiplicadorTecnicos;
           const inspPct = inspMeta > 0 ? Math.min(100, Math.round((inspCount / inspMeta) * 100)) : 0;
 
           const relCount = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.relatoriosCount || 0), 0) : sum.relatoriosMes || 0;
@@ -1185,8 +1293,7 @@
           elContent.innerHTML = `
             <!-- Card do Usuário Logado + Filtros Suspensos (Dropdowns) -->
             <div class="m3-card" style="padding:14px;">
-              <div style="font-size:16px; font-weight:800; color:var(--slate-900);">Olá, ${(tec.nome || d.user?.name || 'Técnico').split(' ')[0]}! 👋</div>
-              <div style="font-size:11px; color:var(--slate-600); margin-top:2px;">${tec.nome || ''} • Base: ${tec.baseFixaNome || 'Geral'}</div>
+              <div style="font-size:17px; font-weight:900; color:var(--slate-900);">Olá, ${(tec.nome || d.user?.name || 'Técnico').split(' ')[0]}! 👋</div>
 
               ${isMasterOrAdmin && tecnicosList.length > 0 ? `
                 <div style="margin-top:10px;">
@@ -1227,7 +1334,7 @@
                 <div style="flex:1;">
                   <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">DSS REALIZADOS</div>
                   <div style="font-size:26px; font-weight:900; margin-top:2px;">${dssCount}</div>
-                  <div style="font-size:11px; opacity:0.85;">Meta: ${dssMeta} (${activeMonthsCount}m)</div>
+                  <div style="font-size:11px; opacity:0.85;">Meta: ${dssMeta} (${activeMonthsCount}m${isAll ? ' • ' + tecnicosAtivosCount + ' técs' : ''})</div>
                 </div>
                 <div style="width:1px; height:48px; background:rgba(255,255,255,0.22); margin:0 12px;"></div>
                 <div style="flex:1; text-align:right;">
@@ -1244,7 +1351,7 @@
                 <div style="flex:1;">
                   <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">INSPEÇÕES REALIZADAS</div>
                   <div style="font-size:26px; font-weight:900; margin-top:2px;">${inspCount}</div>
-                  <div style="font-size:11px; opacity:0.85;">Meta: ${inspMeta} (${activeMonthsCount}m)</div>
+                  <div style="font-size:11px; opacity:0.85;">Meta: ${inspMeta} (${activeMonthsCount}m${isAll ? ' • ' + tecnicosAtivosCount + ' técs' : ''})</div>
                 </div>
                 <div style="width:1px; height:48px; background:rgba(255,255,255,0.22); margin:0 12px;"></div>
                 <div style="flex:1; text-align:right;">
@@ -1266,7 +1373,7 @@
                 <div style="width:1px; height:48px; background:rgba(255,255,255,0.22); margin:0 12px;"></div>
                 <div style="flex:1; text-align:right;">
                   <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">MÉDIA / MÊS</div>
-                  <div style="font-size:24px; font-weight:900; margin-top:2px;">${(relCount / activeMonthsCount).toFixed(1)}</div>
+                  <div style="font-size:24px; font-weight:900; margin-top:2px;">${Math.round(relCount / activeMonthsCount)}</div>
                   <div style="font-size:11px; opacity:0.85;">Total no período</div>
                 </div>
               </div>
@@ -1292,12 +1399,12 @@
             <!-- Resumo KM & Saldo -->
             <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center; cursor:default;">
               <div>
-                <div style="font-size:10px; font-weight:700; color:var(--slate-600);">KM RODADOS NO PERÍODO</div>
-                <div style="font-size:18px; font-weight:900; color:var(--purple);">${Number(kmPeriodo || 0).toFixed(1)} km</div>
+                <div style="font-size:10px; font-weight:800; color:var(--slate-600); text-transform:uppercase;">Km Rodados</div>
+                <div style="font-size:${String(Math.round(kmPeriodo || 0)).length > 5 ? '15px' : '18px'}; font-weight:900; color:var(--purple);">${Math.round(kmPeriodo || 0)} km</div>
               </div>
               <div style="text-align:right;">
-                <div style="font-size:10px; font-weight:700; color:var(--slate-600);">SALDO ABASTECIMENTO</div>
-                <div style="font-size:18px; font-weight:900; color:var(--green);">${formatMoney(sum.saldoAbastecimento)}</div>
+                <div style="font-size:10px; font-weight:800; color:var(--slate-600); text-transform:uppercase;">Saldo</div>
+                <div style="font-size:${String(Math.round(sum.saldoAbastecimento || 0)).length > 6 ? '15px' : '18px'}; font-weight:900; color:var(--green);">R$ ${Math.round(sum.saldoAbastecimento || 0)}</div>
               </div>
             </div>
           `;
@@ -1323,7 +1430,7 @@
                 ${MESES_NOMES.map((nome, idx) => {
                   const m = idx + 1;
                   const isSel = selectedMonths.includes(m);
-                  return `<button type="button" class="btn btn-month-pick ${isSel ? 'btn-primary' : 'btn-outline'}" data-m="${m}" style="padding:8px 4px; font-size:11px;">${nome}</button>`;
+                  return `<button type="button" class="btn btn-month-pick ${isSel ? 'btn-primary' : ''}" data-m="${m}" style="padding:10px 4px; font-size:12px; font-weight:800; border-radius:10px; border:1.5px solid ${isSel ? 'var(--purple)' : '#cbd5e1'}; background:${isSel ? 'var(--purple)' : '#f1f5f9'}; color:${isSel ? '#ffffff' : '#0f172a'};">${nome}</button>`;
                 }).join('')}
               </div>
               <button type="button" id="btnConfirmMonths" class="btn btn-primary btn-block" style="margin-top:14px;">Confirmar</button>
@@ -1531,62 +1638,70 @@
         // ══════════════════════════════════════════════════════════════════════
         // ABA 3: KM (QUILOMETRAGEM, ABASTECIMENTO & MANUTENÇÕES)
         // ══════════════════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 3: KM (KM, ABASTECIMENTO & MANUTENÇÕES)
+        // ══════════════════════════════════════════════════════════════════════
         if (state.activeTab === 'KM') {
           state.kmSubTab = state.kmSubTab || 'KM'; // 'KM', 'ABS', 'MANUT'
           const kms = d.quilometragens || [];
           const abs = d.abastecimentos || [];
           const manuts = d.manutencoes || [];
           const openKm = kms.find(k => k.kmFinal == null);
+          const todayBr = new Date().toLocaleDateString('pt-BR');
 
           elContent.innerHTML = `
             <div class="sub-tabs">
-              <button class="sub-tab ${state.kmSubTab === 'KM' ? 'active' : ''}" data-sub="KM">KM (${kms.length})</button>
-              <button class="sub-tab ${state.kmSubTab === 'ABS' ? 'active' : ''}" data-sub="ABS">Abastecimento (${abs.length})</button>
-              <button class="sub-tab ${state.kmSubTab === 'MANUT' ? 'active' : ''}" data-sub="MANUT">Manutenção (${manuts.length})</button>
+              <button class="sub-tab ${state.kmSubTab === 'KM' ? 'active' : ''}" data-sub="KM">Km</button>
+              <button class="sub-tab ${state.kmSubTab === 'ABS' ? 'active' : ''}" data-sub="ABS">Abastecimento</button>
+              <button class="sub-tab ${state.kmSubTab === 'MANUT' ? 'active' : ''}" data-sub="MANUT">Manutenções</button>
             </div>
 
             ${state.kmSubTab === 'KM' ? `
               ${openKm ? `
                 <div class="m3-card" style="background:var(--purple-soft); border-color:rgba(102,0,153,0.25);">
                   <span class="badge badge-purple">ROTA EM ANDAMENTO</span>
-                  <div style="font-size:16px; font-weight:900; color:var(--purple-dark); margin-top:6px;">KM Inicial: ${openKm.kmInicial} km</div>
+                  <div style="font-size:16px; font-weight:900; color:var(--purple-dark); margin-top:6px;">KM Inicial: ${formatKmNumber(openKm.kmInicial)} km</div>
                   <div style="font-size:11px; color:var(--slate-600);">${openKm.diaSemana} • ${formatBrDate(openKm.dataInicial)}</div>
-                  <button id="btnFinishKm" class="btn btn-primary btn-block" style="margin-top:10px;">Encerrar KM do Dia (com GPS)</button>
+                  <button id="btnFinishKm" class="btn btn-primary btn-block" style="margin-top:10px; font-weight:800; color:#ffffff;">Encerrar KM do Dia</button>
                 </div>
               ` : `
-                <button id="btnStartKm" class="btn btn-primary btn-block">🚗 Iniciar KM do Dia (com GPS)</button>
+                <button id="btnStartKm" class="btn btn-primary btn-block" style="font-weight:800; color:#ffffff;">🚗 Iniciar KM do Dia</button>
               `}
-              ${kms.map(k => `
-                <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
-                  <div>
-                    <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${formatBrDate(k.dataInicial)} (${k.diaSemana})</div>
-                    <div style="font-size:11px; color:var(--slate-600);">Inicial: ${k.kmInicial} km → Final: ${k.kmFinal ?? 'Em rota'}</div>
-                    ${k.latitudeInicial ? `<div style="font-size:9.5px; color:var(--purple); font-weight:700;">📍 GPS Gravado</div>` : ''}
+              ${kms.map(k => {
+                const hasPhotos = Boolean(k.fotoInicial || k.fotoFinal);
+                return `
+                  <div class="m3-card km-item-card" data-id="${k.id}" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                    <div>
+                      <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${formatBrDate(k.dataInicial)} (${k.diaSemana})</div>
+                      <div style="font-size:11px; color:var(--slate-600);">Inicial: ${formatKmNumber(k.kmInicial)} km → Final: ${k.kmFinal != null ? formatKmNumber(k.kmFinal) + ' km' : 'Em rota'}</div>
+                      ${hasPhotos ? `<div style="font-size:10.5px; color:var(--purple); font-weight:800; margin-top:2px;">📷 Toque para ver fotos do odômetro</div>` : ''}
+                    </div>
+                    <span class="badge ${k.diferenca != null ? 'badge-green' : 'badge-amber'}">${k.diferenca != null ? '+' + formatKmNumber(k.diferenca) + ' km' : 'ABERTO'}</span>
                   </div>
-                  <span class="badge ${k.diferenca != null ? 'badge-green' : 'badge-amber'}">${k.diferenca != null ? `+${k.diferenca} km` : 'ABERTO'}</span>
-                </div>
-              `).join('')}
+                `;
+              }).join('')}
             ` : state.kmSubTab === 'ABS' ? `
-              <button id="btnNewAbs" class="btn btn-primary btn-block">⛽ Registrar Abastecimento (R$)</button>
+              <button id="btnNewAbs" class="btn btn-primary btn-block" style="font-weight:800; color:#ffffff;">⛽ Registrar Abastecimento</button>
               ${abs.map(a => `
-                <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="m3-card abs-item-card" data-id="${a.id}" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
                   <div>
-                    <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${a.tipo}</div>
+                    <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${a.tipo || 'Abastecimento'}</div>
                     <div style="font-size:11px; color:var(--slate-600);">${formatBrDate(a.data)}</div>
+                    ${a.fotoCupom ? `<div style="font-size:10.5px; color:var(--purple); font-weight:800; margin-top:2px;">📎 Toque para ver o comprovante</div>` : ''}
                   </div>
                   <div style="font-size:15px; font-weight:900; color:var(--green);">${formatMoney(a.valor)}</div>
                 </div>
               `).join('')}
             ` : `
-              <button id="btnNewManutencao" class="btn btn-primary btn-block">🔧 Registrar Manutenção do Veículo</button>
+              <button id="btnNewManutencao" class="btn btn-primary btn-block" style="font-weight:800; color:#ffffff;">🔧 Registrar Manutenção</button>
               ${manuts.length === 0 ? `<div class="m3-card" style="font-size:12px; color:var(--slate-600); text-align:center; padding:18px;">Nenhuma manutenção veicular registrada.</div>` : manuts.map(m => `
-                <div class="m3-card">
+                <div class="m3-card manut-item-card" data-id="${m.id}" style="cursor:pointer;">
                   <div style="display:flex; justify-content:space-between;">
-                    <span style="font-size:14px; font-weight:900; color:var(--purple);">${m.kmManutencao} km</span>
+                    <span style="font-size:14px; font-weight:900; color:var(--purple);">${formatKmNumber(m.kmManutencao)} km</span>
                     <span style="font-size:11px; color:var(--slate-600);">${formatBrDate(m.dataManutencao)}</span>
                   </div>
                   ${m.descricao ? `<div style="font-size:12px; color:var(--slate-900); margin-top:4px;">${m.descricao}</div>` : ''}
-                  ${m.comprovanteUrl ? `<div style="margin-top:6px;"><a href="${m.comprovanteUrl}" target="_blank" style="font-size:11px; color:var(--purple); font-weight:700;">📎 Ver Comprovante</a></div>` : ''}
+                  ${m.comprovanteUrl ? `<div style="margin-top:4px; font-size:10.5px; color:var(--purple); font-weight:800;">📎 Toque para ver a foto do comprovante</div>` : ''}
                 </div>
               `).join('')}
             `}
@@ -1599,158 +1714,414 @@
             });
           });
 
-          // Iniciar KM com captura de GPS
+          // 1. INICIAR KM COM FORMATAÇÃO AUTOMÁTICA, CÂMERA E GALERIA
           document.getElementById('btnStartKm')?.addEventListener('click', () => {
+            let fotoIniBase64 = '';
             openModal('Iniciar KM do Dia', `
               <form id="formStartKm">
-                <div style="font-size:11px; color:var(--purple); margin-bottom:10px; font-weight:700;">
-                  📍 Captura de geolocalização automática ativada.
+                <div style="font-size:12px; font-weight:700; color:var(--slate-900); margin-bottom:10px;">
+                  Data: Hoje, ${todayBr}
                 </div>
                 <div class="field-group">
-                  <label>Hodômetro Inicial (KM)</label>
-                  <input name="kmInicial" type="number" step="0.1" class="field-input" placeholder="Ex: 45210" required />
+                  <label>Odômetro Inicial (KM)</label>
+                  <input id="inputKmInicial" name="kmInicial" type="text" inputmode="numeric" class="field-input" placeholder="Ex: 45.210" required />
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Confirmar Início</button>
+
+                <div class="field-group">
+                  <label>Foto do Odômetro Inicial</label>
+                  <div style="display:flex; gap:8px;">
+                    <button type="button" id="btnKmIniCam" class="btn btn-primary" style="flex:1; font-size:12px; color:#fff;">📷 Câmera</button>
+                    <button type="button" id="btnKmIniGal" class="btn btn-outline" style="flex:1; font-size:12px;">🖼️ Galeria</button>
+                  </div>
+                  <input type="file" id="fileKmIniCam" accept="image/*" capture="environment" style="display:none;" />
+                  <input type="file" id="fileKmIniGal" accept="image/*" style="display:none;" />
+                  <div id="previewKmIniBox" style="display:none; margin-top:8px; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; align-items:center; justify-content:space-between;">
+                    <span style="font-size:12px; font-weight:700; color:var(--green);">📷 Foto anexada com sucesso</span>
+                    <button type="button" id="btnRemoveKmIniPhoto" class="btn btn-outline" style="padding:2px 6px; font-size:10px; color:var(--red); border-color:var(--red);">Remover</button>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-block" style="font-weight:800; color:#fff;">Confirmar Início</button>
               </form>
             `, (body) => {
+              const kmInput = body.querySelector('#inputKmInicial');
+              kmInput?.addEventListener('input', () => {
+                kmInput.value = formatKmNumber(kmInput.value);
+              });
+
+              const camIn = body.querySelector('#fileKmIniCam');
+              const galIn = body.querySelector('#fileKmIniGal');
+              const prevBox = body.querySelector('#previewKmIniBox');
+              const remBtn = body.querySelector('#btnRemoveKmIniPhoto');
+
+              const handlePhoto = (file) => {
+                if (!file) return;
+                const r = new FileReader();
+                r.onload = (e) => {
+                  fotoIniBase64 = e.target.result;
+                  prevBox.style.display = 'flex';
+                };
+                r.readAsDataURL(file);
+              };
+
+              body.querySelector('#btnKmIniCam')?.addEventListener('click', () => camIn.click());
+              body.querySelector('#btnKmIniGal')?.addEventListener('click', () => galIn.click());
+              camIn?.addEventListener('change', (e) => handlePhoto(e.target.files[0]));
+              galIn?.addEventListener('change', (e) => handlePhoto(e.target.files[0]));
+              remBtn?.addEventListener('click', () => {
+                fotoIniBase64 = '';
+                prevBox.style.display = 'none';
+              });
+
               body.querySelector('#formStartKm').addEventListener('submit', (ev) => {
                 ev.preventDefault();
-                const fd = new FormData(ev.target);
+                const rawVal = kmInput.value.replace(/\D/g, '');
+                const kmNum = Number(rawVal) || 0;
+
+                const sendAction = (lat, lng) => {
+                  executeMobileAction('INICIAR_KM', 'Iniciando KM do dia...', {
+                    kmInicial: kmNum,
+                    fotoInicial: fotoIniBase64 || null,
+                    latitude: lat,
+                    longitude: lng
+                  });
+                };
+
                 if (navigator.geolocation) {
                   navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      executeMobileAction('INICIAR_KM', 'Registrando KM com GPS...', {
-                        kmInicial: Number(fd.get('kmInicial')),
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude
-                      });
-                    },
-                    () => {
-                      executeMobileAction('INICIAR_KM', 'Registrando KM...', {
-                        kmInicial: Number(fd.get('kmInicial'))
-                      });
-                    },
+                    (pos) => sendAction(pos.coords.latitude, pos.coords.longitude),
+                    () => sendAction(null, null),
                     { timeout: 5000 }
                   );
                 } else {
-                  executeMobileAction('INICIAR_KM', 'Registrando KM...', {
-                    kmInicial: Number(fd.get('kmInicial'))
-                  });
+                  sendAction(null, null);
                 }
               });
             });
           });
 
-          // Encerrar KM com captura de GPS
+          // 2. ENCERRAR KM COM FORMATAÇÃO AUTOMÁTICA, CÂMERA E GALERIA
           document.getElementById('btnFinishKm')?.addEventListener('click', () => {
-            openModal(`Encerrar KM (Inicial: ${openKm.kmInicial} km)`, `
+            if (!openKm) return;
+            let fotoFimBase64 = '';
+            openModal('Encerrar KM do Dia', `
               <form id="formFinishKm">
-                <div style="font-size:11px; color:var(--purple); margin-bottom:10px; font-weight:700;">
-                  📍 Captura de geolocalização de encerramento ativada.
+                <div style="font-size:12px; font-weight:700; color:var(--slate-900); margin-bottom:8px;">
+                  Data: Hoje, ${todayBr}
                 </div>
+                <div style="font-size:12px; font-weight:700; color:var(--purple); margin-bottom:10px;">
+                  KM Inicial Registrado: ${formatKmNumber(openKm.kmInicial)} km
+                </div>
+
                 <div class="field-group">
-                  <label>Hodômetro Final (KM)</label>
-                  <input name="kmFinal" type="number" step="0.1" min="${openKm.kmInicial}" class="field-input" placeholder="Ex: ${openKm.kmInicial + 50}" required />
+                  <label>Odômetro Final (KM)</label>
+                  <input id="inputKmFinal" name="kmFinal" type="text" inputmode="numeric" class="field-input" placeholder="Ex: 45.320" required />
                 </div>
-                <button type="submit" class="btn btn-success btn-block">Confirmar Encerramento</button>
+
+                <div class="field-group">
+                  <label>Foto do Odômetro Final</label>
+                  <div style="display:flex; gap:8px;">
+                    <button type="button" id="btnKmFimCam" class="btn btn-primary" style="flex:1; font-size:12px; color:#fff;">📷 Câmera</button>
+                    <button type="button" id="btnKmFimGal" class="btn btn-outline" style="flex:1; font-size:12px;">🖼️ Galeria</button>
+                  </div>
+                  <input type="file" id="fileKmFimCam" accept="image/*" capture="environment" style="display:none;" />
+                  <input type="file" id="fileKmFimGal" accept="image/*" style="display:none;" />
+                  <div id="previewKmFimBox" style="display:none; margin-top:8px; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; align-items:center; justify-content:space-between;">
+                    <span style="font-size:12px; font-weight:700; color:var(--green);">📷 Foto anexada com sucesso</span>
+                    <button type="button" id="btnRemoveKmFimPhoto" class="btn btn-outline" style="padding:2px 6px; font-size:10px; color:var(--red); border-color:var(--red);">Remover</button>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-block" style="font-weight:800; color:#fff;">Confirmar Encerramento</button>
               </form>
             `, (body) => {
+              const kmInput = body.querySelector('#inputKmFinal');
+              kmInput?.addEventListener('input', () => {
+                kmInput.value = formatKmNumber(kmInput.value);
+              });
+
+              const camIn = body.querySelector('#fileKmFimCam');
+              const galIn = body.querySelector('#fileKmFimGal');
+              const prevBox = body.querySelector('#previewKmFimBox');
+              const remBtn = body.querySelector('#btnRemoveKmFimPhoto');
+
+              const handlePhoto = (file) => {
+                if (!file) return;
+                const r = new FileReader();
+                r.onload = (e) => {
+                  fotoFimBase64 = e.target.result;
+                  prevBox.style.display = 'flex';
+                };
+                r.readAsDataURL(file);
+              };
+
+              body.querySelector('#btnKmFimCam')?.addEventListener('click', () => camIn.click());
+              body.querySelector('#btnKmFimGal')?.addEventListener('click', () => galIn.click());
+              camIn?.addEventListener('change', (e) => handlePhoto(e.target.files[0]));
+              galIn?.addEventListener('change', (e) => handlePhoto(e.target.files[0]));
+              remBtn?.addEventListener('click', () => {
+                fotoFimBase64 = '';
+                prevBox.style.display = 'none';
+              });
+
               body.querySelector('#formFinishKm').addEventListener('submit', (ev) => {
                 ev.preventDefault();
-                const fd = new FormData(ev.target);
+                const rawVal = kmInput.value.replace(/\D/g, '');
+                const kmNum = Number(rawVal) || 0;
+
+                const sendAction = (lat, lng) => {
+                  executeMobileAction('FINALIZAR_KM', 'Encerrando KM do dia...', {
+                    id: openKm.id,
+                    kmFinal: kmNum,
+                    fotoFinal: fotoFimBase64 || null,
+                    latitude: lat,
+                    longitude: lng
+                  });
+                };
+
                 if (navigator.geolocation) {
                   navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      executeMobileAction('FINALIZAR_KM', 'Encerrando rota com GPS...', {
-                        id: openKm.id,
-                        kmFinal: Number(fd.get('kmFinal')),
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude
-                      });
-                    },
-                    () => {
-                      executeMobileAction('FINALIZAR_KM', 'Encerrando rota...', {
-                        id: openKm.id,
-                        kmFinal: Number(fd.get('kmFinal'))
-                      });
-                    },
+                    (pos) => sendAction(pos.coords.latitude, pos.coords.longitude),
+                    () => sendAction(null, null),
                     { timeout: 5000 }
                   );
                 } else {
-                  executeMobileAction('FINALIZAR_KM', 'Encerrando rota...', {
-                    id: openKm.id,
-                    kmFinal: Number(fd.get('kmFinal'))
-                  });
+                  sendAction(null, null);
                 }
               });
             });
           });
 
-          // Abastecimento com máscara R$
+          // 3. REGISTRAR ABASTECIMENTO (TECLADO NUMÉRICO E COMPROVANTE)
           document.getElementById('btnNewAbs')?.addEventListener('click', () => {
+            let fotoAbsBase64 = '';
             openModal('Registrar Abastecimento', `
               <form id="formNewAbs">
-                <div class="field-group">
-                  <label>Valor Total (R$)</label>
-                  <input id="inputMoneyAbs" name="valor" type="number" step="0.01" class="field-input" placeholder="Ex: 185.50" required />
+                <div style="font-size:12px; font-weight:700; color:var(--slate-900); margin-bottom:10px;">
+                  Data: Hoje, ${todayBr}
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Confirmar</button>
+                <div class="field-group">
+                  <label>Valor do Abastecimento (R$)</label>
+                  <input id="inputAbsValor" name="valor" type="text" inputmode="numeric" class="field-input" placeholder="R$ 0,00" required />
+                </div>
+
+                <div class="field-group">
+                  <label>Foto do Cupom / Comprovante</label>
+                  <div style="display:flex; gap:8px;">
+                    <button type="button" id="btnAbsCam" class="btn btn-primary" style="flex:1; font-size:12px; color:#fff;">📷 Câmera</button>
+                    <button type="button" id="btnAbsGal" class="btn btn-outline" style="flex:1; font-size:12px;">🖼️ Galeria</button>
+                  </div>
+                  <input type="file" id="fileAbsCam" accept="image/*" capture="environment" style="display:none;" />
+                  <input type="file" id="fileAbsGal" accept="image/*" style="display:none;" />
+                  <div id="previewAbsBox" style="display:none; margin-top:8px; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; align-items:center; justify-content:space-between;">
+                    <span style="font-size:12px; font-weight:700; color:var(--green);">📷 Comprovante anexado</span>
+                    <button type="button" id="btnRemoveAbsPhoto" class="btn btn-outline" style="padding:2px 6px; font-size:10px; color:var(--red); border-color:var(--red);">Remover</button>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-block" style="font-weight:800; color:#fff;">Confirmar</button>
               </form>
             `, (body) => {
+              const valInput = body.querySelector('#inputAbsValor');
+              let rawDigits = '';
+              valInput?.addEventListener('input', (e) => {
+                rawDigits = valInput.value.replace(/\D/g, '');
+                const num = Number(rawDigits) / 100;
+                valInput.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+              });
+
+              const camIn = body.querySelector('#fileAbsCam');
+              const galIn = body.querySelector('#fileAbsGal');
+              const prevBox = body.querySelector('#previewAbsBox');
+              const remBtn = body.querySelector('#btnRemoveAbsPhoto');
+
+              const handlePhoto = (file) => {
+                if (!file) return;
+                const r = new FileReader();
+                r.onload = (e) => {
+                  fotoAbsBase64 = e.target.result;
+                  prevBox.style.display = 'flex';
+                };
+                r.readAsDataURL(file);
+              };
+
+              body.querySelector('#btnAbsCam')?.addEventListener('click', () => camIn.click());
+              body.querySelector('#btnAbsGal')?.addEventListener('click', () => galIn.click());
+              camIn?.addEventListener('change', (e) => handlePhoto(e.target.files[0]));
+              galIn?.addEventListener('change', (e) => handlePhoto(e.target.files[0]));
+              remBtn?.addEventListener('click', () => {
+                fotoAbsBase64 = '';
+                prevBox.style.display = 'none';
+              });
+
               body.querySelector('#formNewAbs').addEventListener('submit', (ev) => {
                 ev.preventDefault();
-                const fd = new FormData(ev.target);
+                const valorFinal = Number(rawDigits) / 100;
                 executeMobileAction('CRIAR_ABASTECIMENTO', 'Registrando abastecimento...', {
-                  valor: Number(fd.get('valor')),
-                  tipo: 'ABASTECIMENTO'
+                  valor: valorFinal,
+                  tipo: 'ABASTECIMENTO',
+                  fotoCupom: fotoAbsBase64 || null
                 });
               });
             });
           });
 
-          // Registrar Manutenção do Veículo
+          // 4. REGISTRAR MANUTENÇÃO (TECLADO NUMÉRICO E COMPROVANTE)
           document.getElementById('btnNewManutencao')?.addEventListener('click', () => {
-            const todayStr = new Date().toISOString().split('T')[0];
-            openModal('Registrar Manutenção do Veículo', `
-              <form id="formManutencao">
-                <div style="display:flex; gap:8px;">
-                  <div class="field-group" style="flex:1.2;">
-                    <label>Data da Manutenção</label>
-                    <input name="dataManutencao" type="date" class="field-input" value="${todayStr}" required />
-                  </div>
-                  <div class="field-group" style="flex:0.8;">
-                    <label>Hora</label>
-                    <input name="hora" type="time" class="field-input" value="10:00" required />
-                  </div>
+            let fotoManutBase64 = '';
+            openModal('Registrar Manutenção', `
+              <form id="formNewManut">
+                <div style="font-size:12px; font-weight:700; color:var(--slate-900); margin-bottom:10px;">
+                  Data: Hoje, ${todayBr}
                 </div>
                 <div class="field-group">
-                  <label>KM no Momento da Revisão</label>
-                  <input name="kmManutencao" type="number" class="field-input" placeholder="Ex: 50000" required />
+                  <label>KM no Momento da Manutenção</label>
+                  <input id="inputKmManut" name="kmManutencao" type="text" inputmode="numeric" class="field-input" placeholder="Ex: 50.000" required />
                 </div>
                 <div class="field-group">
-                  <label>Descrição do Serviço / Peças Trocadas</label>
-                  <textarea name="descricao" class="field-input" style="height:70px;" placeholder="Troca de óleo, pastilhas de freio..."></textarea>
+                  <label>Descrição do Serviço / Peças</label>
+                  <textarea name="descricao" class="field-input" style="height:70px;" placeholder="Ex: Troca de óleo e filtro..." required></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Confirmar Manutenção</button>
+
+                <div class="field-group">
+                  <label>Foto da Nota / Comprovante</label>
+                  <div style="display:flex; gap:8px;">
+                    <button type="button" id="btnManutCam" class="btn btn-primary" style="flex:1; font-size:12px; color:#fff;">📷 Câmera</button>
+                    <button type="button" id="btnManutGal" class="btn btn-outline" style="flex:1; font-size:12px;">🖼️ Galeria</button>
+                  </div>
+                  <input type="file" id="fileManutCam" accept="image/*" capture="environment" style="display:none;" />
+                  <input type="file" id="fileManutGal" accept="image/*" style="display:none;" />
+                  <div id="previewManutBox" style="display:none; margin-top:8px; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; align-items:center; justify-content:space-between;">
+                    <span style="font-size:12px; font-weight:700; color:var(--green);">📷 Comprovante anexado</span>
+                    <button type="button" id="btnRemoveManutPhoto" class="btn btn-outline" style="padding:2px 6px; font-size:10px; color:var(--red); border-color:var(--red);">Remover</button>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-block" style="font-weight:800; color:#fff;">Confirmar</button>
               </form>
             `, (body) => {
-              body.querySelector('#formManutencao').addEventListener('submit', (ev) => {
+              const kmInput = body.querySelector('#inputKmManut');
+              kmInput?.addEventListener('input', () => {
+                kmInput.value = formatKmNumber(kmInput.value);
+              });
+
+              const camIn = body.querySelector('#fileManutCam');
+              const galIn = body.querySelector('#fileManutGal');
+              const prevBox = body.querySelector('#previewManutBox');
+              const remBtn = body.querySelector('#btnRemoveManutPhoto');
+
+              const handlePhoto = (file) => {
+                if (!file) return;
+                const r = new FileReader();
+                r.onload = (e) => {
+                  fotoManutBase64 = e.target.result;
+                  prevBox.style.display = 'flex';
+                };
+                r.readAsDataURL(file);
+              };
+
+              body.querySelector('#btnManutCam')?.addEventListener('click', () => camIn.click());
+              body.querySelector('#btnManutGal')?.addEventListener('click', () => galIn.click());
+              camIn?.addEventListener('change', (e) => handlePhoto(e.target.files[0]));
+              galIn?.addEventListener('change', (e) => handlePhoto(e.target.files[0]));
+              remBtn?.addEventListener('click', () => {
+                fotoManutBase64 = '';
+                prevBox.style.display = 'none';
+              });
+
+              body.querySelector('#formNewManut').addEventListener('submit', (ev) => {
                 ev.preventDefault();
                 const fd = new FormData(ev.target);
+                const rawKm = (kmInput.value || '').replace(/\D/g, '');
                 executeMobileAction('CRIAR_MANUTENCAO', 'Registrando manutenção...', {
-                  kmManutencao: Number(fd.get('kmManutencao')),
-                  dataManutencao: `${fd.get('dataManutencao')}T${fd.get('hora')}:00Z`,
-                  descricao: fd.get('descricao')
+                  kmManutencao: Number(rawKm) || 0,
+                  descricao: fd.get('descricao'),
+                  comprovanteUrl: fotoManutBase64 || null
                 });
               });
+            });
+          });
+
+          // 5. VISUALIZAÇÃO DE FOTOS AO CLICAR NOS ITENS DA TELA
+          elContent.querySelectorAll('.km-item-card').forEach(card => {
+            card.addEventListener('click', () => {
+              const id = card.getAttribute('data-id');
+              const km = kms.find(k => k.id === id);
+              if (!km) return;
+              openModal('Fotos do Odômetro', `
+                <div style="font-size:12px; font-weight:800; color:var(--purple); margin-bottom:10px;">
+                  ${km.diaSemana} • ${formatBrDate(km.dataInicial)}
+                </div>
+                <div style="margin-bottom:14px;">
+                  <div style="font-size:12px; font-weight:700; color:var(--slate-900); margin-bottom:4px;">
+                    Odômetro Inicial: ${formatKmNumber(km.kmInicial)} km
+                  </div>
+                  ${km.fotoInicial ? `
+                    <img src="${km.fotoInicial}" style="width:100%; max-height:220px; object-fit:contain; border-radius:8px; border:1px solid #cbd5e1;" />
+                  ` : `
+                    <div style="background:#f1f5f9; padding:14px; text-align:center; font-size:11px; color:var(--slate-600); border-radius:8px;">Nenhuma foto do odômetro inicial anexada</div>
+                  `}
+                </div>
+                <div>
+                  <div style="font-size:12px; font-weight:700; color:var(--slate-900); margin-bottom:4px;">
+                    Odômetro Final: ${km.kmFinal != null ? formatKmNumber(km.kmFinal) + ' km' : 'Em rota'}
+                  </div>
+                  ${km.fotoFinal ? `
+                    <img src="${km.fotoFinal}" style="width:100%; max-height:220px; object-fit:contain; border-radius:8px; border:1px solid #cbd5e1;" />
+                  ` : `
+                    <div style="background:#f1f5f9; padding:14px; text-align:center; font-size:11px; color:var(--slate-600); border-radius:8px;">Nenhuma foto do odômetro final anexada</div>
+                  `}
+                </div>
+                <button type="button" class="btn btn-outline btn-block" onclick="closeModal()" style="margin-top:14px;">Fechar</button>
+              `);
+            });
+          });
+
+          elContent.querySelectorAll('.abs-item-card').forEach(card => {
+            card.addEventListener('click', () => {
+              const id = card.getAttribute('data-id');
+              const a = abs.find(x => x.id === id);
+              if (!a) return;
+              openModal('Comprovante de Abastecimento', `
+                <div style="font-size:12px; font-weight:800; color:var(--green); margin-bottom:4px;">
+                  ${a.tipo || 'Abastecimento'} • ${formatMoney(a.valor)}
+                </div>
+                <div style="font-size:11px; color:var(--slate-600); margin-bottom:10px;">${formatBrDate(a.data)}</div>
+                ${a.fotoCupom ? `
+                  <img src="${a.fotoCupom}" style="width:100%; max-height:260px; object-fit:contain; border-radius:8px; border:1px solid #cbd5e1;" />
+                ` : `
+                  <div style="background:#f1f5f9; padding:20px; text-align:center; font-size:12px; color:var(--slate-600); border-radius:8px;">Nenhum comprovante anexado a este abastecimento</div>
+                `}
+                <button type="button" class="btn btn-outline btn-block" onclick="closeModal()" style="margin-top:14px;">Fechar</button>
+              `);
+            });
+          });
+
+          elContent.querySelectorAll('.manut-item-card').forEach(card => {
+            card.addEventListener('click', () => {
+              const id = card.getAttribute('data-id');
+              const m = manuts.find(x => x.id === id);
+              if (!m) return;
+              openModal('Comprovante de Manutenção', `
+                <div style="font-size:13px; font-weight:800; color:var(--purple); margin-bottom:4px;">
+                  Manutenção aos ${formatKmNumber(m.kmManutencao)} km
+                </div>
+                <div style="font-size:11px; color:var(--slate-600); margin-bottom:8px;">${formatBrDate(m.dataManutencao)}</div>
+                ${m.descricao ? `<div style="font-size:12px; color:var(--slate-900); margin-bottom:10px; background:#f8fafc; padding:8px; border-radius:6px;">${m.descricao}</div>` : ''}
+                ${m.comprovanteUrl ? `
+                  <img src="${m.comprovanteUrl}" style="width:100%; max-height:260px; object-fit:contain; border-radius:8px; border:1px solid #cbd5e1;" />
+                ` : `
+                  <div style="background:#f1f5f9; padding:20px; text-align:center; font-size:12px; color:var(--slate-600); border-radius:8px;">Nenhum comprovante anexado a esta manutenção</div>
+                `}
+                <button type="button" class="btn btn-outline btn-block" onclick="closeModal()" style="margin-top:14px;">Fechar</button>
+              `);
             });
           });
 
           return;
         }
 
-        // ══════════════════════════════════════════════════════════════════════
-        // ABA 4: RELATÓRIOS (RELATÓRIOS PDF GERADOS & ATIVIDADES - SEM NCS)
+                // ABA 4: RELATÓRIOS (RELATÓRIOS PDF GERADOS & ATIVIDADES - SEM NCS)
         // ══════════════════════════════════════════════════════════════════════
         if (state.activeTab === 'RELATORIOS') {
           state.relatoriosSubTab = state.relatoriosSubTab || 'PDF'; // 'PDF' ou 'ATIVIDADES'
@@ -1858,7 +2229,7 @@
       function renderPlanCardHtml(p) {
         const isConcluido = p.status === 'CONCLUIDO';
         return `
-          <div class="m3-card" style="border-left:4px solid ${p.prioridade === 'ALTA' ? '#ef4444' : p.prioridade === 'BAIXA' ? '#6366f1' : '#f59e0b'}; opacity:${isConcluido ? '0.55' : '1'};">
+          <div class="m3-card" style="border-left:4px solid ${p.prioridade === 'ALTA' ? '#ef4444' : p.prioridade === 'BAIXA' ? '#6366f1' : '#f59e0b'}; opacity:${isConcluido ? '0.7' : '1'};">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <div style="display:flex; gap:4px; align-items:center;">
                 <span class="badge" style="background:#e2e8f0; color:#334155;">🕒 ${p.hora || '08:00'}</span>
@@ -1871,7 +2242,7 @@
             <div style="font-size:11px; color:var(--slate-600); margin-top:4px;">📍 ${p.local || 'Campo'} (${p.cidade || 'SP'}/${p.estado || 'SP'}) • ${formatBrDate(p.dataAtividade)}</div>
 
             ${!isConcluido ? `
-              <button class="btn btn-success btn-block btn-two-step" data-action="CONCLUIR" data-id="${p.id}" data-desc="${encodeURIComponent(p.descricaoOriginal || p.titulo || '')}" style="margin-top:10px;">
+              <button class="btn btn-success btn-block btn-open-conclude" data-id="${p.id}" style="margin-top:10px; font-weight:800; font-size:12px;">
                 Concluir
               </button>
             ` : `
@@ -1880,25 +2251,25 @@
               </div>
             `}
 
-            <!-- Ações Secundárias com Confirmação em 2 Toques -->
-            <div style="display:flex; gap:6px; margin-top:8px; overflow-x:auto; padding-bottom:2px;">
-              <button class="btn btn-outline btn-two-step" data-action="EDITAR" data-id="${p.id}" style="padding:5px 9px; font-size:11px;">
-                Editar
+            <!-- Ações Secundárias: Ícones compactos que expandem no 1º clique e executam no 2º clique -->
+            <div class="card-action-bar" style="display:flex; gap:6px; margin-top:8px; overflow-x:auto; padding-bottom:2px;">
+              <button class="btn-action-icon" data-action="EDITAR" data-id="${p.id}" title="Editar">
+                <span>✏️</span><span class="action-text">Editar</span>
               </button>
-              <button class="btn btn-outline btn-two-step" data-action="DUPLICAR" data-id="${p.id}" style="padding:5px 9px; font-size:11px;">
-                Duplicar
+              <button class="btn-action-icon" data-action="DUPLICAR" data-id="${p.id}" title="Duplicar">
+                <span>📋</span><span class="action-text">Duplicar</span>
               </button>
               ${!isConcluido ? `
-                <button class="btn btn-outline btn-two-step" data-action="MOVER" data-id="${p.id}" style="padding:5px 9px; font-size:11px;">
-                  Mover
+                <button class="btn-action-icon btn-move" data-action="MOVER" data-id="${p.id}" title="Mover Data">
+                  <span>📅</span><span class="action-text">Mover</span>
                 </button>
               ` : `
-                <button class="btn btn-outline btn-two-step" data-action="REVERTER" data-id="${p.id}" style="padding:5px 9px; font-size:11px; color:var(--amber);">
-                  Reverter
+                <button class="btn-action-icon btn-rev" data-action="REVERTER" data-id="${p.id}" title="Reverter">
+                  <span>↩️</span><span class="action-text">Reverter</span>
                 </button>
               `}
-              <button class="btn btn-outline btn-two-step" data-action="EXCLUIR" data-id="${p.id}" style="padding:5px 9px; font-size:11px; color:var(--red);">
-                Excluir
+              <button class="btn-action-icon btn-del" data-action="EXCLUIR" data-id="${p.id}" title="Excluir">
+                <span>🗑️</span><span class="action-text">Excluir</span>
               </button>
             </div>
           </div>
@@ -1906,96 +2277,271 @@
       }
 
       function attachCardEvents(container) {
-        container.querySelectorAll('.btn-two-step').forEach(btn => {
-          let confirmed = false;
-          let timeoutId = null;
-          const origText = btn.textContent.trim();
+        // 1. Botão Concluir: Abre diretamente o modal de conclusão da atividade
+        container.querySelectorAll('.btn-open-conclude').forEach(btn => {
           btn.addEventListener('click', () => {
-            const action = btn.getAttribute('data-action');
             const id = btn.getAttribute('data-id');
             const plan = (state.syncData && state.syncData.planejamentos || []).find(x => x.id === id);
+            if (plan) openConcludeModal(plan);
+          });
+        });
 
-            if (!confirmed) {
-              confirmed = true;
-              btn.textContent = 'Confirmar';
-              btn.style.boxShadow = '0 0 0 2px var(--purple)';
-              btn.style.background = 'var(--purple)';
-              btn.style.color = '#fff';
-              timeoutId = setTimeout(() => {
-                confirmed = false;
-                btn.textContent = origText;
-                btn.style.boxShadow = 'none';
-                btn.style.background = '';
-                btn.style.color = '';
-              }, 3000);
-            } else {
-              clearTimeout(timeoutId);
-              confirmed = false;
-              btn.textContent = origText;
-              btn.style.boxShadow = 'none';
-              btn.style.background = '';
-              btn.style.color = '';
+        // 2. Ações Secundárias Compactas: 1º clique expande o texto, 2º clique executa
+        container.querySelectorAll('.card-action-bar').forEach(bar => {
+          bar.querySelectorAll('.btn-action-icon').forEach(btn => {
+            btn.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              const action = btn.getAttribute('data-action');
+              const id = btn.getAttribute('data-id');
+              const plan = (state.syncData && state.syncData.planejamentos || []).find(x => x.id === id);
 
-              if (action === 'CONCLUIR') {
-                const desc = decodeURIComponent(btn.getAttribute('data-desc') || '');
-                executeMobileAction('CONCLUIR_ATIVIDADE', 'Concluindo atividade...', {
-                  id,
-                  descricaoExecutada: desc,
-                  gerarRelatorioCampo: true
-                });
-              } else if (action === 'REVERTER') {
-                executeMobileAction('REVERTER_ATIVIDADE', 'Revertendo atividade...', { id });
-              } else if (action === 'EDITAR' && plan) {
-                openEditPlanModal(plan);
-              } else if (action === 'DUPLICAR' && plan) {
-                duplicatePlan(plan);
-              } else if (action === 'MOVER' && plan) {
-                openMovePlanModal(plan);
-              } else if (action === 'EXCLUIR') {
-                executeMobileAction('EXCLUIR_ATIVIDADE', 'Excluindo agendamento...', { id });
+              if (!btn.classList.contains('expanded')) {
+                // Recolhe qualquer outro botão que esteja expandido nesta barra
+                bar.querySelectorAll('.btn-action-icon.expanded').forEach(other => other.classList.remove('expanded'));
+                // Expande este botão
+                btn.classList.add('expanded');
+              } else {
+                // Segundo clique: executa a ação correspondente
+                btn.classList.remove('expanded');
+                if (action === 'EDITAR' && plan) {
+                  openEditPlanModal(plan);
+                } else if (action === 'DUPLICAR' && plan) {
+                  duplicatePlan(plan);
+                } else if (action === 'MOVER' && plan) {
+                  openMovePlanModal(plan);
+                } else if (action === 'REVERTER') {
+                  executeMobileAction('REVERTER_ATIVIDADE', 'Revertendo atividade...', { id });
+                } else if (action === 'EXCLUIR') {
+                  executeMobileAction('EXCLUIR_ATIVIDADE', 'Excluindo agendamento...', { id });
+                }
               }
+            });
+          });
+        });
+      }
+
+      // MODAL DE CONCLUSÃO DE ATIVIDADE (COM TEMA DSS, RELATO DE EXECUÇÃO, BOTÃO IA E FOTO)
+      function openConcludeModal(p) {
+        const isDss = (p.categoria || '').toUpperCase().includes('DSS');
+        let fotoDataUrl = '';
+
+        openModal('Concluir Atividade', `
+          <form id="formConcludeActivity">
+            <div style="font-size:13px; font-weight:800; color:var(--purple); margin-bottom:8px;">
+              ${p.titulo || p.categoria}
+            </div>
+
+            ${isDss ? `
+              <div class="field-group">
+                <label>Tema do DSS</label>
+                <input name="temaDss" class="field-input" value="${p.titulo || 'Diálogo de Segurança'}" placeholder="Ex: Uso correto de EPI, Direção Defensiva..." required />
+              </div>
+              <div style="margin-bottom:10px;">
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--purple); cursor:pointer;">
+                  <input type="checkbox" name="salvarDssAliado" checked /> Salvar no DSS Aliado
+                </label>
+              </div>
+            ` : ''}
+
+            <div class="field-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label>Relato de Execução</label>
+                <button type="button" id="btnSpellcheckConclude" class="btn btn-outline" style="padding:2px 8px; font-size:11px; font-weight:800; color:var(--purple); border-color:var(--purple);">
+                  ✨ IA
+                </button>
+              </div>
+              <textarea id="concludeDescArea" name="descricaoExecutada" class="field-input" style="height:90px;" placeholder="Descreva detalhadamente o que foi realizado..." required>${p.descricaoOriginal || ''}</textarea>
+            </div>
+
+            <div class="field-group">
+              <label>Observações adicionais (opcional)</label>
+              <input name="observacoes" class="field-input" placeholder="Ex: Participaram 12 colaboradores..." />
+            </div>
+
+            <!-- Inclusão de Foto (Câmera / Galeria) -->
+            <div class="field-group">
+              <label>Foto da Atividade</label>
+              <div style="display:flex; gap:8px;">
+                <button type="button" id="btnCaptureCamera" class="btn btn-primary" style="flex:1; font-size:12px;">📷 Câmera</button>
+                <button type="button" id="btnPickGallery" class="btn btn-outline" style="flex:1; font-size:12px;">🖼️ Galeria</button>
+              </div>
+              <input type="file" id="inputCameraFile" accept="image/*" capture="environment" style="display:none;" />
+              <input type="file" id="inputGalleryFile" accept="image/*" style="display:none;" />
+              <div id="concludePhotoPreview" style="display:none; margin-top:8px; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; align-items:center; justify-content:space-between;">
+                <span style="font-size:12px; font-weight:700; color:var(--green);">📷 Foto anexada com sucesso</span>
+                <button type="button" id="btnRemoveConcludePhoto" class="btn btn-outline" style="padding:2px 6px; font-size:10px; color:var(--red); border-color:var(--red);">Remover</button>
+              </div>
+            </div>
+
+            <div style="margin-bottom:12px;">
+              <label style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--purple); cursor:pointer;">
+                <input type="checkbox" name="gerarRelatorioCampo" checked /> Incluir no Relatório de Atividades
+              </label>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-block" style="font-weight:800;">Confirmar</button>
+          </form>
+        `, (body) => {
+          // Corretor IA (apenas "IA")
+          body.querySelector('#btnSpellcheckConclude')?.addEventListener('click', async () => {
+            const area = body.querySelector('#concludeDescArea');
+            if (area && area.value) {
+              setBlockingLoading(true, 'Corrigindo com IA...');
+              const corr = await correctTextWithAi(area.value);
+              setBlockingLoading(false);
+              area.value = corr;
             }
+          });
+
+          // Disparo de Câmera e Galeria
+          const camInput = body.querySelector('#inputCameraFile');
+          const galInput = body.querySelector('#inputGalleryFile');
+          const previewBox = body.querySelector('#concludePhotoPreview');
+          const removeBtn = body.querySelector('#btnRemoveConcludePhoto');
+
+          const handlePhotoSelection = (file) => {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              fotoDataUrl = e.target.result;
+              previewBox.style.display = 'flex';
+            };
+            reader.readAsDataURL(file);
+          };
+
+          body.querySelector('#btnCaptureCamera')?.addEventListener('click', () => camInput.click());
+          body.querySelector('#btnPickGallery')?.addEventListener('click', () => galInput.click());
+          camInput?.addEventListener('change', (e) => handlePhotoSelection(e.target.files[0]));
+          galInput?.addEventListener('change', (e) => handlePhotoSelection(e.target.files[0]));
+          removeBtn?.addEventListener('click', () => {
+            fotoDataUrl = '';
+            previewBox.style.display = 'none';
+          });
+
+          body.querySelector('#formConcludeActivity').addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            const fd = new FormData(ev.target);
+            executeMobileAction('CONCLUIR_ATIVIDADE', 'Concluindo atividade...', {
+              id: p.id,
+              descricaoExecutada: fd.get('descricaoExecutada'),
+              observacoes: fd.get('observacoes'),
+              temaDss: fd.get('temaDss') || p.titulo,
+              salvarDssAliado: fd.get('salvarDssAliado') === 'on',
+              gerarRelatorioCampo: fd.get('gerarRelatorioCampo') === 'on',
+              empresa: 'Telefônica Brasil S.A',
+              projeto: 'VIVO',
+              fotoUrl: fotoDataUrl || null
+            });
           });
         });
       }
 
       function openEditPlanModal(p) {
+        const unidades = (state.syncData && state.syncData.unidades) || [];
+        let fotoDataUrl = '';
+
         openModal('Editar Agendamento', `
           <form id="formEditPlanModal">
             <div style="display:flex; gap:8px;">
               <div class="field-group" style="flex:1.2;">
                 <label>Data</label>
-                <input name="dataAtividade" type="date" class="field-input" value="${p.dataAtividade ? p.dataAtividade.substring(0, 10) : ''}" required />
+                <input name="dataAtividade" type="date" class="field-input" value="${p.dataAtividade ? p.dataAtividade.substring(0, 10) : ''}" placeholder="AAAA-MM-DD" required />
               </div>
               <div class="field-group" style="flex:0.8;">
                 <label>Hora</label>
-                <input name="hora" type="time" class="field-input" value="${p.hora || '08:00'}" required />
+                <input name="hora" type="time" class="field-input" value="${p.hora || '08:00'}" placeholder="HH:mm" required />
               </div>
             </div>
-            <div class="field-group">
-              <label>Título da Atividade</label>
-              <input name="titulo" class="field-input" value="${p.titulo || ''}" required />
-            </div>
+
             <div class="field-group">
               <label>Categoria Oficial</label>
               <select name="categoria" class="field-input">
                 ${CATEGORIAS_WEB.map(c => `<option value="${c}" ${c === p.categoria ? 'selected' : ''}>${c}</option>`).join('')}
               </select>
             </div>
+
+            <!-- Unidade / Local com Auto-preenchimento de Cidade e UF -->
             <div class="field-group">
-              <label>Unidade / Local</label>
-              <input name="local" class="field-input" value="${p.local || ''}" required />
+              <label>Local / Unidade</label>
+              <select id="editUnidadeSelect" class="field-input">
+                <option value="__CUSTOM__">✏️ Digitar outro local...</option>
+                ${unidades.map(u => `
+                  <option value="${u.nome}" data-cidade="${u.cidade || ''}" data-estado="${u.estado || ''}" ${u.nome === p.local ? 'selected' : ''}>
+                    ${u.nome} (${u.cidade || 'SP'}/${u.estado || 'SP'})
+                  </option>
+                `).join('')}
+              </select>
             </div>
-            <div class="field-group">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <label>Descrição Detalhada</label>
-                <button type="button" id="btnSpellcheckModal" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir IA</button>
+
+            <div class="field-group" id="groupCustomLocal" style="${unidades.some(u => u.nome === p.local) ? 'display:none;' : ''}">
+              <label>Nome do Local</label>
+              <input id="inputLocalEdit" name="local" class="field-input" value="${p.local || ''}" placeholder="Ex: Base Central" required />
+            </div>
+
+            <div style="display:flex; gap:8px;">
+              <div class="field-group" style="flex:2;">
+                <label>Cidade</label>
+                <input id="inputCidadeEdit" name="cidade" class="field-input" value="${p.cidade || 'São Paulo'}" placeholder="Cidade" required />
               </div>
-              <textarea id="editDescArea" name="descricao" class="field-input" style="height:70px;" required>${p.descricaoOriginal || p.titulo || ''}</textarea>
+              <div class="field-group" style="flex:1;">
+                <label>UF</label>
+                <input id="inputEstadoEdit" name="estado" class="field-input" value="${p.estado || 'SP'}" placeholder="UF" maxlength="2" required />
+              </div>
             </div>
+
+            <div class="field-group">
+              <label>Título da Atividade</label>
+              <input name="titulo" class="field-input" value="${p.titulo || ''}" placeholder="Ex: Inspeção de segurança" required />
+            </div>
+
+            <div class="field-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label>Descrição Detalhada</label>
+                <button type="button" id="btnSpellcheckModal" class="btn btn-outline" style="padding:2px 8px; font-size:11px; font-weight:800; color:var(--purple); border-color:var(--purple);">
+                  ✨ IA
+                </button>
+              </div>
+              <textarea id="editDescArea" name="descricao" class="field-input" style="height:70px;" placeholder="Detalhes do planejamento..." required>${p.descricaoOriginal || p.titulo || ''}</textarea>
+            </div>
+
+            <!-- Inclusão de Foto -->
+            <div class="field-group">
+              <label>Incluir Foto</label>
+              <div style="display:flex; gap:8px;">
+                <button type="button" id="btnEditCaptureCam" class="btn btn-primary" style="flex:1; font-size:12px;">📷 Câmera</button>
+                <button type="button" id="btnEditPickGal" class="btn btn-outline" style="flex:1; font-size:12px;">🖼️ Galeria</button>
+              </div>
+              <input type="file" id="inputEditCam" accept="image/*" capture="environment" style="display:none;" />
+              <input type="file" id="inputEditGal" accept="image/*" style="display:none;" />
+              <div id="editPhotoPreview" style="display:none; margin-top:8px; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; align-items:center; justify-content:space-between;">
+                <span style="font-size:12px; font-weight:700; color:var(--green);">📷 Foto anexada com sucesso</span>
+                <button type="button" id="btnRemoveEditPhoto" class="btn btn-outline" style="padding:2px 6px; font-size:10px; color:var(--red); border-color:var(--red);">Remover</button>
+              </div>
+            </div>
+
             <button type="submit" class="btn btn-primary btn-block">Salvar</button>
           </form>
         `, (body) => {
+          const selUnidade = body.querySelector('#editUnidadeSelect');
+          const groupCustom = body.querySelector('#groupCustomLocal');
+          const inpLocal = body.querySelector('#inputLocalEdit');
+          const inpCidade = body.querySelector('#inputCidadeEdit');
+          const inpEstado = body.querySelector('#inputEstadoEdit');
+
+          selUnidade?.addEventListener('change', () => {
+            const opt = selUnidade.options[selUnidade.selectedIndex];
+            if (selUnidade.value === '__CUSTOM__') {
+              groupCustom.style.display = 'block';
+              inpLocal.value = '';
+            } else {
+              groupCustom.style.display = 'none';
+              inpLocal.value = selUnidade.value;
+              if (opt.getAttribute('data-cidade')) inpCidade.value = opt.getAttribute('data-cidade');
+              if (opt.getAttribute('data-estado')) inpEstado.value = opt.getAttribute('data-estado');
+            }
+          });
+
+          // Botão IA
           body.querySelector('#btnSpellcheckModal')?.addEventListener('click', async () => {
             const area = body.querySelector('#editDescArea');
             if (area && area.value) {
@@ -2005,23 +2551,53 @@
               area.value = corr;
             }
           });
+
+          // Foto Câmera / Galeria
+          const camInput = body.querySelector('#inputEditCam');
+          const galInput = body.querySelector('#inputEditGal');
+          const previewBox = body.querySelector('#editPhotoPreview');
+          const removeBtn = body.querySelector('#btnRemoveEditPhoto');
+
+          const handlePhotoSelection = (file) => {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              fotoDataUrl = e.target.result;
+              previewBox.style.display = 'flex';
+            };
+            reader.readAsDataURL(file);
+          };
+
+          body.querySelector('#btnEditCaptureCam')?.addEventListener('click', () => camInput.click());
+          body.querySelector('#btnEditPickGal')?.addEventListener('click', () => galInput.click());
+          camInput?.addEventListener('change', (e) => handlePhotoSelection(e.target.files[0]));
+          galInput?.addEventListener('change', (e) => handlePhotoSelection(e.target.files[0]));
+          removeBtn?.addEventListener('click', () => {
+            fotoDataUrl = '';
+            previewBox.style.display = 'none';
+          });
+
           body.querySelector('#formEditPlanModal').addEventListener('submit', (ev) => {
             ev.preventDefault();
             const fd = new FormData(ev.target);
-            executeMobileAction('EDITAR_ATIVIDADE', 'Salvando alterações...', {
+            executeMobileAction('ATUALIZAR_ATIVIDADE', 'Atualizando agendamento...', {
               id: p.id,
               dataAtividade: fd.get('dataAtividade'),
               hora: fd.get('hora'),
               titulo: fd.get('titulo'),
               categoria: fd.get('categoria'),
+              prioridade: p.prioridade || 'MEDIA',
               local: fd.get('local'),
-              descricaoOriginal: fd.get('descricao')
+              cidade: fd.get('cidade'),
+              estado: fd.get('estado'),
+              descricaoOriginal: fd.get('descricao'),
+              fotoUrl: fotoDataUrl || null
             });
           });
         });
       }
 
-      function duplicatePlan(p) {
+            function duplicatePlan(p) {
         const nextDay = new Date(p.dataAtividade);
         nextDay.setDate(nextDay.getDate() + 1);
         const nextDayStr = nextDay.toISOString().split('T')[0];
@@ -2062,39 +2638,145 @@
       function openNewPlanModal(defaultDate) {
         const todayStr = defaultDate || new Date().toISOString().split('T')[0];
         const unidades = (state.syncData && state.syncData.unidades) || [];
+        let fotoDataUrl = '';
+
         openModal('Novo Agendamento na Agenda', `
           <form id="formNewPlanModal">
             <div style="display:flex; gap:8px;">
               <div class="field-group" style="flex:1.2;">
                 <label>Data</label>
-                <input name="dataAtividade" type="date" class="field-input" value="${todayStr}" required />
+                <input name="dataAtividade" type="date" class="field-input" value="${todayStr}" placeholder="AAAA-MM-DD" required />
               </div>
               <div class="field-group" style="flex:0.8;">
                 <label>Hora</label>
-                <input name="hora" type="time" class="field-input" value="08:00" required />
+                <input name="hora" type="time" class="field-input" value="08:00" placeholder="HH:mm" required />
               </div>
             </div>
-            <div class="field-group">
-              <label>Título da Atividade</label>
-              <input name="titulo" class="field-input" placeholder="Ex: Inspeção de segurança" required />
-            </div>
+
             <div class="field-group">
               <label>Categoria Oficial</label>
               <select name="categoria" class="field-input">
                 ${CATEGORIAS_WEB.map(c => `<option value="${c}">${c}</option>`).join('')}
               </select>
             </div>
+
+            <!-- Unidade / Local com Auto-preenchimento de Cidade e UF -->
             <div class="field-group">
-              <label>Unidade / Local</label>
-              <input name="local" class="field-input" placeholder="Ex: Base Central" required />
+              <label>Local / Unidade</label>
+              <select id="newUnidadeSelect" class="field-input">
+                <option value="__CUSTOM__">✏️ Digitar outro local...</option>
+                ${unidades.map(u => `
+                  <option value="${u.nome}" data-cidade="${u.cidade || ''}" data-estado="${u.estado || ''}">
+                    ${u.nome} (${u.cidade || 'SP'}/${u.estado || 'SP'})
+                  </option>
+                `).join('')}
+              </select>
             </div>
+
+            <div class="field-group" id="groupCustomLocalNew" style="${unidades.length > 0 ? 'display:none;' : ''}">
+              <label>Nome do Local</label>
+              <input id="inputLocalNew" name="local" class="field-input" value="${unidades[0]?.nome || ''}" placeholder="Ex: Base Central" required />
+            </div>
+
+            <div style="display:flex; gap:8px;">
+              <div class="field-group" style="flex:2;">
+                <label>Cidade</label>
+                <input id="inputCidadeNew" name="cidade" class="field-input" value="${unidades[0]?.cidade || 'São Paulo'}" placeholder="Cidade" required />
+              </div>
+              <div class="field-group" style="flex:1;">
+                <label>UF</label>
+                <input id="inputEstadoNew" name="estado" class="field-input" value="${unidades[0]?.estado || 'SP'}" placeholder="UF" maxlength="2" required />
+              </div>
+            </div>
+
             <div class="field-group">
-              <label>Descrição Detalhada</label>
-              <textarea name="descricao" class="field-input" style="height:70px;" placeholder="Detalhes do planejamento..." required></textarea>
+              <label>Título da Atividade</label>
+              <input name="titulo" class="field-input" placeholder="Ex: Inspeção de segurança" required />
             </div>
+
+            <div class="field-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label>Descrição Detalhada</label>
+                <button type="button" id="btnSpellcheckNew" class="btn btn-outline" style="padding:2px 8px; font-size:11px; font-weight:800; color:var(--purple); border-color:var(--purple);">
+                  ✨ IA
+                </button>
+              </div>
+              <textarea id="newDescArea" name="descricao" class="field-input" style="height:70px;" placeholder="Detalhes do planejamento..." required></textarea>
+            </div>
+
+            <!-- Inclusão de Foto -->
+            <div class="field-group">
+              <label>Incluir Foto</label>
+              <div style="display:flex; gap:8px;">
+                <button type="button" id="btnNewCaptureCam" class="btn btn-primary" style="flex:1; font-size:12px;">📷 Câmera</button>
+                <button type="button" id="btnNewPickGal" class="btn btn-outline" style="flex:1; font-size:12px;">🖼️ Galeria</button>
+              </div>
+              <input type="file" id="inputNewCam" accept="image/*" capture="environment" style="display:none;" />
+              <input type="file" id="inputNewGal" accept="image/*" style="display:none;" />
+              <div id="newPhotoPreview" style="display:none; margin-top:8px; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; align-items:center; justify-content:space-between;">
+                <span style="font-size:12px; font-weight:700; color:var(--green);">📷 Foto anexada com sucesso</span>
+                <button type="button" id="btnRemoveNewPhoto" class="btn btn-outline" style="padding:2px 6px; font-size:10px; color:var(--red); border-color:var(--red);">Remover</button>
+              </div>
+            </div>
+
             <button type="submit" class="btn btn-primary btn-block">Confirmar</button>
           </form>
         `, (body) => {
+          const selUnidade = body.querySelector('#newUnidadeSelect');
+          const groupCustom = body.querySelector('#groupCustomLocalNew');
+          const inpLocal = body.querySelector('#inputLocalNew');
+          const inpCidade = body.querySelector('#inputCidadeNew');
+          const inpEstado = body.querySelector('#inputEstadoNew');
+
+          selUnidade?.addEventListener('change', () => {
+            const opt = selUnidade.options[selUnidade.selectedIndex];
+            if (selUnidade.value === '__CUSTOM__') {
+              groupCustom.style.display = 'block';
+              inpLocal.value = '';
+            } else {
+              groupCustom.style.display = 'none';
+              inpLocal.value = selUnidade.value;
+              if (opt.getAttribute('data-cidade')) inpCidade.value = opt.getAttribute('data-cidade');
+              if (opt.getAttribute('data-estado')) inpEstado.value = opt.getAttribute('data-estado');
+            }
+          });
+
+          // Botão IA
+          body.querySelector('#btnSpellcheckNew')?.addEventListener('click', async () => {
+            const area = body.querySelector('#newDescArea');
+            if (area && area.value) {
+              setBlockingLoading(true, 'Corrigindo com IA...');
+              const corr = await correctTextWithAi(area.value);
+              setBlockingLoading(false);
+              area.value = corr;
+            }
+          });
+
+          // Foto Câmera / Galeria
+          const camInput = body.querySelector('#inputNewCam');
+          const galInput = body.querySelector('#inputNewGal');
+          const previewBox = body.querySelector('#newPhotoPreview');
+          const removeBtn = body.querySelector('#btnRemoveNewPhoto');
+
+          const handlePhotoSelection = (file) => {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              fotoDataUrl = e.target.result;
+              previewBox.style.display = 'flex';
+            };
+            reader.readAsDataURL(file);
+          };
+
+          body.querySelector('#btnNewCaptureCam')?.addEventListener('click', () => camInput.click());
+          body.querySelector('#btnNewPickGal')?.addEventListener('click', () => galInput.click());
+          camInput?.addEventListener('change', (e) => handlePhotoSelection(e.target.files[0]));
+          galInput?.addEventListener('change', (e) => handlePhotoSelection(e.target.files[0]));
+          removeBtn?.addEventListener('click', () => {
+            fotoDataUrl = '';
+            previewBox.style.display = 'none';
+          });
+
           body.querySelector('#formNewPlanModal').addEventListener('submit', (ev) => {
             ev.preventDefault();
             const fd = new FormData(ev.target);
@@ -2105,15 +2787,16 @@
               categoria: fd.get('categoria'),
               prioridade: 'MEDIA',
               local: fd.get('local'),
-              cidade: 'São Paulo',
-              estado: 'SP',
-              descricaoOriginal: fd.get('descricao')
+              cidade: fd.get('cidade'),
+              estado: fd.get('estado'),
+              descricaoOriginal: fd.get('descricao'),
+              fotoUrl: fotoDataUrl || null
             });
           });
         });
       }
 
-      // Inicialização: renderiza cache local do Room imediatamente e sincroniza com PostgreSQL
+            // Inicialização: renderiza cache local do Room imediatamente e sincroniza com PostgreSQL
       render();
       trySyncWithServer(true);
     })();

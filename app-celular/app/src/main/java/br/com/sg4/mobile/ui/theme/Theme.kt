@@ -10,41 +10,27 @@ import androidx.compose.ui.graphics.Color
 private val LightColors = lightColorScheme(
     primary = Sg4Purple,
     onPrimary = Color.White,
-    primaryContainer = Sg4PurpleSurface,
+    primaryContainer = Color.White,
     onPrimaryContainer = Sg4PurpleDark,
     secondary = Sg4Blue,
     onSecondary = Color.White,
-    background = Slate50,
+    background = Color.White,
     onBackground = Slate900,
     surface = Color.White,
-    onSurface = Slate800,
-    error = Sg4Red,
-    onError = Color.White
-)
-
-private val DarkColors = darkColorScheme(
-    primary = Sg4PurpleLight,
-    onPrimary = Slate900,
-    primaryContainer = Sg4PurpleDark,
-    onPrimaryContainer = Color.White,
-    secondary = Sg4Blue,
-    onSecondary = Slate900,
-    background = Slate900,
-    onBackground = Slate100,
-    surface = Slate800,
-    onSurface = Slate100,
+    onSurface = Slate900,
+    surfaceVariant = Color.White,
+    onSurfaceVariant = Slate900,
     error = Sg4Red,
     onError = Color.White
 )
 
 @Composable
 fun SG4MobileTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false, // Sempre tema claro para SG4 Mobile
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColors else LightColors
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = LightColors,
         content = content
     )
 }

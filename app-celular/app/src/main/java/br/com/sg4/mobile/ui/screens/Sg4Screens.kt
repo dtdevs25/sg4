@@ -2,103 +2,48 @@ package br.com.sg4.mobile.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.location.LocationManager
-import androidx.core.content.ContextCompat
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
+import android.net.Uri
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import br.com.sg4.mobile.model.RelatorioPdfDto
-import br.com.sg4.mobile.model.RelatorioCampoDto
-import br.com.sg4.mobile.model.ManutencaoDto
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.EventRepeat
-import androidx.compose.material.icons.filled.LocalGasStation
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -107,34 +52,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
 import br.com.sg4.mobile.R
-import br.com.sg4.mobile.model.ChecklistItemDto
-import br.com.sg4.mobile.model.MobileTab
-import br.com.sg4.mobile.model.NaoConformidadeDto
-import br.com.sg4.mobile.model.PlanejamentoDto
-import br.com.sg4.mobile.model.QuilometragemDto
+import br.com.sg4.mobile.model.*
 import br.com.sg4.mobile.ui.components.StatusBadge
 import br.com.sg4.mobile.ui.components.formatIsoDateBr
-import br.com.sg4.mobile.ui.theme.Sg4Amber
-import br.com.sg4.mobile.ui.theme.Sg4Blue
-import br.com.sg4.mobile.ui.theme.Sg4Green
-import br.com.sg4.mobile.ui.theme.Sg4Purple
-import br.com.sg4.mobile.ui.theme.Sg4PurpleDark
-import br.com.sg4.mobile.ui.theme.Sg4PurpleSurface
-import br.com.sg4.mobile.ui.theme.Sg4Red
-import br.com.sg4.mobile.ui.theme.Slate400
-import br.com.sg4.mobile.ui.theme.Slate600
-import br.com.sg4.mobile.ui.theme.Slate900
+import br.com.sg4.mobile.ui.theme.*
 import br.com.sg4.mobile.viewmodel.Sg4UiState
 import br.com.sg4.mobile.viewmodel.Sg4ViewModel
+import java.io.ByteArrayOutputStream
 import java.net.URLEncoder
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
+import java.util.*
 
-
+val Slate700 = Color(0xFF334155)
 
 @Composable
 fun standardTextInputColors() = OutlinedTextFieldDefaults.colors(
@@ -249,7 +181,7 @@ fun AiSpellcheckButton(
                 modifier = Modifier.size(13.dp)
             )
             Text(
-                text = "Corrigir com IA",
+                text = "IA",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (text.isNotBlank() && enabled) Sg4Purple else Slate400
@@ -781,6 +713,12 @@ fun HomeDashboardScreen(
         uiState.userRole.uppercase() in listOf("MASTER", "ADMIN")
     }
 
+    val isAllTecnicos = uiState.selectedTecnicoId == "ALL"
+    val activeTecnicosCount = remember(uiState.syncData.tecnicos) {
+        uiState.syncData.tecnicos.count { it.id != "ALL" }.coerceAtLeast(1)
+    }
+
+
     val currentTecName = remember(uiState.selectedTecnicoId, uiState.syncData.tecnicos) {
         if (uiState.selectedTecnicoId == "ALL") "Todos os Colaboradores"
         else uiState.syncData.tecnicos.find { it.id == uiState.selectedTecnicoId }?.nome ?: tecnico?.nome ?: "Meu Perfil"
@@ -893,11 +831,6 @@ fun HomeDashboardScreen(
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Slate900
-                            )
-                            Text(
-                                text = "${tecnico?.nome ?: uiState.userName} • Base: ${tecnico?.baseFixaNome ?: "Geral"}",
-                                fontSize = 12.sp,
-                                color = Slate600
                             )
                         }
                     }
@@ -1063,7 +996,7 @@ fun HomeDashboardScreen(
             DualStatDashboardCard(
                 titleLeft = "DSS Realizados",
                 valueLeft = "$dssRealizados",
-                subLeft = "Meta: $dssMeta (${activeMonthsCount}m)",
+                subLeft = "Meta: $dssMeta (${activeMonthsCount}m${if (isAllTecnicos) " • $activeTecnicosCount técs" else ""})",
                 titleRight = "% Concluído",
                 valueRight = "$dssPct%",
                 subRight = if (dssRealizados >= dssMeta) "Meta Atingida! ✓" else "Faltam: ${(dssMeta - dssRealizados).coerceAtLeast(0)}",
@@ -1078,7 +1011,7 @@ fun HomeDashboardScreen(
             DualStatDashboardCard(
                 titleLeft = "Inspeções Realizadas",
                 valueLeft = "$inspecoesRealizadas",
-                subLeft = "Meta: $inspecoesMeta (${activeMonthsCount}m)",
+                subLeft = "Meta: $inspecoesMeta (${activeMonthsCount}m${if (isAllTecnicos) " • $activeTecnicosCount técs" else ""})",
                 titleRight = "% Concluído",
                 valueRight = "$inspecoesPct%",
                 subRight = if (inspecoesRealizadas >= inspecoesMeta) "Meta Atingida! ✓" else "Faltam: ${(inspecoesMeta - inspecoesRealizadas).coerceAtLeast(0)}",
@@ -1090,7 +1023,7 @@ fun HomeDashboardScreen(
 
         // CARD 3: ITENS INCLUÍDOS NO RELATÓRIO
         item {
-            val mediaPorMes = String.format(Locale("pt", "BR"), "%.1f", relatoriosIncluidos.toDouble() / activeMonthsCount)
+            val mediaPorMes = Math.round(relatoriosIncluidos.toDouble() / activeMonthsCount).toString()
             DualStatDashboardCard(
                 titleLeft = "Itens no Relatório",
                 valueLeft = "$relatoriosIncluidos",
@@ -1136,13 +1069,13 @@ fun HomeDashboardScreen(
                 ) {
                     Column {
                         Text(
-                            text = "KM RODADOS NO PERÍODO",
+                            text = "KM RODADOS",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = Slate600
                         )
                         Text(
-                            text = "${String.format(Locale("pt", "BR"), "%.1f", kmPeriodo)} km",
+                            text = "${Math.round(kmPeriodo)} km",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Sg4Purple
@@ -1150,13 +1083,13 @@ fun HomeDashboardScreen(
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "SALDO ABASTECIMENTO (MÊS)",
+                            text = "SALDO",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = Slate600
                         )
                         Text(
-                            text = String.format(Locale("pt", "BR"), "R$ %.2f", summary.saldoAbastecimento),
+                            text = "R$ ${Math.round(summary.saldoAbastecimento)}",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Sg4Green
@@ -1881,7 +1814,7 @@ fun AgendaPlanejamentoScreen(
         }
     }
 
-    // MODAL 1: CRIAR OU EDITAR AGENDAMENTO (COM CORRETOR IA)
+    // MODAL 1: CRIAR OU EDITAR AGENDAMENTO (COM DROPDOWN, AUTO-PREENCHIMENTO E FOTO)
     if (showCreateOrEditModal) {
         val isEditing = editingPlan?.id?.isNotBlank() == true
         var dataAtv by remember { mutableStateOf(editingPlan?.dataAtividade?.take(10) ?: prefillDateYmd) }
@@ -1896,6 +1829,38 @@ fun AgendaPlanejamentoScreen(
         var descricaoAtv by remember { mutableStateOf(editingPlan?.descricaoOriginal ?: "") }
         var frequenciaAtv by remember { mutableStateOf("UNICA") }
         var dataFimRecorrencia by remember { mutableStateOf(prefillDateYmd) }
+        var fotoBase64 by remember { mutableStateOf("") }
+
+        var showCategoriaDropdown by remember { mutableStateOf(false) }
+        var showUnidadeDropdown by remember { mutableStateOf(false) }
+        var customLocalMode by remember { mutableStateOf(editingPlan?.local?.isNotBlank() == true && uiState.syncData.unidades.none { it.nome == editingPlan?.local }) }
+
+        val cameraLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicturePreview()
+        ) { bitmap: Bitmap? ->
+            bitmap?.let {
+                try {
+                    val stream = ByteArrayOutputStream()
+                    it.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+                    val b64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    fotoBase64 = "data:image/jpeg;base64,$b64"
+                } catch (_: Exception) {}
+            }
+        }
+
+        val galleryLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let {
+                try {
+                    val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
+                    if (bytes != null) {
+                        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        fotoBase64 = "data:image/jpeg;base64,$b64"
+                    }
+                } catch (_: Exception) {}
+            }
+        }
 
         val textInputColors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Slate900,
@@ -1911,6 +1876,8 @@ fun AgendaPlanejamentoScreen(
 
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) showCreateOrEditModal = false },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
             title = {
                 Text(
                     text = if (isEditing) "Editar Agendamento" else "Novo Agendamento",
@@ -1924,59 +1891,183 @@ fun AgendaPlanejamentoScreen(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Data e Hora
+                    // Data e Hora (labels limpos, placeholders indicativos)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = dataAtv,
                             onValueChange = { dataAtv = it },
-                            label = { Text("Data (AAAA-MM-DD)") },
+                            label = { Text("Data", color = Slate900) },
+                            placeholder = { Text("AAAA-MM-DD", color = Slate400) },
                             modifier = Modifier.weight(1.3f),
                             colors = textInputColors
                         )
                         OutlinedTextField(
                             value = horaAtv,
                             onValueChange = { horaAtv = it },
-                            label = { Text("Hora (HH:mm)") },
+                            label = { Text("Hora", color = Slate900) },
+                            placeholder = { Text("HH:mm", color = Slate400) },
                             modifier = Modifier.weight(1f),
                             colors = textInputColors
                         )
                     }
 
-                    // Categoria
+                    // Categoria: Lista Suspensa (Dropdown)
                     Text("CATEGORIA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        CATEGORIAS_OFICIAIS.forEach { cat ->
-                            val isSel = cat.equals(categoriaAtv, ignoreCase = true)
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSel) Sg4Purple else Color(0xFFF1F5F9))
-                                    .clickable { categoriaAtv = cat }
-                                    .padding(horizontal = 9.dp, vertical = 6.dp)
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color.White)
+                                .clickable { showCategoriaDropdown = true }
+                                .padding(horizontal = 12.dp, vertical = 14.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = cat,
-                                    fontSize = 11.sp,
+                                    text = categoriaAtv.ifBlank { "Selecione uma Categoria..." },
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isSel) Color.White else Slate900
+                                    color = Slate900
+                                )
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Sg4Purple)
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showCategoriaDropdown,
+                            onDismissRequest = { showCategoriaDropdown = false },
+                            modifier = Modifier.background(Color.White)
+                        ) {
+                            CATEGORIAS_OFICIAIS.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = cat,
+                                            fontWeight = if (cat == categoriaAtv) FontWeight.ExtraBold else FontWeight.Normal,
+                                            color = if (cat == categoriaAtv) Sg4Purple else Slate900
+                                        )
+                                    },
+                                    onClick = {
+                                        categoriaAtv = cat
+                                        showCategoriaDropdown = false
+                                    }
                                 )
                             }
                         }
+                    }
+
+                    // Local / Unidade: Lista Suspensa com Auto-preenchimento de Cidade e UF
+                    Text("LOCAL / UNIDADE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color.White)
+                                .clickable { showUnidadeDropdown = true }
+                                .padding(horizontal = 12.dp, vertical = 14.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (customLocalMode) "✏️ Digitar outro local manualmente" else localAtv.ifBlank { "🏢 Selecionar unidade..." },
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate900,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Sg4Purple)
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showUnidadeDropdown,
+                            onDismissRequest = { showUnidadeDropdown = false },
+                            modifier = Modifier.background(Color.White)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text("✏️ Digitar outro local...", fontWeight = FontWeight.Bold, color = Sg4Purple)
+                                },
+                                onClick = {
+                                    customLocalMode = true
+                                    showUnidadeDropdown = false
+                                }
+                            )
+                            uiState.syncData.unidades.forEach { u ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(u.nome, fontWeight = FontWeight.Bold, color = Slate900, fontSize = 12.sp)
+                                            if (u.cidade.isNotBlank()) {
+                                                Text("${u.cidade}/${u.estado}", fontSize = 10.sp, color = Slate600)
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        customLocalMode = false
+                                        localAtv = u.nome
+                                        if (u.cidade.isNotBlank()) cidadeAtv = u.cidade
+                                        if (u.estado.isNotBlank()) estadoAtv = u.estado
+                                        showUnidadeDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Se escolheu digitar outro local ou quiser personalizar o nome
+                    if (customLocalMode) {
+                        OutlinedTextField(
+                            value = localAtv,
+                            onValueChange = { localAtv = it },
+                            label = { Text("Nome do Local", color = Slate900) },
+                            placeholder = { Text("Ex: Base Operacional, Cliente...", color = Slate400) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = textInputColors
+                        )
+                    }
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = cidadeAtv,
+                            onValueChange = { cidadeAtv = it },
+                            label = { Text("Cidade", color = Slate900) },
+                            placeholder = { Text("Ex: São Paulo", color = Slate400) },
+                            modifier = Modifier.weight(2f),
+                            colors = textInputColors
+                        )
+                        OutlinedTextField(
+                            value = estadoAtv,
+                            onValueChange = { estadoAtv = it },
+                            label = { Text("UF", color = Slate900) },
+                            placeholder = { Text("SP", color = Slate400) },
+                            modifier = Modifier.weight(1f),
+                            colors = textInputColors
+                        )
                     }
 
                     // Título
                     OutlinedTextField(
                         value = tituloAtv,
                         onValueChange = { tituloAtv = it },
-                        label = { Text("Título da Atividade") },
+                        label = { Text("Título da Atividade", color = Slate900) },
+                        placeholder = { Text("Ex: Inspeção Mensal de Extintores", color = Slate400) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = textInputColors
                     )
 
-                    // Descrição com Corretor IA
+                    // Descrição com Corretor IA (apenas "IA")
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1997,38 +2088,64 @@ fun AgendaPlanejamentoScreen(
                     OutlinedTextField(
                         value = descricaoAtv,
                         onValueChange = { descricaoAtv = it },
-                        label = { Text("Descreva detalhadamente o que será executado...") },
+                        placeholder = { Text("Descreva detalhadamente o que será executado...", color = Slate400) },
                         modifier = Modifier.fillMaxWidth().height(90.dp),
                         colors = textInputColors
                     )
 
-                    // Local, Cidade e UF
-                    OutlinedTextField(
-                        value = localAtv,
-                        onValueChange = { localAtv = it },
-                        label = { Text("Local / Unidade") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = textInputColors
-                    )
-
+                    // Incluir Foto (Câmera / Galeria)
+                    Text("INCLUIR FOTO", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = cidadeAtv,
-                            onValueChange = { cidadeAtv = it },
-                            label = { Text("Cidade") },
-                            modifier = Modifier.weight(2f),
-                            colors = textInputColors
-                        )
-                        OutlinedTextField(
-                            value = estadoAtv,
-                            onValueChange = { estadoAtv = it },
-                            label = { Text("UF") },
-                            modifier = Modifier.weight(1f),
-                            colors = textInputColors
-                        )
+                        Button(
+                            onClick = { cameraLauncher.launch(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Câmera", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Purple),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Galeria", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        }
                     }
 
-                    // Prioridade (ALTA, MEDIA, BAIXA)
+                    // Preview da Foto Selecionada
+                    if (fotoBase64.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8FAFC)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("📷 Foto anexada", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Green)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { fotoBase64 = "" }) {
+                                    Text("Remover", color = Sg4Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // Prioridade
+                    Text("PRIORIDADE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf("BAIXA" to "Baixa", "MEDIA" to "Média", "ALTA" to "Alta").forEach { (pr, lbl) ->
                             val isSel = prioridadeAtv == pr
@@ -2062,7 +2179,8 @@ fun AgendaPlanejamentoScreen(
                             "equipe" to equipeAtv,
                             "descricaoOriginal" to descricaoAtv.ifBlank { tituloAtv.ifBlank { categoriaAtv } },
                             "frequencia" to frequenciaAtv,
-                            "dataFim" to dataFimRecorrencia
+                            "dataFim" to dataFimRecorrencia,
+                            "fotoUrl" to fotoBase64.ifBlank { null }
                         )
                         if (isEditing) {
                             payload["id"] = editingPlan?.id
@@ -2098,21 +2216,65 @@ fun AgendaPlanejamentoScreen(
         )
     }
 
-    // MODAL 2: CONCLUIR ATIVIDADE (COM CORRETOR IA)
+    // MODAL 2: CONCLUIR ATIVIDADE (COM TEMA DSS, RELATO DE EXECUÇÃO, CORRETOR IA E FOTO)
     concludingPlan?.let { item ->
         val isDssCategory = item.categoria.uppercase().contains("DSS")
+        var temaDss by remember(item.id) {
+            mutableStateOf(if (isDssCategory) item.titulo.ifBlank { "Diálogo de Segurança" } else "")
+        }
         var descExecutada by remember(item.id) {
             mutableStateOf(item.descricaoExecutada.ifBlank { item.descricaoOriginal })
         }
         var observacoes by remember(item.id) { mutableStateOf(item.observacoes) }
-        var fotoUrl by remember(item.id) { mutableStateOf("") }
+        var fotoBase64 by remember(item.id) { mutableStateOf("") }
         var salvarDssAliado by remember(item.id) { mutableStateOf(isDssCategory) }
         var gerarRelatorioCampo by remember(item.id) { mutableStateOf(true) }
         var empresaRelatorio by remember(item.id) { mutableStateOf("Telefônica Brasil S.A") }
         var projetoRelatorio by remember(item.id) { mutableStateOf("VIVO") }
 
+        val cameraLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicturePreview()
+        ) { bitmap: Bitmap? ->
+            bitmap?.let {
+                try {
+                    val stream = ByteArrayOutputStream()
+                    it.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+                    val b64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    fotoBase64 = "data:image/jpeg;base64,$b64"
+                } catch (_: Exception) {}
+            }
+        }
+
+        val galleryLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let {
+                try {
+                    val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
+                    if (bytes != null) {
+                        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        fotoBase64 = "data:image/jpeg;base64,$b64"
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+
+        val textInputColors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Slate900,
+            unfocusedTextColor = Slate900,
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            focusedBorderColor = Sg4Purple,
+            unfocusedBorderColor = Color(0xFFCBD5E1),
+            focusedPlaceholderColor = Slate400,
+            unfocusedPlaceholderColor = Slate400,
+            cursorColor = Sg4Purple
+        )
+
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) concludingPlan = null },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
             title = {
                 Text("Concluir Atividade", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900)
             },
@@ -2128,6 +2290,30 @@ fun AgendaPlanejamentoScreen(
                         color = Sg4Purple
                     )
 
+                    // Se for DSS, recebe o campo de Tema do DSS (igual à web)
+                    if (isDssCategory) {
+                        OutlinedTextField(
+                            value = temaDss,
+                            onValueChange = { temaDss = it },
+                            label = { Text("Tema do DSS", color = Slate900) },
+                            placeholder = { Text("Ex: Uso de EPI, Direção Defensiva...", color = Slate400) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = textInputColors
+                        )
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = { salvarDssAliado = !salvarDssAliado }) {
+                                Text(
+                                    text = if (salvarDssAliado) "☑ Salvar no DSS Aliado" else "☐ Não salvar no DSS Aliado",
+                                    color = Sg4Purple,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Relato de Execução com botão IA
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -2148,28 +2334,69 @@ fun AgendaPlanejamentoScreen(
                     OutlinedTextField(
                         value = descExecutada,
                         onValueChange = { descExecutada = it },
-                        label = { Text("Descreva como a atividade foi executada...") },
+                        placeholder = { Text("Descreva detalhadamente como a atividade foi executada...", color = Slate400) },
                         modifier = Modifier.fillMaxWidth().height(100.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Slate900,
-                            unfocusedTextColor = Slate900,
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White
-                        )
+                        colors = textInputColors
                     )
 
                     OutlinedTextField(
                         value = observacoes,
                         onValueChange = { observacoes = it },
-                        label = { Text("Observações adicionais (opcional)") },
+                        label = { Text("Observações adicionais (opcional)", color = Slate900) },
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Slate900,
-                            unfocusedTextColor = Slate900,
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White
-                        )
+                        colors = textInputColors
                     )
+
+                    // Incluir Foto da Conclusão (Câmera / Galeria)
+                    Text("FOTO DA ATIVIDADE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { cameraLauncher.launch(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Green),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Câmera", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Green),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Sg4Green, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Galeria", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Sg4Green)
+                        }
+                    }
+
+                    // Preview da Foto
+                    if (fotoBase64.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8FAFC)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("📷 Foto capturada com sucesso", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Green)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { fotoBase64 = "" }) {
+                                    Text("Remover", color = Sg4Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
 
                     // Opção de incluir no Relatório de Atividades
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2187,20 +2414,22 @@ fun AgendaPlanejamentoScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        val payload = mutableMapOf<String, Any?>(
+                            "id" to item.id,
+                            "descricaoExecutada" to descExecutada,
+                            "observacoes" to observacoes,
+                            "fotoUrl" to fotoBase64.ifBlank { null },
+                            "salvarDssAliado" to salvarDssAliado,
+                            "temaDss" to temaDss,
+                            "gerarRelatorioCampo" to gerarRelatorioCampo,
+                            "empresa" to empresaRelatorio,
+                            "projeto" to projetoRelatorio
+                        )
                         viewModel.performAction(
                             actionType = "CONCLUIR_ATIVIDADE",
                             loadingTitle = "Concluindo atividade...",
                             description = "Concluir: ${item.titulo}",
-                            payload = mapOf(
-                                "id" to item.id,
-                                "descricaoExecutada" to descExecutada,
-                                "observacoes" to observacoes,
-                                "fotoUrl" to fotoUrl.ifBlank { null },
-                                "salvarDssAliado" to salvarDssAliado,
-                                "gerarRelatorioCampo" to gerarRelatorioCampo,
-                                "empresa" to empresaRelatorio,
-                                "projeto" to projetoRelatorio
-                            ),
+                            payload = payload,
                             onCompleted = { concludingPlan = null }
                         )
                     },
@@ -2219,7 +2448,7 @@ fun AgendaPlanejamentoScreen(
         )
     }
 
-    // MODAL 3: TRANSFERIR PENDÊNCIAS
+        // MODAL 3: TRANSFERIR PENDÊNCIAS
     transferringPlan?.let { plan ->
         var novaDataTransfer by remember(plan.id) { mutableStateOf(todayYmd) }
 
@@ -2352,7 +2581,7 @@ fun AgendaCardItem(
 ) {
     val context = LocalContext.current
     val isConcluido = plan.status.equals("CONCLUIDO", ignoreCase = true)
-    var confirmAction by remember { mutableStateOf<String?>(null) }
+    var expandedAction by remember { mutableStateOf<String?>(null) }
 
     Card(
         modifier = Modifier
@@ -2417,8 +2646,7 @@ fun AgendaCardItem(
                 text = plan.titulo.ifBlank { plan.categoria },
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 15.sp,
-                color = if (isConcluido) Slate600 else Slate900,
-                textDecoration = if (isConcluido) TextDecoration.None else TextDecoration.None
+                color = if (isConcluido) Slate600 else Slate900
             )
 
             // Descritivo
@@ -2451,34 +2679,24 @@ fun AgendaCardItem(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Botão Principal: Concluir (com confirmação em dois toques)
+            // Botão Principal: Concluir (clique único direto para abrir modal de conclusão)
             if (!isConcluido) {
-                val isConcluirConfirm = confirmAction == "CONCLUIR"
                 Button(
-                    onClick = {
-                        if (isConcluirConfirm) {
-                            onConclude()
-                            confirmAction = null
-                        } else {
-                            confirmAction = "CONCLUIR"
-                        }
-                    },
+                    onClick = onConclude,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isConcluirConfirm) Color(0xFF047857) else Sg4Green
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Green),
                     enabled = !uiState.isBlockingLoading
                 ) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(if (isConcluirConfirm) "Confirmar" else "Concluir", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("Concluir", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Barra de Botões Secundários: Editar, Duplicar, Mover, Reverter, Excluir, Outlook
+            // Barra de Botões Secundários (Atalhos): Apenas ícone por padrão; 1º clique expande o texto, 2º clique executa
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2486,141 +2704,237 @@ fun AgendaCardItem(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Editar (1º toque confirma ou abre)
-                val isEditConfirm = confirmAction == "EDIT"
+                // 1. Editar (Canetinha)
+                val isEditExpanded = expandedAction == "EDIT"
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isEditConfirm) Sg4Purple else Color(0xFFF1F5F9))
+                        .background(if (isEditExpanded) Sg4Purple else Color(0xFFF1F5F9))
                         .clickable(enabled = !uiState.isBlockingLoading) {
-                            if (isEditConfirm) {
+                            if (isEditExpanded) {
                                 onEdit()
-                                confirmAction = null
+                                expandedAction = null
                             } else {
-                                confirmAction = "EDIT"
+                                expandedAction = "EDIT"
                             }
                         }
-                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                        .padding(horizontal = if (isEditExpanded) 10.dp else 8.dp, vertical = 6.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = null, tint = if (isEditConfirm) Color.White else Slate600, modifier = Modifier.size(13.dp))
-                        Text(if (isEditConfirm) "Confirmar" else "Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isEditConfirm) Color.White else Slate600)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar",
+                            tint = if (isEditExpanded) Color.White else Slate700,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        if (isEditExpanded) {
+                            Text(
+                                text = "Editar",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
 
-                // Duplicar
-                val isDupConfirm = confirmAction == "DUP"
+                // 2. Duplicar (Cópia)
+                val isDupExpanded = expandedAction == "DUP"
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isDupConfirm) Sg4Purple else Color(0xFFF1F5F9))
+                        .background(if (isDupExpanded) Sg4Purple else Color(0xFFF1F5F9))
                         .clickable(enabled = !uiState.isBlockingLoading) {
-                            if (isDupConfirm) {
+                            if (isDupExpanded) {
                                 onDuplicate()
-                                confirmAction = null
+                                expandedAction = null
                             } else {
-                                confirmAction = "DUP"
+                                expandedAction = "DUP"
                             }
                         }
-                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                        .padding(horizontal = if (isDupExpanded) 10.dp else 8.dp, vertical = 6.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = if (isDupConfirm) Color.White else Sg4Purple, modifier = Modifier.size(13.dp))
-                        Text(if (isDupConfirm) "Confirmar" else "Duplicar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isDupConfirm) Color.White else Sg4Purple)
-                    }
-                }
-
-                // Mover Data (se pendente)
-                if (!isConcluido) {
-                    val isMoveConfirm = confirmAction == "MOVE"
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isMoveConfirm) Sg4Blue else Color(0xFFF1F5F9))
-                            .clickable(enabled = !uiState.isBlockingLoading) {
-                                if (isMoveConfirm) {
-                                    onMoveDate()
-                                    confirmAction = null
-                                } else {
-                                    confirmAction = "MOVE"
-                                }
-                            }
-                            .padding(horizontal = 9.dp, vertical = 5.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Default.CalendarMonth, contentDescription = null, tint = if (isMoveConfirm) Color.White else Sg4Blue, modifier = Modifier.size(13.dp))
-                            Text(if (isMoveConfirm) "Confirmar" else "Mover", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isMoveConfirm) Color.White else Sg4Blue)
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Duplicar",
+                            tint = if (isDupExpanded) Color.White else Sg4Purple,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        if (isDupExpanded) {
+                            Text(
+                                text = "Duplicar",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
                         }
                     }
                 }
 
-                // Reverter para Pendente (se concluído)
-                if (isConcluido) {
-                    val isRevConfirm = confirmAction == "REV"
+                // 3. Mover Data (se pendente)
+                if (!isConcluido) {
+                    val isMoveExpanded = expandedAction == "MOVE"
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isRevConfirm) Sg4Amber else Color(0xFFFEF3C7))
+                            .background(if (isMoveExpanded) Sg4Blue else Color(0xFFF1F5F9))
+                        .clickable(enabled = !uiState.isBlockingLoading) {
+                            if (isMoveExpanded) {
+                                onMoveDate()
+                                expandedAction = null
+                            } else {
+                                expandedAction = "MOVE"
+                            }
+                        }
+                        .padding(horizontal = if (isMoveExpanded) 10.dp else 8.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = "Mover",
+                                tint = if (isMoveExpanded) Color.White else Sg4Blue,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            if (isMoveExpanded) {
+                                Text(
+                                    text = "Mover",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 4. Reverter para Pendente (se concluído)
+                if (isConcluido) {
+                    val isRevExpanded = expandedAction == "REV"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isRevExpanded) Sg4Amber else Color(0xFFFEF3C7))
                             .clickable(enabled = !uiState.isBlockingLoading) {
-                                if (isRevConfirm) {
+                                if (isRevExpanded) {
                                     viewModel.performAction(
                                         actionType = "REVERTER_ATIVIDADE",
                                         loadingTitle = "Revertendo atividade...",
                                         description = "Reverter ${plan.titulo}",
                                         payload = mapOf("id" to plan.id)
                                     )
-                                    confirmAction = null
+                                    expandedAction = null
                                 } else {
-                                    confirmAction = "REV"
+                                    expandedAction = "REV"
                                 }
                             }
-                            .padding(horizontal = 9.dp, vertical = 5.dp)
+                            .padding(horizontal = if (isRevExpanded) 10.dp else 8.dp, vertical = 6.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Default.Undo, contentDescription = null, tint = if (isRevConfirm) Color.White else Sg4Amber, modifier = Modifier.size(13.dp))
-                            Text(if (isRevConfirm) "Confirmar" else "Reverter", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isRevConfirm) Color.White else Sg4Amber)
-                        }
-                    }
-                }
-
-                // Excluir
-                val isDelConfirm = confirmAction == "DEL"
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isDelConfirm) Sg4Red else Color(0xFFFEE2E2))
-                        .clickable(enabled = !uiState.isBlockingLoading) {
-                            if (isDelConfirm) {
-                                onDelete()
-                                confirmAction = null
-                            } else {
-                                confirmAction = "DEL"
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Undo,
+                                contentDescription = "Reverter",
+                                tint = if (isRevExpanded) Color.White else Sg4Amber,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            if (isRevExpanded) {
+                                Text(
+                                    text = "Reverter",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
                             }
                         }
-                        .padding(horizontal = 9.dp, vertical = 5.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = null, tint = if (isDelConfirm) Color.White else Sg4Red, modifier = Modifier.size(13.dp))
-                        Text(if (isDelConfirm) "Confirmar" else "Excluir", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isDelConfirm) Color.White else Sg4Red)
                     }
                 }
 
-                // Sincronizar com Calendário Outlook
+                // 5. Excluir (Lixeira)
+                val isDelExpanded = expandedAction == "DEL"
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFF1F5F9))
+                        .background(if (isDelExpanded) Sg4Red else Color(0xFFFEE2E2))
                         .clickable(enabled = !uiState.isBlockingLoading) {
-                            val url = buildOutlookCalendarUrl(plan)
-                            try {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                            } catch (_: Exception) {}
+                            if (isDelExpanded) {
+                                onDelete()
+                                expandedAction = null
+                            } else {
+                                expandedAction = "DEL"
+                            }
                         }
-                        .padding(horizontal = 9.dp, vertical = 5.dp)
+                        .padding(horizontal = if (isDelExpanded) 10.dp else 8.dp, vertical = 6.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.EventRepeat, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(13.dp))
-                        Text("Outlook", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Excluir",
+                            tint = if (isDelExpanded) Color.White else Sg4Red,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        if (isDelExpanded) {
+                            Text(
+                                text = "Excluir",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                // 6. Sincronizar com Calendário Outlook
+                val isOutlookExpanded = expandedAction == "OUTLOOK"
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isOutlookExpanded) Sg4Purple else Color(0xFFF1F5F9))
+                        .clickable(enabled = !uiState.isBlockingLoading) {
+                            if (isOutlookExpanded) {
+                                val url = buildOutlookCalendarUrl(plan)
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                                } catch (_: Exception) {}
+                                expandedAction = null
+                            } else {
+                                expandedAction = "OUTLOOK"
+                            }
+                        }
+                        .padding(horizontal = if (isOutlookExpanded) 10.dp else 8.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EventRepeat,
+                            contentDescription = "Outlook",
+                            tint = if (isOutlookExpanded) Color.White else Sg4Purple,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        if (isOutlookExpanded) {
+                            Text(
+                                text = "Outlook",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }
@@ -2628,26 +2942,111 @@ fun AgendaCardItem(
     }
 }
 
+
 /**
  * Tela de KM & Abastecimento & Manutenções com:
  * - Captação de geolocalização no início e fim do KM
  * - Formatação em máscara R$ 0,00 no abastecimento
  * - Aba de registro de manutenções com data, hora, KM, descrição e foto
  */
+
+fun formatKmDigits(rawDigits: String): String {
+    val digits = rawDigits.filter { it.isDigit() }
+    if (digits.isBlank()) return ""
+    val number = digits.toLongOrNull() ?: 0L
+    return NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(number)
+}
+
+@Composable
+fun Base64OrUrlImage(
+    source: String,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit
+) {
+    val bitmap = remember(source) {
+        try {
+            if (source.startsWith("data:image")) {
+                val cleanBase64 = source.substringAfter("base64,")
+                val decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = null,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    } else {
+        Box(
+            modifier = modifier.background(Color(0xFFF1F5F9)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Sem imagem ou formato web", fontSize = 11.sp, color = Slate600)
+        }
+    }
+}
+
 @Composable
 fun KmAbastecimentoScreen(
     uiState: Sg4UiState,
     viewModel: Sg4ViewModel
 ) {
     val context = LocalContext.current
-    var selectedSubTab by remember { mutableIntStateOf(0) } // 0=KM, 1=Abastecimento, 2=Manutenções
+    val todayFormatted = remember {
+        SimpleDateFormat("dd/MM/yyyy", Locale.US).format(Date())
+    }
+
+    // Permissões limpas ao entrar na tela: Câmera e Geolocalização
+    val permissionsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ -> }
+
+    LaunchedEffect(Unit) {
+        val hasLoc = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCam = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        if (!hasLoc || !hasCam) {
+            permissionsLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.CAMERA
+                )
+            )
+        }
+    }
+
+    // Abas: Km, Abastecimento, Manutenções (escrita solicitada pelo usuário)
+    var selectedSubTab by remember { mutableIntStateOf(0) } // 0=Km, 1=Abastecimento, 2=Manutenções
 
     var showStartKmDialog by remember { mutableStateOf(false) }
     var finishingKmItem by remember { mutableStateOf<QuilometragemDto?>(null) }
     var showAbastecimentoDialog by remember { mutableStateOf(false) }
     var showManutencaoDialog by remember { mutableStateOf(false) }
 
+    // Visualizadores de imagens dos itens já registrados
+    var viewingKmPhotos by remember { mutableStateOf<QuilometragemDto?>(null) }
+    var viewingAbsPhoto by remember { mutableStateOf<AbastecimentoDto?>(null) }
+    var viewingManutPhoto by remember { mutableStateOf<ManutencaoDto?>(null) }
+
     val openKm = uiState.syncData.quilometragens.firstOrNull { it.kmFinal == null }
+
+    val textInputColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Slate900,
+        unfocusedTextColor = Slate900,
+        focusedContainerColor = Color.White,
+        unfocusedContainerColor = Color.White,
+        focusedBorderColor = Sg4Purple,
+        unfocusedBorderColor = Color(0xFFCBD5E1),
+        focusedPlaceholderColor = Slate400,
+        unfocusedPlaceholderColor = Slate400,
+        cursorColor = Sg4Purple
+    )
 
     Column(modifier = Modifier.fillMaxSize().background(Color.White)) {
         TabRow(
@@ -2658,21 +3057,23 @@ fun KmAbastecimentoScreen(
             Tab(
                 selected = selectedSubTab == 0,
                 onClick = { selectedSubTab = 0 },
-                text = { Text("Quilometragem", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                text = { Text("Km", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
             )
             Tab(
                 selected = selectedSubTab == 1,
                 onClick = { selectedSubTab = 1 },
-                text = { Text("Abastecimento", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                text = { Text("Abastecimento", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
             )
             Tab(
                 selected = selectedSubTab == 2,
                 onClick = { selectedSubTab = 2 },
-                text = { Text("Manutenções", fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+                text = { Text("Manutenções", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
             )
         }
 
-        // ABA 0: QUILOMETRAGEM
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 0: KM (com suporte a visualização das fotos de início e fim)
+        // ══════════════════════════════════════════════════════════════════════
         if (selectedSubTab == 0) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -2690,7 +3091,7 @@ fun KmAbastecimentoScreen(
                                 StatusBadge(text = "ROTA EM ANDAMENTO", color = Sg4Purple)
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "KM Inicial: ${openKm.kmInicial.toInt()} km",
+                                    text = "KM Inicial: ${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(openKm.kmInicial.toInt())} km",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Sg4PurpleDark
@@ -2700,23 +3101,15 @@ fun KmAbastecimentoScreen(
                                     fontSize = 12.sp,
                                     color = Slate600
                                 )
-                                if (openKm.latitudeInicial != null && openKm.longitudeInicial != null) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "📍 GPS Início: ${openKm.latitudeInicial}, ${openKm.longitudeInicial}",
-                                        fontSize = 11.sp,
-                                        color = Sg4Purple
-                                    )
-                                }
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Button(
                                     onClick = { finishingKmItem = openKm },
                                     enabled = !uiState.isBlockingLoading,
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Text("Encerrar KM do Dia", fontWeight = FontWeight.Bold)
+                                    Text("Encerrar KM do Dia", fontWeight = FontWeight.Bold, color = Color.White)
                                 }
                             }
                         }
@@ -2725,19 +3118,22 @@ fun KmAbastecimentoScreen(
                             onClick = { showStartKmDialog = true },
                             enabled = !uiState.isBlockingLoading,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
                             shape = RoundedCornerShape(10.dp)
                         ) {
-                            Icon(Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Iniciar KM do Dia", fontWeight = FontWeight.Bold)
+                            Text("Iniciar KM do Dia", fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
 
                 items(uiState.syncData.quilometragens, key = { it.id }) { km ->
+                    val hasPhotos = !km.fotoInicial.isNullOrBlank() || !km.fotoFinal.isNullOrBlank()
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewingKmPhotos = km },
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -2747,7 +3143,7 @@ fun KmAbastecimentoScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "${km.diaSemana} • ${formatIsoDateBr(km.dataInicial)}",
                                     fontWeight = FontWeight.Bold,
@@ -2755,14 +3151,17 @@ fun KmAbastecimentoScreen(
                                     color = Slate900
                                 )
                                 Text(
-                                    text = "Início: ${km.kmInicial.toInt()} km" + (if (km.kmFinal != null) " → Fim: ${km.kmFinal.toInt()} km" else " (Em rota)"),
+                                    text = "Início: ${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(km.kmInicial.toInt())} km" +
+                                            (if (km.kmFinal != null) " → Fim: ${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(km.kmFinal.toInt())} km" else " (Em rota)"),
                                     fontSize = 12.sp,
                                     color = Slate600
                                 )
-                                if (km.latitudeInicial != null || km.latitudeFinal != null) {
+                                if (hasPhotos) {
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     Text(
-                                        text = "📍 Geolocalização salva",
-                                        fontSize = 10.sp,
+                                        text = "📷 Toque para ver as fotos do odômetro",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
                                         color = Sg4Purple
                                     )
                                 }
@@ -2776,7 +3175,7 @@ fun KmAbastecimentoScreen(
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
-                                        text = "+${km.diferenca.toInt()} km",
+                                        text = "+${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(km.diferenca.toInt())} km",
                                         fontWeight = FontWeight.ExtraBold,
                                         color = Sg4Purple,
                                         fontSize = 13.sp
@@ -2788,7 +3187,9 @@ fun KmAbastecimentoScreen(
                 }
             }
         }
-        // ABA 1: ABASTECIMENTO
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 1: ABASTECIMENTO (com visualização do comprovante)
+        // ══════════════════════════════════════════════════════════════════════
         else if (selectedSubTab == 1) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -2800,18 +3201,20 @@ fun KmAbastecimentoScreen(
                         onClick = { showAbastecimentoDialog = true },
                         enabled = !uiState.isBlockingLoading,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Default.LocalGasStation, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.LocalGasStation, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Registrar Abastecimento", fontWeight = FontWeight.Bold)
+                        Text("Registrar Abastecimento", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
 
                 items(uiState.syncData.abastecimentos, key = { it.id }) { ab ->
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewingAbsPhoto = ab },
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -2821,7 +3224,7 @@ fun KmAbastecimentoScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = ab.tipo.ifBlank { "ABASTECIMENTO" },
                                     fontWeight = FontWeight.Bold,
@@ -2833,6 +3236,15 @@ fun KmAbastecimentoScreen(
                                     fontSize = 12.sp,
                                     color = Slate600
                                 )
+                                if (!ab.fotoCupom.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "📎 Toque para ver o comprovante",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Sg4Purple
+                                    )
+                                }
                             }
                             Text(
                                 text = String.format(Locale("pt", "BR"), "R$ %.2f", ab.valor),
@@ -2845,7 +3257,9 @@ fun KmAbastecimentoScreen(
                 }
             }
         }
-        // ABA 2: MANUTENÇÕES
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 2: MANUTENÇÕES (com visualização do comprovante)
+        // ══════════════════════════════════════════════════════════════════════
         else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -2857,12 +3271,12 @@ fun KmAbastecimentoScreen(
                         onClick = { showManutencaoDialog = true },
                         enabled = !uiState.isBlockingLoading,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Build, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Registrar Manutenção", fontWeight = FontWeight.Bold)
+                        Text("Registrar Manutenção", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
 
@@ -2878,7 +3292,9 @@ fun KmAbastecimentoScreen(
                 } else {
                     items(uiState.syncData.manutencoes, key = { it.id }) { man ->
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewingManutPhoto = man },
                             shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -2890,7 +3306,7 @@ fun KmAbastecimentoScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "${man.kmManutencao} km",
+                                        text = "${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(man.kmManutencao)} km",
                                         fontWeight = FontWeight.ExtraBold,
                                         fontSize = 15.sp,
                                         color = Sg4Purple
@@ -2913,15 +3329,10 @@ fun KmAbastecimentoScreen(
                                 if (!man.comprovanteUrl.isNullOrBlank()) {
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
-                                        text = "📎 Comprovante anexado",
+                                        text = "📎 Toque para ver a foto do comprovante",
                                         fontSize = 11.sp,
                                         color = Sg4Purple,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.clickable {
-                                            try {
-                                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(man.comprovanteUrl)))
-                                            } catch (_: Exception) {}
-                                        }
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
@@ -2932,36 +3343,130 @@ fun KmAbastecimentoScreen(
         }
     }
 
-    // MODAIS DE KM & ABASTECIMENTO
-    // Diálogo: Iniciar KM com captura de GPS
+    // ══════════════════════════════════════════════════════════════════════
+    // MODAIS DE KM & ABASTECIMENTO COM CÂMERA, GALERIA E TECLADO NUMÉRICO
+    // ══════════════════════════════════════════════════════════════════════
+
+    // 1. DIÁLOGO: INICIAR KM DO DIA
     if (showStartKmDialog) {
-        var kmIniStr by remember { mutableStateOf("") }
-        var fotoIniUrl by remember { mutableStateOf("") }
+        var rawKmIni by remember { mutableStateOf("") }
+        var fotoIniBase64 by remember { mutableStateOf("") }
+
+        val cameraLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicturePreview()
+        ) { bitmap: Bitmap? ->
+            bitmap?.let {
+                try {
+                    val stream = ByteArrayOutputStream()
+                    it.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+                    val b64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    fotoIniBase64 = "data:image/jpeg;base64,$b64"
+                } catch (_: Exception) {}
+            }
+        }
+
+        val galleryLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let {
+                try {
+                    val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
+                    if (bytes != null) {
+                        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        fotoIniBase64 = "data:image/jpeg;base64,$b64"
+                    }
+                } catch (_: Exception) {}
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) showStartKmDialog = false },
-            title = { Text("Iniciar KM do Dia", fontWeight = FontWeight.ExtraBold) },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Iniciar KM do Dia", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900)
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("📍 A geolocalização atual será salva automaticamente.", fontSize = 11.sp, color = Sg4Purple)
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Dia preenchido
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("DATA DE REGISTRO", fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        Text("Hoje, $todayFormatted", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                    }
+
+                    // Campo de Odômetro Inicial com formatação automática de milhar (ex: 12345 -> 12.345)
                     OutlinedTextField(
-                        value = kmIniStr,
-                        onValueChange = { kmIniStr = it.filter { ch -> ch.isDigit() } },
-                        label = { Text("KM Inicial do Hodômetro") },
-                        modifier = Modifier.fillMaxWidth()
+                        value = formatKmDigits(rawKmIni),
+                        onValueChange = { rawKmIni = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Odômetro Inicial (KM)", color = Slate900) },
+                        placeholder = { Text("Ex: 45.210", color = Slate400) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
-                    OutlinedTextField(
-                        value = fotoIniUrl,
-                        onValueChange = { fotoIniUrl = it },
-                        label = { Text("URL / Caminho da Foto do Hodômetro (opcional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+
+                    // Foto do Odômetro
+                    Text("FOTO DO ODÔMETRO INICIAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { cameraLauncher.launch(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Câmera", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Purple),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Galeria", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        }
+                    }
+
+                    if (fotoIniBase64.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8FAFC)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("📷 Foto anexada", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Green)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { fotoIniBase64 = "" }) {
+                                    Text("Remover", color = Sg4Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val kmVal = kmIniStr.toDoubleOrNull() ?: 0.0
+                        val kmVal = rawKmIni.toDoubleOrNull() ?: 0.0
                         val loc = getDeviceLocation(context)
                         viewModel.performAction(
                             actionType = "INICIAR_KM",
@@ -2969,56 +3474,162 @@ fun KmAbastecimentoScreen(
                             description = "Início com ${kmVal.toInt()} km",
                             payload = mapOf(
                                 "kmInicial" to kmVal,
-                                "fotoInicial" to fotoIniUrl.ifBlank { null },
+                                "fotoInicial" to fotoIniBase64.ifBlank { null },
                                 "latitude" to loc?.first,
                                 "longitude" to loc?.second
                             ),
                             onCompleted = { showStartKmDialog = false }
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Green, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = kmIniStr.isNotBlank() && !uiState.isBlockingLoading
+                    enabled = rawKmIni.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Confirmar", fontWeight = FontWeight.Bold)
+                    Text("Confirmar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showStartKmDialog = false }) { Text("Cancelar") }
+                TextButton(onClick = { showStartKmDialog = false }) {
+                    Text("Cancelar", color = Slate600)
+                }
             }
         )
     }
 
-    // Diálogo: Finalizar KM com captura de GPS
+    // 2. DIÁLOGO: ENCERRAR KM DO DIA
     finishingKmItem?.let { kmItem ->
-        var kmFimStr by remember(kmItem.id) { mutableStateOf("") }
-        var fotoFimUrl by remember(kmItem.id) { mutableStateOf("") }
+        var rawKmFim by remember(kmItem.id) { mutableStateOf("") }
+        var fotoFimBase64 by remember(kmItem.id) { mutableStateOf("") }
+
+        val cameraLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicturePreview()
+        ) { bitmap: Bitmap? ->
+            bitmap?.let {
+                try {
+                    val stream = ByteArrayOutputStream()
+                    it.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+                    val b64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    fotoFimBase64 = "data:image/jpeg;base64,$b64"
+                } catch (_: Exception) {}
+            }
+        }
+
+        val galleryLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let {
+                try {
+                    val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
+                    if (bytes != null) {
+                        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        fotoFimBase64 = "data:image/jpeg;base64,$b64"
+                    }
+                } catch (_: Exception) {}
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) finishingKmItem = null },
-            title = { Text("Encerrar KM do Dia", fontWeight = FontWeight.ExtraBold) },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Encerrar KM do Dia", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900)
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("KM Inicial registrado: ${kmItem.kmInicial.toInt()} km", fontSize = 12.sp, color = Slate600)
-                    Text("📍 A geolocalização atual de término será salva.", fontSize = 11.sp, color = Sg4Purple)
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("DATA DE REGISTRO", fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        Text("Hoje, $todayFormatted", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFF1F5F9))
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = "KM Inicial registrado: ${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(kmItem.kmInicial.toInt())} km",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate700
+                        )
+                    }
+
+                    // Campo de Odômetro Final com formatação de milhar
                     OutlinedTextField(
-                        value = kmFimStr,
-                        onValueChange = { kmFimStr = it.filter { ch -> ch.isDigit() } },
-                        label = { Text("KM Final do Hodômetro") },
-                        modifier = Modifier.fillMaxWidth()
+                        value = formatKmDigits(rawKmFim),
+                        onValueChange = { rawKmFim = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Odômetro Final (KM)", color = Slate900) },
+                        placeholder = { Text("Ex: 45.320", color = Slate400) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
-                    OutlinedTextField(
-                        value = fotoFimUrl,
-                        onValueChange = { fotoFimUrl = it },
-                        label = { Text("URL da Foto do Hodômetro Final (opcional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+
+                    // Foto do Odômetro Final
+                    Text("FOTO DO ODÔMETRO FINAL", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { cameraLauncher.launch(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Câmera", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Purple),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Galeria", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        }
+                    }
+
+                    if (fotoFimBase64.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8FAFC)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("📷 Foto anexada", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Green)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { fotoFimBase64 = "" }) {
+                                    Text("Remover", color = Sg4Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val kmFim = kmFimStr.toDoubleOrNull() ?: 0.0
+                        val kmFim = rawKmFim.toDoubleOrNull() ?: 0.0
                         val loc = getDeviceLocation(context)
                         viewModel.performAction(
                             actionType = "FINALIZAR_KM",
@@ -3027,49 +3638,139 @@ fun KmAbastecimentoScreen(
                             payload = mapOf(
                                 "id" to kmItem.id,
                                 "kmFinal" to kmFim,
-                                "fotoFinal" to fotoFimUrl.ifBlank { null },
+                                "fotoFinal" to fotoFimBase64.ifBlank { null },
                                 "latitude" to loc?.first,
                                 "longitude" to loc?.second
                             ),
                             onCompleted = { finishingKmItem = null }
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Green, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = kmFimStr.isNotBlank() && !uiState.isBlockingLoading
+                    enabled = rawKmFim.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Confirmar", fontWeight = FontWeight.Bold)
+                    Text("Confirmar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { finishingKmItem = null }) { Text("Cancelar") }
+                TextButton(onClick = { finishingKmItem = null }) {
+                    Text("Cancelar", color = Slate600)
+                }
             }
         )
     }
 
-    // Diálogo: Registrar Abastecimento com formatação de moeda R$ 0,00
+    // 3. DIÁLOGO: REGISTRAR ABASTECIMENTO (COM TECLADO NUMÉRICO E FOTO)
     if (showAbastecimentoDialog) {
         var rawDigits by remember { mutableStateOf("") }
-        var fotoCupomUrl by remember { mutableStateOf("") }
+        var fotoCupomBase64 by remember { mutableStateOf("") }
+
+        val cameraLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicturePreview()
+        ) { bitmap: Bitmap? ->
+            bitmap?.let {
+                try {
+                    val stream = ByteArrayOutputStream()
+                    it.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+                    val b64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    fotoCupomBase64 = "data:image/jpeg;base64,$b64"
+                } catch (_: Exception) {}
+            }
+        }
+
+        val galleryLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let {
+                try {
+                    val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
+                    if (bytes != null) {
+                        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        fotoCupomBase64 = "data:image/jpeg;base64,$b64"
+                    }
+                } catch (_: Exception) {}
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) showAbastecimentoDialog = false },
-            title = { Text("Registrar Abastecimento", fontWeight = FontWeight.ExtraBold) },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Registrar Abastecimento", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900)
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Digite os números para formatar automaticamente:", fontSize = 11.sp, color = Slate600)
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("DATA DE REGISTRO", fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        Text("Hoje, $todayFormatted", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                    }
+
                     OutlinedTextField(
                         value = formatCurrencyBrlInput(rawDigits),
                         onValueChange = { rawDigits = it.filter { ch -> ch.isDigit() } },
-                        label = { Text("Valor do Abastecimento (R$)") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Valor do Abastecimento (R$)", color = Slate900) },
+                        placeholder = { Text("R$ 0,00", color = Slate400) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
-                    OutlinedTextField(
-                        value = fotoCupomUrl,
-                        onValueChange = { fotoCupomUrl = it },
-                        label = { Text("URL / Caminho da Foto do Cupom (opcional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+
+                    Text("FOTO DO COMPROVANTE / CUPOM", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { cameraLauncher.launch(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Câmera", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Purple),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Galeria", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        }
+                    }
+
+                    if (fotoCupomBase64.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8FAFC)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("📷 Comprovante anexado", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Green)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { fotoCupomBase64 = "" }) {
+                                    Text("Remover", color = Sg4Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -3082,124 +3783,424 @@ fun KmAbastecimentoScreen(
                             description = "Abastecimento: R$ valor",
                             payload = mapOf(
                                 "valor" to valor,
-                                "fotoCupom" to fotoCupomUrl.ifBlank { null }
+                                "fotoCupom" to fotoCupomBase64.ifBlank { null }
                             ),
                             onCompleted = { showAbastecimentoDialog = false }
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Green, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
                     enabled = rawDigits.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Confirmar", fontWeight = FontWeight.Bold)
+                    Text("Confirmar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAbastecimentoDialog = false }) { Text("Cancelar") }
+                TextButton(onClick = { showAbastecimentoDialog = false }) {
+                    Text("Cancelar", color = Slate600)
+                }
             }
         )
     }
 
-    // Diálogo: Registrar Manutenção Veicular
+    // 4. DIÁLOGO: REGISTRAR MANUTENÇÃO (COM TECLADO NUMÉRICO E FOTO)
     if (showManutencaoDialog) {
-        val calNow = Calendar.getInstance()
-        var dataManutStr by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
-        var horaManutStr by remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.US).format(Date())) }
-        var kmManutStr by remember { mutableStateOf("") }
+        var rawKmManut by remember { mutableStateOf("") }
         var descManut by remember { mutableStateOf("") }
-        var fotoComprovanteUrl by remember { mutableStateOf("") }
+        var fotoManutBase64 by remember { mutableStateOf("") }
+
+        val cameraLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicturePreview()
+        ) { bitmap: Bitmap? ->
+            bitmap?.let {
+                try {
+                    val stream = ByteArrayOutputStream()
+                    it.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+                    val b64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    fotoManutBase64 = "data:image/jpeg;base64,$b64"
+                } catch (_: Exception) {}
+            }
+        }
+
+        val galleryLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let {
+                try {
+                    val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
+                    if (bytes != null) {
+                        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        fotoManutBase64 = "data:image/jpeg;base64,$b64"
+                    }
+                } catch (_: Exception) {}
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) showManutencaoDialog = false },
-            title = { Text("Registrar Manutenção", fontWeight = FontWeight.ExtraBold) },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Registrar Manutenção", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900)
+            },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = dataManutStr,
-                            onValueChange = { dataManutStr = it },
-                            label = { Text("Data (AAAA-MM-DD)") },
-                            modifier = Modifier.weight(1.3f)
-                        )
-                        OutlinedTextField(
-                            value = horaManutStr,
-                            onValueChange = { horaManutStr = it },
-                            label = { Text("Hora (HH:mm)") },
-                            modifier = Modifier.weight(1f)
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("DATA DE REGISTRO", fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        Text("Hoje, $todayFormatted", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate900)
                     }
+
                     OutlinedTextField(
-                        value = kmManutStr,
-                        onValueChange = { kmManutStr = it.filter { ch -> ch.isDigit() } },
-                        label = { Text("KM no Momento da Manutenção") },
-                        modifier = Modifier.fillMaxWidth()
+                        value = formatKmDigits(rawKmManut),
+                        onValueChange = { rawKmManut = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("KM no Momento da Manutenção", color = Slate900) },
+                        placeholder = { Text("Ex: 50.000", color = Slate400) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
+
                     OutlinedTextField(
                         value = descManut,
                         onValueChange = { descManut = it },
-                        label = { Text("Descrição do Serviço / Peças Trocadas") },
-                        modifier = Modifier.fillMaxWidth().height(80.dp)
+                        label = { Text("Descrição do Serviço / Peças Trocadas", color = Slate900) },
+                        placeholder = { Text("Ex: Troca de óleo, pastilhas de freio...", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth().height(80.dp),
+                        colors = textInputColors
                     )
-                    OutlinedTextField(
-                        value = fotoComprovanteUrl,
-                        onValueChange = { fotoComprovanteUrl = it },
-                        label = { Text("URL / Caminho da Foto do Comprovante (opcional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+
+                    Text("FOTO DA NOTA / COMPROVANTE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { cameraLauncher.launch(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Câmera", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Purple),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Galeria", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        }
+                    }
+
+                    if (fotoManutBase64.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8FAFC)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("📷 Comprovante anexado", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Green)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { fotoManutBase64 = "" }) {
+                                    Text("Remover", color = Sg4Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val km = kmManutStr.toIntOrNull() ?: 0
+                        val km = rawKmManut.toIntOrNull() ?: 0
                         viewModel.performAction(
                             actionType = "CRIAR_MANUTENCAO",
                             loadingTitle = "Registrando manutenção...",
                             description = "Manutenção aos $km km",
                             payload = mapOf(
                                 "kmManutencao" to km,
-                                "dataManutencao" to "${dataManutStr}T${horaManutStr}:00Z",
-                                "descricao" to descManut.ifBlank { null },
-                                "fotoUrl" to fotoComprovanteUrl.ifBlank { null }
+                                "descricao" to descManut,
+                                "comprovanteUrl" to fotoManutBase64.ifBlank { null }
                             ),
                             onCompleted = { showManutencaoDialog = false }
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Green, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = kmManutStr.isNotBlank() && !uiState.isBlockingLoading
+                    enabled = rawKmManut.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Confirmar", fontWeight = FontWeight.Bold)
+                    Text("Confirmar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showManutencaoDialog = false }) { Text("Cancelar") }
+                TextButton(onClick = { showManutencaoDialog = false }) {
+                    Text("Cancelar", color = Slate600)
+                }
+            }
+        )
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // MODAIS DE VISUALIZAÇÃO DE FOTOS GRANDES AO CLICAR NOS ITENS DA TELA
+    // ══════════════════════════════════════════════════════════════════════
+
+    // 5. VISUALIZAR FOTOS DO ODÔMETRO (INÍCIO E FIM)
+    viewingKmPhotos?.let { km ->
+        AlertDialog(
+            onDismissRequest = { viewingKmPhotos = null },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Fotos do Odômetro", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("${km.diaSemana} • ${formatIsoDateBr(km.dataInicial)}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Sg4Purple)
+
+                    // Foto Inicial
+                    Column {
+                        Text(
+                            text = "Início: ${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(km.kmInicial.toInt())} km",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = Slate900
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (!km.fotoInicial.isNullOrBlank()) {
+                            Base64OrUrlImage(
+                                source = km.fotoInicial,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(70.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFF1F5F9)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Nenhuma foto do odômetro inicial", fontSize = 11.sp, color = Slate600)
+                            }
+                        }
+                    }
+
+                    // Foto Final
+                    Column {
+                        Text(
+                            text = "Fim: " + (if (km.kmFinal != null) "${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(km.kmFinal.toInt())} km" else "Em rota"),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = Slate900
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (!km.fotoFinal.isNullOrBlank()) {
+                            Base64OrUrlImage(
+                                source = km.fotoFinal,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(70.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFF1F5F9)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Nenhuma foto do odômetro final", fontSize = 11.sp, color = Slate600)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewingKmPhotos = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Fechar", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        )
+    }
+
+    // 6. VISUALIZAR FOTO DO ABASTECIMENTO
+    viewingAbsPhoto?.let { ab ->
+        AlertDialog(
+            onDismissRequest = { viewingAbsPhoto = null },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Comprovante de Abastecimento", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "${ab.tipo} • ${String.format(Locale("pt", "BR"), "R$ %.2f", ab.valor)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Sg4Green
+                    )
+                    Text(formatIsoDateBr(ab.data), fontSize = 12.sp, color = Slate600)
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    if (!ab.fotoCupom.isNullOrBlank()) {
+                        Base64OrUrlImage(
+                            source = ab.fotoCupom,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(260.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF1F5F9)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Nenhum comprovante anexado a este abastecimento", fontSize = 12.sp, color = Slate600)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewingAbsPhoto = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Fechar", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        )
+    }
+
+    // 7. VISUALIZAR FOTO DA MANUTENÇÃO
+    viewingManutPhoto?.let { man ->
+        AlertDialog(
+            onDismissRequest = { viewingManutPhoto = null },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Comprovante de Manutenção", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Manutenção aos ${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(man.kmManutencao)} km",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Sg4Purple
+                    )
+                    Text(formatIsoDateBr(man.dataManutencao), fontSize = 12.sp, color = Slate600)
+                    if (!man.descricao.isNullOrBlank()) {
+                        Text(man.descricao, fontSize = 12.sp, color = Slate900)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    if (!man.comprovanteUrl.isNullOrBlank()) {
+                        Base64OrUrlImage(
+                            source = man.comprovanteUrl,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(260.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF1F5F9)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Nenhum comprovante anexado a esta manutenção", fontSize = 12.sp, color = Slate600)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewingManutPhoto = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Fechar", fontWeight = FontWeight.Bold, color = Color.White)
+                }
             }
         )
     }
 }
 
-/**
- * Tela de Relatórios do Usuário (sem NCs):
- * - Aba Principal: Relatórios em PDF gerados com link para abrir/visualizar
- * - Aba Secundária: Atividades de Campo individuais registradas pelo usuário (criar/editar/excluir)
- */
+
 @Composable
 fun RelatoriosMobileScreen(
     uiState: Sg4UiState,
     viewModel: Sg4ViewModel
 ) {
     val context = LocalContext.current
-    var selectedSubTab by remember { mutableIntStateOf(0) } // 0 = PDFs, 1 = Atividades de Campo
+    var selectedSubTab by remember { mutableIntStateOf(0) } // 0 = Relatórios, 1 = Atividades
 
     var showNovoItemDialog by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<RelatorioCampoDto?>(null) }
     var deletingItem by remember { mutableStateOf<RelatorioCampoDto?>(null) }
 
+    val textInputColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Slate900,
+        unfocusedTextColor = Slate900,
+        focusedContainerColor = Color.White,
+        unfocusedContainerColor = Color.White,
+        focusedBorderColor = Sg4Purple,
+        unfocusedBorderColor = Color(0xFFCBD5E1),
+        focusedPlaceholderColor = Slate400,
+        unfocusedPlaceholderColor = Slate400,
+        cursorColor = Sg4Purple
+    )
+
     Column(modifier = Modifier.fillMaxSize().background(Color.White)) {
+        // Guias com nomes limpos: Relatórios e Atividades
         TabRow(
             selectedTabIndex = selectedSubTab,
             containerColor = Color.White,
@@ -3210,9 +4211,9 @@ fun RelatoriosMobileScreen(
                 onClick = { selectedSubTab = 0 },
                 text = {
                     Text(
-                        text = "Relatórios em PDF (${uiState.syncData.relatoriosPdf.size})",
+                        text = "Relatórios",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 13.sp
                     )
                 }
             )
@@ -3221,15 +4222,17 @@ fun RelatoriosMobileScreen(
                 onClick = { selectedSubTab = 1 },
                 text = {
                     Text(
-                        text = "Atividades de Campo (${uiState.syncData.relatoriosCampo.size})",
+                        text = "Atividades",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 13.sp
                     )
                 }
             )
         }
 
-        // ABA 0: RELATÓRIOS EM PDF GERADOS
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 0: RELATÓRIOS (PDFs Emitidos)
+        // ══════════════════════════════════════════════════════════════════════
         if (selectedSubTab == 0) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -3258,7 +4261,7 @@ fun RelatoriosMobileScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Os relatórios consolidados em PDF aparecerão aqui automaticamente após a geração.",
+                                    text = "Os relatórios emitidos aparecerão aqui automaticamente para visualização e download.",
                                     fontSize = 12.sp,
                                     color = Slate600,
                                     textAlign = TextAlign.Center
@@ -3324,10 +4327,10 @@ fun RelatoriosMobileScreen(
                                         } catch (_: Exception) {}
                                     },
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Text("Visualizar / Baixar PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("Visualizar / Baixar PDF", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
                                 }
                             }
                         }
@@ -3335,7 +4338,9 @@ fun RelatoriosMobileScreen(
                 }
             }
         }
-        // ABA 1: ATIVIDADES DE CAMPO (REGISTROS INDIVIDUAIS)
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 1: ATIVIDADES (com botões de atalho de 2 toques: Editar e Excluir)
+        // ══════════════════════════════════════════════════════════════════════
         else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -3347,12 +4352,12 @@ fun RelatoriosMobileScreen(
                         onClick = { showNovoItemDialog = true },
                         enabled = !uiState.isBlockingLoading,
                         modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                        colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Incluir Item no Relatório", fontWeight = FontWeight.Bold)
+                        Text("Incluir Item no Relatório", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
 
@@ -3367,6 +4372,8 @@ fun RelatoriosMobileScreen(
                     }
                 } else {
                     items(uiState.syncData.relatoriosCampo, key = { it.id }) { rel ->
+                        var expandedAction by remember { mutableStateOf<String?>(null) }
+
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
@@ -3398,20 +4405,85 @@ fun RelatoriosMobileScreen(
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
-                                        onClick = { editingItem = rel },
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier.weight(1f)
+
+                                // Barra de Botões Secundários: Ícones por padrão, 1º clique expande o texto, 2º clique executa
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // 1. Editar (Canetinha)
+                                    val isEditExpanded = expandedAction == "EDIT"
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isEditExpanded) Sg4Purple else Color(0xFFF1F5F9))
+                                            .clickable(enabled = !uiState.isBlockingLoading) {
+                                                if (isEditExpanded) {
+                                                    editingItem = rel
+                                                    expandedAction = null
+                                                } else {
+                                                    expandedAction = "EDIT"
+                                                }
+                                            }
+                                            .padding(horizontal = if (isEditExpanded) 12.dp else 10.dp, vertical = 7.dp)
                                     ) {
-                                        Text("Editar", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "Editar",
+                                                tint = if (isEditExpanded) Color.White else Slate700,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            if (isEditExpanded) {
+                                                Text(
+                                                    text = "Editar",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White
+                                                )
+                                            }
+                                        }
                                     }
-                                    OutlinedButton(
-                                        onClick = { deletingItem = rel },
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier.weight(1f)
+
+                                    // 2. Excluir (Lixeira)
+                                    val isDelExpanded = expandedAction == "DEL"
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isDelExpanded) Sg4Red else Color(0xFFFEE2E2))
+                                            .clickable(enabled = !uiState.isBlockingLoading) {
+                                                if (isDelExpanded) {
+                                                    deletingItem = rel
+                                                    expandedAction = null
+                                                } else {
+                                                    expandedAction = "DEL"
+                                                }
+                                            }
+                                            .padding(horizontal = if (isDelExpanded) 12.dp else 10.dp, vertical = 7.dp)
                                     ) {
-                                        Text("Excluir", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Red)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Excluir",
+                                                tint = if (isDelExpanded) Color.White else Sg4Red,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                            if (isDelExpanded) {
+                                                Text(
+                                                    text = "Excluir",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -3422,7 +4494,7 @@ fun RelatoriosMobileScreen(
         }
     }
 
-    // Modal: Incluir Novo Item no Relatório
+    // Modal: Incluir Novo Item no Relatório (com IA, Câmera e Galeria)
     if (showNovoItemDialog) {
         var dataItem by remember { mutableStateOf(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
         var empresa by remember { mutableStateOf("Telefônica Brasil S.A") }
@@ -3430,45 +4502,80 @@ fun RelatoriosMobileScreen(
         var local by remember { mutableStateOf("") }
         var cidadeUf by remember { mutableStateOf("São Paulo/SP") }
         var descricao by remember { mutableStateOf("") }
-        var fotoUrl by remember { mutableStateOf("") }
+        var fotoBase64 by remember { mutableStateOf("") }
+
+        val cameraLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicturePreview()
+        ) { bitmap: Bitmap? ->
+            bitmap?.let {
+                try {
+                    val stream = ByteArrayOutputStream()
+                    it.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+                    val b64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    fotoBase64 = "data:image/jpeg;base64,$b64"
+                } catch (_: Exception) {}
+            }
+        }
+
+        val galleryLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let {
+                try {
+                    val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
+                    if (bytes != null) {
+                        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        fotoBase64 = "data:image/jpeg;base64,$b64"
+                    }
+                } catch (_: Exception) {}
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) showNovoItemDialog = false },
-            title = { Text("Incluir Item no Relatório", fontWeight = FontWeight.ExtraBold) },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = { Text("Incluir Item no Relatório", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900) },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedTextField(
                         value = dataItem,
                         onValueChange = { dataItem = it },
-                        label = { Text("Data (AAAA-MM-DD)") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Data", color = Slate900) },
+                        placeholder = { Text("AAAA-MM-DD", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
                     OutlinedTextField(
                         value = empresa,
                         onValueChange = { empresa = it },
-                        label = { Text("Empresa") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Empresa", color = Slate900) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
                     OutlinedTextField(
                         value = projeto,
                         onValueChange = { projeto = it },
-                        label = { Text("Projeto") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Projeto", color = Slate900) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
                     OutlinedTextField(
                         value = local,
                         onValueChange = { local = it },
-                        label = { Text("Local / Unidade") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Local / Unidade", color = Slate900) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
                     OutlinedTextField(
                         value = cidadeUf,
                         onValueChange = { cidadeUf = it },
-                        label = { Text("Cidade / UF") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Cidade / UF", color = Slate900) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
 
                     Row(
@@ -3491,16 +4598,60 @@ fun RelatoriosMobileScreen(
                     OutlinedTextField(
                         value = descricao,
                         onValueChange = { descricao = it },
-                        label = { Text("Descreva detalhadamente...") },
-                        modifier = Modifier.fillMaxWidth().height(90.dp)
+                        placeholder = { Text("Descreva detalhadamente o que foi realizado...", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth().height(90.dp),
+                        colors = textInputColors
                     )
 
-                    OutlinedTextField(
-                        value = fotoUrl,
-                        onValueChange = { fotoUrl = it },
-                        label = { Text("URL / Caminho da Foto (opcional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    // Foto da Atividade (Câmera / Galeria)
+                    Text("FOTO DA ATIVIDADE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { cameraLauncher.launch(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Câmera", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Purple),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Galeria", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        }
+                    }
+
+                    if (fotoBase64.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8FAFC)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("📷 Foto anexada", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Green)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { fotoBase64 = "" }) {
+                                    Text("Remover", color = Sg4Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -3517,25 +4668,25 @@ fun RelatoriosMobileScreen(
                                 "local" to local,
                                 "cidadeUf" to cidadeUf,
                                 "descricao" to descricao,
-                                "fotoUrl" to fotoUrl.ifBlank { null }
+                                "fotoUrl" to fotoBase64.ifBlank { null }
                             ),
                             onCompleted = { showNovoItemDialog = false }
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
                     enabled = descricao.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Salvar", fontWeight = FontWeight.Bold)
+                    Text("Salvar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showNovoItemDialog = false }) { Text("Cancelar") }
+                TextButton(onClick = { showNovoItemDialog = false }) { Text("Cancelar", color = Slate600) }
             }
         )
     }
 
-    // Modal: Editar Item do Relatório
+    // Modal: Editar Item do Relatório (com IA, Câmera e Galeria)
     editingItem?.let { item ->
         var dataItem by remember(item.id) { mutableStateOf(item.data.take(10)) }
         var empresa by remember(item.id) { mutableStateOf(item.empresa) }
@@ -3543,45 +4694,80 @@ fun RelatoriosMobileScreen(
         var local by remember(item.id) { mutableStateOf(item.local) }
         var cidadeUf by remember(item.id) { mutableStateOf(item.cidadeUf) }
         var descricao by remember(item.id) { mutableStateOf(item.descricao) }
-        var fotoUrl by remember(item.id) { mutableStateOf(item.fotoUrl ?: "") }
+        var fotoBase64 by remember(item.id) { mutableStateOf(item.fotoUrl ?: "") }
+
+        val cameraLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicturePreview()
+        ) { bitmap: Bitmap? ->
+            bitmap?.let {
+                try {
+                    val stream = ByteArrayOutputStream()
+                    it.compress(Bitmap.CompressFormat.JPEG, 75, stream)
+                    val b64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    fotoBase64 = "data:image/jpeg;base64,$b64"
+                } catch (_: Exception) {}
+            }
+        }
+
+        val galleryLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent()
+        ) { uri: Uri? ->
+            uri?.let {
+                try {
+                    val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() }
+                    if (bytes != null) {
+                        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        fotoBase64 = "data:image/jpeg;base64,$b64"
+                    }
+                } catch (_: Exception) {}
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) editingItem = null },
-            title = { Text("Editar Item do Relatório", fontWeight = FontWeight.ExtraBold) },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = { Text("Editar Item do Relatório", fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, color = Slate900) },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedTextField(
                         value = dataItem,
                         onValueChange = { dataItem = it },
-                        label = { Text("Data (AAAA-MM-DD)") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Data", color = Slate900) },
+                        placeholder = { Text("AAAA-MM-DD", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
                     OutlinedTextField(
                         value = empresa,
                         onValueChange = { empresa = it },
-                        label = { Text("Empresa") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Empresa", color = Slate900) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
                     OutlinedTextField(
                         value = projeto,
                         onValueChange = { projeto = it },
-                        label = { Text("Projeto") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Projeto", color = Slate900) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
                     OutlinedTextField(
                         value = local,
                         onValueChange = { local = it },
-                        label = { Text("Local / Unidade") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Local / Unidade", color = Slate900) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
                     OutlinedTextField(
                         value = cidadeUf,
                         onValueChange = { cidadeUf = it },
-                        label = { Text("Cidade / UF") },
-                        modifier = Modifier.fillMaxWidth()
+                        label = { Text("Cidade / UF", color = Slate900) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = textInputColors
                     )
 
                     Row(
@@ -3604,16 +4790,60 @@ fun RelatoriosMobileScreen(
                     OutlinedTextField(
                         value = descricao,
                         onValueChange = { descricao = it },
-                        label = { Text("Descrição detalhada") },
-                        modifier = Modifier.fillMaxWidth().height(90.dp)
+                        placeholder = { Text("Descreva detalhadamente...", color = Slate400) },
+                        modifier = Modifier.fillMaxWidth().height(90.dp),
+                        colors = textInputColors
                     )
 
-                    OutlinedTextField(
-                        value = fotoUrl,
-                        onValueChange = { fotoUrl = it },
-                        label = { Text("URL da Foto") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    // Foto da Atividade
+                    Text("FOTO DA ATIVIDADE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { cameraLauncher.launch(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Câmera", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch("image/*") },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Sg4Purple),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Sg4Purple, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Galeria", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Sg4Purple)
+                        }
+                    }
+
+                    if (fotoBase64.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8FAFC)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("📷 Foto anexada", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Sg4Green)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { fotoBase64 = "" }) {
+                                    Text("Remover", color = Sg4Red, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -3631,20 +4861,20 @@ fun RelatoriosMobileScreen(
                                 "local" to local,
                                 "cidadeUf" to cidadeUf,
                                 "descricao" to descricao,
-                                "fotoUrl" to fotoUrl.ifBlank { null }
+                                "fotoUrl" to fotoBase64.ifBlank { null }
                             ),
                             onCompleted = { editingItem = null }
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Purple, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
                     enabled = descricao.isNotBlank() && !uiState.isBlockingLoading
                 ) {
-                    Text("Confirmar", fontWeight = FontWeight.Bold)
+                    Text("Confirmar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { editingItem = null }) { Text("Cancelar") }
+                TextButton(onClick = { editingItem = null }) { Text("Cancelar", color = Slate600) }
             }
         )
     }
@@ -3653,8 +4883,10 @@ fun RelatoriosMobileScreen(
     deletingItem?.let { item ->
         AlertDialog(
             onDismissRequest = { if (!uiState.isBlockingLoading) deletingItem = null },
-            title = { Text("Excluir Item", fontWeight = FontWeight.ExtraBold, color = Sg4Red) },
-            text = { Text("Deseja realmente excluir este item do relatório?") },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            title = { Text("Excluir Item", fontWeight = FontWeight.ExtraBold, color = Sg4Red, fontSize = 17.sp) },
+            text = { Text("Deseja realmente excluir este item do relatório?", color = Slate900) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -3666,20 +4898,19 @@ fun RelatoriosMobileScreen(
                             onCompleted = { deletingItem = null }
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Red),
+                    colors = ButtonDefaults.buttonColors(containerColor = Sg4Red, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Excluir", fontWeight = FontWeight.Bold)
+                    Text("Excluir", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deletingItem = null }) { Text("Cancelar") }
+                TextButton(onClick = { deletingItem = null }) { Text("Cancelar", color = Slate600) }
             }
         )
     }
 }
 
-// Alias de retrocompatibilidade
 @Composable
 fun CampoNcScreen(uiState: Sg4UiState, viewModel: Sg4ViewModel) {
     RelatoriosMobileScreen(uiState = uiState, viewModel = viewModel)

@@ -358,6 +358,9 @@ export async function GET(req: Request) {
 
     // Construir estatísticas mensais por (ano, mes 1..12) para que o filtro de meses do Painel funcione instantaneamente
     const yearsSet = new Set<number>([currentYear, currentYear - 1])
+    const tecnicosAtivos = tecnicosList.filter((t) => t.ativo)
+    const tecnicosAtivosCount = Math.max(1, tecnicosAtivos.length)
+    const multiplicadorTecnicos = isAllTecnicos ? tecnicosAtivosCount : 1
 
     type MonthBucket = {
       year: number
@@ -383,9 +386,9 @@ export async function GET(req: Request) {
           year,
           month,
           dssCount: 0,
-          dssMeta: 8,
+          dssMeta: 8 * multiplicadorTecnicos,
           inspecoesCount: 0,
-          inspecoesMeta: 20,
+          inspecoesMeta: 20 * multiplicadorTecnicos,
           relatoriosCount: 0,
           ncTotal: 0,
           ncAbertas: 0,
@@ -520,19 +523,20 @@ export async function GET(req: Request) {
           baseFixaNome: currentTecnico.baseFixa?.nome || 'Sem Base Fixa',
           unidades: currentTecnico.unidades.map((u) => u.nome),
         },
+        tecnicosAtivosCount,
         tecnicos: isMasterOrAdmin
           ? [
               {
                 id: 'ALL',
-                nome: 'Todos os Colaboradores',
+                nome: `Todos os Colaboradores (${tecnicosAtivosCount} ativos)`,
                 cargo: 'Equipe Geral',
                 fotoUrl: null,
                 veiculo: null,
                 baseFixaNome: 'Todas as Unidades',
               },
-              ...tecnicosList.filter(t => t.ativo).map(t => ({
+              ...tecnicosList.map(t => ({
                 id: t.id,
-                nome: t.nome,
+                nome: t.ativo ? t.nome : `${t.nome} (Inativo)`,
                 cargo: t.cargo,
                 fotoUrl: t.fotoUrl,
                 veiculo: t.veiculo,

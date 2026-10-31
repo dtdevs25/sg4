@@ -278,4 +278,12 @@ class Sg4Repository(private val dao: Sg4Dao) {
             }
         }
     }
+    suspend fun clearSessionToken() {
+        withContext(Dispatchers.IO) {
+            val current = dao.getSessionConfig()
+            if (current != null) {
+                dao.saveSessionConfig(current.copy(authToken = ""))
+            }
+        }
+    }
 }

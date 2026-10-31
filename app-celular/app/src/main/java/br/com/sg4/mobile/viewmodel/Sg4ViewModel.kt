@@ -30,12 +30,17 @@ data class Sg4UiState(
     val isBlockingLoading: Boolean = false,
     val blockingTitle: String = "Processando solicitação...",
     val blockingSubtitle: String = "Aguarde a resposta do servidor. Não feche nem clique novamente.",
+    val savedEmail: String = "",
+    val savedPassword: String = "",
+    val rememberCredentials: Boolean = false,
     val feedbackMessage: String? = null,
     val isErrorFeedback: Boolean = false,
     val syncData: MobileSyncResponse = MobileSyncResponse()
 )
 
 class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val prefs = application.getSharedPreferences("sg4_credentials", android.content.Context.MODE_PRIVATE)
 
     private val repository: Sg4Repository = Sg4Repository(
         AppDatabase.getInstance(application).sg4Dao()
@@ -61,23 +66,25 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val session = repository.getSession()
             val cached = repository.loadCachedSync()
-            val logged = session.authToken.isNotBlank()
+            val remember = prefs.getBoolean("remember_creds", false)
+            val savedEmail = if (remember) prefs.getString("saved_email", "") ?: "" else ""
+            val savedPass = if (remember) prefs.getString("saved_pass", "") ?: "" else ""
 
+            // Conforme solicitado: ao sair/fechar o app ele desloga automaticamente
             _uiState.update {
                 it.copy(
                     isInitialized = true,
-                    isLoggedIn = logged,
+                    isLoggedIn = false,
                     baseUrl = session.baseUrl,
                     userName = session.userName,
-                    userEmail = session.userEmail,
+                    userEmail = if (savedEmail.isNotBlank()) savedEmail else session.userEmail,
                     userRole = session.userRole,
                     selectedTecnicoId = session.selectedTecnicoId,
+                    savedEmail = savedEmail,
+                    savedPassword = savedPass,
+                    rememberCredentials = remember,
                     syncData = cached ?: MobileSyncResponse()
                 )
-            }
-
-            if (logged) {
-                refreshData(silent = true)
             }
         }
     }
@@ -90,7 +97,7 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(feedbackMessage = null, isErrorFeedback = false) }
     }
 
-    fun login(baseUrl: String, email: String, password: String) {
+    fun login(baseUrl: String, email: String, password: String, rememberCredentials: Boolean = false) {
         if (!actionLock.compareAndSet(false, true)) return
         viewModelScope.launch {
             try {
@@ -106,6 +113,15 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
                 result.fold(
                     onSuccess = { res ->
                         val user = res.user
+                        if (rememberCredentials) {
+                            prefs.edit()
+                                .putBoolean("remember_creds", true)
+                                .putString("saved_email", email)
+                                .putString("saved_pass", password)
+                                .apply()
+                        } else {
+                            prefs.edit().clear().apply()
+                        }
                         _uiState.update {
                             it.copy(
                                 isLoggedIn = true,
@@ -114,6 +130,9 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
                                 userEmail = user?.email ?: email,
                                 userRole = user?.role ?: "TST",
                                 selectedTecnicoId = user?.tecnicoId ?: user?.tecnico?.id,
+                                savedEmail = if (rememberCredentials) email else "",
+                                savedPassword = if (rememberCredentials) password else "",
+                                rememberCredentials = rememberCredentials,
                                 isOnline = true
                             )
                         }
@@ -172,6 +191,15 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
                 actionLock.set(false)
             }
         }
+    }
+
+        fun logoutOnAppExit() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                repository.clearSessionToken()
+            } catch (_: Exception) {}
+        }
+        _uiState.update { it.copy(isLoggedIn = false) }
     }
 
     fun logout() {

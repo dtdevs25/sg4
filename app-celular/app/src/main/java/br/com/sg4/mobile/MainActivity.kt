@@ -33,6 +33,14 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,12 +68,21 @@ import br.com.sg4.mobile.ui.theme.Sg4Purple
 import br.com.sg4.mobile.viewmodel.Sg4ViewModel
 
 class MainActivity : ComponentActivity() {
+    private var mainViewModel: Sg4ViewModel? = null
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Quando o usuário sai do app / fecha a aplicação, desloga automaticamente conforme solicitado
+        mainViewModel?.logoutOnAppExit()
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            val vm: Sg4ViewModel = viewModel()
+            mainViewModel = vm
             SG4MobileTheme {
-                SG4MobileRoot()
+                SG4MobileRoot(sg4ViewModel = vm)
             }
         }
     }
@@ -109,18 +126,41 @@ fun SG4MobileRoot(
                                     contentDescription = "Logo SG4",
                                     modifier = Modifier.height(30.dp)
                                 )
-                                Box(
+
+                                val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                                val dotAlpha by infiniteTransition.animateFloat(
+                                    initialValue = 0.35f,
+                                    targetValue = 1.0f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(800, easing = LinearEasing),
+                                        repeatMode = RepeatMode.Reverse
+                                    ),
+                                    label = "dotAlpha"
+                                )
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                                     modifier = Modifier
                                         .background(
-                                            if (uiState.isOnline) Color.White.copy(alpha = 0.22f) else Sg4Amber.copy(alpha = 0.35f),
-                                            RoundedCornerShape(6.dp)
+                                            Color.White.copy(alpha = 0.18f),
+                                            RoundedCornerShape(12.dp)
                                         )
-                                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (uiState.isOnline) Color(0xFF22C55E).copy(alpha = dotAlpha)
+                                                else Color(0xFFEF4444)
+                                            )
+                                    )
                                     Text(
-                                        text = if (uiState.isOnline) "ONLINE" else "OFFLINE",
+                                        text = if (uiState.isOnline) "On" else "Off",
                                         color = Color.White,
-                                        fontSize = 9.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.ExtraBold
                                     )
                                 }
@@ -133,18 +173,8 @@ fun SG4MobileRoot(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
-                                    contentDescription = "Sincronizar",
+                                    contentDescription = "Sincronizar com o banco",
                                     tint = Color.White
-                                )
-                            }
-                            IconButton(
-                                onClick = { sg4ViewModel.logout() },
-                                enabled = !uiState.isBlockingLoading
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ExitToApp,
-                                    contentDescription = "Sair",
-                                    tint = Color.White.copy(alpha = 0.85f)
                                 )
                             }
                         },
