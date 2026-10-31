@@ -92,18 +92,27 @@ export default function AppCelularPage() {
       >
         <div
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 16,
-            background: 'linear-gradient(135deg, #660099, #4a0072)',
+            width: 64,
+            height: 64,
+            borderRadius: 18,
+            background: 'linear-gradient(135deg, #c01c1c, #8b0000)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             color: '#fff',
-            boxShadow: '0 8px 20px rgba(102, 0, 153, 0.25)',
+            boxShadow: '0 8px 20px rgba(185, 28, 28, 0.32)',
           }}
         >
-          <Smartphone size={28} />
+          <img
+            src="/logovermelho.png"
+            alt="Ícone do App SG4"
+            style={{
+              width: 44,
+              height: 44,
+              objectFit: 'contain',
+              filter: 'brightness(0) invert(1)',
+            }}
+          />
         </div>
 
         <div>

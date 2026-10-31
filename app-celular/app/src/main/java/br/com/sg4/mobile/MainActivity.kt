@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,7 +17,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.FolderShared
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,7 +46,6 @@ import br.com.sg4.mobile.model.MobileTab
 import br.com.sg4.mobile.ui.components.ActionLoadingOverlay
 import br.com.sg4.mobile.ui.screens.AgendaPlanejamentoScreen
 import br.com.sg4.mobile.ui.screens.CampoNcScreen
-import br.com.sg4.mobile.ui.screens.DossieReunioesScreen
 import br.com.sg4.mobile.ui.screens.HomeDashboardScreen
 import br.com.sg4.mobile.ui.screens.KmAbastecimentoScreen
 import br.com.sg4.mobile.ui.screens.LoginScreen
@@ -118,7 +116,7 @@ fun SG4MobileRoot(
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = if (uiState.isOnline) "ONLINE" else "OFFLINE (ROOM)",
+                                        text = if (uiState.isOnline) "ONLINE" else "OFFLINE",
                                         color = if (uiState.isOnline) Sg4Green else Sg4Amber,
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.ExtraBold
@@ -127,6 +125,16 @@ fun SG4MobileRoot(
                             }
                         },
                         actions = {
+                            IconButton(
+                                onClick = { sg4ViewModel.refreshData(silent = false) },
+                                enabled = !uiState.isBlockingLoading
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Sincronizar",
+                                    tint = Sg4Purple
+                                )
+                            }
                             IconButton(
                                 onClick = { sg4ViewModel.logout() },
                                 enabled = !uiState.isBlockingLoading
@@ -149,15 +157,14 @@ fun SG4MobileRoot(
                             MobileTab.HOME to Icons.Default.Dashboard,
                             MobileTab.AGENDA to Icons.Default.CalendarToday,
                             MobileTab.KM to Icons.Default.DirectionsCar,
-                            MobileTab.CAMPO to Icons.Default.Assignment,
-                            MobileTab.DOSSIE to Icons.Default.FolderShared
+                            MobileTab.RELATORIOS to Icons.Default.Assignment
                         )
                         tabs.forEach { (tab, icon) ->
                             NavigationBarItem(
                                 selected = uiState.activeTab == tab,
                                 onClick = { sg4ViewModel.selectTab(tab) },
                                 icon = { Icon(icon, contentDescription = tab.title) },
-                                label = { Text(tab.title, fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                                label = { Text(tab.title, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = Sg4Purple,
                                     selectedTextColor = Sg4Purple,
@@ -187,12 +194,9 @@ fun SG4MobileRoot(
                             uiState = uiState,
                             viewModel = sg4ViewModel
                         )
-                        MobileTab.CAMPO -> CampoNcScreen(
+                        MobileTab.RELATORIOS -> CampoNcScreen(
                             uiState = uiState,
                             viewModel = sg4ViewModel
-                        )
-                        MobileTab.DOSSIE -> DossieReunioesScreen(
-                            uiState = uiState
                         )
                     }
                 }
@@ -207,4 +211,3 @@ fun SG4MobileRoot(
         )
     }
 }
-

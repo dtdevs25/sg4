@@ -3,20 +3,21 @@ package br.com.sg4.mobile.model
 enum class MobileTab(val title: String) {
     HOME("Painel"),
     AGENDA("Agenda"),
-    KM("KM & Abast."),
-    CAMPO("Campo & NC"),
-    DOSSIE("Dossiê")
+    KM("KM"),
+    RELATORIOS("Relatórios")
 }
 
 data class LoginRequest(
     val email: String,
-    val password: String
+    val password: String = "",
+    val action: String? = null
 )
 
 data class LoginResponse(
     val success: Boolean = false,
     val token: String? = null,
     val error: String? = null,
+    val message: String? = null,
     val user: MobileUserDto? = null
 )
 
@@ -44,12 +45,37 @@ data class TecnicoProfileDto(
     val unidades: List<String> = emptyList()
 )
 
+data class UnidadeDto(
+    val id: String = "",
+    val nome: String = "",
+    val cidade: String = "",
+    val estado: String = "SP"
+)
+
+data class MonthlyStatDto(
+    val year: Int = 2026,
+    val month: Int = 1,
+    val dssCount: Int = 0,
+    val dssMeta: Int = 8,
+    val inspecoesCount: Int = 0,
+    val inspecoesMeta: Int = 20,
+    val relatoriosCount: Int = 0,
+    val ncTotal: Int = 0,
+    val ncAbertas: Int = 0,
+    val ncFechadas: Int = 0,
+    val kmTotal: Double = 0.0
+)
+
 data class DashboardSummaryDto(
     val mesReferencia: String = "",
     val dssRealizadosMes: Int = 0,
     val dssMetaMes: Int = 8,
     val inspecoesRealizadasMes: Int = 0,
     val inspecoesMetaMes: Int = 20,
+    val relatoriosMes: Int = 0,
+    val ncAbertasMes: Int = 0,
+    val ncFechadasMes: Int = 0,
+    val ncTotalMes: Int = 0,
     val orcamentoBase: Double = 800.0,
     val gastoMes: Double = 0.0,
     val recargasMes: Double = 0.0,
@@ -58,6 +84,22 @@ data class DashboardSummaryDto(
     val ncPendentesCount: Int = 0,
     val atividadesPendentesCount: Int = 0,
     val docsVencidosOuAVencer: Int = 0
+)
+
+data class ChecklistItemDto(
+    val id: String = "",
+    val hora: String? = "08:00",
+    val titulo: String? = "",
+    val texto: String = "",
+    val categoria: String? = "",
+    val equipe: String? = "Individual",
+    val local: String? = "",
+    val cidade: String? = "",
+    val estado: String? = "SP",
+    val concluido: Boolean = false,
+    val concluidoEm: String? = null,
+    val descricaoExecutada: String? = null,
+    val fotoUrl: String? = null
 )
 
 data class PlanejamentoDto(
@@ -70,12 +112,15 @@ data class PlanejamentoDto(
     val categoria: String = "",
     val descricaoOriginal: String = "",
     val descricaoExecutada: String = "",
+    val observacoes: String = "",
+    val alteradaOriginal: Boolean = false,
     val equipe: String = "Individual",
     val local: String = "",
     val cidade: String = "",
     val estado: String = "SP",
     val prioridade: String = "MEDIA",
-    val status: String = "PENDENTE"
+    val status: String = "PENDENTE",
+    val checklist: List<ChecklistItemDto> = emptyList()
 )
 
 data class QuilometragemDto(
@@ -116,8 +161,8 @@ data class RelatorioCampoDto(
     val tecnicoId: String = "",
     val tecnicoNome: String = "",
     val data: String = "",
-    val empresa: String = "TELEFÔNICA BRASIL S.A (VIVO)",
-    val projeto: String = "",
+    val empresa: String = "Telefônica Brasil S.A",
+    val projeto: String = "VIVO",
     val local: String = "",
     val cidadeUf: String = "",
     val descricao: String = "",
@@ -189,6 +234,9 @@ data class MobileSyncResponse(
     val user: MobileUserDto? = null,
     val currentTecnico: TecnicoProfileDto? = null,
     val tecnicos: List<TecnicoProfileDto> = emptyList(),
+    val unidades: List<UnidadeDto> = emptyList(),
+    val availableYears: List<String> = emptyList(),
+    val monthlyStats: List<MonthlyStatDto> = emptyList(),
     val summary: DashboardSummaryDto = DashboardSummaryDto(),
     val planejamentos: List<PlanejamentoDto> = emptyList(),
     val quilometragens: List<QuilometragemDto> = emptyList(),
@@ -210,7 +258,7 @@ data class MobileActionRequest(
 data class MobileActionResponse(
     val success: Boolean = false,
     val actionType: String? = null,
+    val correctedText: String? = null,
     val error: String? = null,
     val message: String? = null
 )
-

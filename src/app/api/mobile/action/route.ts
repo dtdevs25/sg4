@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
+import { optimizeTextWithAI } from '@/app/actions/ai'
 import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_mobile_sg4_2026'
@@ -70,6 +71,66 @@ function getDiaSemanaPtBr(date: Date): string {
   return dias[date.getDay()] || 'Segunda-feira'
 }
 
+function parseDateSafe(input: string | Date | null | undefined): Date {
+  if (!input) return new Date()
+  if (input instanceof Date) return isNaN(input.getTime()) ? new Date() : input
+  const s = String(input).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return new Date(`${s}T12:00:00Z`)
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+    const [d, m, y] = s.split('/')
+    return new Date(`${y}-${m}-${d}T12:00:00Z`)
+  }
+  const parsed = new Date(s)
+  return isNaN(parsed.getTime()) ? new Date() : parsed
+}
+
+function generateDatesForFrequency(
+  startDateInput: string | Date,
+  frequencia: string,
+  endDateInput?: string | Date | null
+): Date[] {
+  const start = parseDateSafe(startDateInput)
+  const freq = (frequencia || 'UNICA').toUpperCase()
+  if (freq === 'UNICA' || !endDateInput) {
+    return [start]
+  }
+  const end = parseDateSafe(endDateInput)
+  if (end < start) {
+    return [start]
+  }
+
+  const dates: Date[] = []
+  const curr = new Date(start.getTime())
+  let safetyCounter = 0
+
+  while (curr <= end && safetyCounter < 180) {
+    safetyCounter++
+    const dayOfWeek = curr.getUTCDay()
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      dates.push(new Date(curr.getTime()))
+    }
+    if (freq === 'DIARIA') {
+      curr.setUTCDate(curr.getUTCDate() + 1)
+    } else if (freq === 'SEMANAL') {
+      curr.setUTCDate(curr.getUTCDate() + 7)
+    } else if (freq === 'QUINZENAL') {
+      curr.setUTCDate(curr.getUTCDate() + 14)
+    } else if (freq === 'MENSAL') {
+      curr.setUTCMonth(curr.getUTCMonth() + 1)
+    } else if (freq === 'BIMESTRAL') {
+      curr.setUTCMonth(curr.getUTCMonth() + 2)
+    } else if (freq === 'TRIMESTRAL') {
+      curr.setUTCMonth(curr.getUTCMonth() + 3)
+    } else {
+      break
+    }
+  }
+
+  return dates.length > 0 ? dates : [start]
+}
+
 export async function POST(req: Request) {
   try {
     const authUser = await resolveMobileUser(req)
@@ -87,6 +148,33 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: 'Tipo de ação (actionType) é obrigatório.' },
         { status: 400, headers: CORS_HEADERS }
+      )
+    }
+
+    // Ação de Corretor Ortográfico com IA (não altera banco, responde imediatamente)
+    if (actionType === 'CORRIGIR_TEXTO_IA') {
+      const textoOriginal = String(payload?.texto || '').trim()
+      if (!textoOriginal) {
+        return NextResponse.json(
+          { error: 'Digite algum texto antes de usar o corretor com IA.' },
+          { status: 400, headers: CORS_HEADERS }
+        )
+      }
+      const aiRes = await optimizeTextWithAI(textoOriginal)
+      if (!aiRes.success || !aiRes.text) {
+        return NextResponse.json(
+          { error: aiRes.error || 'Não foi possível corrigir o texto com a IA no momento.' },
+          { status: 400, headers: CORS_HEADERS }
+        )
+      }
+      return NextResponse.json(
+        {
+          success: true,
+          actionType: 'CORRIGIR_TEXTO_IA',
+          correctedText: aiRes.text,
+          data: { text: aiRes.text },
+        },
+        { headers: CORS_HEADERS }
       )
     }
 
@@ -109,8 +197,19 @@ export async function POST(req: Request) {
       }
     }
 
-    // Determinar o tecnicoId alvo
-    let tecnicoId: string | null = payload?.tecnicoId || authUser.tecnicoId || null
+    // Determinar o tecnicoId estritamente vinculado ao usuário logado ("cada um vê apenas o seu")
+    let tecnicoId: string | null = authUser.tecnicoId || null
+    if (!tecnicoId) {
+      const matchedTec = await prisma.tecnico.findFirst({
+        where: {
+          OR: [
+            { userId: authUser.userId },
+            ...(authUser.email ? [{ email: { equals: authUser.email, mode: 'insensitive' as const } }] : []),
+          ],
+        },
+      })
+      tecnicoId = matchedTec?.id || payload?.tecnicoId || null
+    }
     if (!tecnicoId) {
       const firstTec = await prisma.tecnico.findFirst({
         where: { ativo: true },
@@ -129,46 +228,130 @@ export async function POST(req: Request) {
     let resultData: any = null
 
     switch (actionType) {
-      case 'CRIAR_ATIVIDADE': {
-        const dataAtv = payload?.dataAtividade ? new Date(payload.dataAtividade) : new Date()
-        const categoria = payload?.categoria || 'Visita Técnica'
-        const descricao = payload?.descricaoOriginal || payload?.descricao || categoria
-        const local = payload?.local || 'Em Campo'
-        const cidade = payload?.cidade || 'São Paulo'
-        const estado = payload?.estado || 'SP'
-        const prioridade =
-          payload?.prioridade === 'ALTA' || payload?.prioridade === 'BAIXA'
-            ? payload.prioridade
-            : 'MEDIA'
+      case 'CRIAR_ATIVIDADE':
+      case 'CRIAR_ATIVIDADE_BATCH': {
+        // Suporta tanto envio de 1 atividade (com frequência e dataFim) quanto lista de itens em lote (items[])
+        const rawItems: any[] = Array.isArray(payload?.items) && payload.items.length > 0
+          ? payload.items
+          : [payload || {}]
 
-        resultData = await prisma.planejamento.create({
-          data: {
-            tecnicoId,
-            dataAtividade: dataAtv,
-            hora: payload?.hora || '08:00',
-            titulo: payload?.titulo || categoria,
-            categoria,
-            descricaoOriginal: descricao,
-            equipe: payload?.equipe || 'Individual',
-            local,
-            cidade,
-            estado,
-            prioridade,
-            status: 'PENDENTE',
-            checklist: [
-              {
-                id: `item-${Date.now()}`,
-                hora: payload?.hora || '08:00',
-                titulo: payload?.titulo || categoria,
-                texto: descricao,
+        const createdPlans: any[] = []
+
+        for (const item of rawItems) {
+          const categoria = String(item.categoria || payload?.categoria || 'INSPEÇÃO DE SEGURANÇA').trim()
+          const titulo = String(item.titulo || payload?.titulo || categoria).trim()
+          const descricao = String(item.descricaoOriginal || item.descricao || payload?.descricaoOriginal || titulo).trim()
+          const hora = String(item.hora || payload?.hora || '08:00').trim()
+          const local = String(item.local || payload?.local || 'Em Campo').trim()
+          const cidade = String(item.cidade || payload?.cidade || 'São Paulo').trim()
+          const estado = String(item.estado || payload?.estado || 'SP').trim()
+          const rawPrio = String(item.prioridade || payload?.prioridade || 'MEDIA').toUpperCase()
+          const prioridade: 'ALTA' | 'MEDIA' | 'BAIXA' =
+            rawPrio === 'ALTA' || rawPrio === 'BAIXA' ? rawPrio : 'MEDIA'
+
+          const frequencia = String(item.frequencia || payload?.frequencia || 'UNICA').toUpperCase()
+          const dataInicio = item.dataAtividade || payload?.dataAtividade || new Date()
+          const dataFim = item.dataFim || payload?.dataFim || null
+
+          const targetDates = generateDatesForFrequency(dataInicio, frequencia, dataFim)
+
+          const customChecklist = Array.isArray(item.checklist)
+            ? item.checklist
+            : []
+
+          for (const dt of targetDates) {
+            const created = await prisma.planejamento.create({
+              data: {
+                tecnicoId,
+                dataAtividade: dt,
+                hora,
+                titulo,
                 categoria,
-                equipe: payload?.equipe || 'Individual',
+                descricaoOriginal: descricao,
+                equipe: String(item.equipe || payload?.equipe || 'Individual'),
                 local,
                 cidade,
                 estado,
-                concluido: false,
+                prioridade,
+                status: 'PENDENTE',
+                alteradaOriginal: false,
+                checklist: customChecklist,
               },
-            ],
+            })
+            createdPlans.push(created)
+          }
+        }
+
+        resultData = createdPlans
+        break
+      }
+
+      case 'EDITAR_ATIVIDADE': {
+        const planId = payload?.id
+        if (!planId) {
+          return NextResponse.json(
+            { error: 'ID do agendamento é obrigatório para editar.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
+        const existing = await prisma.planejamento.findUnique({ where: { id: planId } })
+        if (!existing || existing.tecnicoId !== tecnicoId) {
+          return NextResponse.json(
+            { error: 'Agendamento não encontrado.' },
+            { status: 404, headers: CORS_HEADERS }
+          )
+        }
+
+        const rawPrio = String(payload?.prioridade || existing.prioridade || 'MEDIA').toUpperCase()
+        const prioridade: 'ALTA' | 'MEDIA' | 'BAIXA' =
+          rawPrio === 'ALTA' || rawPrio === 'BAIXA' ? rawPrio : 'MEDIA'
+
+        resultData = await prisma.planejamento.update({
+          where: { id: planId },
+          data: {
+            dataAtividade: payload?.dataAtividade ? parseDateSafe(payload.dataAtividade) : existing.dataAtividade,
+            hora: payload?.hora !== undefined ? String(payload.hora) : existing.hora,
+            titulo: payload?.titulo !== undefined ? String(payload.titulo) : existing.titulo,
+            categoria: payload?.categoria !== undefined ? String(payload.categoria) : existing.categoria,
+            descricaoOriginal:
+              payload?.descricaoOriginal !== undefined
+                ? String(payload.descricaoOriginal)
+                : existing.descricaoOriginal,
+            local: payload?.local !== undefined ? String(payload.local) : existing.local,
+            cidade: payload?.cidade !== undefined ? String(payload.cidade) : existing.cidade,
+            estado: payload?.estado !== undefined ? String(payload.estado) : existing.estado,
+            prioridade,
+            ...(Array.isArray(payload?.checklist) ? { checklist: payload.checklist } : {}),
+          },
+        })
+        break
+      }
+
+      case 'TOGGLE_CHECKLIST_ATIVIDADE': {
+        const planId = payload?.id
+        const checklist = Array.isArray(payload?.checklist) ? payload.checklist : []
+        if (!planId) {
+          return NextResponse.json(
+            { error: 'ID da atividade é obrigatório.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
+        const existing = await prisma.planejamento.findUnique({ where: { id: planId } })
+        if (!existing || existing.tecnicoId !== tecnicoId) {
+          return NextResponse.json(
+            { error: 'Atividade não encontrada.' },
+            { status: 404, headers: CORS_HEADERS }
+          )
+        }
+
+        const allChecked = checklist.length > 0 && checklist.every((i: any) => Boolean(i.concluido))
+        const newStatus = allChecked ? 'CONCLUIDO' : 'PENDENTE'
+
+        resultData = await prisma.planejamento.update({
+          where: { id: planId },
+          data: {
+            checklist,
+            status: newStatus,
           },
         })
         break
@@ -183,46 +366,75 @@ export async function POST(req: Request) {
           )
         }
         const existing = await prisma.planejamento.findUnique({ where: { id: planId } })
-        if (!existing) {
+        if (!existing || existing.tecnicoId !== tecnicoId) {
           return NextResponse.json(
             { error: 'Atividade não encontrada.' },
             { status: 404, headers: CORS_HEADERS }
           )
         }
 
-        const descExec = payload?.descricaoExecutada || existing.descricaoOriginal
+        const descExec = String(payload?.descricaoExecutada || existing.descricaoOriginal).trim()
+        const observacoes = payload?.observacoes ? String(payload.observacoes).trim() : existing.observacoes
         const fotoUrl = payload?.fotoUrl || null
+        const alteradaOriginal = descExec !== (existing.descricaoOriginal || '').trim()
 
-        const updatedChecklist = Array.isArray(existing.checklist)
-          ? (existing.checklist as any[]).map((item) => ({
-              ...item,
-              concluido: true,
-              concluidoEm: new Date().toISOString(),
-              descricaoExecutada: descExec,
-              fotoUrl: fotoUrl || item.fotoUrl,
-            }))
-          : []
+        const updatedChecklist = Array.isArray(payload?.checklist)
+          ? payload.checklist
+          : Array.isArray(existing.checklist)
+            ? (existing.checklist as any[]).map((item) => ({
+                ...item,
+                concluido: true,
+                concluidoEm: new Date().toISOString(),
+                descricaoExecutada: descExec,
+                fotoUrl: fotoUrl || item.fotoUrl,
+              }))
+            : []
 
         resultData = await prisma.planejamento.update({
           where: { id: planId },
           data: {
             status: 'CONCLUIDO',
             descricaoExecutada: descExec,
+            observacoes,
+            alteradaOriginal,
             checklist: updatedChecklist,
           },
         })
 
-        // Se solicitou envio automático para Relatório de Atividades de Campo
-        if (payload?.gerarRelatorioCampo !== false) {
+        // Se for DSS e marcou que foi DSS com Aliado, salva em DssAliado igual à web
+        if (payload?.salvarDssAliado === true) {
+          const temaDss = String(payload?.temaDss || existing.titulo || existing.descricaoOriginal || 'Diálogo de Segurança').trim()
+          await prisma.dssAliado.create({
+            data: {
+              tecnicoId: existing.tecnicoId,
+              data: existing.dataAtividade,
+              tema: temaDss,
+              fotoUrl,
+              planejamentoItemRef: existing.id,
+            },
+          })
+        }
+
+        // Se solicitou inclusão no Relatório de Atividades de Campo
+        if (payload?.gerarRelatorioCampo === true) {
+          const empresaRel = String(payload?.empresa || 'Telefônica Brasil S.A').trim()
+          const projetoRel = String(payload?.projeto || 'VIVO').trim()
+          const localRel = String(payload?.local || existing.local || 'Unidade Operacional').trim()
+          const cidadeUfRel = String(
+            payload?.cidadeUf ||
+              (existing.cidade ? `${existing.cidade}/${existing.estado || 'SP'}` : 'São Paulo/SP')
+          ).trim()
+          const descRel = String(payload?.descricaoRelatorio || descExec).trim()
+
           await prisma.relatorioAtividade.create({
             data: {
               tecnicoId: existing.tecnicoId,
               data: existing.dataAtividade,
-              empresa: 'TELEFÔNICA BRASIL S.A (VIVO)',
-              projeto: existing.categoria || 'SST Campo',
-              local: existing.local || 'Unidade Operacional',
-              cidadeUf: `${existing.cidade || 'São Paulo'}/${existing.estado || 'SP'}`,
-              descricao: descExec,
+              empresa: empresaRel,
+              projeto: projetoRel,
+              local: localRel,
+              cidadeUf: cidadeUfRel,
+              descricao: descRel,
               fotoUrl,
             },
           })
@@ -230,9 +442,152 @@ export async function POST(req: Request) {
         break
       }
 
+      case 'TRANSFERIR_PENDENCIAS_ATIVIDADE': {
+        const planId = payload?.id
+        const novaData = payload?.novaData ? parseDateSafe(payload.novaData) : null
+        if (!planId || !novaData) {
+          return NextResponse.json(
+            { error: 'ID da atividade e nova data para transferência são obrigatórios.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
+        const existing = await prisma.planejamento.findUnique({ where: { id: planId } })
+        if (!existing || existing.tecnicoId !== tecnicoId) {
+          return NextResponse.json(
+            { error: 'Atividade não encontrada.' },
+            { status: 404, headers: CORS_HEADERS }
+          )
+        }
+
+        const fullList: any[] = Array.isArray(payload?.checklist)
+          ? payload.checklist
+          : Array.isArray(existing.checklist)
+            ? (existing.checklist as any[])
+            : []
+
+        const checklistConcluido = fullList.filter((i) => Boolean(i.concluido))
+        const checklistPendente = fullList.filter((i) => !i.concluido)
+
+        const descricaoConcluida =
+          String(payload?.descricaoConcluida || '').trim() ||
+          checklistConcluido.map((i) => `[${i.categoria || existing.categoria}] ${i.texto}`).join('\n') ||
+          existing.descricaoOriginal
+
+        const descricaoPendente =
+          String(payload?.descricaoPendente || '').trim() ||
+          checklistPendente.map((i) => `[${i.categoria || existing.categoria}] ${i.texto}`).join('\n') ||
+          existing.descricaoOriginal
+
+        await prisma.planejamento.update({
+          where: { id: planId },
+          data: {
+            status: 'CONCLUIDO',
+            checklist: checklistConcluido,
+            descricaoExecutada: descricaoConcluida,
+            observacoes: payload?.observacoes ? String(payload.observacoes) : existing.observacoes,
+            alteradaOriginal: true,
+          },
+        })
+
+        resultData = await prisma.planejamento.create({
+          data: {
+            tecnicoId: existing.tecnicoId,
+            hora: existing.hora,
+            titulo: existing.titulo,
+            categoria: existing.categoria,
+            prioridade: existing.prioridade,
+            local: existing.local,
+            cidade: existing.cidade,
+            estado: existing.estado,
+            equipe: existing.equipe,
+            dataAtividade: novaData,
+            status: 'PENDENTE',
+            checklist: checklistPendente,
+            descricaoOriginal: descricaoPendente,
+          },
+        })
+        break
+      }
+
+      case 'MOVER_DATA_ATIVIDADE': {
+        const planId = payload?.id
+        const novaData = payload?.novaData ? parseDateSafe(payload.novaData) : null
+        if (!planId || !novaData) {
+          return NextResponse.json(
+            { error: 'ID da atividade e nova data são obrigatórios.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
+        const existing = await prisma.planejamento.findUnique({ where: { id: planId } })
+        if (!existing || existing.tecnicoId !== tecnicoId) {
+          return NextResponse.json(
+            { error: 'Atividade não encontrada.' },
+            { status: 404, headers: CORS_HEADERS }
+          )
+        }
+        if (existing.status === 'CONCLUIDO') {
+          return NextResponse.json(
+            { error: 'Não é possível mover uma atividade já concluída.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
+        resultData = await prisma.planejamento.update({
+          where: { id: planId },
+          data: { dataAtividade: novaData },
+        })
+        break
+      }
+
+      case 'REVERTER_ATIVIDADE': {
+        const planId = payload?.id
+        if (!planId) {
+          return NextResponse.json(
+            { error: 'ID da atividade é obrigatório.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
+        const existing = await prisma.planejamento.findUnique({ where: { id: planId } })
+        if (!existing || existing.tecnicoId !== tecnicoId) {
+          return NextResponse.json(
+            { error: 'Atividade não encontrada.' },
+            { status: 404, headers: CORS_HEADERS }
+          )
+        }
+        resultData = await prisma.planejamento.update({
+          where: { id: planId },
+          data: {
+            status: 'PENDENTE',
+            descricaoExecutada: null,
+            observacoes: null,
+            alteradaOriginal: false,
+          },
+        })
+        break
+      }
+
+      case 'EXCLUIR_ATIVIDADE': {
+        const planId = payload?.id
+        if (!planId) {
+          return NextResponse.json(
+            { error: 'ID da atividade é obrigatório.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
+        const existing = await prisma.planejamento.findUnique({ where: { id: planId } })
+        if (!existing || existing.tecnicoId !== tecnicoId) {
+          return NextResponse.json(
+            { error: 'Atividade não encontrada.' },
+            { status: 404, headers: CORS_HEADERS }
+          )
+        }
+        await prisma.planejamento.delete({ where: { id: planId } })
+        resultData = { deletedId: planId }
+        break
+      }
+
       case 'CRIAR_DSS_ALIADO': {
-        const tema = payload?.tema || 'Diálogo de Segurança com Aliado'
-        const dataDss = payload?.data ? new Date(payload.data) : new Date()
+        const tema = String(payload?.tema || 'Diálogo de Segurança com Aliado').trim()
+        const dataDss = payload?.data ? parseDateSafe(payload.data) : new Date()
         resultData = await prisma.dssAliado.create({
           data: {
             tecnicoId,
@@ -252,7 +607,7 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
-        const dataIni = payload?.dataInicial ? new Date(payload.dataInicial) : new Date()
+        const dataIni = payload?.dataInicial ? parseDateSafe(payload.dataInicial) : new Date()
         resultData = await prisma.quilometragem.create({
           data: {
             tecnicoId,
@@ -275,7 +630,7 @@ export async function POST(req: Request) {
           )
         }
         const registroKm = await prisma.quilometragem.findUnique({ where: { id: kmId } })
-        if (!registroKm) {
+        if (!registroKm || registroKm.tecnicoId !== tecnicoId) {
           return NextResponse.json(
             { error: 'Registro de KM não encontrado.' },
             { status: 404, headers: CORS_HEADERS }
@@ -291,7 +646,7 @@ export async function POST(req: Request) {
         resultData = await prisma.quilometragem.update({
           where: { id: kmId },
           data: {
-            dataFinal: payload?.dataFinal ? new Date(payload.dataFinal) : new Date(),
+            dataFinal: payload?.dataFinal ? parseDateSafe(payload.dataFinal) : new Date(),
             kmFinal,
             diferenca,
             fotoFinal: payload?.fotoFinal || null,
@@ -311,7 +666,7 @@ export async function POST(req: Request) {
         resultData = await prisma.abastecimento.create({
           data: {
             tecnicoId,
-            data: payload?.data ? new Date(payload.data) : new Date(),
+            data: payload?.data ? parseDateSafe(payload.data) : new Date(),
             valor,
             tipo: payload?.tipo || 'ABASTECIMENTO',
             fotoCupom: payload?.fotoCupom || null,
@@ -332,7 +687,7 @@ export async function POST(req: Request) {
           data: {
             tecnicoId,
             kmManutencao: Math.round(kmManutencao),
-            dataManutencao: payload?.dataManutencao ? new Date(payload.dataManutencao) : new Date(),
+            dataManutencao: payload?.dataManutencao ? parseDateSafe(payload.dataManutencao) : new Date(),
             comprovanteUrl: payload?.comprovanteUrl || null,
           },
         })
@@ -350,15 +705,35 @@ export async function POST(req: Request) {
         resultData = await prisma.relatorioAtividade.create({
           data: {
             tecnicoId,
-            data: payload?.data ? new Date(payload.data) : new Date(),
-            empresa: payload?.empresa || 'TELEFÔNICA BRASIL S.A (VIVO)',
-            projeto: payload?.projeto || 'SST Operacional',
+            data: payload?.data ? parseDateSafe(payload.data) : new Date(),
+            empresa: payload?.empresa || 'Telefônica Brasil S.A',
+            projeto: payload?.projeto || 'VIVO',
             local: payload?.local || 'Unidade Vivo',
             cidadeUf: payload?.cidadeUf || 'São Paulo/SP',
             descricao,
             fotoUrl: payload?.fotoUrl || null,
           },
         })
+        break
+      }
+
+      case 'EXCLUIR_RELATORIO_CAMPO': {
+        const relId = payload?.id
+        if (!relId) {
+          return NextResponse.json(
+            { error: 'ID do item do relatório é obrigatório.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
+        const existingRel = await prisma.relatorioAtividade.findUnique({ where: { id: relId } })
+        if (!existingRel || existingRel.tecnicoId !== tecnicoId) {
+          return NextResponse.json(
+            { error: 'Item do relatório não encontrado.' },
+            { status: 404, headers: CORS_HEADERS }
+          )
+        }
+        await prisma.relatorioAtividade.delete({ where: { id: relId } })
+        resultData = { deletedId: relId }
         break
       }
 
@@ -421,4 +796,3 @@ export async function POST(req: Request) {
     )
   }
 }
-

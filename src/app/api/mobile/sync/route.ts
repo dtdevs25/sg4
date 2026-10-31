@@ -54,32 +54,91 @@ async function resolveMobileUser(req: Request): Promise<MobileAuthPayload | null
   return null
 }
 
-function isCurrentMonthAndYear(dateStr: string | null | undefined, month1to12: number, year: number): boolean {
-  if (!dateStr) return false
-  const s = String(dateStr).trim()
+function normalizeStr(str: string | null | undefined): string {
+  if (!str) return ''
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function matchTecnicoName(recordName: string | null | undefined, targetFullName: string | null | undefined): boolean {
+  const r = normalizeStr(recordName)
+  const t = normalizeStr(targetFullName)
+  if (!r || !t) return false
+  if (r === t || r.includes(t) || t.includes(r)) return true
+
+  const ignore = ['de', 'da', 'do', 'dos', 'das', 'e']
+  const rParts = r.split(/\s+/).filter((p) => !ignore.includes(p))
+  const tParts = t.split(/\s+/).filter((p) => !ignore.includes(p))
+
+  if (rParts.length >= 2 && tParts.length >= 2) {
+    if (rParts[0] === tParts[0] && rParts[rParts.length - 1] === tParts[tParts.length - 1]) return true
+    if (rParts[0] === tParts[0] && rParts[1] === tParts[1]) return true
+  }
+  return false
+}
+
+function isDssAssinado(val: string | null | undefined): boolean {
+  const s = String(val || '').trim().toLowerCase()
+  if (!s) return false
+  return (
+    s.startsWith('s') ||
+    s.startsWith('y') ||
+    s === '1' ||
+    s === 'true' ||
+    s === 'ok' ||
+    s === 'assinado' ||
+    s.includes('sim')
+  )
+}
+
+function parseFlexibleMonthYear(dateVal: string | Date | null | undefined): { month: number; year: number } | null {
+  if (!dateVal) return null
+  if (dateVal instanceof Date) {
+    if (isNaN(dateVal.getTime())) return null
+    return { month: dateVal.getUTCMonth() + 1, year: dateVal.getUTCFullYear() }
+  }
+  const s = String(dateVal).trim()
+  if (!s) return null
+
   if (s.includes('/')) {
     const parts = s.split(' ')[0].split('/')
     if (parts.length >= 3) {
       const m = parseInt(parts[1], 10)
       let y = parseInt(parts[2], 10)
       if (y < 100) y += 2000
-      return m === month1to12 && y === year
+      if (!isNaN(m) && !isNaN(y) && m >= 1 && m <= 12) {
+        return { month: m, year: y }
+      }
     }
   }
+
   if (s.includes('-')) {
     const parts = s.split('T')[0].split(' ')[0].split('-')
     if (parts.length >= 3) {
       const y = parseInt(parts[0], 10)
       const m = parseInt(parts[1], 10)
-      return m === month1to12 && y === year
+      if (!isNaN(m) && !isNaN(y) && m >= 1 && m <= 12) {
+        return { month: m, year: y }
+      }
     }
   }
+
   const num = Number(s)
   if (!isNaN(num) && num > 20000) {
     const jsDate = new Date(Math.round((num - 25569) * 86400 * 1000))
-    return jsDate.getUTCMonth() + 1 === month1to12 && jsDate.getUTCFullYear() === year
+    if (!isNaN(jsDate.getTime())) {
+      return { month: jsDate.getUTCMonth() + 1, year: jsDate.getUTCFullYear() }
+    }
   }
-  return false
+
+  const fallback = new Date(s)
+  if (!isNaN(fallback.getTime())) {
+    return { month: fallback.getUTCMonth() + 1, year: fallback.getUTCFullYear() }
+  }
+  return null
 }
 
 export async function GET(req: Request) {
@@ -92,30 +151,36 @@ export async function GET(req: Request) {
       )
     }
 
-    const { searchParams } = new URL(req.url)
-    const requestedTecnicoId = searchParams.get('tecnicoId')
-
-    const isMasterOrAdmin = authUser.role === 'MASTER' || authUser.role === 'ADMIN'
-
-    // Lista de técnicos ativos (para filtro/seleção ou perfil)
+    // Buscar todos os técnicos para localizar exatamente o técnico vinculado ao usuário logado
     const tecnicosList = await prisma.tecnico.findMany({
-      where: { ativo: true },
       include: { baseFixa: true, unidades: true },
       orderBy: { nome: 'asc' },
     })
 
-    let targetTecnicoId = authUser.tecnicoId || null
-    if (isMasterOrAdmin && requestedTecnicoId) {
-      targetTecnicoId = requestedTecnicoId === 'ALL' ? null : requestedTecnicoId
-    } else if (!targetTecnicoId && tecnicosList.length > 0) {
-      targetTecnicoId = tecnicosList[0].id
+    // Cada usuário vê APENAS o seu próprio registro de técnico
+    let currentTecnico =
+      (authUser.tecnicoId ? tecnicosList.find((t) => t.id === authUser.tecnicoId) : null) ||
+      tecnicosList.find((t) => t.userId === authUser.userId) ||
+      (authUser.email
+        ? tecnicosList.find((t) => (t.email || '').toLowerCase() === authUser.email.toLowerCase())
+        : null) ||
+      (authUser.name ? tecnicosList.find((t) => matchTecnicoName(t.nome, authUser.name)) : null) ||
+      null
+
+    // Fallback seguro apenas caso um usuário de teste não possua vínculo direto na tabela tecnicos
+    if (!currentTecnico && tecnicosList.length > 0) {
+      currentTecnico = tecnicosList.find((t) => t.ativo) || tecnicosList[0]
     }
 
-    const currentTecnico = targetTecnicoId
-      ? tecnicosList.find((t) => t.id === targetTecnicoId) || null
-      : null
+    const targetTecnicoId = currentTecnico?.id || null
+    if (!targetTecnicoId || !currentTecnico) {
+      return NextResponse.json(
+        { error: 'Nenhum perfil de técnico encontrado para este usuário.' },
+        { status: 404, headers: CORS_HEADERS }
+      )
+    }
 
-    const whereTecnico = targetTecnicoId ? { tecnicoId: targetTecnicoId } : {}
+    const whereTecnico = { tecnicoId: targetTecnicoId }
 
     const now = new Date()
     const currentMonth = now.getMonth() + 1
@@ -123,6 +188,7 @@ export async function GET(req: Request) {
     const startOfMonth = new Date(currentYear, currentMonth - 1, 1)
     const endOfMonth = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
 
+    // Buscar dados estritamente do usuário logado
     const [
       planejamentos,
       quilometragens,
@@ -131,59 +197,66 @@ export async function GET(req: Request) {
       manutencoes,
       relatoriosCampo,
       dssAliados,
-      naoConformidades,
+      naoConformidadesAll,
       documentos,
       reunioes,
-      dssArkiumAll,
-      inspecoesArkiumAll,
+      dssArkiumCandidate,
+      inspecoesArkiumCandidate,
       unidades,
     ] = await Promise.all([
       prisma.planejamento.findMany({
         where: whereTecnico,
         include: { tecnico: { select: { id: true, nome: true, fotoUrl: true } } },
-        orderBy: [{ dataAtividade: 'desc' }, { createdAt: 'desc' }],
-        take: 80,
+        orderBy: [{ dataAtividade: 'asc' }, { hora: 'asc' }],
+        take: 400,
       }),
       prisma.quilometragem.findMany({
         where: whereTecnico,
         include: { tecnico: { select: { id: true, nome: true } } },
         orderBy: { dataInicial: 'desc' },
-        take: 40,
+        take: 250,
       }),
       prisma.abastecimento.findMany({
         where: whereTecnico,
         include: { tecnico: { select: { id: true, nome: true } } },
         orderBy: { data: 'desc' },
-        take: 40,
+        take: 120,
       }),
       prisma.recargaAbastecimento.findMany({
         where: whereTecnico,
         orderBy: { data: 'desc' },
-        take: 20,
+        take: 60,
       }),
       prisma.manutencaoVeiculo.findMany({
         where: whereTecnico,
         include: { tecnico: { select: { id: true, nome: true } } },
         orderBy: { dataManutencao: 'desc' },
-        take: 20,
+        take: 50,
       }),
       prisma.relatorioAtividade.findMany({
         where: whereTecnico,
         include: { tecnico: { select: { id: true, nome: true } } },
         orderBy: { data: 'desc' },
-        take: 40,
+        take: 500,
       }),
       prisma.dssAliado.findMany({
         where: whereTecnico,
         include: { tecnico: { select: { id: true, nome: true } } },
         orderBy: { data: 'desc' },
-        take: 30,
+        take: 300,
       }),
       prisma.naoConformidade.findMany({
-        where: whereTecnico,
+        where: {
+          OR: [
+            { tecnicoId: targetTecnicoId },
+            ...(currentTecnico.nome
+              ? [{ executor: { contains: currentTecnico.nome.split(' ')[0], mode: 'insensitive' as const } }]
+              : []),
+          ],
+        },
         include: { tecnico: { select: { id: true, nome: true } } },
         orderBy: { dataAbertura: 'desc' },
-        take: 50,
+        take: 400,
       }),
       prisma.documentoTecnico.findMany({
         where: whereTecnico,
@@ -192,60 +265,176 @@ export async function GET(req: Request) {
           tecnico: { select: { id: true, nome: true } },
         },
         orderBy: { dataVencimento: 'asc' },
-        take: 50,
+        take: 80,
       }),
       prisma.reuniao.findMany({
         where: whereTecnico,
         include: { tecnico: { select: { id: true, nome: true } } },
         orderBy: { data: 'desc' },
-        take: 30,
+        take: 60,
       }),
       prisma.dssArkium.findMany({
-        where: targetTecnicoId && currentTecnico?.matriculaArkium
-          ? {
-              OR: [
-                { tecnicoId: targetTecnicoId },
-                { matricula: currentTecnico.matriculaArkium },
-              ],
-            }
-          : targetTecnicoId
-            ? { tecnicoId: targetTecnicoId }
-            : {},
-        take: 300,
+        where: {
+          OR: [
+            { tecnicoId: targetTecnicoId },
+            ...(currentTecnico.matriculaArkium ? [{ matricula: currentTecnico.matriculaArkium }] : []),
+            ...(currentTecnico.nome
+              ? [
+                  { lider: { contains: currentTecnico.nome.split(' ')[0], mode: 'insensitive' as const } },
+                  { nome: { contains: currentTecnico.nome.split(' ')[0], mode: 'insensitive' as const } },
+                ]
+              : []),
+          ],
+        },
       }),
       prisma.inspecoesArkium.findMany({
-        where: whereTecnico,
-        take: 300,
+        where: {
+          OR: [
+            { tecnicoId: targetTecnicoId },
+            ...(currentTecnico.matriculaArkium ? [{ matriculaAuditor: currentTecnico.matriculaArkium }] : []),
+            ...(currentTecnico.nome
+              ? [{ nomeAuditor: { contains: currentTecnico.nome.split(' ')[0], mode: 'insensitive' as const } }]
+              : []),
+          ],
+        },
       }),
       prisma.unidade.findMany({
         orderBy: { nome: 'asc' },
       }),
     ])
 
-    // Cálculo de DSS realizados no mês atual
-    const dssArkiumMes = dssArkiumAll.filter((d) => {
-      const assinadoOk = (d.assinado || '').toLowerCase().includes('sim')
-      return assinadoOk && isCurrentMonthAndYear(d.dataFechamento, currentMonth, currentYear)
-    }).length
+    // Refinar filtro exato do técnico para DSS Arkium, Inspeções Arkium e NCs (igual ao Dashboard web)
+    const dssArkium = dssArkiumCandidate.filter((d) => {
+      if (d.tecnicoId === targetTecnicoId) return true
+      if (currentTecnico.matriculaArkium && d.matricula === currentTecnico.matriculaArkium) return true
+      return matchTecnicoName(d.lider || d.nome, currentTecnico.nome)
+    })
 
-    const dssAliadosMes = dssAliados.filter((d) => {
-      const dt = new Date(d.data)
-      return dt >= startOfMonth && dt <= endOfMonth
-    }).length
+    const inspecoesArkium = inspecoesArkiumCandidate.filter((i) => {
+      if (i.tecnicoId === targetTecnicoId) return true
+      if (currentTecnico.matriculaArkium && i.matriculaAuditor === currentTecnico.matriculaArkium) return true
+      return matchTecnicoName(i.nomeAuditor, currentTecnico.nome)
+    })
 
-    const dssRealizadosMes = dssArkiumMes + dssAliadosMes
-    const dssMetaMes = currentTecnico ? 8 : Math.max(8, tecnicosList.filter((t) => t.contaMeta).length * 8)
+    const naoConformidades = naoConformidadesAll.filter((nc) => {
+      if (nc.tecnicoId === targetTecnicoId) return true
+      return matchTecnicoName(nc.executor, currentTecnico.nome)
+    })
 
-    // Cálculo de Inspeções realizadas no mês atual
-    const inspecoesRealizadasMes = inspecoesArkiumAll.filter((i) =>
-      isCurrentMonthAndYear(i.dataAbertura || i.dataFechamento, currentMonth, currentYear)
-    ).length
-    const inspecoesMetaMes = currentTecnico ? 20 : Math.max(20, tecnicosList.filter((t) => t.contaMeta).length * 20)
+    // Construir estatísticas mensais por (ano, mes 1..12) para que o filtro de meses do Painel funcione instantaneamente
+    const yearsSet = new Set<number>([currentYear, currentYear - 1])
 
-    // Cálculo financeiro de abastecimento no mês
-    const orcamentoBase = currentTecnico
-      ? currentTecnico.orcamentoAbastecimento
-      : tecnicosList.reduce((acc, t) => acc + (t.orcamentoAbastecimento || 800), 0)
+    type MonthBucket = {
+      year: number
+      month: number // 1..12
+      dssCount: number
+      dssMeta: number
+      inspecoesCount: number
+      inspecoesMeta: number
+      relatoriosCount: number
+      ncTotal: number
+      ncAbertas: number
+      ncFechadas: number
+      kmTotal: number
+    }
+
+    const bucketMap = new Map<string, MonthBucket>()
+    const getBucket = (year: number, month: number): MonthBucket => {
+      yearsSet.add(year)
+      const key = `${year}-${month}`
+      let b = bucketMap.get(key)
+      if (!b) {
+        b = {
+          year,
+          month,
+          dssCount: 0,
+          dssMeta: 8,
+          inspecoesCount: 0,
+          inspecoesMeta: 20,
+          relatoriosCount: 0,
+          ncTotal: 0,
+          ncAbertas: 0,
+          ncFechadas: 0,
+          kmTotal: 0,
+        }
+        bucketMap.set(key, b)
+      }
+      return b
+    }
+
+    // Inicializar todos os 12 meses do ano atual e anterior
+    for (const y of [currentYear, currentYear - 1]) {
+      for (let m = 1; m <= 12; m++) {
+        getBucket(y, m)
+      }
+    }
+
+    // 1. Contabilizar DSS Arkium assinados
+    for (const d of dssArkium) {
+      if (!isDssAssinado(d.assinado)) continue
+      const parsed = parseFlexibleMonthYear(d.dataFechamento)
+      if (parsed) {
+        getBucket(parsed.year, parsed.month).dssCount += 1
+      }
+    }
+
+    // 2. Contabilizar DSS com Aliado
+    for (const d of dssAliados) {
+      const parsed = parseFlexibleMonthYear(d.data)
+      if (parsed) {
+        getBucket(parsed.year, parsed.month).dssCount += 1
+      }
+    }
+
+    // 3. Contabilizar Inspeções Arkium
+    for (const i of inspecoesArkium) {
+      const parsed = parseFlexibleMonthYear(i.dataAbertura || i.dataFechamento)
+      if (parsed) {
+        getBucket(parsed.year, parsed.month).inspecoesCount += 1
+      }
+    }
+
+    // 4. Contabilizar Itens incluídos no Relatório de Atividades
+    for (const r of relatoriosCampo) {
+      const parsed = parseFlexibleMonthYear(r.data)
+      if (parsed) {
+        getBucket(parsed.year, parsed.month).relatoriosCount += 1
+      }
+    }
+
+    // 5. Contabilizar Não Conformidades (Total, Abertas, Fechadas)
+    for (const nc of naoConformidades) {
+      const parsed = parseFlexibleMonthYear(nc.dataAbertura || nc.importadoEm)
+      if (parsed) {
+        const b = getBucket(parsed.year, parsed.month)
+        b.ncTotal += 1
+        const st = (nc.status || '').toUpperCase()
+        if (['RESOLVIDO', 'CERRADA', 'FECHADA'].includes(st)) {
+          b.ncFechadas += 1
+        } else {
+          b.ncAbertas += 1
+        }
+      }
+    }
+
+    // 6. Contabilizar KM por mês
+    for (const k of quilometragens) {
+      if (k.diferenca == null) continue
+      const parsed = parseFlexibleMonthYear(k.dataInicial)
+      if (parsed) {
+        const b = getBucket(parsed.year, parsed.month)
+        b.kmTotal = Number((b.kmTotal + (k.diferenca || 0)).toFixed(1))
+      }
+    }
+
+    const monthlyStats = Array.from(bucketMap.values()).sort((a, b) =>
+      a.year !== b.year ? b.year - a.year : a.month - b.month
+    )
+
+    const currentMonthBucket = getBucket(currentYear, currentMonth)
+
+    // Cálculo financeiro de abastecimento no mês atual
+    const orcamentoBase = currentTecnico.orcamentoAbastecimento || 800
 
     const gastoMes = abastecimentos
       .filter((a) => {
@@ -263,15 +452,9 @@ export async function GET(req: Request) {
 
     const saldoAbastecimento = Number((orcamentoBase + recargasMes - gastoMes).toFixed(2))
 
-    // KM rodados no mês
-    const kmRodadosMes = quilometragens
-      .filter((k) => {
-        const dt = new Date(k.dataInicial)
-        return dt >= startOfMonth && dt <= endOfMonth && k.diferenca != null
-      })
-      .reduce((acc, k) => acc + (k.diferenca || 0), 0)
-
-    const ncPendentesCount = naoConformidades.filter((nc) => nc.status !== 'RESOLVIDO').length
+    const ncPendentesCount = naoConformidades.filter(
+      (nc) => !['RESOLVIDO', 'CERRADA', 'FECHADA'].includes((nc.status || '').toUpperCase())
+    ).length
     const atividadesPendentesCount = planejamentos.filter((p) => p.status === 'PENDENTE').length
     const docsVencidosOuAVencer = documentos.filter(
       (d) => d.status === 'VENCIDO' || d.status === 'A_VENCER'
@@ -283,52 +466,60 @@ export async function GET(req: Request) {
         syncedAt: new Date().toISOString(),
         user: {
           id: authUser.userId,
-          name: authUser.name || currentTecnico?.nome || 'Usuário SG4',
+          name: currentTecnico.nome || authUser.name || 'Usuário SG4',
           email: authUser.email,
           role: authUser.role,
           tecnicoId: targetTecnicoId,
         },
-        currentTecnico: currentTecnico
-          ? {
-              id: currentTecnico.id,
-              nome: currentTecnico.nome,
-              email: currentTecnico.email,
-              telefone: currentTecnico.telefone,
-              cargo: currentTecnico.cargo,
-              fotoUrl: currentTecnico.fotoUrl,
-              veiculo: currentTecnico.veiculo,
-              matriculaArkium: currentTecnico.matriculaArkium,
-              matriculaVivo: currentTecnico.matriculaVivo,
-              orcamentoAbastecimento: currentTecnico.orcamentoAbastecimento,
-              baseFixaNome: currentTecnico.baseFixa?.nome || 'Sem Base Fixa',
-              unidades: currentTecnico.unidades.map((u) => u.nome),
-            }
-          : null,
-        tecnicos: tecnicosList.map((t) => ({
-          id: t.id,
-          nome: t.nome,
-          cargo: t.cargo,
-          fotoUrl: t.fotoUrl,
-          veiculo: t.veiculo,
-          baseFixaNome: t.baseFixa?.nome || null,
-        })),
+        currentTecnico: {
+          id: currentTecnico.id,
+          nome: currentTecnico.nome,
+          email: currentTecnico.email,
+          telefone: currentTecnico.telefone,
+          cargo: currentTecnico.cargo,
+          fotoUrl: currentTecnico.fotoUrl,
+          veiculo: currentTecnico.veiculo,
+          matriculaArkium: currentTecnico.matriculaArkium,
+          matriculaVivo: currentTecnico.matriculaVivo,
+          orcamentoAbastecimento: currentTecnico.orcamentoAbastecimento,
+          baseFixaNome: currentTecnico.baseFixa?.nome || 'Sem Base Fixa',
+          unidades: currentTecnico.unidades.map((u) => u.nome),
+        },
+        tecnicos: [
+          {
+            id: currentTecnico.id,
+            nome: currentTecnico.nome,
+            cargo: currentTecnico.cargo,
+            fotoUrl: currentTecnico.fotoUrl,
+            veiculo: currentTecnico.veiculo,
+            baseFixaNome: currentTecnico.baseFixa?.nome || null,
+          },
+        ],
         unidades: unidades.map((u) => ({
           id: u.id,
           nome: u.nome,
           cidade: u.cidade || '',
           estado: u.estado || 'SP',
         })),
+        availableYears: Array.from(yearsSet)
+          .sort((a, b) => b - a)
+          .map(String),
+        monthlyStats,
         summary: {
           mesReferencia: `${String(currentMonth).padStart(2, '0')}/${currentYear}`,
-          dssRealizadosMes,
-          dssMetaMes,
-          inspecoesRealizadasMes,
-          inspecoesMetaMes,
+          dssRealizadosMes: currentMonthBucket.dssCount,
+          dssMetaMes: currentMonthBucket.dssMeta,
+          inspecoesRealizadasMes: currentMonthBucket.inspecoesCount,
+          inspecoesMetaMes: currentMonthBucket.inspecoesMeta,
+          relatoriosMes: currentMonthBucket.relatoriosCount,
+          ncAbertasMes: currentMonthBucket.ncAbertas,
+          ncFechadasMes: currentMonthBucket.ncFechadas,
+          ncTotalMes: currentMonthBucket.ncTotal,
           orcamentoBase,
           gastoMes: Number(gastoMes.toFixed(2)),
           recargasMes: Number(recargasMes.toFixed(2)),
           saldoAbastecimento,
-          kmRodadosMes: Number(kmRodadosMes.toFixed(1)),
+          kmRodadosMes: currentMonthBucket.kmTotal,
           ncPendentesCount,
           atividadesPendentesCount,
           docsVencidosOuAVencer,
@@ -336,14 +527,16 @@ export async function GET(req: Request) {
         planejamentos: planejamentos.map((p) => ({
           id: p.id,
           tecnicoId: p.tecnicoId,
-          tecnicoNome: p.tecnico?.nome || '',
+          tecnicoNome: p.tecnico?.nome || currentTecnico.nome,
           dataAtividade: p.dataAtividade.toISOString(),
           hora: p.hora || '08:00',
           titulo: p.titulo || p.categoria,
           categoria: p.categoria,
           descricaoOriginal: p.descricaoOriginal,
           descricaoExecutada: p.descricaoExecutada || '',
-          equipe: p.equipe || '',
+          observacoes: p.observacoes || '',
+          alteradaOriginal: p.alteradaOriginal || false,
+          equipe: p.equipe || 'Individual',
           local: p.local || '',
           cidade: p.cidade || '',
           estado: p.estado || 'SP',
@@ -354,7 +547,7 @@ export async function GET(req: Request) {
         quilometragens: quilometragens.map((k) => ({
           id: k.id,
           tecnicoId: k.tecnicoId,
-          tecnicoNome: k.tecnico?.nome || '',
+          tecnicoNome: k.tecnico?.nome || currentTecnico.nome,
           diaSemana: k.diaSemana,
           dataInicial: k.dataInicial.toISOString(),
           kmInicial: k.kmInicial,
@@ -367,7 +560,7 @@ export async function GET(req: Request) {
         abastecimentos: abastecimentos.map((a) => ({
           id: a.id,
           tecnicoId: a.tecnicoId,
-          tecnicoNome: a.tecnico?.nome || '',
+          tecnicoNome: a.tecnico?.nome || currentTecnico.nome,
           data: a.data.toISOString(),
           valor: a.valor,
           tipo: a.tipo,
@@ -376,7 +569,7 @@ export async function GET(req: Request) {
         manutencoes: manutencoes.map((m) => ({
           id: m.id,
           tecnicoId: m.tecnicoId,
-          tecnicoNome: m.tecnico?.nome || '',
+          tecnicoNome: m.tecnico?.nome || currentTecnico.nome,
           kmManutencao: m.kmManutencao,
           dataManutencao: m.dataManutencao.toISOString(),
           comprovanteUrl: m.comprovanteUrl || null,
@@ -384,7 +577,7 @@ export async function GET(req: Request) {
         relatoriosCampo: relatoriosCampo.map((r) => ({
           id: r.id,
           tecnicoId: r.tecnicoId,
-          tecnicoNome: r.tecnico?.nome || '',
+          tecnicoNome: r.tecnico?.nome || currentTecnico.nome,
           data: r.data.toISOString(),
           empresa: r.empresa,
           projeto: r.projeto,
@@ -396,7 +589,7 @@ export async function GET(req: Request) {
         dssAliados: dssAliados.map((d) => ({
           id: d.id,
           tecnicoId: d.tecnicoId,
-          tecnicoNome: d.tecnico?.nome || '',
+          tecnicoNome: d.tecnico?.nome || currentTecnico.nome,
           data: d.data.toISOString(),
           tema: d.tema,
           fotoUrl: d.fotoUrl || null,
@@ -404,7 +597,7 @@ export async function GET(req: Request) {
         naoConformidades: naoConformidades.map((nc) => ({
           id: nc.id,
           originalId: nc.originalId || '',
-          executor: nc.executor || nc.tecnico?.nome || '',
+          executor: nc.executor || nc.tecnico?.nome || currentTecnico.nome,
           tecnicoId: nc.tecnicoId,
           pergunta: nc.pergunta || '',
           resposta: nc.resposta || '',
@@ -419,7 +612,7 @@ export async function GET(req: Request) {
         documentos: documentos.map((doc) => ({
           id: doc.id,
           tecnicoId: doc.tecnicoId,
-          tecnicoNome: doc.tecnico?.nome || '',
+          tecnicoNome: doc.tecnico?.nome || currentTecnico.nome,
           tipoNome: doc.tipoDocumento?.nome || doc.titulo || 'Documento',
           titulo: doc.titulo || doc.tipoDocumento?.nome || 'Documento',
           arquivoUrl: doc.arquivoUrl,
@@ -431,7 +624,7 @@ export async function GET(req: Request) {
         reunioes: reunioes.map((r) => ({
           id: r.id,
           tecnicoId: r.tecnicoId,
-          tecnicoNome: r.tecnico?.nome || '',
+          tecnicoNome: r.tecnico?.nome || currentTecnico.nome,
           data: r.data.toISOString(),
           horaFim: r.horaFim || '',
           assunto: r.assunto || 'Reunião Geral SST',
@@ -451,4 +644,3 @@ export async function GET(req: Request) {
     )
   }
 }
-

@@ -22,9 +22,22 @@ class Sg4Repository(private val dao: Sg4Dao) {
     )
     private val payloadAdapter = Sg4ApiService.moshi.adapter<Map<String, Any?>>(mapType)
 
+    companion object {
+        const val DEFAULT_PROD_URL = "https://sg4.ehspro.com.br"
+    }
+
     suspend fun getSession(): SessionConfigEntity {
         return withContext(Dispatchers.IO) {
-            dao.getSessionConfig() ?: SessionConfigEntity()
+            val saved = dao.getSessionConfig()
+            if (saved == null) {
+                SessionConfigEntity(baseUrl = DEFAULT_PROD_URL)
+            } else if (saved.baseUrl.contains("10.0.2.2") || saved.baseUrl.isBlank()) {
+                val updated = saved.copy(baseUrl = DEFAULT_PROD_URL)
+                dao.saveSessionConfig(updated)
+                updated
+            } else {
+                saved
+            }
         }
     }
 
@@ -38,13 +51,14 @@ class Sg4Repository(private val dao: Sg4Dao) {
     suspend fun login(baseUrl: String, email: String, password: String): Result<LoginResponse> {
         return withContext(Dispatchers.IO) {
             try {
-                val api = Sg4ApiService.create(baseUrl)
-                val response = api.login(LoginRequest(email.trim(), password))
+                val targetUrl = DEFAULT_PROD_URL
+                val api = Sg4ApiService.create(targetUrl)
+                val response = api.login(LoginRequest(email = email.trim(), password = password))
                 if (response.success && !response.token.isNullOrBlank() && response.user != null) {
                     dao.saveSessionConfig(
                         SessionConfigEntity(
                             id = 1,
-                            baseUrl = baseUrl.trim(),
+                            baseUrl = targetUrl,
                             authToken = response.token,
                             userId = response.user.id,
                             userName = response.user.name,
@@ -55,10 +69,42 @@ class Sg4Repository(private val dao: Sg4Dao) {
                     )
                     Result.success(response)
                 } else {
-                    Result.failure(Exception(response.error ?: "Credenciais inválidas."))
+                    Result.failure(Exception(response.error ?: "E-mail ou senha incorretos."))
                 }
-            } catch (e: Exception) {
-                Result.failure(Exception("Falha de conexão com o servidor ($baseUrl): ${e.localizedMessage}"))
+            } catch (e: retrofit2.HttpException) {
+                if (e.code() == 401) {
+                    Result.failure(Exception("E-mail ou senha incorretos."))
+                } else if (e.code() == 429) {
+                    Result.failure(Exception("Conta bloqueada por 15 min. Muitas tentativas."))
+                } else if (e.code() == 403) {
+                    Result.failure(Exception("Usuário inativo. Contate o administrador."))
+                } else {
+                    Result.failure(Exception("E-mail ou senha incorretos."))
+                }
+            } catch (_: Exception) {
+                Result.failure(Exception("Não foi possível autenticar. Verifique sua conexão com a internet."))
+            }
+        }
+    }
+
+    suspend fun forgotPassword(email: String): Result<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val api = Sg4ApiService.create(DEFAULT_PROD_URL)
+                val response = api.login(
+                    LoginRequest(
+                        email = email.trim(),
+                        password = "",
+                        action = "FORGOT_PASSWORD"
+                    )
+                )
+                if (response.success) {
+                    Result.success(response.message ?: "📧 Link de recuperação enviado para ${email.trim()}")
+                } else {
+                    Result.failure(Exception(response.error ?: "E-mail não cadastrado."))
+                }
+            } catch (_: Exception) {
+                Result.failure(Exception("Erro ao enviar link de recuperação. Verifique sua conexão."))
             }
         }
     }
@@ -100,7 +146,7 @@ class Sg4Repository(private val dao: Sg4Dao) {
                 // 1. Envia ações pendentes da fila offline antes de puxar os dados novos
                 flushPendingActions(api, bearer)
 
-                // 2. Busca o pacote atualizado do PostgreSQL
+                // 2. Busca o pacote atualizado do PostgreSQL (estritamente do próprio usuário)
                 val targetTec = overrideTecnicoId ?: session.selectedTecnicoId
                 val syncData = api.syncAll(bearer, targetTec)
                 if (syncData.success) {
@@ -112,8 +158,9 @@ class Sg4Repository(private val dao: Sg4Dao) {
                             syncedAtIso = syncData.syncedAt
                         )
                     )
-                    if (overrideTecnicoId != null) {
-                        dao.saveSessionConfig(session.copy(selectedTecnicoId = overrideTecnicoId))
+                    val resolvedTecId = syncData.currentTecnico?.id ?: overrideTecnicoId
+                    if (resolvedTecId != null && resolvedTecId != session.selectedTecnicoId) {
+                        dao.saveSessionConfig(session.copy(selectedTecnicoId = resolvedTecId))
                     }
                     Result.success(syncData)
                 } else {
@@ -146,6 +193,36 @@ class Sg4Repository(private val dao: Sg4Dao) {
             }
         }
         dao.deleteSyncedActions()
+    }
+
+    /**
+     * Corretor ortográfico e gramatical com IA (Gemini / Groq) idêntico ao sistema web.
+     */
+    suspend fun correctTextWithAI(text: String): Result<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val session = getSession()
+                if (session.authToken.isBlank()) {
+                    return@withContext Result.failure(Exception("Sessão expirada. Faça login novamente."))
+                }
+                val api = Sg4ApiService.create(session.baseUrl)
+                val response = api.submitAction(
+                    bearerToken = "Bearer ${session.authToken}",
+                    request = MobileActionRequest(
+                        actionType = "CORRIGIR_TEXTO_IA",
+                        payload = mapOf("texto" to text),
+                        clientRequestId = UUID.randomUUID().toString()
+                    )
+                )
+                if (response.success && !response.correctedText.isNullOrBlank()) {
+                    Result.success(response.correctedText)
+                } else {
+                    Result.failure(Exception(response.error ?: "Não foi possível corrigir o texto com a IA."))
+                }
+            } catch (_: Exception) {
+                Result.failure(Exception("Sem conexão com a internet para usar o Corretor IA."))
+            }
+        }
     }
 
     /**
@@ -184,7 +261,7 @@ class Sg4Repository(private val dao: Sg4Dao) {
                 } else {
                     Result.failure(Exception(response.error ?: "Erro ao salvar registro no servidor."))
                 }
-            } catch (networkError: Exception) {
+            } catch (_: Exception) {
                 // Salva no Room Database (SQLite local) para sincronizar automaticamente depois
                 val payloadJson = payloadAdapter.toJson(enrichedPayload)
                 dao.insertPendingAction(
@@ -202,4 +279,3 @@ class Sg4Repository(private val dao: Sg4Dao) {
         }
     }
 }
-

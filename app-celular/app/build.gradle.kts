@@ -12,8 +12,8 @@ android {
         applicationId = "br.com.sg4.mobile"
         minSdk = 24
         targetSdk = 36
-        versionCode = 260
-        versionName = "2.6.0"
+        versionCode = 262
+        versionName = "2.6.2"
     }
 
     signingConfigs {

@@ -90,31 +90,6 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(feedbackMessage = null, isErrorFeedback = false) }
     }
 
-    fun saveServerUrl(newUrl: String) {
-        if (!actionLock.compareAndSet(false, true)) return
-        viewModelScope.launch {
-            try {
-                _uiState.update {
-                    it.copy(
-                        isBlockingLoading = true,
-                        blockingTitle = "Salvando endereço do servidor..."
-                    )
-                }
-                repository.updateBaseUrl(newUrl)
-                _uiState.update {
-                    it.copy(
-                        baseUrl = newUrl.trim(),
-                        feedbackMessage = "Servidor atualizado para: ${newUrl.trim()}",
-                        isErrorFeedback = false
-                    )
-                }
-            } finally {
-                _uiState.update { it.copy(isBlockingLoading = false) }
-                actionLock.set(false)
-            }
-        }
-    }
-
     fun login(baseUrl: String, email: String, password: String) {
         if (!actionLock.compareAndSet(false, true)) return
         viewModelScope.launch {
@@ -122,8 +97,8 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update {
                     it.copy(
                         isBlockingLoading = true,
-                        blockingTitle = "Autenticando no SG4...",
-                        blockingSubtitle = "Validando suas credenciais e sincronizando banco de dados.",
+                        blockingTitle = "Autenticando no sistema...",
+                        blockingSubtitle = "Aguarde a validação das suas credenciais.",
                         feedbackMessage = null
                     )
                 }
@@ -134,7 +109,7 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
                         _uiState.update {
                             it.copy(
                                 isLoggedIn = true,
-                                baseUrl = baseUrl.trim(),
+                                baseUrl = Sg4Repository.DEFAULT_PROD_URL,
                                 userName = user?.name ?: "Usuário SG4",
                                 userEmail = user?.email ?: email,
                                 userRole = user?.role ?: "TST",
@@ -147,7 +122,46 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
                     onFailure = { err ->
                         _uiState.update {
                             it.copy(
-                                feedbackMessage = err.message ?: "Erro ao autenticar.",
+                                feedbackMessage = err.message ?: "E-mail ou senha incorretos.",
+                                isErrorFeedback = true
+                            )
+                        }
+                    }
+                )
+            } finally {
+                _uiState.update { it.copy(isBlockingLoading = false) }
+                actionLock.set(false)
+            }
+        }
+    }
+
+    fun forgotPassword(email: String, onCompleted: () -> Unit = {}) {
+        if (!actionLock.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            try {
+                _uiState.update {
+                    it.copy(
+                        isBlockingLoading = true,
+                        blockingTitle = "Enviando link de recuperação...",
+                        blockingSubtitle = "Aguarde enquanto enviamos o e-mail de redefinição de senha.",
+                        feedbackMessage = null
+                    )
+                }
+                val res = repository.forgotPassword(email)
+                res.fold(
+                    onSuccess = { msg ->
+                        onCompleted()
+                        _uiState.update {
+                            it.copy(
+                                feedbackMessage = "📧 $msg",
+                                isErrorFeedback = false
+                            )
+                        }
+                    },
+                    onFailure = { err ->
+                        _uiState.update {
+                            it.copy(
+                                feedbackMessage = err.message ?: "E-mail não cadastrado.",
                                 isErrorFeedback = true
                             )
                         }
@@ -178,25 +192,6 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
                         feedbackMessage = null
                     )
                 }
-            } finally {
-                _uiState.update { it.copy(isBlockingLoading = false) }
-                actionLock.set(false)
-            }
-        }
-    }
-
-    fun switchTecnico(tecnicoId: String) {
-        if (!actionLock.compareAndSet(false, true)) return
-        viewModelScope.launch {
-            try {
-                _uiState.update {
-                    it.copy(
-                        isBlockingLoading = true,
-                        blockingTitle = "Carregando dados do técnico...",
-                        selectedTecnicoId = tecnicoId
-                    )
-                }
-                refreshDataInternal(overrideTecnicoId = tecnicoId)
             } finally {
                 _uiState.update { it.copy(isBlockingLoading = false) }
                 actionLock.set(false)
@@ -263,6 +258,48 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Corretor ortográfico com IA (Gemini / Groq) igual ao sistema web.
+     */
+    fun correctTextWithAI(text: String, onCorrected: (String) -> Unit) {
+        if (text.isBlank()) return
+        if (!actionLock.compareAndSet(false, true)) return
+        viewModelScope.launch {
+            try {
+                _uiState.update {
+                    it.copy(
+                        isBlockingLoading = true,
+                        blockingTitle = "✨ Corrigindo ortografia com IA...",
+                        blockingSubtitle = "Aplicando norma culta e terminologia técnica de SST sem alterar o sentido."
+                    )
+                }
+                val result = repository.correctTextWithAI(text)
+                result.fold(
+                    onSuccess = { corrected ->
+                        onCorrected(corrected)
+                        _uiState.update {
+                            it.copy(
+                                feedbackMessage = "✨ Texto corrigido pela Inteligência Artificial!",
+                                isErrorFeedback = false
+                            )
+                        }
+                    },
+                    onFailure = { err ->
+                        _uiState.update {
+                            it.copy(
+                                feedbackMessage = err.message ?: "Não foi possível corrigir o texto com a IA.",
+                                isErrorFeedback = true
+                            )
+                        }
+                    }
+                )
+            } finally {
+                _uiState.update { it.copy(isBlockingLoading = false) }
+                actionLock.set(false)
+            }
+        }
+    }
+
+    /**
      * Executa qualquer ação de cadastro/salvamento com bloqueio total da tela
      * impedindo cliques repetidos e sincronizando em seguida.
      */
@@ -320,4 +357,3 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
-

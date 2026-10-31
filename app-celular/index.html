@@ -124,16 +124,17 @@
     }
 
     .brand-logo {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 10px;
-      background: linear-gradient(135deg, var(--purple), var(--purple-dark));
+      background: linear-gradient(135deg, #c01c1c, #8b0000);
       color: #fff;
       font-weight: 900;
       font-size: 11px;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 3px 8px rgba(185, 28, 28, 0.3);
     }
 
     .status-pill {
@@ -389,19 +390,120 @@
       to { transform: rotate(360deg); }
     }
 
-    /* Tela de Login */
+    /* Tela de Login (Idêntica à Web: Fundo Vermelho + Glassmorphism) */
     .login-screen {
       position: absolute;
       inset: 34px 0 0 0;
-      background: linear-gradient(145deg, #4a0072, #660099, #7e22ce);
+      background: linear-gradient(135deg, #7f0000 0%, #b91c1c 35%, #c0392b 60%, #8b0000 100%);
       z-index: 80;
       display: none;
       flex-direction: column;
       justify-content: center;
-      padding: 22px;
+      padding: 20px;
+      overflow: hidden;
     }
     .login-screen.open {
       display: flex;
+    }
+    .login-blob-1 {
+      position: absolute;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,100,100,0.35) 0%, transparent 70%);
+      top: -60px;
+      left: -60px;
+      filter: blur(30px);
+      pointer-events: none;
+    }
+    .login-blob-2 {
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(120,0,0,0.55) 0%, transparent 70%);
+      bottom: -60px;
+      right: -60px;
+      filter: blur(30px);
+      pointer-events: none;
+    }
+    .glass-login-card {
+      position: relative;
+      z-index: 5;
+      padding: 32px 24px 28px;
+      border-radius: 26px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(24px) saturate(1.8);
+      -webkit-backdrop-filter: blur(24px) saturate(1.8);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    .glass-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .glass-input-wrap {
+      position: relative;
+      margin-bottom: 14px;
+    }
+    .glass-input {
+      width: 100%;
+      padding: 12px 38px 12px 38px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      background: rgba(255, 255, 255, 0.24);
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .glass-input::placeholder {
+      color: rgba(255, 255, 255, 0.55);
+    }
+    .glass-input:focus {
+      border-color: rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.34);
+    }
+    .glass-input-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255, 255, 255, 0.7);
+      display: flex;
+      align-items: center;
+      pointer-events: none;
+    }
+    .glass-eye-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 4px;
+    }
+    .glass-btn-login {
+      width: 100%;
+      padding: 13px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: #9b0000;
+      background: linear-gradient(135deg, #ffffff 0%, #ffe0e0 100%);
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
     }
   </style>
 </head>
@@ -415,38 +517,56 @@
         <span>5G • 100% 🔋</span>
       </div>
 
-      <!-- Tela de Login -->
+      <!-- Tela de Login (Fundo Vermelho + Glassmorphism idêntico à Web) -->
       <div id="loginScreen" class="login-screen">
-        <div class="m3-card" style="padding: 22px; border-radius: 22px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <span class="badge badge-purple">SG4 SST MOBILE v2.6</span>
-            <span style="font-size:10px; color:var(--slate-400); font-weight:700;">Kotlin + Room</span>
-          </div>
-          <div style="text-align:center; margin-bottom:18px;">
-            <div style="width:56px; height:56px; border-radius:16px; background:var(--purple-soft); color:var(--purple); font-weight:900; font-size:18px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">
-              SG4
-            </div>
-            <h2 style="font-size:18px; font-weight:800; color:var(--slate-900);">Acesso ao Sistema</h2>
-            <p style="font-size:11px; color:var(--slate-600); margin-top:2px;">Conectado ao banco PostgreSQL + Room Offline</p>
+        <div class="login-blob-1"></div>
+        <div class="login-blob-2"></div>
+        <div class="glass-login-card">
+          <div style="text-align:center; margin-bottom:20px;">
+            <img src="/logo.png" alt="SG4" style="width:148px; height:auto; filter:brightness(0) invert(1); margin-bottom:8px;" />
+            <h2 style="font-size:14px; font-weight:600; color:#fff; letter-spacing:0.4px;">Gestão de Segurança do Trabalho</h2>
+            <div style="width:36px; height:2px; background:rgba(255,255,255,0.35); border-radius:2px; margin:10px auto 0;"></div>
           </div>
 
           <form id="loginForm">
-            <div class="field-group">
-              <label>E-mail Corporativo</label>
-              <input id="loginEmail" type="email" class="field-input" placeholder="seu@email.com" required />
+            <label class="glass-label" for="loginEmail">Usuário</label>
+            <div class="glass-input-wrap">
+              <span class="glass-input-icon">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
+              <input id="loginEmail" type="email" class="glass-input" placeholder="Digite seu e-mail" required />
             </div>
-            <div class="field-group">
-              <label>Senha</label>
-              <input id="loginPassword" type="password" class="field-input" placeholder="••••••••" required />
+
+            <label class="glass-label" for="loginPassword">Senha</label>
+            <div class="glass-input-wrap" style="margin-bottom:8px;">
+              <span class="glass-input-icon">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" />
+                  <path stroke-linecap="round" d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </span>
+              <input id="loginPassword" type="password" class="glass-input" placeholder="Digite sua senha" required />
+              <button type="button" id="togglePwdBtn" class="glass-eye-btn" title="Mostrar/Ocultar senha">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.636-7 10-7 10 7 10 7-3.636 7-10 7S2 12 2 12z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
             </div>
-            <div class="field-group">
-              <label>URL do Servidor API</label>
-              <input id="loginServerUrl" type="text" class="field-input" />
+
+            <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+              <button type="button" id="btnForgotPwd" style="background:none; border:none; color:rgba(255,255,255,0.8); font-size:11.5px; font-weight:500; cursor:pointer; text-decoration:underline;">
+                Esqueci minha senha
+              </button>
             </div>
-            <div id="loginError" style="font-size:11px; color:var(--red); font-weight:700; margin-bottom:10px; display:none;"></div>
-            <button type="submit" class="btn btn-primary btn-block" style="padding:12px; font-size:13px;">
-              Entrar no Aplicativo
+
+            <button type="submit" class="glass-btn-login">
+              Entrar
             </button>
+            <div id="loginError" style="font-size:11.5px; color:#fecaca; background:rgba(255,0,0,0.18); border:1px solid rgba(255,100,100,0.35); border-radius:10px; padding:8px 10px; text-align:center; font-weight:500; margin-top:12px; display:none;"></div>
           </form>
         </div>
       </div>
@@ -454,7 +574,9 @@
       <!-- Header Principal -->
       <div class="app-header">
         <div class="brand-row">
-          <div class="brand-logo">SG4</div>
+          <div class="brand-logo">
+            <img src="/logovermelho.png" alt="SG4" style="width:24px; height:24px; object-fit:contain; filter:brightness(0) invert(1);" />
+          </div>
           <div>
             <div style="font-size:13px; font-weight:800; color:var(--slate-900);">SG4 Mobile</div>
             <div id="headerSub" style="font-size:10px; color:var(--slate-600); font-weight:600;">Sincronizado</div>
@@ -467,15 +589,10 @@
         </div>
       </div>
 
-      <!-- Seletor de Técnico (visível quando houver múltiplos técnicos) -->
-      <div id="tecnicoSelectorBar" style="background:#fff; padding:6px 14px; border-bottom:1px solid #f1f5f9; display:none;">
-        <select id="selectTecnico" class="field-input" style="padding:6px 10px; font-size:11px; font-weight:700;"></select>
-      </div>
-
       <!-- Conteúdo Dinâmico das Abas -->
       <div id="appContent" class="app-content"></div>
 
-      <!-- Barra de Navegação Inferior -->
+      <!-- Barra de Navegação Inferior (4 Menus: Painel, Agenda, KM, Relatórios) -->
       <div class="bottom-nav">
         <button class="nav-btn active" data-tab="HOME">
           <span class="icon-pill">📊</span>
@@ -487,15 +604,11 @@
         </button>
         <button class="nav-btn" data-tab="KM">
           <span class="icon-pill">🚗</span>
-          <span>KM & Abast.</span>
+          <span>KM</span>
         </button>
-        <button class="nav-btn" data-tab="CAMPO">
+        <button class="nav-btn" data-tab="RELATORIOS">
           <span class="icon-pill">📋</span>
-          <span>Campo & NC</span>
-        </button>
-        <button class="nav-btn" data-tab="DOSSIE">
-          <span class="icon-pill">📁</span>
-          <span>Dossiê</span>
+          <span>Relatórios</span>
         </button>
       </div>
 
@@ -541,11 +654,22 @@
         ? window.location.origin
         : 'http://localhost:3000';
 
+      const MESES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      const CATEGORIAS_WEB = [
+        'INSPEÇÃO DE SEGURANÇA','DSS','REUNIÃO','AUDITORIA','AVALIAÇÃO ERGONÔMICA',
+        'CAMPANHA SST','CIPA','COMBATE A INCÊNDIO','EPI','GESTÃO DE ACIDENTES',
+        'KIT ERGONÔMICO','PGR','TREINAMENTO','ADMINISTRATIVA','OUTROS'
+      ];
+
+      const nowInit = new Date();
       let state = {
         activeTab: 'HOME',
         kmSubTab: 'KM',
         campoSubTab: 'RELATORIOS',
-        dossieSubTab: 'DOCS',
+        selectedYear: nowInit.getFullYear(),
+        selectedMonths: [nowInit.getMonth() + 1], // Mês atual selecionado por padrão
+        agendaViewMode: 'SEMANA', // SEMANA | MES | TODAS
+        agendaStatusFilter: 'TODOS',
         isOnline: true,
         isSubmitting: false,
         baseUrl: localStorage.getItem('sg4_server_url') || defaultBaseUrl,
@@ -557,7 +681,6 @@
 
       const elLoginScreen = document.getElementById('loginScreen');
       const elLoginForm = document.getElementById('loginForm');
-      const elLoginServerUrl = document.getElementById('loginServerUrl');
       const elLoginError = document.getElementById('loginError');
       const elContent = document.getElementById('appContent');
       const elConnBadge = document.getElementById('connBadge');
@@ -567,10 +690,6 @@
       const elModalBackdrop = document.getElementById('modalBackdrop');
       const elModalTitle = document.getElementById('modalTitle');
       const elModalBody = document.getElementById('modalBody');
-      const elSelectTecnico = document.getElementById('selectTecnico');
-      const elTecnicoBar = document.getElementById('tecnicoSelectorBar');
-
-      elLoginServerUrl.value = state.baseUrl;
 
       function updateClock() {
         const now = new Date();
@@ -731,6 +850,64 @@
         trySyncWithServer(false);
       });
 
+      // Mostrar/ocultar senha no login
+      const elTogglePwdBtn = document.getElementById('togglePwdBtn');
+      const elLoginPwdInput = document.getElementById('loginPassword');
+      if (elTogglePwdBtn && elLoginPwdInput) {
+        elTogglePwdBtn.addEventListener('click', () => {
+          elLoginPwdInput.type = elLoginPwdInput.type === 'password' ? 'text' : 'password';
+        });
+      }
+
+      // Esqueci minha senha
+      const elBtnForgotPwd = document.getElementById('btnForgotPwd');
+      if (elBtnForgotPwd) {
+        elBtnForgotPwd.addEventListener('click', () => {
+          const currentEmail = document.getElementById('loginEmail').value.trim();
+          elModalTitle.textContent = 'Recuperar Acesso';
+          elModalBody.innerHTML = `
+            <p style="font-size:12px; color:#64748b; margin-bottom:12px; line-height:1.45;">
+              Informe seu e-mail cadastrado. Enviaremos um link para redefinir sua senha.
+            </p>
+            <div class="field-group">
+              <label>E-MAIL</label>
+              <input id="fRecoveryEmail" class="field-input" type="email" placeholder="seu@email.com" value="${currentEmail}" />
+            </div>
+            <div style="display:flex; gap:8px; margin-top:14px;">
+              <button id="btnCancelRecovery" type="button" class="btn btn-outline" style="flex:1;">Cancelar</button>
+              <button id="btnSendRecovery" type="button" class="btn btn-primary" style="flex:1; background:#b91c1c;">Enviar Link</button>
+            </div>
+          `;
+          elModalBackdrop.classList.add('open');
+          document.getElementById('btnCancelRecovery').onclick = () => elModalBackdrop.classList.remove('open');
+          document.getElementById('btnSendRecovery').onclick = async () => {
+            const recEmail = document.getElementById('fRecoveryEmail').value.trim();
+            if (!recEmail || !recEmail.includes('@')) return alert('Informe um e-mail válido.');
+            if (state.isSubmitting) return;
+            elModalBackdrop.classList.remove('open');
+            setBlockingLoading(true, 'Enviando link de recuperação...');
+            try {
+              const serverUrl = state.baseUrl.replace(/\/$/, '');
+              const resp = await fetch(serverUrl + '/api/mobile/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: recEmail, action: 'FORGOT_PASSWORD' })
+              });
+              const data = await resp.json();
+              elLoginError.textContent = data.success
+                ? ('📧 Link de recuperação enviado para ' + recEmail)
+                : ('⚠️ ' + (data.error || 'Erro ao enviar e-mail.'));
+              elLoginError.style.display = 'block';
+            } catch (e) {
+              elLoginError.textContent = '⚠️ Erro ao enviar link de recuperação.';
+              elLoginError.style.display = 'block';
+            } finally {
+              setBlockingLoading(false);
+            }
+          };
+        });
+      }
+
       // Login Submit (Com Trava Anti-Duplo-Clique)
       elLoginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -738,13 +915,11 @@
 
         const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
-        const serverUrl = elLoginServerUrl.value.trim().replace(/\/$/, '');
+        const serverUrl = state.baseUrl.replace(/\/$/, '');
 
-        state.baseUrl = serverUrl;
-        localStorage.setItem('sg4_server_url', serverUrl);
         elLoginError.style.display = 'none';
 
-        setBlockingLoading(true, 'Autenticando no SG4...');
+        setBlockingLoading(true, 'Autenticando no sistema...');
         try {
           const resp = await fetch(serverUrl + '/api/mobile/auth', {
             method: 'POST',
@@ -753,7 +928,7 @@
           });
           const data = await resp.json();
           if (!resp.ok || !data.success) {
-            elLoginError.textContent = data.error || 'Credenciais inválidas.';
+            elLoginError.textContent = data.error || 'E-mail ou senha incorretos.';
             elLoginError.style.display = 'block';
             setBlockingLoading(false);
             return;
@@ -768,7 +943,7 @@
           setBlockingLoading(false);
           await trySyncWithServer(false);
         } catch (err) {
-          elLoginError.textContent = 'Não foi possível conectar ao servidor (' + serverUrl + ').';
+          elLoginError.textContent = 'E-mail ou senha incorretos.';
           elLoginError.style.display = 'block';
           setBlockingLoading(false);
         }
@@ -851,6 +1026,33 @@
         });
       });
 
+      async function correctTextWithAI(text) {
+        if (!text || !text.trim()) return null;
+        setBlockingLoading(true, '✨ Corrigindo ortografia com IA...');
+        try {
+          const base = state.baseUrl.replace(/\/$/, '');
+          const resp = await fetch(base + '/api/mobile/action', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+              actionType: 'CORRIGIR_TEXTO_IA',
+              payload: { texto: text },
+              clientRequestId: 'ai_' + Date.now()
+            })
+          });
+          const json = await resp.json();
+          if (json.success && json.correctedText) {
+            return json.correctedText;
+          }
+          alert(json.error || 'Não foi possível corrigir com IA.');
+        } catch (e) {
+          alert('Erro de conexão ao usar o corretor IA.');
+        } finally {
+          setBlockingLoading(false);
+        }
+        return null;
+      }
+
       function render() {
         const d = state.syncData || {};
         const sum = d.summary || {};
@@ -858,155 +1060,415 @@
 
         elConnBadge.textContent = state.isOnline ? 'ONLINE' : 'OFFLINE (ROOM)';
         elConnBadge.className = 'status-pill ' + (state.isOnline ? 'online' : 'offline');
-        elHeaderSub.textContent = tec.nome ? `${tec.nome} • ${sum.mesReferencia || ''}` : 'Banco PostgreSQL Conectado';
+        elHeaderSub.textContent = tec.nome ? `${tec.nome}` : 'SG4 Segurança';
 
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 1: PAINEL (DASHBOARD COM FILTRO DE ANO E MESES)
+        // ══════════════════════════════════════════════════════════════════════
         if (state.activeTab === 'HOME') {
-          const dssPct = sum.dssMetaMes > 0 ? Math.min(100, Math.round((sum.dssRealizadosMes / sum.dssMetaMes) * 100)) : 0;
-          const inspPct = sum.inspecoesMetaMes > 0 ? Math.min(100, Math.round((sum.inspecoesRealizadasMes / sum.inspecoesMetaMes) * 100)) : 0;
-          const prox = (d.planejamentos || []).slice(0, 4);
+          const monthlyStats = d.monthlyStats || [];
+          const currentYear = state.selectedYear;
+          const selectedMonths = state.selectedMonths || [new Date().getMonth() + 1];
+          const activeMonthsCount = Math.max(1, selectedMonths.length);
+
+          const filtered = monthlyStats.filter(s => s.year === currentYear && selectedMonths.includes(s.month));
+
+          const dssCount = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.dssCount || 0), 0) : sum.dssRealizadosMes || 0;
+          const dssMeta = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.dssMeta || 8), 0) : 8 * activeMonthsCount;
+          const dssPct = dssMeta > 0 ? Math.min(100, Math.round((dssCount / dssMeta) * 100)) : 0;
+
+          const inspCount = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.inspecoesCount || 0), 0) : sum.inspecoesRealizadasMes || 0;
+          const inspMeta = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.inspecoesMeta || 20), 0) : 20 * activeMonthsCount;
+          const inspPct = inspMeta > 0 ? Math.min(100, Math.round((inspCount / inspMeta) * 100)) : 0;
+
+          const relCount = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.relatoriosCount || 0), 0) : sum.relatoriosMes || 0;
+          const ncAbertas = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.ncAbertas || 0), 0) : sum.ncAbertasMes || 0;
+          const ncFechadas = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.ncFechadas || 0), 0) : sum.ncFechadasMes || 0;
+          const ncTotal = ncAbertas + ncFechadas;
+          const ncPctFechadas = ncTotal > 0 ? Math.round((ncFechadas / ncTotal) * 100) : 100;
+          const kmPeriodo = filtered.length > 0 ? filtered.reduce((a, b) => a + (b.kmTotal || 0), 0) : sum.kmRodadosMes || 0;
+
+          const yearsList = d.availableYears && d.availableYears.length > 0 ? d.availableYears.map(Number) : [currentYear, currentYear - 1];
 
           elContent.innerHTML = `
-            <div class="hero-card">
-              <div style="font-size:16px; font-weight:800;">${tec.nome || d.user?.name || 'Técnico SG4'}</div>
-              <div style="font-size:11px; opacity:0.82; margin-top:2px;">${tec.cargo || 'SST'} • Base: ${tec.baseFixaNome || 'Geral'}</div>
-              <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:14px;">
+            <!-- Card do Usuário Logado + Filtros de Ano e Meses -->
+            <div class="m3-card" style="padding:14px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div>
-                  <div style="font-size:9px; font-weight:700; opacity:0.75;">SALDO ABASTECIMENTO (${sum.mesReferencia || 'MÊS'})</div>
-                  <div style="font-size:21px; font-weight:900;">${formatMoney(sum.saldoAbastecimento)}</div>
+                  <div style="font-size:16px; font-weight:800; color:var(--slate-900);">Olá, ${(tec.nome || d.user?.name || 'Técnico').split(' ')[0]}! 👋</div>
+                  <div style="font-size:11px; color:var(--slate-600);">${tec.nome || ''} • Base: ${tec.baseFixaNome || 'Geral'}</div>
                 </div>
-                <div style="text-align:right;">
-                  <div style="font-size:9px; font-weight:700; opacity:0.75;">KM RODADOS</div>
-                  <div style="font-size:16px; font-weight:800;">${sum.kmRodadosMes || 0} km</div>
+                <div style="display:flex; gap:4px;">
+                  ${yearsList.map(y => `
+                    <button class="btn btn-year ${y === currentYear ? 'btn-primary' : 'btn-outline'}" data-year="${y}" style="padding:4px 8px; font-size:11px;">${y}</button>
+                  `).join('')}
                 </div>
-              </div>
-              ${state.pendingQueue.length > 0 ? `<div style="margin-top:10px; background:rgba(245,158,11,0.25); padding:5px 8px; border-radius:8px; font-size:10px; font-weight:800;">⚡ ${state.pendingQueue.length} ação(ões) na fila offline aguardando sincronização</div>` : ''}
-            </div>
-
-            <div class="grid-2">
-              <div class="m3-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-size:10px; font-weight:800; color:var(--slate-600);">META DSS</span>
-                  <span class="badge badge-purple">${dssPct}%</span>
-                </div>
-                <div style="font-size:19px; font-weight:900; color:var(--slate-900); margin-top:4px;">${sum.dssRealizadosMes || 0} / ${sum.dssMetaMes || 8}</div>
-                <div class="progress-track"><div class="progress-fill" style="width:${dssPct}%; background:var(--blue);"></div></div>
               </div>
 
-              <div class="m3-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-size:10px; font-weight:800; color:var(--slate-600);">INSPEÇÕES</span>
-                  <span class="badge badge-green">${inspPct}%</span>
+              <!-- Seletor de Meses Multi-Seleção (Idêntico ao Web) -->
+              <div style="margin-top:12px; border-top:1px solid #f1f5f9; padding-top:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <span style="font-size:10px; font-weight:800; color:var(--purple); text-transform:uppercase;">
+                    PERÍODO: ${selectedMonths.length === 12 ? 'TODOS OS MESES' : selectedMonths.map(m => MESES_NOMES[m - 1]).join(', ')} / ${currentYear}
+                  </span>
+                  <div style="display:flex; gap:6px;">
+                    <span id="btnMesAtual" style="font-size:10px; font-weight:700; color:var(--purple); cursor:pointer;">Mês Atual</span>
+                    <span style="color:#cbd5e1;">|</span>
+                    <span id="btnTodosMeses" style="font-size:10px; font-weight:700; color:var(--purple); cursor:pointer;">${selectedMonths.length === 12 ? 'Limpar' : 'Todos'}</span>
+                  </div>
                 </div>
-                <div style="font-size:19px; font-weight:900; color:var(--slate-900); margin-top:4px;">${sum.inspecoesRealizadasMes || 0} / ${sum.inspecoesMetaMes || 20}</div>
-                <div class="progress-track"><div class="progress-fill" style="width:${inspPct}%; background:var(--green);"></div></div>
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div class="m3-card" style="cursor:pointer;" id="cardGoAgenda">
-                <div style="font-size:10px; font-weight:700; color:var(--slate-600);">Atividades Pendentes</div>
-                <div style="font-size:20px; font-weight:900; color:var(--purple); margin-top:2px;">${sum.atividadesPendentesCount || 0}</div>
-                <div style="font-size:10px; color:var(--slate-400);">Abrir Planejamento →</div>
-              </div>
-              <div class="m3-card" style="cursor:pointer;" id="cardGoNc">
-                <div style="font-size:10px; font-weight:700; color:var(--slate-600);">NCs em Aberto</div>
-                <div style="font-size:20px; font-weight:900; color:${(sum.ncPendentesCount || 0) > 0 ? 'var(--red)' : 'var(--green)'}; margin-top:2px;">${sum.ncPendentesCount || 0}</div>
-                <div style="font-size:10px; color:var(--slate-400);">Tratar NCs →</div>
+                <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap:4px;">
+                  ${MESES_NOMES.map((nome, idx) => {
+                    const mNum = idx + 1;
+                    const isSel = selectedMonths.includes(mNum);
+                    return `
+                      <button class="btn btn-month ${isSel ? 'btn-primary' : 'btn-outline'}" data-month="${mNum}" style="padding:6px 2px; font-size:10.5px; border-radius:8px;">
+                        ${nome}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
               </div>
             </div>
 
-            <div style="font-size:12px; font-weight:800; color:var(--slate-900); margin-top:2px;">Próximas Atividades da Agenda</div>
-            ${prox.length === 0 ? `<div class="m3-card" style="font-size:12px; color:var(--slate-600);">Nenhuma atividade planejada encontrada.</div>` : prox.map(p => `
-              <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-                <div style="min-width:0;">
-                  <div style="font-size:12px; font-weight:800; color:var(--slate-900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.titulo || p.categoria}</div>
-                  <div style="font-size:10px; color:var(--slate-600);">${formatBrDate(p.dataAtividade)} às ${p.hora} • ${p.local || p.cidade}</div>
+            <!-- CARD 1: DSS Realizados (#660099 / #4a0072) -->
+            <div class="m3-card" style="background:linear-gradient(135deg, #660099, #4a0072); color:#fff; cursor:pointer;" id="cardGoDss">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1;">
+                  <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">DSS REALIZADOS</div>
+                  <div style="font-size:26px; font-weight:900; margin-top:2px;">${dssCount}</div>
+                  <div style="font-size:11px; opacity:0.85;">Meta: ${dssMeta} (${activeMonthsCount}m)</div>
                 </div>
-                <span class="badge ${p.status === 'CONCLUIDO' ? 'badge-green' : 'badge-amber'}">${p.status}</span>
+                <div style="width:1px; height:48px; background:rgba(255,255,255,0.22); margin:0 12px;"></div>
+                <div style="flex:1; text-align:right;">
+                  <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">% CONCLUÍDO</div>
+                  <div style="font-size:24px; font-weight:900; margin-top:2px;">${dssPct}%</div>
+                  <div style="font-size:11px; opacity:0.85;">${dssCount >= dssMeta ? 'Meta Atingida! ✓' : `Faltam: ${Math.max(0, dssMeta - dssCount)}`}</div>
+                </div>
               </div>
-            `).join('')}
+            </div>
+
+            <!-- CARD 2: Inspeções Realizadas (#8e44ad / #732d91) -->
+            <div class="m3-card" style="background:linear-gradient(135deg, #8e44ad, #732d91); color:#fff; cursor:pointer;" id="cardGoInsp">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1;">
+                  <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">INSPEÇÕES REALIZADAS</div>
+                  <div style="font-size:26px; font-weight:900; margin-top:2px;">${inspCount}</div>
+                  <div style="font-size:11px; opacity:0.85;">Meta: ${inspMeta} (${activeMonthsCount}m)</div>
+                </div>
+                <div style="width:1px; height:48px; background:rgba(255,255,255,0.22); margin:0 12px;"></div>
+                <div style="flex:1; text-align:right;">
+                  <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">% CONCLUÍDO</div>
+                  <div style="font-size:24px; font-weight:900; margin-top:2px;">${inspPct}%</div>
+                  <div style="font-size:11px; opacity:0.85;">${inspCount >= inspMeta ? 'Meta Atingida! ✓' : `Faltam: ${Math.max(0, inspMeta - inspCount)}`}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CARD 3: Itens no Relatório (#673ab7 / #512da8) -->
+            <div class="m3-card" style="background:linear-gradient(135deg, #673ab7, #512da8); color:#fff; cursor:pointer;" id="cardGoRel">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1;">
+                  <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">ITENS NO RELATÓRIO</div>
+                  <div style="font-size:26px; font-weight:900; margin-top:2px;">${relCount}</div>
+                  <div style="font-size:11px; opacity:0.85;">Relatório de Atividades</div>
+                </div>
+                <div style="width:1px; height:48px; background:rgba(255,255,255,0.22); margin:0 12px;"></div>
+                <div style="flex:1; text-align:right;">
+                  <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">MÉDIA / MÊS</div>
+                  <div style="font-size:24px; font-weight:900; margin-top:2px;">${(relCount / activeMonthsCount).toFixed(1)}</div>
+                  <div style="font-size:11px; opacity:0.85;">Toque p/ abrir Relatórios →</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CARD 4: Não Conformidades Abertas (#9c27b0 / #7b1fa2) -->
+            <div class="m3-card" style="background:linear-gradient(135deg, #9c27b0, #7b1fa2); color:#fff; cursor:pointer;" id="cardGoNc">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="flex:1;">
+                  <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">NCS ABERTAS</div>
+                  <div style="font-size:26px; font-weight:900; margin-top:2px;">${ncAbertas}</div>
+                  <div style="font-size:11px; opacity:0.85;">Total período: ${ncTotal}</div>
+                </div>
+                <div style="width:1px; height:48px; background:rgba(255,255,255,0.22); margin:0 12px;"></div>
+                <div style="flex:1; text-align:right;">
+                  <div style="font-size:10px; font-weight:700; opacity:0.8; letter-spacing:0.5px;">% FECHADAS</div>
+                  <div style="font-size:24px; font-weight:900; margin-top:2px;">${ncPctFechadas}%</div>
+                  <div style="font-size:11px; opacity:0.85;">Resolvidas: ${ncFechadas}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Resumo KM & Saldo -->
+            <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:10px; font-weight:700; color:var(--slate-600);">KM RODADOS NO PERÍODO</div>
+                <div style="font-size:18px; font-weight:900; color:var(--purple);">${Number(kmPeriodo || 0).toFixed(1)} km</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:10px; font-weight:700; color:var(--slate-600);">SALDO ABASTECIMENTO</div>
+                <div style="font-size:18px; font-weight:900; color:var(--green);">${formatMoney(sum.saldoAbastecimento)}</div>
+              </div>
+            </div>
           `;
 
-          document.getElementById('cardGoAgenda')?.addEventListener('click', () => {
+          // Eventos de filtros
+          elContent.querySelectorAll('.btn-year').forEach(b => {
+            b.addEventListener('click', () => {
+              state.selectedYear = Number(b.getAttribute('data-year'));
+              render();
+            });
+          });
+
+          elContent.querySelectorAll('.btn-month').forEach(b => {
+            b.addEventListener('click', () => {
+              const m = Number(b.getAttribute('data-month'));
+              if (state.selectedMonths.includes(m)) {
+                if (state.selectedMonths.length > 1) {
+                  state.selectedMonths = state.selectedMonths.filter(x => x !== m);
+                }
+              } else {
+                state.selectedMonths.push(m);
+              }
+              render();
+            });
+          });
+
+          document.getElementById('btnMesAtual')?.addEventListener('click', () => {
+            state.selectedMonths = [new Date().getMonth() + 1];
+            state.selectedYear = new Date().getFullYear();
+            render();
+          });
+
+          document.getElementById('btnTodosMeses')?.addEventListener('click', () => {
+            if (state.selectedMonths.length === 12) {
+              state.selectedMonths = [new Date().getMonth() + 1];
+            } else {
+              state.selectedMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+            }
+            render();
+          });
+
+          document.getElementById('cardGoDss')?.addEventListener('click', () => {
             document.querySelector('[data-tab="AGENDA"]').click();
+          });
+          document.getElementById('cardGoInsp')?.addEventListener('click', () => {
+            document.querySelector('[data-tab="AGENDA"]').click();
+          });
+          document.getElementById('cardGoRel')?.addEventListener('click', () => {
+            document.querySelector('[data-tab="RELATORIOS"]').click();
           });
           document.getElementById('cardGoNc')?.addEventListener('click', () => {
             state.campoSubTab = 'NC';
-            document.querySelector('[data-tab="CAMPO"]').click();
+            document.querySelector('[data-tab="RELATORIOS"]').click();
           });
           return;
         }
 
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 2: AGENDA (PLANEJAMENTO COMPLETO + CORRETOR IA)
+        // ══════════════════════════════════════════════════════════════════════
         if (state.activeTab === 'AGENDA') {
-          const list = d.planejamentos || [];
+          const list = (d.planejamentos || []).filter(p => {
+            if (state.agendaStatusFilter === 'PENDENTE') return p.status !== 'CONCLUIDO';
+            if (state.agendaStatusFilter === 'CONCLUIDO') return p.status === 'CONCLUIDO';
+            return true;
+          });
+
           elContent.innerHTML = `
             <div style="display:flex; gap:8px;">
-              <button id="btnNewPlan" class="btn btn-primary" style="flex:1;">+ Nova Atividade</button>
+              <button id="btnNewPlan" class="btn btn-primary" style="flex:1;">+ Novo Agendamento</button>
               <button id="btnNewDssAliado" class="btn btn-outline" style="flex:1;">+ DSS Aliado</button>
             </div>
-            ${list.length === 0 ? `<div class="m3-card" style="font-size:12px; color:var(--slate-600);">Nenhuma atividade registrada para este técnico.</div>` : list.map(p => `
-              <div class="m3-card">
+
+            <!-- Filtro de Status -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 12px; border-radius:10px; border:1px solid #e2e8f0;">
+              <span style="font-size:11px; font-weight:800; color:var(--slate-600);">STATUS:</span>
+              <div style="display:flex; gap:6px;">
+                <button class="btn ${state.agendaStatusFilter === 'TODOS' ? 'btn-primary' : 'btn-outline'}" id="btnStTodos" style="padding:4px 8px; font-size:10px;">Todos</button>
+                <button class="btn ${state.agendaStatusFilter === 'PENDENTE' ? 'btn-primary' : 'btn-outline'}" id="btnStPend" style="padding:4px 8px; font-size:10px;">Pendentes</button>
+                <button class="btn ${state.agendaStatusFilter === 'CONCLUIDO' ? 'btn-primary' : 'btn-outline'}" id="btnStConc" style="padding:4px 8px; font-size:10px;">Concluídos</button>
+              </div>
+            </div>
+
+            ${list.length === 0 ? `<div class="m3-card" style="font-size:12px; color:var(--slate-600); text-align:center; padding:24px;">Nenhum agendamento encontrado.</div>` : list.map(p => `
+              <div class="m3-card" style="border-left:4px solid ${p.prioridade === 'ALTA' ? '#ef4444' : p.prioridade === 'BAIXA' ? '#6366f1' : '#f59e0b'};">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <span class="badge badge-purple">${p.categoria || 'Atividade'}</span>
+                  <div style="display:flex; gap:4px; align-items:center;">
+                    <span class="badge" style="background:#e2e8f0; color:#334155;">🕒 ${p.hora || '08:00'}</span>
+                    <span class="badge badge-purple">${p.categoria || 'Atividade'}</span>
+                    <span class="badge" style="background:rgba(245,158,11,0.15); color:#d97706;">${p.prioridade || 'MÉDIA'}</span>
+                  </div>
                   <span class="badge ${p.status === 'CONCLUIDO' ? 'badge-green' : 'badge-amber'}">${p.status}</span>
                 </div>
-                <div style="font-size:13px; font-weight:800; color:var(--slate-900);">${p.descricaoOriginal}</div>
-                <div style="font-size:11px; color:var(--slate-600); margin-top:2px;">${formatBrDate(p.dataAtividade)} • ${p.hora} • ${p.local || 'Campo'} (${p.cidade}/${p.estado})</div>
+                <div style="font-size:13px; font-weight:800; color:var(--slate-900);">${p.titulo || p.categoria}</div>
+                ${p.descricaoOriginal && p.descricaoOriginal !== p.titulo ? `<div style="font-size:12px; color:var(--slate-600); margin-top:2px;">${p.descricaoOriginal}</div>` : ''}
+                <div style="font-size:11px; color:var(--slate-600); margin-top:4px;">📍 ${p.local || 'Campo'} (${p.cidade}/${p.estado}) • ${formatBrDate(p.dataAtividade)}</div>
+
                 ${p.status !== 'CONCLUIDO' ? `
-                  <button class="btn btn-success btn-block btn-concluir-plan" data-id="${p.id}" data-desc="${encodeURIComponent(p.descricaoOriginal || '')}" style="margin-top:10px;">
+                  <button class="btn btn-success btn-block btn-concluir-plan" data-id="${p.id}" data-desc="${encodeURIComponent(p.descricaoOriginal || p.titulo || '')}" data-cat="${encodeURIComponent(p.categoria || '')}" style="margin-top:10px;">
                     ✓ Concluir Atividade
                   </button>
-                ` : `<div style="font-size:11px; color:var(--green); font-weight:700; margin-top:6px;">Executado: ${p.descricaoExecutada || p.descricaoOriginal}</div>`}
+                ` : `
+                  <div style="font-size:11px; color:var(--green); font-weight:700; margin-top:8px; background:#ecfdf5; padding:6px 10px; border-radius:8px;">
+                    ✓ Executado: ${p.descricaoExecutada || p.descricaoOriginal}
+                  </div>
+                `}
               </div>
             `).join('')}
           `;
 
+          document.getElementById('btnStTodos')?.addEventListener('click', () => { state.agendaStatusFilter = 'TODOS'; render(); });
+          document.getElementById('btnStPend')?.addEventListener('click', () => { state.agendaStatusFilter = 'PENDENTE'; render(); });
+          document.getElementById('btnStConc')?.addEventListener('click', () => { state.agendaStatusFilter = 'CONCLUIDO'; render(); });
+
+          // Modal Novo Agendamento Completo (com Corretor IA e Frequência)
           document.getElementById('btnNewPlan')?.addEventListener('click', () => {
-            openModal('Cadastrar Atividade', `
+            const todayStr = new Date().toISOString().split('T')[0];
+            const unidades = d.unidades || [];
+            openModal('Novo Agendamento na Agenda', `
               <form id="formNewPlan">
-                <div class="field-group">
-                  <label>Categoria</label>
-                  <input name="categoria" class="field-input" value="Visita Técnica" required />
+                <div style="display:flex; gap:8px;">
+                  <div class="field-group" style="flex:1.2;">
+                    <label>Data</label>
+                    <input name="dataAtividade" type="date" class="field-input" value="${todayStr}" required />
+                  </div>
+                  <div class="field-group" style="flex:0.8;">
+                    <label>Hora</label>
+                    <input name="hora" type="time" class="field-input" value="08:00" required />
+                  </div>
                 </div>
+
                 <div class="field-group">
-                  <label>Descrição da Atividade</label>
-                  <input name="descricao" class="field-input" placeholder="Ex: Inspeção de segurança na base" required />
+                  <label>Frequência de Repetição</label>
+                  <select name="frequencia" id="selFrequencia" class="field-input">
+                    <option value="UNICA">Não se repete (Apenas no dia)</option>
+                    <option value="DIARIA">Diariamente (Seg a Sex)</option>
+                    <option value="SEMANAL">Semanalmente</option>
+                    <option value="QUINZENAL">Quinzenalmente (15 dias)</option>
+                    <option value="MENSAL">Mensalmente</option>
+                    <option value="BIMESTRAL">Bimestralmente</option>
+                    <option value="TRIMESTRAL">Trimestralmente</option>
+                  </select>
                 </div>
+
+                <div class="field-group" id="wrapDataFim" style="display:none;">
+                  <label>Repetir até a Data Fim</label>
+                  <input name="dataFim" type="date" class="field-input" value="${todayStr}" />
+                </div>
+
+                <div class="field-group">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label>Título da Atividade</label>
+                    <button type="button" id="btnAiTitulo" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
+                  </div>
+                  <input id="inputTitulo" name="titulo" class="field-input" placeholder="Ex: Inspeção de segurança em altura" required />
+                </div>
+
+                <div class="field-group">
+                  <label>Categoria Oficial</label>
+                  <select name="categoria" class="field-input">
+                    ${CATEGORIAS_WEB.map(c => `<option value="${c}">${c}</option>`).join('')}
+                  </select>
+                </div>
+
+                <div class="field-group">
+                  <label>Prioridade</label>
+                  <select name="prioridade" class="field-input">
+                    <option value="MEDIA">Média</option>
+                    <option value="ALTA">Alta</option>
+                    <option value="BAIXA">Baixa</option>
+                  </select>
+                </div>
+
                 <div class="field-group">
                   <label>Unidade / Local</label>
-                  <input name="local" class="field-input" placeholder="Ex: ERB Campinas" required />
+                  <input name="local" class="field-input" list="listUnidades" placeholder="Selecione ou digite a unidade" required />
+                  <datalist id="listUnidades">
+                    ${unidades.map(u => `<option value="${u.nome}">${u.cidade}/${u.estado}</option>`).join('')}
+                  </datalist>
                 </div>
+
+                <div style="display:flex; gap:8px;">
+                  <div class="field-group" style="flex:1.4;">
+                    <label>Cidade</label>
+                    <input name="cidade" class="field-input" value="São Paulo" required />
+                  </div>
+                  <div class="field-group" style="flex:0.6;">
+                    <label>UF</label>
+                    <input name="estado" class="field-input" value="SP" required />
+                  </div>
+                </div>
+
                 <div class="field-group">
-                  <label>Cidade</label>
-                  <input name="cidade" class="field-input" value="São Paulo" required />
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label>Descrição Detalhada</label>
+                    <button type="button" id="btnAiDesc" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
+                  </div>
+                  <textarea id="inputDesc" name="descricao" class="field-input" style="height:70px;" placeholder="Detalhes do planejamento..."></textarea>
                 </div>
+
                 <button type="submit" class="btn btn-primary btn-block">Salvar no Planejamento</button>
               </form>
             `, (body) => {
+              const selFreq = body.querySelector('#selFrequencia');
+              const wrapFim = body.querySelector('#wrapDataFim');
+              selFreq.addEventListener('change', () => {
+                wrapFim.style.display = selFreq.value !== 'UNICA' ? 'block' : 'none';
+              });
+
+              body.querySelector('#btnAiTitulo').addEventListener('click', async () => {
+                const inp = body.querySelector('#inputTitulo');
+                const fixed = await correctTextWithAI(inp.value);
+                if (fixed) inp.value = fixed;
+              });
+
+              body.querySelector('#btnAiDesc').addEventListener('click', async () => {
+                const inp = body.querySelector('#inputDesc');
+                const fixed = await correctTextWithAI(inp.value);
+                if (fixed) inp.value = fixed;
+              });
+
               body.querySelector('#formNewPlan').addEventListener('submit', (ev) => {
                 ev.preventDefault();
                 const fd = new FormData(ev.target);
-                executeMobileAction('CRIAR_ATIVIDADE', 'Cadastrando atividade...', {
+                executeMobileAction('CRIAR_ATIVIDADE', 'Salvando agendamento...', {
+                  dataAtividade: fd.get('dataAtividade'),
+                  hora: fd.get('hora'),
+                  frequencia: fd.get('frequencia'),
+                  dataFim: fd.get('dataFim') || fd.get('dataAtividade'),
+                  titulo: fd.get('titulo'),
                   categoria: fd.get('categoria'),
-                  descricaoOriginal: fd.get('descricao'),
+                  prioridade: fd.get('prioridade'),
                   local: fd.get('local'),
                   cidade: fd.get('cidade'),
-                  estado: 'SP'
+                  estado: fd.get('estado'),
+                  descricaoOriginal: fd.get('descricao') || fd.get('titulo')
                 });
               });
             });
           });
 
+          // Modal DSS com Aliado
           document.getElementById('btnNewDssAliado')?.addEventListener('click', () => {
             openModal('Lançar DSS com Aliado', `
               <form id="formDssAliado">
                 <div class="field-group">
-                  <label>Tema do Diálogo de Segurança</label>
-                  <input name="tema" class="field-input" placeholder="Ex: Trabalho em Altura NR-35" required />
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label>Tema do Diálogo de Segurança</label>
+                    <button type="button" id="btnAiTemaDss" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
+                  </div>
+                  <input id="inputTemaDss" name="tema" class="field-input" placeholder="Ex: Procedimentos de Segurança NR-35" required />
                 </div>
                 <button type="submit" class="btn btn-primary btn-block">Registrar DSS</button>
               </form>
             `, (body) => {
+              body.querySelector('#btnAiTemaDss').addEventListener('click', async () => {
+                const inp = body.querySelector('#inputTemaDss');
+                const fixed = await correctTextWithAI(inp.value);
+                if (fixed) inp.value = fixed;
+              });
+
               body.querySelector('#formDssAliado').addEventListener('submit', (ev) => {
                 ev.preventDefault();
                 const fd = new FormData(ev.target);
@@ -1017,26 +1479,57 @@
             });
           });
 
+          // Modal Concluir Atividade com Corretor IA e Opções de Relatório de Campo e DSS Aliado
           document.querySelectorAll('.btn-concluir-plan').forEach(btn => {
             btn.addEventListener('click', () => {
               const id = btn.getAttribute('data-id');
               const desc = decodeURIComponent(btn.getAttribute('data-desc') || '');
+              const cat = decodeURIComponent(btn.getAttribute('data-cat') || '');
+              const isDss = cat.toUpperCase().includes('DSS');
+
               openModal('Concluir Atividade', `
                 <form id="formConcluirPlan">
                   <div class="field-group">
-                    <label>Relato da Execução (enviado ao Relatório de Campo)</label>
-                    <input name="descricaoExecutada" class="field-input" value="${desc.replace(/"/g, '&quot;')}" required />
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <label>Relato da Execução</label>
+                      <button type="button" id="btnAiRelato" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
+                    </div>
+                    <textarea id="inputRelato" name="descricaoExecutada" class="field-input" style="height:70px;" required>${desc.replace(/"/g, '&quot;')}</textarea>
                   </div>
+
+                  ${isDss ? `
+                    <div style="margin-bottom:10px; background:#f5ebfa; padding:10px; border-radius:10px;">
+                      <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--purple-dark); cursor:pointer;">
+                        <input type="checkbox" name="salvarDssAliado" checked />
+                        Foi um DSS com Aliado? (Contabilizar no Painel)
+                      </label>
+                    </div>
+                  ` : ''}
+
+                  <div style="margin-bottom:12px; background:#f8fafc; padding:10px; border-radius:10px; border:1px solid #e2e8f0;">
+                    <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--slate-900); cursor:pointer;">
+                      <input type="checkbox" name="gerarRelatorioCampo" checked />
+                      Incluir no Relatório de Atividades de Campo
+                    </label>
+                  </div>
+
                   <button type="submit" class="btn btn-success btn-block">Confirmar Conclusão</button>
                 </form>
               `, (body) => {
+                body.querySelector('#btnAiRelato').addEventListener('click', async () => {
+                  const inp = body.querySelector('#inputRelato');
+                  const fixed = await correctTextWithAI(inp.value);
+                  if (fixed) inp.value = fixed;
+                });
+
                 body.querySelector('#formConcluirPlan').addEventListener('submit', (ev) => {
                   ev.preventDefault();
                   const fd = new FormData(ev.target);
                   executeMobileAction('CONCLUIR_ATIVIDADE', 'Concluindo atividade...', {
                     id,
                     descricaoExecutada: fd.get('descricaoExecutada'),
-                    gerarRelatorioCampo: true
+                    salvarDssAliado: fd.get('salvarDssAliado') === 'on',
+                    gerarRelatorioCampo: fd.get('gerarRelatorioCampo') === 'on'
                   });
                 });
               });
@@ -1045,6 +1538,9 @@
           return;
         }
 
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 3: KM (QUILOMETRAGEM & ABASTECIMENTO)
+        // ══════════════════════════════════════════════════════════════════════
         if (state.activeTab === 'KM') {
           const kms = d.quilometragens || [];
           const abs = d.abastecimentos || [];
@@ -1191,21 +1687,24 @@
           return;
         }
 
-        if (state.activeTab === 'CAMPO') {
+        // ══════════════════════════════════════════════════════════════════════
+        // ABA 4: RELATÓRIOS (RELATÓRIOS DE CAMPO & NÃO CONFORMIDADES)
+        // ══════════════════════════════════════════════════════════════════════
+        if (state.activeTab === 'RELATORIOS') {
           const rels = d.relatoriosCampo || [];
           const ncs = d.naoConformidades || [];
 
           elContent.innerHTML = `
             <div class="sub-tabs">
-              <button class="sub-tab ${state.campoSubTab === 'RELATORIOS' ? 'active' : ''}" data-sub="RELATORIOS">Relatórios (${rels.length})</button>
+              <button class="sub-tab ${state.campoSubTab === 'RELATORIOS' ? 'active' : ''}" data-sub="RELATORIOS">Relatório de Atividades (${rels.length})</button>
               <button class="sub-tab ${state.campoSubTab === 'NC' ? 'active' : ''}" data-sub="NC">Não Conformidades (${ncs.length})</button>
             </div>
             ${state.campoSubTab === 'RELATORIOS' ? `
-              <button id="btnNewRelCampo" class="btn btn-primary btn-block">+ Novo Relatório de Atividade</button>
+              <button id="btnNewRelCampo" class="btn btn-primary btn-block">+ Incluir Item no Relatório</button>
               ${rels.map(r => `
                 <div class="m3-card">
                   <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <span class="badge badge-purple">${r.projeto || 'SST'}</span>
+                    <span class="badge badge-purple">${r.projeto || 'VIVO'}</span>
                     <span style="font-size:10px; color:var(--slate-600);">${formatBrDate(r.data)}</span>
                   </div>
                   <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${r.descricao}</div>
@@ -1237,29 +1736,45 @@
           document.getElementById('btnNewRelCampo')?.addEventListener('click', () => {
             openModal('Novo Relatório de Campo', `
               <form id="formRelCampo">
-                <div class="field-group">
-                  <label>Projeto / Tipo</label>
-                  <input name="projeto" class="field-input" value="Inspeção SST" required />
+                <div style="display:flex; gap:8px;">
+                  <div class="field-group" style="flex:1.2;">
+                    <label>Empresa</label>
+                    <input name="empresa" class="field-input" value="Telefônica Brasil S.A" required />
+                  </div>
+                  <div class="field-group" style="flex:0.8;">
+                    <label>Projeto</label>
+                    <input name="projeto" class="field-input" value="VIVO" required />
+                  </div>
                 </div>
                 <div class="field-group">
                   <label>Unidade / Local</label>
-                  <input name="local" class="field-input" placeholder="Ex: Base Vivo" required />
+                  <input name="local" class="field-input" placeholder="Ex: Base Central" required />
                 </div>
                 <div class="field-group">
                   <label>Cidade/UF</label>
                   <input name="cidadeUf" class="field-input" value="São Paulo/SP" required />
                 </div>
                 <div class="field-group">
-                  <label>Descrição Executada</label>
-                  <input name="descricao" class="field-input" placeholder="Relato técnico da atividade" required />
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label>Descrição Detalhada</label>
+                    <button type="button" id="btnAiRelDesc" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
+                  </div>
+                  <textarea id="inputRelDesc" name="descricao" class="field-input" style="height:70px;" placeholder="Relato técnico da atividade executada..." required></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block">Salvar Relatório</button>
+                <button type="submit" class="btn btn-primary btn-block">Salvar no Relatório</button>
               </form>
             `, (body) => {
+              body.querySelector('#btnAiRelDesc').addEventListener('click', async () => {
+                const inp = body.querySelector('#inputRelDesc');
+                const fixed = await correctTextWithAI(inp.value);
+                if (fixed) inp.value = fixed;
+              });
+
               body.querySelector('#formRelCampo').addEventListener('submit', (ev) => {
                 ev.preventDefault();
                 const fd = new FormData(ev.target);
                 executeMobileAction('CRIAR_RELATORIO_CAMPO', 'Salvando relatório de campo...', {
+                  empresa: fd.get('empresa'),
                   projeto: fd.get('projeto'),
                   local: fd.get('local'),
                   cidadeUf: fd.get('cidadeUf'),
@@ -1275,8 +1790,11 @@
               openModal('Tratar Não Conformidade', `
                 <form id="formTratarNc">
                   <div class="field-group">
-                    <label>Ação Corretiva Realizada</label>
-                    <input name="texto" class="field-input" placeholder="Descreva a regularização do item" required />
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <label>Ação Corretiva Realizada</label>
+                      <button type="button" id="btnAiTratativa" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir com IA</button>
+                    </div>
+                    <textarea id="inputTratativa" name="texto" class="field-input" style="height:70px;" placeholder="Descreva a regularização do item..." required></textarea>
                   </div>
                   <div class="field-group">
                     <label>Novo Status</label>
@@ -1288,6 +1806,12 @@
                   <button type="submit" class="btn btn-success btn-block">Salvar Tratativa</button>
                 </form>
               `, (body) => {
+                body.querySelector('#btnAiTratativa').addEventListener('click', async () => {
+                  const inp = body.querySelector('#inputTratativa');
+                  const fixed = await correctTextWithAI(inp.value);
+                  if (fixed) inp.value = fixed;
+                });
+
                 body.querySelector('#formTratarNc').addEventListener('submit', (ev) => {
                   ev.preventDefault();
                   const fd = new FormData(ev.target);
@@ -1301,42 +1825,6 @@
             });
           });
           return;
-        }
-
-        if (state.activeTab === 'DOSSIE') {
-          const docs = d.documentos || [];
-          const reus = d.reunioes || [];
-
-          elContent.innerHTML = `
-            <div class="sub-tabs">
-              <button class="sub-tab ${state.dossieSubTab === 'DOCS' ? 'active' : ''}" data-sub="DOCS">Documentos (${docs.length})</button>
-              <button class="sub-tab ${state.dossieSubTab === 'REU' ? 'active' : ''}" data-sub="REU">Reuniões (${reus.length})</button>
-            </div>
-            ${state.dossieSubTab === 'DOCS' ? docs.map(doc => `
-              <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${doc.tipoNome}</div>
-                  <div style="font-size:10px; color:var(--slate-600);">Vencimento: ${formatBrDate(doc.dataVencimento)}</div>
-                </div>
-                <span class="badge ${doc.status === 'VENCIDO' ? 'badge-red' : doc.status === 'A_VENCER' ? 'badge-amber' : 'badge-green'}">${doc.status}</span>
-              </div>
-            `).join('') : reus.map(r => `
-              <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-size:12px; font-weight:800; color:var(--slate-900);">${r.assunto}</div>
-                  <div style="font-size:10px; color:var(--slate-600);">${formatBrDate(r.data)} • ${r.pontualidade}</div>
-                </div>
-                <span class="badge ${r.presenca === 'PRESENTE' ? 'badge-green' : 'badge-red'}">${r.presenca}</span>
-              </div>
-            `).join('')}
-          `;
-
-          elContent.querySelectorAll('.sub-tab').forEach(b => {
-            b.addEventListener('click', () => {
-              state.dossieSubTab = b.getAttribute('data-sub');
-              render();
-            });
-          });
         }
       }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { forgotPassword } from '@/app/actions/authActions'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
@@ -20,6 +21,29 @@ export async function POST(req: Request) {
     const body = await req.json()
     const email = (body.email || '').trim().toLowerCase()
     const password = body.password || ''
+
+    if (body.action === 'FORGOT_PASSWORD') {
+      if (!email || !email.includes('@')) {
+        return NextResponse.json(
+          { success: false, error: 'Informe um e-mail válido.' },
+          { status: 400, headers: CORS_HEADERS }
+        )
+      }
+      const res = await forgotPassword(email)
+      if (!res.success) {
+        return NextResponse.json(
+          { success: false, error: res.error || 'Não foi possível enviar o link de recuperação.' },
+          { status: 400, headers: CORS_HEADERS }
+        )
+      }
+      return NextResponse.json(
+        {
+          success: true,
+          message: `Link de recuperação enviado para ${email}`,
+        },
+        { headers: CORS_HEADERS }
+      )
+    }
 
     if (!email || !password) {
       return NextResponse.json(
