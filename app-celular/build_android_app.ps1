@@ -77,9 +77,9 @@ if (-not (Test-Path $KeystorePath)) {
     Write-Host "[4/5] Gerando chave de assinatura (my-upload-key.jks)..." -ForegroundColor Cyan
     & $KeytoolExe -genkeypair -v `
         -keystore $KeystorePath `
-        -alias "sg4-key-alias" `
+        -alias "upload" `
         -keyalg RSA -keysize 2048 -validity 10000 `
-        -storepass "sg4mobile123" -keypass "sg4mobile123" `
+        -storepass "123456" -keypass "123456" `
         -dname "CN=SG4 SST Mobile, OU=Engenharia, O=SG4, L=Sao Paulo, ST=SP, C=BR"
 }
 

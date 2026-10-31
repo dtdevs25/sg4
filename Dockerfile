@@ -50,6 +50,7 @@ RUN adduser --system --uid 1001 nextjs
 
 # Arquivos públicos e configuração
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/app-celular/index.html ./app-celular/index.html
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./

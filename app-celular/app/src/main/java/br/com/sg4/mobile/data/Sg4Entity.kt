@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "session_config")
 data class SessionConfigEntity(
     @PrimaryKey val id: Int = 1,
-    val baseUrl: String = "http://10.0.2.2:3000",
+    val baseUrl: String = "https://sg4.ehspro.com.br",
     val authToken: String = "",
     val userId: String = "",
     val userName: String = "",

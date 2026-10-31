@@ -11,3 +11,7 @@ yarn-error.log*
 README.md
 Dockerfile
 captain-definition
+app-celular/.gradle
+app-celular/build
+app-celular/app/build
+app-celular/local.properties

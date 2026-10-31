@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 data class Sg4UiState(
     val isInitialized: Boolean = false,
     val isLoggedIn: Boolean = false,
-    val baseUrl: String = "http://10.0.2.2:3000",
+    val baseUrl: String = "https://sg4.ehspro.com.br",
     val userName: String = "",
     val userEmail: String = "",
     val userRole: String = "TST",

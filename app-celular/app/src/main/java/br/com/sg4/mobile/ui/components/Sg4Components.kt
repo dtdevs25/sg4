@@ -26,6 +26,7 @@ import br.com.sg4.mobile.ui.theme.Slate100
 import br.com.sg4.mobile.ui.theme.Slate600
 import br.com.sg4.mobile.ui.theme.Slate900
 
+
 @Composable
 fun KpiProgressCard(
     title: String,

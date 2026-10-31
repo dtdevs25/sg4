@@ -42,9 +42,14 @@ interface Sg4ApiService {
             .build()
 
         fun create(baseUrl: String): Sg4ApiService {
-            val normalizedUrl = baseUrl.trim().let {
-                if (it.endsWith("/")) it else "$it/"
+            val withScheme = baseUrl.trim().let {
+                if (!it.startsWith("http://") && !it.startsWith("https://")) {
+                    "https://$it"
+                } else {
+                    it
+                }
             }
+            val normalizedUrl = if (withScheme.endsWith("/")) withScheme else "$withScheme/"
             val logger = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BASIC
             }
