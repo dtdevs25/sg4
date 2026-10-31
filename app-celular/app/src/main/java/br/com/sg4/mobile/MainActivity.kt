@@ -69,18 +69,35 @@ import br.com.sg4.mobile.viewmodel.Sg4ViewModel
 
 class MainActivity : ComponentActivity() {
     private var mainViewModel: Sg4ViewModel? = null
+    private var networkMonitor: br.com.sg4.mobile.data.NetworkMonitor? = null
 
     override fun onDestroy() {
-        super.onDestroy()
+        networkMonitor?.stop()
         // Quando o usuário sai do app / fecha a aplicação, desloga automaticamente conforme solicitado
-        mainViewModel?.logoutOnAppExit()
+        if (isFinishing) {
+            mainViewModel?.logoutOnAppExit()
+        }
+        super.onDestroy()
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             val vm: Sg4ViewModel = viewModel()
             mainViewModel = vm
+
+            androidx.compose.runtime.DisposableEffect(vm) {
+                val monitor = br.com.sg4.mobile.data.NetworkMonitor(this@MainActivity) { isOnline ->
+                    vm.onNetworkStatusChanged(isOnline)
+                }
+                networkMonitor = monitor
+                monitor.start()
+                onDispose {
+                    monitor.stop()
+                }
+            }
+
             SG4MobileTheme {
                 SG4MobileRoot(sg4ViewModel = vm)
             }

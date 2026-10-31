@@ -172,6 +172,39 @@ class Sg4Repository(private val dao: Sg4Dao) {
         }
     }
 
+    suspend fun flushPendingOfflineActions(): Int {
+        return withContext(Dispatchers.IO) {
+            val session = getSession()
+            if (session.authToken.isBlank()) return@withContext 0
+            val pendingList = dao.getPendingActions()
+            if (pendingList.isEmpty()) return@withContext 0
+            var count = 0
+            try {
+                val api = Sg4ApiService.create(session.baseUrl)
+                val bearer = "Bearer ${session.authToken}"
+                for (item in pendingList) {
+                    try {
+                        val payload = payloadAdapter.fromJson(item.payloadJson) ?: emptyMap()
+                        val res = api.submitAction(
+                            bearerToken = bearer,
+                            request = MobileActionRequest(
+                                actionType = item.actionType,
+                                payload = payload,
+                                clientRequestId = item.clientRequestId
+                            )
+                        )
+                        if (res.success) {
+                            dao.markActionSynced(item.localId)
+                            count++
+                        }
+                    } catch (_: Exception) {}
+                }
+                dao.deleteSyncedActions()
+            } catch (_: Exception) {}
+            count
+        }
+    }
+
     private suspend fun flushPendingActions(api: Sg4ApiService, bearer: String) {
         val pendingList = dao.getPendingActions()
         for (item in pendingList) {

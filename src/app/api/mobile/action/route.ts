@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { optimizeTextWithAI } from '@/app/actions/ai'
 import jwt from 'jsonwebtoken'
+import s3Client from '@/lib/s3'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_mobile_sg4_2026'
 
@@ -10,6 +12,44 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+}
+
+async function uploadBase64ToMinio(
+  fileDataOrUrl: string | null | undefined,
+  bucket: string,
+  folder: string = 'fotos'
+): Promise<string | null> {
+  if (!fileDataOrUrl || typeof fileDataOrUrl !== 'string') return null
+  const trimmed = fileDataOrUrl.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed
+  }
+  if (trimmed.startsWith('data:image') || (trimmed.length > 200 && !trimmed.includes(' '))) {
+    try {
+      const cleanBase64 = trimmed.includes('base64,') ? trimmed.split('base64,')[1] : trimmed
+      const buffer = Buffer.from(cleanBase64, 'base64')
+      const ext = trimmed.includes('image/png') ? 'png' : 'jpg'
+      const key = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
+
+      const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: ext === 'png' ? 'image/png' : 'image/jpeg',
+        ACL: 'public-read',
+      })
+
+      await s3Client.send(command)
+
+      const baseUrl = (process.env.S3_ENDPOINT || 'https://storage-api.ehspro.com.br').replace(/\/$/, '')
+      return `${baseUrl}/${bucket}/${key}`
+    } catch (err) {
+      console.error(`[MinIO Mobile Upload] Erro ao enviar para o bucket ${bucket}:`, err)
+      return trimmed
+    }
+  }
+  return trimmed
 }
 
 // Proteção em memória contra cliques/requisições duplicadas em curto intervalo
@@ -375,7 +415,7 @@ export async function POST(req: Request) {
 
         const descExec = String(payload?.descricaoExecutada || existing.descricaoOriginal).trim()
         const observacoes = payload?.observacoes ? String(payload.observacoes).trim() : existing.observacoes
-        const fotoUrl = payload?.fotoUrl || null
+        const fotoUrl = await uploadBase64ToMinio(payload?.fotoUrl, 'sg4-relatorios', 'dss')
         const alteradaOriginal = descExec !== (existing.descricaoOriginal || '').trim()
 
         const updatedChecklist = Array.isArray(payload?.checklist)
@@ -608,13 +648,14 @@ export async function POST(req: Request) {
           )
         }
         const dataIni = payload?.dataInicial ? parseDateSafe(payload.dataInicial) : new Date()
+        const fotoInicial = await uploadBase64ToMinio(payload?.fotoInicial, 'sg4-km', 'fotos')
         resultData = await prisma.quilometragem.create({
           data: {
             tecnicoId,
             diaSemana: getDiaSemanaPtBr(dataIni),
             dataInicial: dataIni,
             kmInicial,
-            fotoInicial: payload?.fotoInicial || null,
+            fotoInicial,
             latitudeInicial: payload?.latitude != null ? Number(payload.latitude) : (payload?.latitudeInicial != null ? Number(payload.latitudeInicial) : null),
             longitudeInicial: payload?.longitude != null ? Number(payload.longitude) : (payload?.longitudeInicial != null ? Number(payload.longitudeInicial) : null),
           },
@@ -645,13 +686,14 @@ export async function POST(req: Request) {
           )
         }
         const diferenca = Number((kmFinal - registroKm.kmInicial).toFixed(1))
+        const fotoFinal = await uploadBase64ToMinio(payload?.fotoFinal, 'sg4-km', 'fotos')
         resultData = await prisma.quilometragem.update({
           where: { id: kmId },
           data: {
             dataFinal: payload?.dataFinal ? parseDateSafe(payload.dataFinal) : new Date(),
             kmFinal,
             diferenca,
-            fotoFinal: payload?.fotoFinal || null,
+            fotoFinal,
             latitudeFinal: payload?.latitude != null ? Number(payload.latitude) : (payload?.latitudeFinal != null ? Number(payload.latitudeFinal) : null),
             longitudeFinal: payload?.longitude != null ? Number(payload.longitude) : (payload?.longitudeFinal != null ? Number(payload.longitudeFinal) : null),
           },
@@ -667,13 +709,14 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
+        const fotoCupom = await uploadBase64ToMinio(payload?.fotoCupom, 'sg4-km', 'cupons')
         resultData = await prisma.abastecimento.create({
           data: {
             tecnicoId,
             data: payload?.data ? parseDateSafe(payload.data) : new Date(),
             valor,
             tipo: payload?.tipo || 'ABASTECIMENTO',
-            fotoCupom: payload?.fotoCupom || null,
+            fotoCupom,
           },
         })
         break
@@ -687,13 +730,14 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
+        const comprovanteUrl = await uploadBase64ToMinio(payload?.fotoUrl || payload?.comprovanteUrl, 'sg4-km', 'manutencao')
         resultData = await prisma.manutencaoVeiculo.create({
           data: {
             tecnicoId,
             kmManutencao: Math.round(kmManutencao),
             dataManutencao: payload?.dataManutencao ? parseDateSafe(payload.dataManutencao) : new Date(),
             descricao: payload?.descricao ? String(payload.descricao).trim() : null,
-            comprovanteUrl: payload?.fotoUrl || payload?.comprovanteUrl || null,
+            comprovanteUrl,
           },
         })
         break
@@ -707,6 +751,7 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
+        const fotoUrlRel = await uploadBase64ToMinio(payload?.fotoUrl, 'sg4-relatorios', 'fotos')
         resultData = await prisma.relatorioAtividade.create({
           data: {
             tecnicoId,
@@ -716,7 +761,7 @@ export async function POST(req: Request) {
             local: payload?.local || 'Unidade Vivo',
             cidadeUf: payload?.cidadeUf || 'São Paulo/SP',
             descricao,
-            fotoUrl: payload?.fotoUrl || null,
+            fotoUrl: fotoUrlRel,
           },
         })
         break
@@ -737,6 +782,9 @@ export async function POST(req: Request) {
             { status: 404, headers: CORS_HEADERS }
           )
         }
+        const fotoUrlEdit = payload?.fotoUrl !== undefined
+          ? await uploadBase64ToMinio(payload.fotoUrl, 'sg4-relatorios', 'fotos')
+          : existingRel.fotoUrl
         resultData = await prisma.relatorioAtividade.update({
           where: { id: relId },
           data: {
@@ -745,7 +793,7 @@ export async function POST(req: Request) {
             local: payload?.local !== undefined ? String(payload.local).trim() : existingRel.local,
             cidadeUf: payload?.cidadeUf !== undefined ? String(payload.cidadeUf).trim() : existingRel.cidadeUf,
             descricao: payload?.descricao !== undefined ? String(payload.descricao).trim() : existingRel.descricao,
-            fotoUrl: payload?.fotoUrl !== undefined ? payload.fotoUrl : existingRel.fotoUrl,
+            fotoUrl: fotoUrlEdit,
             data: payload?.data ? parseDateSafe(payload.data) : existingRel.data,
           },
         })
@@ -789,13 +837,14 @@ export async function POST(req: Request) {
           )
         }
         const currentUpdates = Array.isArray(nc.updates) ? (nc.updates as any[]) : []
+        const fotoUrlTratativa = await uploadBase64ToMinio(payload?.fotoUrl, 'sg4-relatorios', 'tratativas')
         const newUpdate = {
           date: new Date().toISOString(),
           actionDate: payload?.actionDate || new Date().toISOString().split('T')[0],
           text: texto,
           author: authUser.name || authUser.email || 'App Mobile SG4',
-          fotoUrl: payload?.fotoUrl || null,
-          fotoUrls: payload?.fotoUrl ? [payload.fotoUrl] : [],
+          fotoUrl: fotoUrlTratativa,
+          fotoUrls: fotoUrlTratativa ? [fotoUrlTratativa] : [],
         }
         const novoStatus = payload?.status || 'EM_ANDAMENTO'
         resultData = await prisma.naoConformidade.update({

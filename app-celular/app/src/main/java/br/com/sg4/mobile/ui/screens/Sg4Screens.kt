@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.location.LocationManager
 import android.net.Uri
 import android.util.Base64
+import android.util.LruCache
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -60,11 +61,25 @@ import br.com.sg4.mobile.ui.components.formatIsoDateBr
 import br.com.sg4.mobile.ui.theme.*
 import br.com.sg4.mobile.viewmodel.Sg4UiState
 import br.com.sg4.mobile.viewmodel.Sg4ViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.net.URLEncoder
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
+
+object MobileImageCache {
+    private val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+    private val cacheSize = (maxMemory / 8).coerceAtLeast(1024)
+    val lru = object : LruCache<String, Bitmap>(cacheSize) {
+        override fun sizeOf(key: String, bitmap: Bitmap): Int {
+            return bitmap.byteCount / 1024
+        }
+    }
+}
 
 val Slate700 = Color(0xFF334155)
 
@@ -290,8 +305,15 @@ fun LoginScreen(
     uiState: Sg4UiState,
     viewModel: Sg4ViewModel
 ) {
-    var email by remember { mutableStateOf(uiState.userEmail) }
-    var password by remember { mutableStateOf("") }
+    var email by remember(uiState.savedEmail, uiState.userEmail, uiState.rememberCredentials) {
+        mutableStateOf(if (uiState.rememberCredentials && uiState.savedEmail.isNotBlank()) uiState.savedEmail else uiState.userEmail)
+    }
+    var password by remember(uiState.savedPassword, uiState.rememberCredentials) {
+        mutableStateOf(if (uiState.rememberCredentials) uiState.savedPassword else "")
+    }
+    var rememberCreds by remember(uiState.rememberCredentials) {
+        mutableStateOf(uiState.rememberCredentials)
+    }
     var showPwd by remember { mutableStateOf(false) }
     var showForgotModal by remember { mutableStateOf(false) }
     var forgotEmail by remember { mutableStateOf("") }
@@ -506,7 +528,37 @@ fun LoginScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(22.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Flag visual e persistente para salvar Usuário e Senha
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { rememberCreds = !rememberCreds }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = rememberCreds,
+                        onCheckedChange = { rememberCreds = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color.White,
+                            checkmarkColor = Color(0xFF990000),
+                            uncheckedColor = Color(0xCCFFFFFF)
+                        ),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Lembrar meu usuário e senha",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Box(
                     modifier = Modifier
@@ -524,7 +576,7 @@ fun LoginScreen(
                             if (email.isBlank() || password.isBlank()) {
                                 return@clickable
                             }
-                            viewModel.login(uiState.baseUrl, email, password)
+                            viewModel.login(uiState.baseUrl, email, password, rememberCreds)
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -2963,31 +3015,118 @@ fun Base64OrUrlImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit
 ) {
-    val bitmap = remember(source) {
-        try {
-            if (source.startsWith("data:image")) {
-                val cleanBase64 = source.substringAfter("base64,")
-                val decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
-                BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
-            } else null
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = null,
-            modifier = modifier,
-            contentScale = contentScale
-        )
-    } else {
+    if (source.isBlank()) {
         Box(
             modifier = modifier.background(Color(0xFFF1F5F9)),
             contentAlignment = Alignment.Center
         ) {
-            Text("Sem imagem ou formato web", fontSize = 11.sp, color = Slate600)
+            Text("Sem imagem", fontSize = 11.sp, color = Slate600)
+        }
+        return
+    }
+
+    var bitmap by remember(source) { mutableStateOf<Bitmap?>(MobileImageCache.lru.get(source)) }
+    var isLoading by remember(source) { mutableStateOf(bitmap == null) }
+    var hasError by remember(source) { mutableStateOf(false) }
+
+    LaunchedEffect(source) {
+        if (bitmap != null) {
+            isLoading = false
+            return@LaunchedEffect
+        }
+        isLoading = true
+        hasError = false
+
+        withContext(Dispatchers.IO) {
+            try {
+                val bmp = if (source.startsWith("data:image")) {
+                    val cleanBase64 = source.substringAfter("base64,")
+                    val decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                    BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+                } else if (source.startsWith("http://") || source.startsWith("https://")) {
+                    val url = URL(source)
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.connectTimeout = 12000
+                    conn.readTimeout = 20000
+                    conn.instanceFollowRedirects = true
+                    conn.doInput = true
+                    conn.connect()
+                    if (conn.responseCode in 200..299) {
+                        conn.inputStream.use { input ->
+                            BitmapFactory.decodeStream(input)
+                        }
+                    } else null
+                } else null
+
+                if (bmp != null) {
+                    MobileImageCache.lru.put(source, bmp)
+                    withContext(Dispatchers.Main) {
+                        bitmap = bmp
+                        isLoading = false
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        hasError = true
+                        isLoading = false
+                    }
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    hasError = true
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            bitmap != null -> {
+                Image(
+                    bitmap = bitmap!!.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = contentScale
+                )
+            }
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFF8FAFC)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Sg4Purple,
+                        strokeWidth = 2.dp
+                    )
+                }
+            }
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFF1F5F9)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BrokenImage,
+                            contentDescription = null,
+                            tint = Slate400,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text("Imagem não disponível", fontSize = 10.sp, color = Slate600)
+                    }
+                }
+            }
         }
     }
 }

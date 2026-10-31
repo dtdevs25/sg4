@@ -391,4 +391,30 @@ class Sg4ViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    /**
+     * Notificado pelo NetworkMonitor quando o estado da conectividade muda.
+     * Ao recuperar a conexão com a internet, envia automaticamente a fila offline.
+     */
+    fun onNetworkStatusChanged(isOnline: Boolean) {
+        val wasOnline = _uiState.value.isOnline
+        _uiState.update { it.copy(isOnline = isOnline) }
+
+        if (!wasOnline && isOnline && _uiState.value.isLoggedIn) {
+            viewModelScope.launch {
+                try {
+                    val syncedCount = repository.flushPendingOfflineActions()
+                    refreshDataInternal(overrideTecnicoId = _uiState.value.selectedTecnicoId)
+                    if (syncedCount > 0) {
+                        _uiState.update {
+                            it.copy(
+                                feedbackMessage = "Conexão restabelecida! $syncedCount registro(s) offline sincronizados automaticamente com o servidor.",
+                                isErrorFeedback = false
+                            )
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
 }
