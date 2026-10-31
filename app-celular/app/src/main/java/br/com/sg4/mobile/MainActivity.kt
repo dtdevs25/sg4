@@ -107,13 +107,7 @@ fun SG4MobileRoot(
                                 Image(
                                     painter = painterResource(id = R.drawable.logo_sg4_white),
                                     contentDescription = "Logo SG4",
-                                    modifier = Modifier.height(28.dp)
-                                )
-                                Text(
-                                    text = "SG4",
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 19.sp,
-                                    color = Color.White
+                                    modifier = Modifier.height(30.dp)
                                 )
                                 Box(
                                     modifier = Modifier
