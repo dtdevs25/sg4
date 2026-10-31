@@ -135,6 +135,22 @@ import java.util.Locale
 import java.util.TimeZone
 
 
+
+@Composable
+fun standardTextInputColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Slate900,
+    unfocusedTextColor = Slate900,
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color(0xFFF8FAFC),
+    focusedBorderColor = Sg4Purple,
+    unfocusedBorderColor = Color(0xFFCBD5E1),
+    focusedPlaceholderColor = Slate400,
+    unfocusedPlaceholderColor = Slate400,
+    cursorColor = Sg4Purple,
+    focusedLabelColor = Sg4Purple,
+    unfocusedLabelColor = Slate600
+)
+
 fun getDeviceLocation(context: Context): Pair<Double, Double>? {
     return try {
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null

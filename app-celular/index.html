@@ -249,26 +249,43 @@
     .btn-block   { width: 100%; }
 
     
-    /* Floating Action Button (FAB) */
+    /* Floating Action Button (FAB) - Expande ao passar o mouse ou tocar */
     .fab-btn {
       position: absolute;
       right: 18px;
-      bottom: 76px;
+      bottom: 74px;
       background: var(--purple);
       color: #fff;
       border: none;
       border-radius: 28px;
       height: 48px;
-      padding: 0 16px;
+      min-width: 48px;
+      padding: 0 14px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 800;
-      box-shadow: 0 8px 18px rgba(102, 0, 153, 0.4);
+      justify-content: center;
+      gap: 0px;
+      box-shadow: 0 8px 18px rgba(102, 0, 153, 0.45);
       cursor: pointer;
       z-index: 40;
-      transition: all 0.2s ease;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .fab-btn .fab-label {
+      max-width: 0;
+      opacity: 0;
+      margin-left: 0;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .fab-btn:hover .fab-label,
+    .fab-btn:focus .fab-label,
+    .fab-btn.expanded .fab-label {
+      max-width: 170px;
+      opacity: 1;
+      margin-left: 6px;
     }
     .fab-btn:active { transform: scale(0.96); }
 
@@ -390,16 +407,28 @@
       font-weight: 700;
       color: var(--slate-600);
     }
-    .field-input {
+    .field-input, input, select, textarea {
       width: 100%;
       padding: 10px 12px;
       border-radius: 10px;
-      border: 1px solid #cbd5e1;
+      border: 1.5px solid #cbd5e1;
       font-size: 13px;
+      font-weight: 600;
+      color: #0f172a !important;
+      background-color: #ffffff !important;
       outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .field-input:focus {
-      border-color: var(--purple);
+    .field-input::placeholder, input::placeholder, textarea::placeholder {
+      color: #94a3b8 !important;
+      font-weight: 400;
+    }
+    .field-input:focus, input:focus, select:focus, textarea:focus {
+      border-color: var(--purple) !important;
+      box-shadow: 0 0 0 3px rgba(102, 0, 153, 0.18) !important;
+      color: #0f172a !important;
+      background-color: #ffffff !important;
     }
 
     .modal-backdrop {
@@ -635,21 +664,21 @@
         </div>
       </div>
 
-      <!-- Header Principal -->
+      <!-- Header Principal Fixo (Fundo Roxo Vivo, Logo e Texto SG4 em Branco) -->
       <div class="app-header">
         <div class="brand-row">
-          <div class="brand-logo">
-            <img src="/logovermelho.png" alt="SG4" style="width:24px; height:24px; object-fit:contain; filter:brightness(0) invert(1);" />
+          <div class="brand-logo" style="background:#ffffff; border:1px solid rgba(255,255,255,0.4); box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+            <img src="/logovermelho.png" alt="SG4" style="width:26px; height:26px; object-fit:contain;" />
           </div>
           <div>
-            <div style="font-size:13px; font-weight:800; color:var(--slate-900);">SG4 Mobile</div>
-            <div id="headerSub" style="font-size:10px; color:var(--slate-600); font-weight:600;">Sincronizado</div>
+            <div style="font-size:16px; font-weight:900; color:#ffffff; letter-spacing:0.5px;">SG4</div>
+            <div id="headerSub" style="font-size:10px; color:rgba(255,255,255,0.85); font-weight:600;">Sincronizado</div>
           </div>
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
-          <span id="connBadge" class="status-pill online">ONLINE</span>
-          <button id="btnSyncNow" class="btn btn-outline" style="padding:5px 8px; font-size:11px;" title="Sincronizar com o Banco">↻</button>
-          <button id="btnLogout" class="btn btn-outline" style="padding:5px 8px; font-size:11px; color:var(--slate-600);" title="Sair">⎋</button>
+          <span id="connBadge" class="status-pill online" style="background:rgba(255,255,255,0.2); color:#ffffff; border:1px solid rgba(255,255,255,0.35);">ONLINE</span>
+          <button id="btnSyncNow" class="btn" style="background:rgba(255,255,255,0.18); color:#ffffff; border:1px solid rgba(255,255,255,0.35); padding:5px 9px; font-size:12px;" title="Sincronizar com o Banco">↻</button>
+          <button id="btnLogout" class="btn" style="background:rgba(255,255,255,0.18); color:#ffffff; border:1px solid rgba(255,255,255,0.35); padding:5px 9px; font-size:12px;" title="Sair">⎋</button>
         </div>
       </div>
 
@@ -1389,9 +1418,9 @@
             `}
 
             <!-- FAB: + Novo Agendamento -->
-            <button class="fab-btn" id="fabNewPlan">
-              <span style="font-size:18px;">+</span>
-              <span>Novo Agendamento</span>
+            <button class="fab-btn" id="fabNewPlan" title="Novo Agendamento">
+              <span style="font-size:22px; font-weight:900; line-height:1;">+</span>
+              <span class="fab-label">Agendamento</span>
             </button>
           `;
 
@@ -1832,7 +1861,7 @@
       function renderPlanCardHtml(p) {
         const isConcluido = p.status === 'CONCLUIDO';
         return `
-          <div class="m3-card" style="border-left:4px solid ${p.prioridade === 'ALTA' ? '#ef4444' : p.prioridade === 'BAIXA' ? '#6366f1' : '#f59e0b'}; opacity:${isConcluido ? '0.62' : '1'};">
+          <div class="m3-card" style="border-left:4px solid ${p.prioridade === 'ALTA' ? '#ef4444' : p.prioridade === 'BAIXA' ? '#6366f1' : '#f59e0b'}; opacity:${isConcluido ? '0.55' : '1'};">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <div style="display:flex; gap:4px; align-items:center;">
                 <span class="badge" style="background:#e2e8f0; color:#334155;">🕒 ${p.hora || '08:00'}</span>
@@ -1842,22 +1871,39 @@
             </div>
             <div style="font-size:14px; font-weight:800; color:var(--slate-900);">${p.titulo || p.categoria}</div>
             ${p.descricaoOriginal && p.descricaoOriginal !== p.titulo ? `<div style="font-size:12px; color:var(--slate-600); margin-top:2px;">${p.descricaoOriginal}</div>` : ''}
-            <div style="font-size:11px; color:var(--slate-600); margin-top:4px;">📍 ${p.local || 'Campo'} (${p.cidade}/${p.estado}) • ${formatBrDate(p.dataAtividade)}</div>
+            <div style="font-size:11px; color:var(--slate-600); margin-top:4px;">📍 ${p.local || 'Campo'} (${p.cidade || 'SP'}/${p.estado || 'SP'}) • ${formatBrDate(p.dataAtividade)}</div>
 
             ${!isConcluido ? `
               <button class="btn btn-success btn-block btn-two-step" data-action="CONCLUIR" data-id="${p.id}" data-desc="${encodeURIComponent(p.descricaoOriginal || p.titulo || '')}" style="margin-top:10px;">
                 Concluir
               </button>
             ` : `
-              <div style="display:flex; gap:6px; margin-top:10px;">
-                <div style="flex:1; font-size:11px; color:var(--green); font-weight:700; background:#ecfdf5; padding:6px 10px; border-radius:8px;">
-                  ✓ Executado: ${p.descricaoExecutada || p.descricaoOriginal}
-                </div>
-                <button class="btn btn-outline btn-two-step" data-action="REVERTER" data-id="${p.id}" style="padding:4px 8px; font-size:10px;">
-                  Reverter
-                </button>
+              <div style="font-size:11px; color:var(--green); font-weight:700; background:#ecfdf5; padding:6px 10px; border-radius:8px; margin-top:8px;">
+                ✓ Executado: ${p.descricaoExecutada || p.descricaoOriginal}
               </div>
             `}
+
+            <!-- Ações Secundárias com Confirmação em 2 Toques -->
+            <div style="display:flex; gap:6px; margin-top:8px; overflow-x:auto; padding-bottom:2px;">
+              <button class="btn btn-outline btn-two-step" data-action="EDITAR" data-id="${p.id}" style="padding:5px 9px; font-size:11px;">
+                Editar
+              </button>
+              <button class="btn btn-outline btn-two-step" data-action="DUPLICAR" data-id="${p.id}" style="padding:5px 9px; font-size:11px;">
+                Duplicar
+              </button>
+              ${!isConcluido ? `
+                <button class="btn btn-outline btn-two-step" data-action="MOVER" data-id="${p.id}" style="padding:5px 9px; font-size:11px;">
+                  Mover
+                </button>
+              ` : `
+                <button class="btn btn-outline btn-two-step" data-action="REVERTER" data-id="${p.id}" style="padding:5px 9px; font-size:11px; color:var(--amber);">
+                  Reverter
+                </button>
+              `}
+              <button class="btn btn-outline btn-two-step" data-action="EXCLUIR" data-id="${p.id}" style="padding:5px 9px; font-size:11px; color:var(--red);">
+                Excluir
+              </button>
+            </div>
           </div>
         `;
       }
@@ -1865,19 +1911,34 @@
       function attachCardEvents(container) {
         container.querySelectorAll('.btn-two-step').forEach(btn => {
           let confirmed = false;
+          let timeoutId = null;
+          const origText = btn.textContent.trim();
           btn.addEventListener('click', () => {
             const action = btn.getAttribute('data-action');
             const id = btn.getAttribute('data-id');
+            const plan = (state.syncData && state.syncData.planejamentos || []).find(x => x.id === id);
+
             if (!confirmed) {
               confirmed = true;
               btn.textContent = 'Confirmar';
               btn.style.boxShadow = '0 0 0 2px var(--purple)';
-              setTimeout(() => {
+              btn.style.background = 'var(--purple)';
+              btn.style.color = '#fff';
+              timeoutId = setTimeout(() => {
                 confirmed = false;
-                btn.textContent = action === 'CONCLUIR' ? 'Concluir' : 'Reverter';
+                btn.textContent = origText;
                 btn.style.boxShadow = 'none';
+                btn.style.background = '';
+                btn.style.color = '';
               }, 3000);
             } else {
+              clearTimeout(timeoutId);
+              confirmed = false;
+              btn.textContent = origText;
+              btn.style.boxShadow = 'none';
+              btn.style.background = '';
+              btn.style.color = '';
+
               if (action === 'CONCLUIR') {
                 const desc = decodeURIComponent(btn.getAttribute('data-desc') || '');
                 executeMobileAction('CONCLUIR_ATIVIDADE', 'Concluindo atividade...', {
@@ -1887,8 +1948,116 @@
                 });
               } else if (action === 'REVERTER') {
                 executeMobileAction('REVERTER_ATIVIDADE', 'Revertendo atividade...', { id });
+              } else if (action === 'EDITAR' && plan) {
+                openEditPlanModal(plan);
+              } else if (action === 'DUPLICAR' && plan) {
+                duplicatePlan(plan);
+              } else if (action === 'MOVER' && plan) {
+                openMovePlanModal(plan);
+              } else if (action === 'EXCLUIR') {
+                executeMobileAction('EXCLUIR_ATIVIDADE', 'Excluindo agendamento...', { id });
               }
             }
+          });
+        });
+      }
+
+      function openEditPlanModal(p) {
+        openModal('Editar Agendamento', `
+          <form id="formEditPlanModal">
+            <div style="display:flex; gap:8px;">
+              <div class="field-group" style="flex:1.2;">
+                <label>Data</label>
+                <input name="dataAtividade" type="date" class="field-input" value="${p.dataAtividade ? p.dataAtividade.substring(0, 10) : ''}" required />
+              </div>
+              <div class="field-group" style="flex:0.8;">
+                <label>Hora</label>
+                <input name="hora" type="time" class="field-input" value="${p.hora || '08:00'}" required />
+              </div>
+            </div>
+            <div class="field-group">
+              <label>Título da Atividade</label>
+              <input name="titulo" class="field-input" value="${p.titulo || ''}" required />
+            </div>
+            <div class="field-group">
+              <label>Categoria Oficial</label>
+              <select name="categoria" class="field-input">
+                ${CATEGORIAS_WEB.map(c => `<option value="${c}" ${c === p.categoria ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field-group">
+              <label>Unidade / Local</label>
+              <input name="local" class="field-input" value="${p.local || ''}" required />
+            </div>
+            <div class="field-group">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label>Descrição Detalhada</label>
+                <button type="button" id="btnSpellcheckModal" class="btn btn-outline" style="padding:2px 8px; font-size:10px;">✨ Corrigir IA</button>
+              </div>
+              <textarea id="editDescArea" name="descricao" class="field-input" style="height:70px;" required>${p.descricaoOriginal || p.titulo || ''}</textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Salvar</button>
+          </form>
+        `, (body) => {
+          body.querySelector('#btnSpellcheckModal')?.addEventListener('click', async () => {
+            const area = body.querySelector('#editDescArea');
+            if (area && area.value) {
+              setBlockingLoading(true, 'Corrigindo com IA...');
+              const corr = await correctTextWithAi(area.value);
+              setBlockingLoading(false);
+              area.value = corr;
+            }
+          });
+          body.querySelector('#formEditPlanModal').addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            const fd = new FormData(ev.target);
+            executeMobileAction('EDITAR_ATIVIDADE', 'Salvando alterações...', {
+              id: p.id,
+              dataAtividade: fd.get('dataAtividade'),
+              hora: fd.get('hora'),
+              titulo: fd.get('titulo'),
+              categoria: fd.get('categoria'),
+              local: fd.get('local'),
+              descricaoOriginal: fd.get('descricao')
+            });
+          });
+        });
+      }
+
+      function duplicatePlan(p) {
+        const nextDay = new Date(p.dataAtividade);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextDayStr = nextDay.toISOString().split('T')[0];
+        executeMobileAction('CRIAR_ATIVIDADE', 'Duplicando agendamento...', {
+          dataAtividade: nextDayStr,
+          hora: p.hora || '08:00',
+          titulo: p.titulo,
+          categoria: p.categoria,
+          prioridade: p.prioridade || 'MEDIA',
+          local: p.local,
+          cidade: p.cidade || 'São Paulo',
+          estado: p.estado || 'SP',
+          descricaoOriginal: p.descricaoOriginal
+        });
+      }
+
+      function openMovePlanModal(p) {
+        openModal('Mover Agendamento', `
+          <form id="formMovePlanModal">
+            <div class="field-group">
+              <label>Nova Data para Execução</label>
+              <input name="novaData" type="date" class="field-input" value="${p.dataAtividade ? p.dataAtividade.substring(0, 10) : ''}" required />
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Confirmar</button>
+          </form>
+        `, (body) => {
+          body.querySelector('#formMovePlanModal').addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            const fd = new FormData(ev.target);
+            executeMobileAction('MOVER_DATA_ATIVIDADE', 'Movendo data...', {
+              id: p.id,
+              novaData: fd.get('novaData')
+            });
           });
         });
       }
