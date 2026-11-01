@@ -788,4 +788,11 @@ enum StatusDocumento {
   SEM_VALIDADE
 }
 
+model ConfiguracaoSistema {
+  chave     String   @id
+  valor     String
+  descricao String?
+  updatedAt DateTime @updatedAt
 
+  @@map("configuracoes_sistema")
+}

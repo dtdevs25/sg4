@@ -16,6 +16,7 @@ import { getTecnicos } from '@/app/actions/tecnicos'
 import { getManutencoes, registrarManutencao, excluirManutencao } from '@/app/actions/manutencao'
 import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
 import { MapModal } from '@/components/MapModal'
+import { isAbastecimentoWebBloqueadoParaTecnicos } from '@/app/actions/configuracao'
 
 export default function QuilometragemPage() {
 
@@ -41,6 +42,7 @@ export default function QuilometragemPage() {
   const { data: session } = useSession()
   const role = (session?.user as any)?.role
 
+  const [abastecimentoWebBloqueado, setAbastecimentoWebBloqueado] = useState(false)
   const [activeTab, setActiveTab] = useState<'km' | 'abastecimento' | 'manutencao'>('km')
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
@@ -110,14 +112,19 @@ export default function QuilometragemPage() {
 
   async function loadData() {
     setLoading(true)
-    const [anos, resKm, resAbs, resTec, resMan] = await Promise.all([
+    const [anos, resKm, resAbs, resTec, resMan, bloqueado] = await Promise.all([
       getAnosComDados(),
       getQuilometragens(selectedYear === 'ALL' ? undefined : selectedYear),
       getAbastecimentos(selectedYear === 'ALL' ? undefined : selectedYear),
       getTecnicos(),
-      getManutencoes(selectedYear === 'ALL' ? undefined : selectedYear)
+      getManutencoes(selectedYear === 'ALL' ? undefined : selectedYear),
+      isAbastecimentoWebBloqueadoParaTecnicos()
     ])
     setAnosDisponiveis(anos)
+    setAbastecimentoWebBloqueado(bloqueado)
+    if (role === 'TST' && bloqueado && activeTab === 'abastecimento') {
+      setActiveTab('km')
+    }
     if (resKm.success && resKm.data) setKms(resKm.data)
     if (resAbs.success && resAbs.data) setAbastecimentos(resAbs.data)
     if (resMan.success && resMan.data) setManutencoes(resMan.data)
@@ -533,15 +540,17 @@ export default function QuilometragemPage() {
           >
             Controle de KM
           </button>
-          <button
-            onClick={() => setActiveTab('abastecimento')}
-            style={{
-              padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
-              background: activeTab === 'abastecimento' ? '#fff' : 'transparent', color: activeTab === 'abastecimento' ? '#660099' : '#64748b', boxShadow: activeTab === 'abastecimento' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-            }}
-          >
-            Abastecimentos
-          </button>
+          {!(role === 'TST' && abastecimentoWebBloqueado) && (
+            <button
+              onClick={() => setActiveTab('abastecimento')}
+              style={{
+                padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, transition: 'all 0.2s',
+                background: activeTab === 'abastecimento' ? '#fff' : 'transparent', color: activeTab === 'abastecimento' ? '#660099' : '#64748b', boxShadow: activeTab === 'abastecimento' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              Abastecimentos
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('manutencao')}
             style={{
@@ -629,7 +638,7 @@ export default function QuilometragemPage() {
               <PlayCircle size={16} /> Iniciar KM
             </button>
           )}
-          {activeTab === 'abastecimento' && (
+          {activeTab === 'abastecimento' && !(role === 'TST' && abastecimentoWebBloqueado) && (
             <button onClick={() => setShowAbsModal(true)} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <Fuel size={16} /> Novo Abastecimento
             </button>
@@ -811,7 +820,7 @@ export default function QuilometragemPage() {
             </div>
           )}
         </div>
-      ) : activeTab === 'abastecimento' ? (
+      ) : (activeTab === 'abastecimento' && !(role === 'TST' && abastecimentoWebBloqueado)) ? (
         // --- TABELA ABASTECIMENTO ---
         <div style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>

@@ -7,6 +7,7 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
 import { checkMaintenanceAlert } from './manutencao'
 import { triggerN8NAlertCheck } from './abastecimentoOrcamento'
+import { isAbastecimentoWebBloqueadoParaTecnicos } from './configuracao'
 
 // ─── UPLOAD PARA O MINIO (Bucket: sg4-km) ───
 export async function uploadFotoKm(formData: FormData) {
@@ -246,6 +247,16 @@ export async function createAbastecimento(data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const role = (session.user as any).role
+    if (role === 'TST') {
+      const bloqueado = await isAbastecimentoWebBloqueadoParaTecnicos()
+      if (bloqueado) {
+        return {
+          success: false,
+          error: 'O lançamento de abastecimento via sistema web está desabilitado para técnicos. Por favor, utilize exclusivamente o aplicativo SG4 Mobile.'
+        }
+      }
+    }
     const userId = (session.user as any).id
 
     const item = await prisma.abastecimento.create({
@@ -278,6 +289,16 @@ export async function updateAbastecimento(id: string, data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const role = (session.user as any).role
+    if (role === 'TST') {
+      const bloqueado = await isAbastecimentoWebBloqueadoParaTecnicos()
+      if (bloqueado) {
+        return {
+          success: false,
+          error: 'A alteração de abastecimento via sistema web está desabilitada para técnicos. Utilize o aplicativo SG4 Mobile.'
+        }
+      }
+    }
     const userId = (session.user as any).id
 
     const item = await prisma.abastecimento.update({
@@ -305,6 +326,16 @@ export async function deleteAbastecimento(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    const role = (session.user as any).role
+    if (role === 'TST') {
+      const bloqueado = await isAbastecimentoWebBloqueadoParaTecnicos()
+      if (bloqueado) {
+        return {
+          success: false,
+          error: 'A exclusão de abastecimento via sistema web está desabilitada para técnicos.'
+        }
+      }
+    }
     const userId = (session.user as any).id
 
     await prisma.abastecimento.delete({ where: { id } })

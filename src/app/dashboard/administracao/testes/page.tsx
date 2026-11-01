@@ -1,12 +1,25 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
-
-import { Fuel, CheckCircle2, Loader2, Send, Cake } from 'lucide-react'
+import {
+  Fuel,
+  CheckCircle2,
+  Loader2,
+  Send,
+  Cake,
+  Lock,
+  Unlock,
+  ShieldAlert,
+  Smartphone
+} from 'lucide-react'
 import { testN8NWebhook } from '@/app/actions/abastecimentoOrcamento'
 import { testN8NMetasWebhook } from '@/app/actions/metas'
 import { testN8NAniversarioWebhook } from '@/app/actions/aniversarios'
 import { getTecnicos } from '@/app/actions/tecnicos'
+import {
+  isAbastecimentoWebBloqueadoParaTecnicos,
+  setAbastecimentoWebBloqueadoParaTecnicos
+} from '@/app/actions/configuracao'
 
 export default function TestesPage({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const [testandoAbastecimento, setTestandoAbastecimento] = useState(false)
@@ -18,11 +31,21 @@ export default function TestesPage({ hideHeader = false }: { hideHeader?: boolea
   const [selectedTec, setSelectedTec] = useState('')
   const [telefoneInput, setTelefoneInput] = useState('')
 
+  // Controle de bloqueio do abastecimento web para técnicos
+  const [bloqueioAbastecimento, setBloqueioAbastecimento] = useState<boolean>(false)
+  const [loadingBloqueio, setLoadingBloqueio] = useState<boolean>(true)
+  const [savingBloqueio, setSavingBloqueio] = useState<boolean>(false)
+
   useEffect(() => {
     getTecnicos().then(res => {
       if (res.success && res.data) {
         setTecnicos(res.data.filter((t: any) => t.ativo))
       }
+    })
+
+    isAbastecimentoWebBloqueadoParaTecnicos().then(bloqueado => {
+      setBloqueioAbastecimento(bloqueado)
+      setLoadingBloqueio(false)
     })
   }, [])
   
@@ -42,6 +65,30 @@ export default function TestesPage({ hideHeader = false }: { hideHeader?: boolea
 
   const [notification, setNotification] = useState<{ type: 'success' | 'error', title: string, message: string } | null>(null)
 
+  const handleToggleBloqueio = async () => {
+    if (savingBloqueio) return
+    setSavingBloqueio(true)
+    const novoValor = !bloqueioAbastecimento
+    const res = await setAbastecimentoWebBloqueadoParaTecnicos(novoValor)
+    setSavingBloqueio(false)
+    if (res.success) {
+      setBloqueioAbastecimento(novoValor)
+      setNotification({
+        type: 'success',
+        title: novoValor ? 'Abastecimento Web Desabilitado para Técnicos' : 'Abastecimento Web Liberado para Técnicos',
+        message: novoValor
+          ? 'A aba e os lançamentos de abastecimento no sistema web estão agora ocultos e bloqueados para todos os técnicos (TST). Eles deverão registrar abastecimentos exclusivamente no aplicativo SG4 Mobile, garantindo a captura obrigatória de geolocalização.'
+          : 'A aba e os lançamentos de abastecimento no sistema web foram liberados novamente para os técnicos.'
+      })
+    } else {
+      setNotification({
+        type: 'error',
+        title: 'Falha ao salvar configuração',
+        message: res.error || 'Ocorreu um erro ao atualizar o banco de dados.'
+      })
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
       {!hideHeader && (
@@ -57,10 +104,104 @@ export default function TestesPage({ hideHeader = false }: { hideHeader?: boolea
         }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Send color="#660099" size={22} />
-            Painel de Testes do N8N
+            Painel de Testes e Configurações
           </h1>
         </div>
       )}
+
+      {/* ── CARD DE CONTROLE: DESABILITAR ABASTECIMENTO WEB PARA TÉCNICOS ── */}
+      <div
+        style={{
+          background: '#ffffff',
+          borderRadius: 16,
+          border: bloqueioAbastecimento ? '1.5px solid #ef4444' : '1px solid #e2e8f0',
+          padding: 24,
+          boxShadow: bloqueioAbastecimento ? '0 4px 16px rgba(239, 68, 68, 0.08)' : '0 4px 12px rgba(0,0,0,0.02)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 16,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, maxWidth: 760 }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 14,
+              background: bloqueioAbastecimento ? '#fee2e2' : '#f1f5f9',
+              color: bloqueioAbastecimento ? '#dc2626' : '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'all 0.2s',
+            }}
+          >
+            {bloqueioAbastecimento ? <Lock size={26} /> : <Unlock size={26} />}
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                Desabilitar Abastecimento no Sistema Web para Técnicos
+              </h2>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  padding: '3px 9px',
+                  borderRadius: 6,
+                  background: bloqueioAbastecimento ? '#fef2f2' : '#f0fdf4',
+                  color: bloqueioAbastecimento ? '#dc2626' : '#16a34a',
+                  border: bloqueioAbastecimento ? '1px solid #fecaca' : '1px solid #bbf7d0',
+                }}
+              >
+                {bloqueioAbastecimento ? 'BLOQUEADO NO WEB (EXIGIR MOBILE)' : 'HABILITADO NO WEB'}
+              </span>
+            </div>
+            <p style={{ fontSize: 13, color: '#64748b', margin: '6px 0 0 0', lineHeight: 1.5 }}>
+              Quando este flag está <b>ativado</b>, a aba e as opções de lançamento de abastecimento <b>desaparecem totalmente para os técnicos de segurança no sistema web</b> (com bloqueio também a nível de servidor contra tentativas de burla). Assim, os técnicos serão obrigados a lançar abastecimento exclusivamente pelo <b>aplicativo SG4 Mobile</b>, garantindo a captura obrigatória de geolocalização via GPS.
+              Administradores e usuários Master continuam com visualização e controle normais no sistema web.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleToggleBloqueio}
+          disabled={loadingBloqueio || savingBloqueio}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '12px 22px',
+            borderRadius: 10,
+            border: 'none',
+            fontSize: 14,
+            fontWeight: 800,
+            cursor: (loadingBloqueio || savingBloqueio) ? 'not-allowed' : 'pointer',
+            background: bloqueioAbastecimento ? '#dc2626' : '#660099',
+            color: '#ffffff',
+            boxShadow: bloqueioAbastecimento ? '0 4px 14px rgba(220, 38, 38, 0.25)' : '0 4px 14px rgba(102, 0, 153, 0.25)',
+            transition: 'all 0.2s',
+            opacity: (loadingBloqueio || savingBloqueio) ? 0.7 : 1,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {savingBloqueio ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : bloqueioAbastecimento ? (
+            <Unlock size={18} />
+          ) : (
+            <Lock size={18} />
+          )}
+          {savingBloqueio
+            ? 'Salvando...'
+            : bloqueioAbastecimento
+            ? 'Reativar no Web'
+            : 'Desabilitar para Técnicos no Web'}
+        </button>
+      </div>
 
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
         {/* Teste Abastecimento */}
@@ -216,21 +357,21 @@ export default function TestesPage({ hideHeader = false }: { hideHeader?: boolea
       {/* Modal Notification */}
       {notification && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 360, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-            <div style={{ width: 64, height: 64, borderRadius: '50%', background: notification.type === 'success' ? '#dcfce7' : '#fee2e2', color: notification.type === 'success' ? '#16a34a' : '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 420, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: notification.type === 'success' ? '#dcfce7' : '#fee2e2', color: notification.type === 'success' ? '#16a34a' : '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
               {notification.type === 'success' ? <CheckCircle2 size={32} /> : <Loader2 size={32} />}
             </div>
             
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
               {notification.title}
             </h2>
-            <p style={{ margin: 0, fontSize: 14, color: '#475569', lineHeight: 1.5 }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.5 }}>
               {notification.message}
             </p>
 
             <button 
               onClick={() => setNotification(null)}
-              style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: notification.type === 'success' ? '#16a34a' : '#dc2626', color: '#fff', fontWeight: 800, cursor: 'pointer', marginTop: 12 }}
+              style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: notification.type === 'success' ? '#16a34a' : '#dc2626', color: '#fff', fontWeight: 800, cursor: 'pointer', marginTop: 8 }}
             >
               OK
             </button>
