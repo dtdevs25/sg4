@@ -12,3 +12,4 @@ export async function frotaWebBloqueadaParaRole(role?: string | null): Promise<b
   if (role !== 'TST') return false
   return isAbastecimentoWebBloqueadoParaTecnicos()
 }
+

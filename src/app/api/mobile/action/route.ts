@@ -172,6 +172,24 @@ function generateDatesForFrequency(
 }
 
 let geoColumnsChecked = false
+
+function parseAndValidateGeoCoords(payload: any, prefix = ''): { lat: number; lng: number } | null {
+  const rawLat = prefix
+    ? (payload?.[prefix] ?? payload?.latitude ?? payload?.lat)
+    : (payload?.latitude ?? payload?.lat ?? payload?.latitudeInicial ?? payload?.latitudeFinal);
+  const rawLng = prefix
+    ? (payload?.[prefix.replace('latitude', 'longitude')] ?? payload?.longitude ?? payload?.lng)
+    : (payload?.longitude ?? payload?.lng ?? payload?.longitudeInicial ?? payload?.longitudeFinal);
+
+  if (rawLat == null || rawLng == null) return null;
+  const lat = Number(rawLat);
+  const lng = Number(rawLng);
+  if (isNaN(lat) || isNaN(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  if (lat === 0 && lng === 0) return null;
+  return { lat, lng };
+}
+
 async function ensureGeolocationColumns() {
   if (geoColumnsChecked) return
   try {
@@ -661,6 +679,13 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
+        const geoIni = parseAndValidateGeoCoords(payload, 'latitudeInicial') || parseAndValidateGeoCoords(payload)
+        if (!geoIni) {
+          return NextResponse.json(
+            { error: 'A geolocalização por GPS é obrigatória para iniciar o KM.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
         const dataIni = payload?.dataInicial ? parseDateSafe(payload.dataInicial) : new Date()
         const fotoInicial = await uploadBase64ToMinio(payload?.fotoInicial, 'sg4-km', 'fotos')
         resultData = await prisma.quilometragem.create({
@@ -670,8 +695,8 @@ export async function POST(req: Request) {
             dataInicial: dataIni,
             kmInicial,
             fotoInicial,
-            latitudeInicial: payload?.latitude != null ? Number(payload.latitude) : (payload?.latitudeInicial != null ? Number(payload.latitudeInicial) : null),
-            longitudeInicial: payload?.longitude != null ? Number(payload.longitude) : (payload?.longitudeInicial != null ? Number(payload.longitudeInicial) : null),
+            latitudeInicial: geoIni.lat,
+            longitudeInicial: geoIni.lng,
           },
         })
         break
@@ -699,6 +724,13 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
+        const geoFim = parseAndValidateGeoCoords(payload, 'latitudeFinal') || parseAndValidateGeoCoords(payload)
+        if (!geoFim) {
+          return NextResponse.json(
+            { error: 'A geolocalização por GPS é obrigatória para encerrar o KM.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
         const diferenca = Number((kmFinal - registroKm.kmInicial).toFixed(1))
         const fotoFinal = await uploadBase64ToMinio(payload?.fotoFinal, 'sg4-km', 'fotos')
         resultData = await prisma.quilometragem.update({
@@ -708,8 +740,8 @@ export async function POST(req: Request) {
             kmFinal,
             diferenca,
             fotoFinal,
-            latitudeFinal: payload?.latitude != null ? Number(payload.latitude) : (payload?.latitudeFinal != null ? Number(payload.latitudeFinal) : null),
-            longitudeFinal: payload?.longitude != null ? Number(payload.longitude) : (payload?.longitudeFinal != null ? Number(payload.longitudeFinal) : null),
+            latitudeFinal: geoFim.lat,
+            longitudeFinal: geoFim.lng,
           },
         })
         break
@@ -723,10 +755,15 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
+        const geoAbs = parseAndValidateGeoCoords(payload)
+        if (!geoAbs) {
+          return NextResponse.json(
+            { error: 'A geolocalização por GPS é obrigatória para registrar abastecimento.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
         await ensureGeolocationColumns()
         const fotoCupom = await uploadBase64ToMinio(payload?.fotoCupom, 'sg4-km', 'cupons')
-        const lat = payload?.latitude != null ? Number(payload.latitude) : null
-        const lng = payload?.longitude != null ? Number(payload.longitude) : null
         resultData = await prisma.abastecimento.create({
           data: {
             tecnicoId,
@@ -734,8 +771,8 @@ export async function POST(req: Request) {
             valor,
             tipo: payload?.tipo || 'ABASTECIMENTO',
             fotoCupom,
-            latitude: lat != null && !isNaN(lat) ? lat : null,
-            longitude: lng != null && !isNaN(lng) ? lng : null,
+            latitude: geoAbs.lat,
+            longitude: geoAbs.lng,
           },
         })
         break
@@ -749,10 +786,15 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
+        const geoManut = parseAndValidateGeoCoords(payload)
+        if (!geoManut) {
+          return NextResponse.json(
+            { error: 'A geolocalização por GPS é obrigatória para registrar manutenção.' },
+            { status: 400, headers: CORS_HEADERS }
+          )
+        }
         await ensureGeolocationColumns()
         const comprovanteUrl = await uploadBase64ToMinio(payload?.fotoUrl || payload?.comprovanteUrl, 'sg4-km', 'manutencao')
-        const lat = payload?.latitude != null ? Number(payload.latitude) : null
-        const lng = payload?.longitude != null ? Number(payload.longitude) : null
         resultData = await prisma.manutencaoVeiculo.create({
           data: {
             tecnicoId,
@@ -760,8 +802,8 @@ export async function POST(req: Request) {
             dataManutencao: payload?.dataManutencao ? parseDateSafe(payload.dataManutencao) : new Date(),
             descricao: payload?.descricao ? String(payload.descricao).trim() : null,
             comprovanteUrl,
-            latitude: lat != null && !isNaN(lat) ? lat : null,
-            longitude: lng != null && !isNaN(lng) ? lng : null,
+            latitude: geoManut.lat,
+            longitude: geoManut.lng,
           },
         })
         break

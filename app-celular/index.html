@@ -1146,7 +1146,38 @@
       });
 
       // Executar Ação com Bloqueio Total + Fila Room Offline
-      async function executeMobileAction(actionType, loadingTitle, payload) {
+      async 
+        function requestGpsCoords(actionName, onGotCoords) {
+          if (!navigator.geolocation) {
+            alert('A geolocalização por GPS é obrigatória para ' + actionName + ', mas este navegador/dispositivo não oferece suporte.');
+            return;
+          }
+          const loadingOverlay = document.createElement('div');
+          loadingOverlay.id = 'gpsLoadingOverlay';
+          loadingOverlay.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.65); display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; gap:12px; font-family:inherit;';
+          loadingOverlay.innerHTML = '<div style="width:40px; height:40px; border:4px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite;"></div><div style="font-weight:700; font-size:14px;">Obtendo localização GPS obrigatória...</div><div style="font-size:11px; color:#cbd5e1;">Por favor, permita o acesso à localização</div>';
+          document.body.appendChild(loadingOverlay);
+
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              loadingOverlay.remove();
+              const lat = pos.coords.latitude;
+              const lng = pos.coords.longitude;
+              if (lat === 0 && lng === 0) {
+                alert('Não foi possível obter coordenadas GPS válidas. Ative a localização e tente novamente.');
+                return;
+              }
+              onGotCoords(lat, lng);
+            },
+            (err) => {
+              loadingOverlay.remove();
+              alert('A captura de geolocalização por GPS é OBRIGATÓRIA para ' + actionName + '. Por favor, ative a localização do aparelho e permita a permissão no navegador para continuar.');
+            },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 }
+          );
+        }
+
+        function executeMobileAction(actionType, loadingTitle, payload) {
         if (state.isSubmitting) return;
         setBlockingLoading(true, loadingTitle);
 
@@ -1778,24 +1809,14 @@
                 const rawVal = kmInput.value.replace(/\D/g, '');
                 const kmNum = Number(rawVal) || 0;
 
-                const sendAction = (lat, lng) => {
+                requestGpsCoords('iniciar o KM', (lat, lng) => {
                   executeMobileAction('INICIAR_KM', 'Iniciando KM do dia...', {
                     kmInicial: kmNum,
                     fotoInicial: fotoIniBase64 || null,
                     latitude: lat,
                     longitude: lng
                   });
-                };
-
-                if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => sendAction(pos.coords.latitude, pos.coords.longitude),
-                    () => sendAction(null, null),
-                    { timeout: 5000 }
-                  );
-                } else {
-                  sendAction(null, null);
-                }
+                });
               });
             });
           });
@@ -1869,7 +1890,7 @@
                 const rawVal = kmInput.value.replace(/\D/g, '');
                 const kmNum = Number(rawVal) || 0;
 
-                const sendAction = (lat, lng) => {
+                requestGpsCoords('encerrar o KM', (lat, lng) => {
                   executeMobileAction('FINALIZAR_KM', 'Encerrando KM do dia...', {
                     id: openKm.id,
                     kmFinal: kmNum,
@@ -1877,17 +1898,7 @@
                     latitude: lat,
                     longitude: lng
                   });
-                };
-
-                if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => sendAction(pos.coords.latitude, pos.coords.longitude),
-                    () => sendAction(null, null),
-                    { timeout: 5000 }
-                  );
-                } else {
-                  sendAction(null, null);
-                }
+                });
               });
             });
           });
@@ -1957,10 +1968,14 @@
               body.querySelector('#formNewAbs').addEventListener('submit', (ev) => {
                 ev.preventDefault();
                 const valorFinal = Number(rawDigits) / 100;
-                executeMobileAction('CRIAR_ABASTECIMENTO', 'Registrando abastecimento...', {
-                  valor: valorFinal,
-                  tipo: 'ABASTECIMENTO',
-                  fotoCupom: fotoAbsBase64 || null
+                requestGpsCoords('registrar abastecimento', (lat, lng) => {
+                  executeMobileAction('CRIAR_ABASTECIMENTO', 'Registrando abastecimento...', {
+                    valor: valorFinal,
+                    tipo: 'ABASTECIMENTO',
+                    fotoCupom: fotoAbsBase64 || null,
+                    latitude: lat,
+                    longitude: lng
+                  });
                 });
               });
             });
@@ -2033,10 +2048,14 @@
                 ev.preventDefault();
                 const fd = new FormData(ev.target);
                 const rawKm = (kmInput.value || '').replace(/\D/g, '');
-                executeMobileAction('CRIAR_MANUTENCAO', 'Registrando manutenção...', {
-                  kmManutencao: Number(rawKm) || 0,
-                  descricao: fd.get('descricao'),
-                  comprovanteUrl: fotoManutBase64 || null
+                requestGpsCoords('registrar manutenção', (lat, lng) => {
+                  executeMobileAction('CRIAR_MANUTENCAO', 'Registrando manutenção...', {
+                    kmManutencao: Number(rawKm) || 0,
+                    descricao: fd.get('descricao'),
+                    comprovanteUrl: fotoManutBase64 || null,
+                    latitude: lat,
+                    longitude: lng
+                  });
                 });
               });
             });

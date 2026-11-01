@@ -62,6 +62,7 @@ import br.com.sg4.mobile.ui.theme.*
 import br.com.sg4.mobile.viewmodel.Sg4UiState
 import br.com.sg4.mobile.viewmodel.Sg4ViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
@@ -3197,6 +3198,24 @@ fun KmAbastecimentoScreen(
     var viewingManutPhoto by remember { mutableStateOf<ManutencaoDto?>(null) }
 
     val openKm = uiState.syncData.quilometragens.firstOrNull { it.kmFinal == null }
+    val scope = rememberCoroutineScope()
+    var obtendoGps by remember { mutableStateOf(false) }
+    var gpsFalha by remember { mutableStateOf<GpsResultado.Falha?>(null) }
+
+    GpsObrigatorioDialogs(
+        context = context,
+        obtendo = obtendoGps,
+        falha = gpsFalha,
+        onDismissFalha = { gpsFalha = null },
+        onPedirPermissao = {
+            permissionsLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    )
 
     val textInputColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Slate900,
@@ -3629,23 +3648,34 @@ fun KmAbastecimentoScreen(
                 Button(
                     onClick = {
                         val kmVal = rawKmIni.toDoubleOrNull() ?: 0.0
-                        val loc = getDeviceLocation(context)
-                        viewModel.performAction(
-                            actionType = "INICIAR_KM",
-                            loadingTitle = "Iniciando KM do dia...",
-                            description = "Início com ${kmVal.toInt()} km",
-                            payload = mapOf(
-                                "kmInicial" to kmVal,
-                                "fotoInicial" to fotoIniBase64.ifBlank { null },
-                                "latitude" to loc?.first,
-                                "longitude" to loc?.second
-                            ),
-                            onCompleted = { showStartKmDialog = false }
-                        )
+                        scope.launch {
+                            obtendoGps = true
+                            val gpsRes = obterLocalizacaoObrigatoria(context)
+                            obtendoGps = false
+                            when (gpsRes) {
+                                is GpsResultado.Falha -> {
+                                    gpsFalha = gpsRes
+                                }
+                                is GpsResultado.Ok -> {
+                                    viewModel.performAction(
+                                        actionType = "INICIAR_KM",
+                                        loadingTitle = "Iniciando KM do dia...",
+                                        description = "Início com ${kmVal.toInt()} km",
+                                        payload = mapOf(
+                                            "kmInicial" to kmVal,
+                                            "fotoInicial" to fotoIniBase64.ifBlank { null },
+                                            "latitude" to gpsRes.lat,
+                                            "longitude" to gpsRes.lng
+                                        ),
+                                        onCompleted = { showStartKmDialog = false }
+                                    )
+                                }
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Sg4Green, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = rawKmIni.isNotBlank() && !uiState.isBlockingLoading
+                    enabled = rawKmIni.isNotBlank() && !uiState.isBlockingLoading && !obtendoGps
                 ) {
                     Text("Confirmar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
@@ -3792,24 +3822,35 @@ fun KmAbastecimentoScreen(
                 Button(
                     onClick = {
                         val kmFim = rawKmFim.toDoubleOrNull() ?: 0.0
-                        val loc = getDeviceLocation(context)
-                        viewModel.performAction(
-                            actionType = "FINALIZAR_KM",
-                            loadingTitle = "Encerrando KM do dia...",
-                            description = "Encerramento com ${kmFim.toInt()} km",
-                            payload = mapOf(
-                                "id" to kmItem.id,
-                                "kmFinal" to kmFim,
-                                "fotoFinal" to fotoFimBase64.ifBlank { null },
-                                "latitude" to loc?.first,
-                                "longitude" to loc?.second
-                            ),
-                            onCompleted = { finishingKmItem = null }
-                        )
+                        scope.launch {
+                            obtendoGps = true
+                            val gpsRes = obterLocalizacaoObrigatoria(context)
+                            obtendoGps = false
+                            when (gpsRes) {
+                                is GpsResultado.Falha -> {
+                                    gpsFalha = gpsRes
+                                }
+                                is GpsResultado.Ok -> {
+                                    viewModel.performAction(
+                                        actionType = "FINALIZAR_KM",
+                                        loadingTitle = "Encerrando KM do dia...",
+                                        description = "Encerramento com ${kmFim.toInt()} km",
+                                        payload = mapOf(
+                                            "id" to kmItem.id,
+                                            "kmFinal" to kmFim,
+                                            "fotoFinal" to fotoFimBase64.ifBlank { null },
+                                            "latitude" to gpsRes.lat,
+                                            "longitude" to gpsRes.lng
+                                        ),
+                                        onCompleted = { finishingKmItem = null }
+                                    )
+                                }
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Sg4Green, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = rawKmFim.isNotBlank() && !uiState.isBlockingLoading
+                    enabled = rawKmFim.isNotBlank() && !uiState.isBlockingLoading && !obtendoGps
                 ) {
                     Text("Confirmar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
@@ -3939,23 +3980,34 @@ fun KmAbastecimentoScreen(
                 Button(
                     onClick = {
                         val valor = parseCurrencyValue(rawDigits)
-                        val loc = getDeviceLocation(context)
-                        viewModel.performAction(
-                            actionType = "CRIAR_ABASTECIMENTO",
-                            loadingTitle = "Registrando abastecimento...",
-                            description = "Abastecimento: R$ valor",
-                            payload = mapOf(
-                                "valor" to valor,
-                                "fotoCupom" to fotoCupomBase64.ifBlank { null },
-                                "latitude" to loc?.first,
-                                "longitude" to loc?.second
-                            ),
-                            onCompleted = { showAbastecimentoDialog = false }
-                        )
+                        scope.launch {
+                            obtendoGps = true
+                            val gpsRes = obterLocalizacaoObrigatoria(context)
+                            obtendoGps = false
+                            when (gpsRes) {
+                                is GpsResultado.Falha -> {
+                                    gpsFalha = gpsRes
+                                }
+                                is GpsResultado.Ok -> {
+                                    viewModel.performAction(
+                                        actionType = "CRIAR_ABASTECIMENTO",
+                                        loadingTitle = "Registrando abastecimento...",
+                                        description = "Abastecimento: R$ valor",
+                                        payload = mapOf(
+                                            "valor" to valor,
+                                            "fotoCupom" to fotoCupomBase64.ifBlank { null },
+                                            "latitude" to gpsRes.lat,
+                                            "longitude" to gpsRes.lng
+                                        ),
+                                        onCompleted = { showAbastecimentoDialog = false }
+                                    )
+                                }
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Sg4Green, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = rawDigits.isNotBlank() && !uiState.isBlockingLoading
+                    enabled = rawDigits.isNotBlank() && !uiState.isBlockingLoading && !obtendoGps
                 ) {
                     Text("Confirmar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
@@ -4095,24 +4147,35 @@ fun KmAbastecimentoScreen(
                 Button(
                     onClick = {
                         val km = rawKmManut.toIntOrNull() ?: 0
-                        val loc = getDeviceLocation(context)
-                        viewModel.performAction(
-                            actionType = "CRIAR_MANUTENCAO",
-                            loadingTitle = "Registrando manutenção...",
-                            description = "Manutenção aos $km km",
-                            payload = mapOf(
-                                "kmManutencao" to km,
-                                "descricao" to descManut,
-                                "comprovanteUrl" to fotoManutBase64.ifBlank { null },
-                                "latitude" to loc?.first,
-                                "longitude" to loc?.second
-                            ),
-                            onCompleted = { showManutencaoDialog = false }
-                        )
+                        scope.launch {
+                            obtendoGps = true
+                            val gpsRes = obterLocalizacaoObrigatoria(context)
+                            obtendoGps = false
+                            when (gpsRes) {
+                                is GpsResultado.Falha -> {
+                                    gpsFalha = gpsRes
+                                }
+                                is GpsResultado.Ok -> {
+                                    viewModel.performAction(
+                                        actionType = "CRIAR_MANUTENCAO",
+                                        loadingTitle = "Registrando manutenção...",
+                                        description = "Manutenção aos $km km",
+                                        payload = mapOf(
+                                            "kmManutencao" to km,
+                                            "descricao" to descManut,
+                                            "comprovanteUrl" to fotoManutBase64.ifBlank { null },
+                                            "latitude" to gpsRes.lat,
+                                            "longitude" to gpsRes.lng
+                                        ),
+                                        onCompleted = { showManutencaoDialog = false }
+                                    )
+                                }
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Sg4Green, contentColor = Color.White),
                     shape = RoundedCornerShape(8.dp),
-                    enabled = rawKmManut.isNotBlank() && !uiState.isBlockingLoading
+                    enabled = rawKmManut.isNotBlank() && !uiState.isBlockingLoading && !obtendoGps
                 ) {
                     Text("Confirmar", fontWeight = FontWeight.Bold, color = Color.White)
                 }
