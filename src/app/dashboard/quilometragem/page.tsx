@@ -134,55 +134,32 @@ export default function QuilometragemPage() {
     setLoading(false)
   }
 
-    const lastClickRef = useRef<{ month: number | null; time: number; count: number }>({ month: null, time: 0, count: 0 })
-  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+      const clickTimeout = useRef<NodeJS.Timeout | null>(null)
   const ALL_MONTHS_NUM = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
   function handleMonthClick(m: number) {
-    const now = Date.now()
-    const last = lastClickRef.current
-    const isSameMonth = last.month === m
-    const isQuickClick = isSameMonth && (now - last.time < 450)
+    if (clickTimeout.current) {
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setSelectedMonths([m])
+    } else {
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+        setSelectedMonths(prev => {
+          if (prev.length === 1 && prev.includes(m)) return [...ALL_MONTHS_NUM]
+          if (prev.includes(m)) return prev.filter(x => x !== m)
+          return [...prev, m].sort((a, b) => a - b)
+        })
+      }, 250)
+    }
+  }
 
+  function handleMonthDoubleClick(m: number) {
     if (clickTimeout.current) {
       clearTimeout(clickTimeout.current)
       clickTimeout.current = null
     }
-
-    if (isQuickClick) {
-      last.count += 1
-      last.time = now
-    } else {
-      last.month = m
-      last.count = 1
-      last.time = now
-    }
-
-    if (last.count === 2) {
-      setSelectedMonths([m])
-      clickTimeout.current = setTimeout(() => {
-        if (lastClickRef.current) lastClickRef.current.count = 0
-        clickTimeout.current = null
-      }, 450)
-      return
-    }
-
-    if (last.count >= 3) {
-      setSelectedMonths([...ALL_MONTHS_NUM])
-      last.count = 0
-      last.month = null
-      return
-    }
-
-    clickTimeout.current = setTimeout(() => {
-      clickTimeout.current = null
-      lastClickRef.current = { month: null, time: 0, count: 0 }
-      setSelectedMonths(prev => {
-        if (prev.length === 1 && prev.includes(m)) return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        if (prev.includes(m)) return prev.filter(x => x !== m)
-        return [...prev, m].sort((a, b) => a - b)
-      })
-    }, 300)
+    setSelectedMonths([m])
   }
 
   // File Handlers
@@ -592,7 +569,7 @@ export default function QuilometragemPage() {
               {MONTHS_LIST.slice(0, 6).map(m => {
                 const isSelected = selectedMonths.includes(m.key)
                 return (
-                  <button key={m.key} onClick={() => handleMonthClick(m.key)} style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0', background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc', color: isSelected ? '#660099' : '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none' }}>{m.label}</button>
+                  <button key={m.key} onClick={() => handleMonthClick(m.key)} onDoubleClick={() => handleMonthDoubleClick(m.key)} style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0', background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc', color: isSelected ? '#660099' : '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none' }}>{m.label}</button>
                 )
               })}
             </div>
@@ -600,7 +577,7 @@ export default function QuilometragemPage() {
               {MONTHS_LIST.slice(6, 12).map(m => {
                 const isSelected = selectedMonths.includes(m.key)
                 return (
-                  <button key={m.key} onClick={() => handleMonthClick(m.key)} style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0', background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc', color: isSelected ? '#660099' : '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none' }}>{m.label}</button>
+                  <button key={m.key} onClick={() => handleMonthClick(m.key)} onDoubleClick={() => handleMonthDoubleClick(m.key)} style={{ flex: 1, padding: '8px 0', borderRadius: 6, border: isSelected ? '1px solid #660099' : '1px solid #e2e8f0', background: isSelected ? 'rgba(102,0,153,0.1)' : '#f8fafc', color: isSelected ? '#660099' : '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', userSelect: 'none' }}>{m.label}</button>
                 )
               })}
             </div>

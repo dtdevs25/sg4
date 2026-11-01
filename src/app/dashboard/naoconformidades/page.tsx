@@ -311,60 +311,37 @@ export default function NaoConformidadesPage() {
   }, [data])
 
   // Month Click Handler with double click shortcut to select single month
-    const lastClickRef = useRef<{ month: MesKey | null; time: number; count: number }>({ month: null, time: 0, count: 0 })
-  const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+      const clickTimeout = useRef<NodeJS.Timeout | null>(null)
   const ALL_MES_KEYS: MesKey[] = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
   const handleMonthClick = (m: MesKey) => {
-    const now = Date.now()
-    const last = lastClickRef.current
-    const isSameMonth = last.month === m
-    const isQuickClick = isSameMonth && (now - last.time < 450)
+    if (clickTimeout.current) {
+      clearTimeout(clickTimeout.current)
+      clickTimeout.current = null
+      setSelectedMonths([m])
+    } else {
+      clickTimeout.current = setTimeout(() => {
+        clickTimeout.current = null
+        setSelectedMonths(prev => {
+          if (prev.length === 1 && prev.includes(m)) {
+            return [...ALL_MES_KEYS]
+          }
+          if (prev.includes(m)) {
+            return prev.filter(x => x !== m)
+          } else {
+            return [...prev, m]
+          }
+        })
+      }, 250)
+    }
+  }
 
+  const handleMonthDoubleClick = (m: MesKey) => {
     if (clickTimeout.current) {
       clearTimeout(clickTimeout.current)
       clickTimeout.current = null
     }
-
-    if (isQuickClick) {
-      last.count += 1
-      last.time = now
-    } else {
-      last.month = m
-      last.count = 1
-      last.time = now
-    }
-
-    if (last.count === 2) {
-      setSelectedMonths([m])
-      clickTimeout.current = setTimeout(() => {
-        if (lastClickRef.current) lastClickRef.current.count = 0
-        clickTimeout.current = null
-      }, 450)
-      return
-    }
-
-    if (last.count >= 3) {
-      setSelectedMonths([...ALL_MES_KEYS])
-      last.count = 0
-      last.month = null
-      return
-    }
-
-    clickTimeout.current = setTimeout(() => {
-      clickTimeout.current = null
-      lastClickRef.current = { month: null, time: 0, count: 0 }
-      setSelectedMonths(prev => {
-        if (prev.length === 1 && prev.includes(m)) {
-          return [...ALL_MES_KEYS]
-        }
-        if (prev.includes(m)) {
-          return prev.filter(x => x !== m)
-        } else {
-          return [...prev, m]
-        }
-      })
-    }, 300)
+    setSelectedMonths([m])
   }
 
   // Filter helper: check if date falls in selected months and year
@@ -1079,7 +1056,7 @@ export default function NaoConformidadesPage() {
                     return (
                       <button
                         key={m.key}
-                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        onClick={() => handleMonthClick(m.key as MesKey)} onDoubleClick={() => handleMonthDoubleClick(m.key as MesKey)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? `1px solid ${PURPLE}` : '1px solid #e2e8f0',
@@ -1100,7 +1077,7 @@ export default function NaoConformidadesPage() {
                     return (
                       <button
                         key={m.key}
-                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        onClick={() => handleMonthClick(m.key as MesKey)} onDoubleClick={() => handleMonthDoubleClick(m.key as MesKey)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? `1px solid ${PURPLE}` : '1px solid #e2e8f0',
@@ -1386,7 +1363,7 @@ export default function NaoConformidadesPage() {
                     return (
                       <button
                         key={m.key}
-                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        onClick={() => handleMonthClick(m.key as MesKey)} onDoubleClick={() => handleMonthDoubleClick(m.key as MesKey)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? `1px solid ${PURPLE}` : '1px solid #e2e8f0',
@@ -1407,7 +1384,7 @@ export default function NaoConformidadesPage() {
                     return (
                       <button
                         key={m.key}
-                        onClick={() => handleMonthClick(m.key as MesKey)}
+                        onClick={() => handleMonthClick(m.key as MesKey)} onDoubleClick={() => handleMonthDoubleClick(m.key as MesKey)}
                         style={{
                           flex: 1, padding: '8px 0', borderRadius: 6,
                           border: isSelected ? `1px solid ${PURPLE}` : '1px solid #e2e8f0',
