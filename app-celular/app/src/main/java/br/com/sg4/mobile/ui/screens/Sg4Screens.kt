@@ -3939,13 +3939,16 @@ fun KmAbastecimentoScreen(
                 Button(
                     onClick = {
                         val valor = parseCurrencyValue(rawDigits)
+                        val loc = getDeviceLocation(context)
                         viewModel.performAction(
                             actionType = "CRIAR_ABASTECIMENTO",
                             loadingTitle = "Registrando abastecimento...",
                             description = "Abastecimento: R$ valor",
                             payload = mapOf(
                                 "valor" to valor,
-                                "fotoCupom" to fotoCupomBase64.ifBlank { null }
+                                "fotoCupom" to fotoCupomBase64.ifBlank { null },
+                                "latitude" to loc?.first,
+                                "longitude" to loc?.second
                             ),
                             onCompleted = { showAbastecimentoDialog = false }
                         )
@@ -4092,6 +4095,7 @@ fun KmAbastecimentoScreen(
                 Button(
                     onClick = {
                         val km = rawKmManut.toIntOrNull() ?: 0
+                        val loc = getDeviceLocation(context)
                         viewModel.performAction(
                             actionType = "CRIAR_MANUTENCAO",
                             loadingTitle = "Registrando manutenção...",
@@ -4099,7 +4103,9 @@ fun KmAbastecimentoScreen(
                             payload = mapOf(
                                 "kmManutencao" to km,
                                 "descricao" to descManut,
-                                "comprovanteUrl" to fotoManutBase64.ifBlank { null }
+                                "comprovanteUrl" to fotoManutBase64.ifBlank { null },
+                                "latitude" to loc?.first,
+                                "longitude" to loc?.second
                             ),
                             onCompleted = { showManutencaoDialog = false }
                         )

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition, useRef } from 'react'
 import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
+import { MapModal } from '@/components/MapModal'
 import {
   getResumoOrcamentoMes,
   updateOrcamentoTecnico,
@@ -38,6 +39,7 @@ import {
   TrendingUp,
   Sparkles,
   Eye,
+  MapPin,
   FileText,
   DollarSign,
   User,
@@ -79,6 +81,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   const [dadosExtrato, setDadosExtrato] = useState<ExtratoBancarioData | null>(null)
   const [loadingExtrato, setLoadingExtrato] = useState(false)
   const [fotoCupomZoom, setFotoCupomZoom] = useState<string | null>(null)
+  const [mapModal, setMapModal] = useState<{ isOpen: boolean; title: string; subtitle?: string; lat: number; lng: number } | null>(null)
 
   // Modal de Edição de Depósito Real no Extrato
   const [depositoEditando, setDepositoEditando] = useState<{
@@ -1425,6 +1428,22 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                                   <Eye size={14} />
                                 </button>
                               )}
+                              {(t as any).latitude != null && (t as any).longitude != null && (
+                                <button
+                                  type="button"
+                                  onClick={() => setMapModal({
+                                    isOpen: true,
+                                    title: 'Localização do Abastecimento',
+                                    subtitle: `${dadosExtrato?.tecnico.nome || 'Técnico'} • ${dt.data} • R$ ${Math.abs(t.valor).toFixed(2)}`,
+                                    lat: (t as any).latitude,
+                                    lng: (t as any).longitude,
+                                  })}
+                                  style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: 0 }}
+                                  title="Ver Local no Mapa"
+                                >
+                                  <MapPin size={14} />
+                                </button>
+                              )}
                             </div>
                             {t.descricao && (
                               <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
@@ -2060,6 +2079,16 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
             </div>
           </div>
         </div>
+      )}
+      {mapModal && (
+        <MapModal
+          isOpen={mapModal.isOpen}
+          onClose={() => setMapModal(null)}
+          title={mapModal.title}
+          subtitle={mapModal.subtitle}
+          latitude={mapModal.lat}
+          longitude={mapModal.lng}
+        />
       )}
       <ActionLoadingOverlay
         open={savingAction || salvandoDepositos || enviandoEmail}

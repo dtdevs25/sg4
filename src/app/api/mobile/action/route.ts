@@ -171,6 +171,20 @@ function generateDatesForFrequency(
   return dates.length > 0 ? dates : [start]
 }
 
+let geoColumnsChecked = false
+async function ensureGeolocationColumns() {
+  if (geoColumnsChecked) return
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "abastecimentos" ADD COLUMN IF NOT EXISTS "latitude" DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS "longitude" DOUBLE PRECISION;
+      ALTER TABLE "manutencoes_veiculo" ADD COLUMN IF NOT EXISTS "latitude" DOUBLE PRECISION, ADD COLUMN IF NOT EXISTS "longitude" DOUBLE PRECISION;
+    `)
+    geoColumnsChecked = true
+  } catch (e) {
+    // silently continue
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const authUser = await resolveMobileUser(req)
@@ -709,7 +723,10 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
+        await ensureGeolocationColumns()
         const fotoCupom = await uploadBase64ToMinio(payload?.fotoCupom, 'sg4-km', 'cupons')
+        const lat = payload?.latitude != null ? Number(payload.latitude) : null
+        const lng = payload?.longitude != null ? Number(payload.longitude) : null
         resultData = await prisma.abastecimento.create({
           data: {
             tecnicoId,
@@ -717,6 +734,8 @@ export async function POST(req: Request) {
             valor,
             tipo: payload?.tipo || 'ABASTECIMENTO',
             fotoCupom,
+            latitude: lat != null && !isNaN(lat) ? lat : null,
+            longitude: lng != null && !isNaN(lng) ? lng : null,
           },
         })
         break
@@ -730,7 +749,10 @@ export async function POST(req: Request) {
             { status: 400, headers: CORS_HEADERS }
           )
         }
+        await ensureGeolocationColumns()
         const comprovanteUrl = await uploadBase64ToMinio(payload?.fotoUrl || payload?.comprovanteUrl, 'sg4-km', 'manutencao')
+        const lat = payload?.latitude != null ? Number(payload.latitude) : null
+        const lng = payload?.longitude != null ? Number(payload.longitude) : null
         resultData = await prisma.manutencaoVeiculo.create({
           data: {
             tecnicoId,
@@ -738,6 +760,8 @@ export async function POST(req: Request) {
             dataManutencao: payload?.dataManutencao ? parseDateSafe(payload.dataManutencao) : new Date(),
             descricao: payload?.descricao ? String(payload.descricao).trim() : null,
             comprovanteUrl,
+            latitude: lat != null && !isNaN(lat) ? lat : null,
+            longitude: lng != null && !isNaN(lng) ? lng : null,
           },
         })
         break

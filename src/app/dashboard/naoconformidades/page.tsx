@@ -1599,9 +1599,7 @@ export default function NaoConformidadesPage() {
                     <button
                       onClick={() => {
                         setBatchUpdateText('');
-                        setFotoBase64(null);
-                        setFotoName(null);
-                        setFotoType(null);
+                        setFotosUpload([]);
                         setBatchStatus('');
                         setBatchActionDate(new Date().toISOString().split('T')[0]);
                         setShowBatchModal(true);

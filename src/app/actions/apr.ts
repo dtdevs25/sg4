@@ -337,8 +337,8 @@ export async function getAprs(filters?: {
         where: {
           AND: [
             where,
-            { dataAbertura: { not: null, not: '-' } },
-            { dataFechamento: { not: null, not: '-' } }
+            { dataAbertura: { not: null } }, { dataAbertura: { not: '-' } },
+            { dataFechamento: { not: null } }, { dataFechamento: { not: '-' } }
           ]
         },
         select: { dataAbertura: true, dataFechamento: true },
@@ -628,7 +628,7 @@ export async function getAllAprTecnicos() {
 
     const grouped = await prisma.aprArkium.groupBy({
       by: ['nomeAuditor'],
-      where: { nomeAuditor: { not: null, not: '' } }
+      where: { AND: [{ nomeAuditor: { not: null } }, { nomeAuditor: { not: '' } }] }
     })
 
     // Remove duplicates due to whitespace/casing variations

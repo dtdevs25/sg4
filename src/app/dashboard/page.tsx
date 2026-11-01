@@ -457,9 +457,9 @@ export default function DashboardPage() {
   if (!ANOS.includes(currentYear)) ANOS.push(currentYear)
 
   function isTecnicoActiveInPeriod(t: any, selMesesObj: string[], selYear: string): boolean {
-    if (!selYear) return false;
+    const mesIdx: Record<string, number> = { Jan: 0, Fev: 1, Mar: 2, Abr: 3, Mai: 4, Jun: 5, Jul: 6, Ago: 7, Set: 8, Out: 9, Nov: 10, Dez: 11 };
+    const monthsToIterate = selMesesObj.length > 0 ? selMesesObj : Object.keys(mesIdx);
 
-    const targetYear = parseInt(selYear, 10);
     const admDate = t.admissao ? new Date(t.admissao) : null;
     const admYear = admDate ? admDate.getUTCFullYear() : null;
     const admMonth = admDate ? admDate.getUTCMonth() : null;
@@ -472,34 +472,36 @@ export default function DashboardPage() {
       demMonth = demDate.getUTCMonth();
     }
 
-    const mesIdx: Record<string, number> = { Jan: 0, Fev: 1, Mar: 2, Abr: 3, Mai: 4, Jun: 5, Jul: 6, Ago: 7, Set: 8, Out: 9, Nov: 10, Dez: 11 };
-    const monthsToIterate = selMesesObj.length > 0 ? selMesesObj : Object.keys(mesIdx);
+    const yearsToIterate: number[] = selYear
+      ? [parseInt(selYear, 10)]
+      : (ANOS && ANOS.length > 0 ? ANOS.map(y => parseInt(y, 10)).filter(y => !isNaN(y)) : [new Date().getFullYear()]);
 
-    let activeInAnyMonth = false;
-    monthsToIterate.forEach(m => {
-      const mIdx = mesIdx[m];
-      let isActive = true;
+    for (const targetYear of yearsToIterate) {
+      for (const m of monthsToIterate) {
+        const mIdx = mesIdx[m];
+        let isActive = true;
 
-      if (admYear !== null && admMonth !== null) {
-        if (targetYear < admYear) {
-          isActive = false;
-        } else if (targetYear === admYear && mIdx < admMonth) {
-          isActive = false;
+        if (admYear !== null && admMonth !== null) {
+          if (targetYear < admYear) {
+            isActive = false;
+          } else if (targetYear === admYear && mIdx < admMonth) {
+            isActive = false;
+          }
         }
-      }
 
-      if (isActive && demYear !== null && demMonth !== null) {
-        if (targetYear > demYear) {
-          isActive = false;
-        } else if (targetYear === demYear && mIdx > demMonth) {
-          isActive = false;
+        if (isActive && demYear !== null && demMonth !== null) {
+          if (targetYear > demYear) {
+            isActive = false;
+          } else if (targetYear === demYear && mIdx > demMonth) {
+            isActive = false;
+          }
         }
+
+        if (isActive) return true;
       }
+    }
 
-      if (isActive) activeInAnyMonth = true;
-    });
-
-    return activeInAnyMonth;
+    return false;
   }
 
   const activeTecnicosAll = tecnicosDb.filter(t => isTecnicoActiveInPeriod(t, meses, ano || ''))
@@ -622,58 +624,58 @@ export default function DashboardPage() {
   const tstStat = isConectadoTst && tecnicoConectado ? tecnicosStats.find(t => t.nome === tecnicoConectado.nome) : null;
 
   function getActiveMonthsForMetaDashboard(t: any, selMesesObj: string[], selYear: string): number {
-    if (t.contaMeta === false) return 0
-    const numYears = selYear ? 1 : (ANOS.length || 1)
-    const selMonthsCount = selMesesObj.length > 0 ? selMesesObj.length : 12
+    if (t.contaMeta === false) return 0;
 
-    if (!selYear) return selMonthsCount * numYears
+    const admDate = t.admissao ? new Date(t.admissao) : null;
+    const admYear = admDate ? admDate.getUTCFullYear() : null;
+    const admMonth = admDate ? admDate.getUTCMonth() : null;
+    const admDay = admDate ? admDate.getUTCDate() : 1;
 
-    if (!t.admissao) return selMonthsCount
-
-    const admDate = new Date(t.admissao)
-    const admYear = admDate.getUTCFullYear()
-    const admMonth = admDate.getUTCMonth()
-    const admDay = admDate.getUTCDate()
-
-    let demYear: number | null = null
-    let demMonth: number | null = null
+    let demYear: number | null = null;
+    let demMonth: number | null = null;
     if (t.demissao) {
-      const demDate = new Date(t.demissao)
-      demYear = demDate.getUTCFullYear()
-      demMonth = demDate.getUTCMonth()
+      const demDate = new Date(t.demissao);
+      demYear = demDate.getUTCFullYear();
+      demMonth = demDate.getUTCMonth();
     }
 
-    const mesIdx: Record<string, number> = { Jan: 0, Fev: 1, Mar: 2, Abr: 3, Mai: 4, Jun: 5, Jul: 6, Ago: 7, Set: 8, Out: 9, Nov: 10, Dez: 11 }
+    const mesIdx: Record<string, number> = { Jan: 0, Fev: 1, Mar: 2, Abr: 3, Mai: 4, Jun: 5, Jul: 6, Ago: 7, Set: 8, Out: 9, Nov: 10, Dez: 11 };
+    const monthsToIterate = selMesesObj.length > 0 ? selMesesObj : Object.keys(mesIdx);
+    const yearsToIterate: number[] = selYear
+      ? [parseInt(selYear, 10)]
+      : (ANOS && ANOS.length > 0 ? ANOS.map(y => parseInt(y, 10)).filter(y => !isNaN(y)) : [new Date().getFullYear()]);
 
-    let count = 0
-    const monthsToIterate = selMesesObj.length > 0 ? selMesesObj : Object.keys(mesIdx)
-    const targetYear = parseInt(selYear, 10)
+    let count = 0;
 
-    monthsToIterate.forEach(m => {
-      const mIdx = mesIdx[m]
-      let isActive = false
+    for (const targetYear of yearsToIterate) {
+      monthsToIterate.forEach(m => {
+        const mIdx = mesIdx[m];
+        let isActive = false;
 
-      if (targetYear > admYear) {
-        isActive = true
-      } else if (targetYear === admYear && mIdx >= admMonth) {
-        isActive = true
-        // Regra da 2a quinzena: se admitido após o dia 15, o mês de admissão não tem meta
-        if (mIdx === admMonth && admDay > 15) {
-          isActive = false
+        if (!admDate) {
+          isActive = true;
+        } else if (targetYear > admYear!) {
+          isActive = true;
+        } else if (targetYear === admYear! && mIdx >= admMonth!) {
+          isActive = true;
+          if (mIdx === admMonth! && admDay > 15) {
+            isActive = false;
+          }
         }
-      }
 
-      if (isActive && demYear !== null && demMonth !== null) {
-        if (targetYear > demYear) {
-          isActive = false
-        } else if (targetYear === demYear && mIdx > demMonth) {
-          isActive = false
+        if (isActive && demYear !== null && demMonth !== null) {
+          if (targetYear > demYear) {
+            isActive = false;
+          } else if (targetYear === demYear && mIdx > demMonth) {
+            isActive = false;
+          }
         }
-      }
 
-      if (isActive) count++
-    })
-    return count
+        if (isActive) count++;
+      });
+    }
+
+    return count;
   }
 
   const activeTecnicos = isConectadoTst 
@@ -690,13 +692,8 @@ export default function DashboardPage() {
   const metaInspTotal = totalMesesMeta * META_INSP_POR_TEC;
 
   // Valores reais baseados no filtro (Se TST, usa apenas do tstStat)
-  const totalDss = isConectadoTst ? (tstStat?.dss || 0) : (meses.length > 0
-    ? meses.reduce((acc, m) => acc + (dadosMensais[m]?.dss || 0), 0)
-    : Object.values(dadosMensais).reduce((a, v) => a + v.dss, 0))
-  
-  const totalInsp = isConectadoTst ? (tstStat?.insp || 0) : (meses.length > 0
-    ? meses.reduce((acc, m) => acc + (dadosMensais[m]?.insp || 0), 0)
-    : Object.values(dadosMensais).reduce((a, v) => a + v.insp, 0))
+  const totalDss = isConectadoTst ? (tstStat?.dss || 0) : dssFiltrados.length;
+  const totalInsp = isConectadoTst ? (tstStat?.insp || 0) : inspFiltradas.length;
 
   const totalRelatoriosDisplay = isConectadoTst ? (tstStat?.rel || 0) : totalRelatorios
 

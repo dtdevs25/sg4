@@ -15,6 +15,7 @@ import { getAnosComDados } from '@/app/actions/anos'
 import { getTecnicos } from '@/app/actions/tecnicos'
 import { getManutencoes, registrarManutencao, excluirManutencao } from '@/app/actions/manutencao'
 import { ActionLoadingOverlay } from '@/components/ActionLoadingOverlay'
+import { MapModal } from '@/components/MapModal'
 
 export default function QuilometragemPage() {
 
@@ -78,6 +79,7 @@ export default function QuilometragemPage() {
 
   const [showEditKmModal, setShowEditKmModal] = useState<any>(null)
   const [showEditAbsModal, setShowEditAbsModal] = useState<any>(null)
+  const [mapModal, setMapModal] = useState<{ isOpen: boolean; title: string; subtitle?: string; lat: number; lng: number } | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState<{id: string, type: 'km' | 'abs' | 'manutencao'} | null>(null)
 
   const [showInativos, setShowInativos] = useState(false)
@@ -669,6 +671,21 @@ export default function QuilometragemPage() {
                       <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                         {k.kmInicial.toLocaleString('pt-BR')} km
                         {k.fotoInicial && <button onClick={() => setShowPhotoModal(k.fotoInicial)} style={{ background: 'none', border: 'none', color: '#660099', cursor: 'pointer', padding: 0 }} title="Ver Foto Odômetro"><ImageIcon size={14} /></button>}
+                        {k.latitudeInicial != null && k.longitudeInicial != null && (
+                          <button
+                            onClick={() => setMapModal({
+                              isOpen: true,
+                              title: 'Localização do Início do KM',
+                              subtitle: `${k.tecnico?.nome || 'Técnico'} • Início: ${k.kmInicial.toLocaleString('pt-BR')} km`,
+                              lat: k.latitudeInicial!,
+                              lng: k.longitudeInicial!,
+                            })}
+                            style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: 0 }}
+                            title="Ver Localização Inicial no Mapa"
+                          >
+                            <MapPin size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td style={{ padding: '14px 20px' }}>
@@ -680,6 +697,21 @@ export default function QuilometragemPage() {
                           <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
                             {k.kmFinal.toLocaleString('pt-BR')} km
                             {k.fotoFinal && <button onClick={() => setShowPhotoModal(k.fotoFinal)} style={{ background: 'none', border: 'none', color: '#660099', cursor: 'pointer', padding: 0 }} title="Ver Foto Odômetro"><ImageIcon size={14} /></button>}
+                            {k.latitudeFinal != null && k.longitudeFinal != null && (
+                              <button
+                                onClick={() => setMapModal({
+                                  isOpen: true,
+                                  title: 'Localização do Encerramento do KM',
+                                  subtitle: `${k.tecnico?.nome || 'Técnico'} • Encerramento: ${k.kmFinal.toLocaleString('pt-BR')} km`,
+                                  lat: k.latitudeFinal!,
+                                  lng: k.longitudeFinal!,
+                                })}
+                                style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: 0 }}
+                                title="Ver Localização Final no Mapa"
+                              >
+                                <MapPin size={14} />
+                              </button>
+                            )}
                           </div>
                         </>
                       ) : (
@@ -811,11 +843,29 @@ export default function QuilometragemPage() {
                       </div>
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                      {a.fotoCupom ? (
-                        <button onClick={() => setShowPhotoModal(a.fotoCupom)} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, color: '#660099', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <ImageIcon size={14} /> Ver Cupom
-                        </button>
-                      ) : '—'}
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        {a.fotoCupom && (
+                          <button onClick={() => setShowPhotoModal(a.fotoCupom)} style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, color: '#660099', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <ImageIcon size={14} /> Cupom
+                          </button>
+                        )}
+                        {(a as any).latitude != null && (a as any).longitude != null && (
+                          <button
+                            onClick={() => setMapModal({
+                              isOpen: true,
+                              title: 'Localização do Abastecimento',
+                              subtitle: `${a.tecnico?.nome || 'Técnico'} • ${new Date(a.data).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} • R$ ${a.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                              lat: (a as any).latitude,
+                              lng: (a as any).longitude,
+                            })}
+                            style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, color: '#16a34a', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                            title="Ver Local do Abastecimento no Mapa"
+                          >
+                            <MapPin size={14} /> Mapa
+                          </button>
+                        )}
+                        {!a.fotoCupom && !(a as any).latitude && <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>}
+                      </div>
                     </td>
                     {(role === 'MASTER' || role === 'ADMIN') && (
                       <td style={{ padding: '14px 20px', textAlign: 'center' }}>
@@ -924,13 +974,29 @@ export default function QuilometragemPage() {
                       {m.kmManutencao.toLocaleString('pt-BR')} km
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                      {m.comprovanteUrl ? (
-                        <button onClick={() => setShowPhotoModal(m.comprovanteUrl)} style={{ background: '#f1f5f9', color: '#660099', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <ImageIcon size={14} /> Ver Doc
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: 12, color: '#94a3b8' }}>—</span>
-                      )}
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        {m.comprovanteUrl && (
+                          <button onClick={() => setShowPhotoModal(m.comprovanteUrl)} style={{ background: '#f1f5f9', color: '#660099', border: 'none', padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <ImageIcon size={14} /> Doc
+                          </button>
+                        )}
+                        {(m as any).latitude != null && (m as any).longitude != null && (
+                          <button
+                            onClick={() => setMapModal({
+                              isOpen: true,
+                              title: 'Localização da Manutenção',
+                              subtitle: `${m.tecnico?.nome || 'Técnico'} • ${new Date(m.dataManutencao).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} • ${m.kmManutencao.toLocaleString('pt-BR')} km`,
+                              lat: (m as any).latitude,
+                              lng: (m as any).longitude,
+                            })}
+                            style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700, color: '#16a34a', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                            title="Ver Local da Manutenção no Mapa"
+                          >
+                            <MapPin size={14} /> Mapa
+                          </button>
+                        )}
+                        {!m.comprovanteUrl && !(m as any).latitude && <span style={{ fontSize: 12, color: '#94a3b8' }}>—</span>}
+                      </div>
                     </td>
                     <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                       {(role === 'MASTER' || role === 'ADMIN') && (
@@ -1479,6 +1545,16 @@ export default function QuilometragemPage() {
             </form>
           </div>
         </div>
+      )}
+      {mapModal && (
+        <MapModal
+          isOpen={mapModal.isOpen}
+          onClose={() => setMapModal(null)}
+          title={mapModal.title}
+          subtitle={mapModal.subtitle}
+          latitude={mapModal.lat}
+          longitude={mapModal.lng}
+        />
       )}
       <ActionLoadingOverlay
         open={pending || saving}

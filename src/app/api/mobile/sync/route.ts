@@ -685,6 +685,8 @@ export async function GET(req: Request) {
           valor: a.valor,
           tipo: a.tipo,
           fotoCupom: a.fotoCupom || null,
+          latitude: (a as any).latitude ?? null,
+          longitude: (a as any).longitude ?? null,
         })),
         manutencoes: manutencoes.map((m) => ({
           id: m.id,
@@ -694,6 +696,8 @@ export async function GET(req: Request) {
           dataManutencao: m.dataManutencao.toISOString(),
           descricao: m.descricao || null,
           comprovanteUrl: m.comprovanteUrl || null,
+          latitude: (m as any).latitude ?? null,
+          longitude: (m as any).longitude ?? null,
         })),
         relatoriosCampo: relatoriosCampo.map((r) => ({
           id: r.id,

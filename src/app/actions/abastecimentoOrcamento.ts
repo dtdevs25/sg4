@@ -448,6 +448,8 @@ export type ItemExtratoBancario = {
   valor: number
   saldoApos: number
   fotoCupom?: string | null
+  latitude?: number | null
+  longitude?: number | null
   userName?: string | null
   isOverride?: boolean
   anoReferencia?: number
@@ -741,6 +743,8 @@ export async function getExtratoBancarioTecnico(
           descricao: a.tipo ? `Combustível (${a.tipo})` : 'Abastecimento de veículo',
           valor: -Math.abs(a.valor),
           fotoCupom: a.fotoCupom || null,
+          latitude: (a as any).latitude ?? null,
+          longitude: (a as any).longitude ?? null,
           userName: tec.nome,
         })
       }

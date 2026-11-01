@@ -15,6 +15,7 @@ import {
   getInspecoesArkium,
   upsertInspecoesArkiumBatch,
   updateInspecoesArkiumItem,
+  deleteInspecoesArkiumItem,
   limparInspecoesArkiumInvalidos,
 } from '@/app/actions/inspecoesArkium'
 import { checkAndTriggerMetaNotification } from '@/app/actions/metas'

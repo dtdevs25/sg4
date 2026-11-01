@@ -150,7 +150,9 @@ data class AbastecimentoDto(
     val data: String = "",
     val valor: Double = 0.0,
     val tipo: String = "ABASTECIMENTO",
-    val fotoCupom: String? = null
+    val fotoCupom: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
 data class ManutencaoDto(
@@ -160,7 +162,9 @@ data class ManutencaoDto(
     val kmManutencao: Int = 0,
     val dataManutencao: String = "",
     val descricao: String? = null,
-    val comprovanteUrl: String? = null
+    val comprovanteUrl: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
 data class RelatorioCampoDto(

@@ -248,7 +248,7 @@ export default function PlanejamentoPage() {
       id: '', tecnicoId: initialTecnicoId, tecnicoIds: initialTecnicoId ? [initialTecnicoId] : [],
       dataAtividade: dateStr || formatStrDate(new Date()), categoria: 'INSPEÇÃO DE SEGURANÇA', outraCategoria: '',
       descricaoOriginal: '', equipe: 'Não se aplica', local: '', outroLocal: '', cidade: '', estado: 'SP',
-      prioridade: 'MEDIA', checklist: []
+      prioridade: 'MEDIA', checklist: [], frequencia: 'UNICA', dataFim: ''
     })
     setNewItemHora('08:00')
     setNewItemTitulo('')
@@ -466,11 +466,18 @@ export default function PlanejamentoPage() {
       id: '',
       tecnicoId: plan.tecnicoId,
       tecnicoIds: [plan.tecnicoId],
+      dataAtividade: '',
+      categoria: catBase ? plan.categoria : 'OUTROS',
+      outraCategoria: catBase ? '' : plan.categoria,
+      descricaoOriginal: plan.descricaoOriginal || '',
       equipe: plan.equipe || 'Não se aplica',
       local: locBase ? plan.local : 'OUTROS',
       outroLocal: locBase ? '' : plan.local,
       cidade: plan.cidade || '',
       estado: plan.estado || 'SP',
+      prioridade: plan.prioridade || 'MEDIA',
+      frequencia: 'UNICA',
+      dataFim: '',
       checklist: [{
         id: newItemId,
         dataAtividade: undefined,
