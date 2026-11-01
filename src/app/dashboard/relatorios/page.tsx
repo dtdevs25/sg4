@@ -261,24 +261,57 @@ export default function RelatoriosAtividadesPage() {
     currentPageSalvos * itemsPerPageSalvos
   )
 
+    const lastClickRef = useRef<{ month: string | null; time: number; count: number }>({ month: null, time: 0, count: 0 })
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+  const ALL_MONTH_KEYS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
   function handleMonthClick(m: string) {
+    const now = Date.now()
+    const last = lastClickRef.current
+    const isSameMonth = last.month === m
+    const isQuickClick = isSameMonth && (now - last.time < 450)
+
     if (clickTimeout.current) {
       clearTimeout(clickTimeout.current)
       clickTimeout.current = null
-      setSelectedMonths([m])
-    } else {
-      clickTimeout.current = setTimeout(() => {
-        clickTimeout.current = null
-        setSelectedMonths(prev => {
-          if (prev.length === 1 && prev.includes(m)) {
-            return MONTHS_LIST.map(x => x.key)
-          }
-          if (prev.includes(m)) return prev.filter(x => x !== m)
-          return [...prev, m]
-        })
-      }, 250)
     }
+
+    if (isQuickClick) {
+      last.count += 1
+      last.time = now
+    } else {
+      last.month = m
+      last.count = 1
+      last.time = now
+    }
+
+    if (last.count === 2) {
+      setSelectedMonths([m])
+      clickTimeout.current = setTimeout(() => {
+        if (lastClickRef.current) lastClickRef.current.count = 0
+        clickTimeout.current = null
+      }, 450)
+      return
+    }
+
+    if (last.count >= 3) {
+      setSelectedMonths([...ALL_MONTH_KEYS])
+      last.count = 0
+      last.month = null
+      return
+    }
+
+    clickTimeout.current = setTimeout(() => {
+      clickTimeout.current = null
+      lastClickRef.current = { month: null, time: 0, count: 0 }
+      setSelectedMonths(prev => {
+        if (prev.length === 1 && prev.includes(m)) {
+          return [...ALL_MONTH_KEYS]
+        }
+        if (prev.includes(m)) return prev.filter(x => x !== m)
+        return [...prev, m]
+      })
+    }, 300)
   }
 
   // --- Handlers ---

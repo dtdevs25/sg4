@@ -134,22 +134,55 @@ export default function QuilometragemPage() {
     setLoading(false)
   }
 
+    const lastClickRef = useRef<{ month: number | null; time: number; count: number }>({ month: null, time: 0, count: 0 })
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+  const ALL_MONTHS_NUM = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
   function handleMonthClick(m: number) {
+    const now = Date.now()
+    const last = lastClickRef.current
+    const isSameMonth = last.month === m
+    const isQuickClick = isSameMonth && (now - last.time < 450)
+
     if (clickTimeout.current) {
       clearTimeout(clickTimeout.current)
       clickTimeout.current = null
-      setSelectedMonths([m])
-    } else {
-      clickTimeout.current = setTimeout(() => {
-        clickTimeout.current = null
-        setSelectedMonths(prev => {
-          if (prev.length === 1 && prev.includes(m)) return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-          if (prev.includes(m)) return prev.filter(x => x !== m)
-          return [...prev, m]
-        })
-      }, 250)
     }
+
+    if (isQuickClick) {
+      last.count += 1
+      last.time = now
+    } else {
+      last.month = m
+      last.count = 1
+      last.time = now
+    }
+
+    if (last.count === 2) {
+      setSelectedMonths([m])
+      clickTimeout.current = setTimeout(() => {
+        if (lastClickRef.current) lastClickRef.current.count = 0
+        clickTimeout.current = null
+      }, 450)
+      return
+    }
+
+    if (last.count >= 3) {
+      setSelectedMonths([...ALL_MONTHS_NUM])
+      last.count = 0
+      last.month = null
+      return
+    }
+
+    clickTimeout.current = setTimeout(() => {
+      clickTimeout.current = null
+      lastClickRef.current = { month: null, time: 0, count: 0 }
+      setSelectedMonths(prev => {
+        if (prev.length === 1 && prev.includes(m)) return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        if (prev.includes(m)) return prev.filter(x => x !== m)
+        return [...prev, m].sort((a, b) => a - b)
+      })
+    }, 300)
   }
 
   // File Handlers

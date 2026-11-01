@@ -366,34 +366,63 @@ export default function InspecoesPage() {
     { key: 'nov', label: 'Nov' }, { key: 'dez', label: 'Dez' }
   ]
 
+    const lastClickRef = useRef<{ month: MesKey | null; time: number; count: number }>({ month: null, time: 0, count: 0 })
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
+  const ALL_MES_KEYS: MesKey[] = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
   function handleMonthClick(m: MesKey) {
+    const now = Date.now()
+    const last = lastClickRef.current
+    const isSameMonth = last.month === m
+    const isQuickClick = isSameMonth && (now - last.time < 450)
+
     if (clickTimeout.current) {
-      // Duplo clique detectado: seleciona APENAS este mês
       clearTimeout(clickTimeout.current)
       clickTimeout.current = null
+    }
+
+    if (isQuickClick) {
+      last.count += 1
+      last.time = now
+    } else {
+      last.month = m
+      last.count = 1
+      last.time = now
+    }
+
+    if (last.count === 2) {
       setSelectedMonths([m])
       setEditingId(null)
-    } else {
-      // Clique simples: espera para ver se é duplo clique
       clickTimeout.current = setTimeout(() => {
+        if (lastClickRef.current) lastClickRef.current.count = 0
         clickTimeout.current = null
-        setSelectedMonths(prev => {
-          // Se o mês clicado é o ÚNICO selecionado atualmente, seleciona TODOS novamente
-          if (prev.length === 1 && prev.includes(m)) {
-            return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
-          }
-          
-          if (prev.includes(m)) {
-            return prev.filter(x => x !== m)
-          } else {
-            return [...prev, m]
-          }
-        })
-        setEditingId(null)
-      }, 250)
+      }, 450)
+      return
     }
+
+    if (last.count >= 3) {
+      setSelectedMonths([...ALL_MES_KEYS])
+      setEditingId(null)
+      last.count = 0
+      last.month = null
+      return
+    }
+
+    clickTimeout.current = setTimeout(() => {
+      clickTimeout.current = null
+      lastClickRef.current = { month: null, time: 0, count: 0 }
+      setSelectedMonths(prev => {
+        if (prev.length === 1 && prev.includes(m)) {
+          return [...ALL_MES_KEYS]
+        }
+        if (prev.includes(m)) {
+          return prev.filter(x => x !== m)
+        } else {
+          return [...prev, m]
+        }
+      })
+      setEditingId(null)
+    }, 300)
   }
 
   // --- ESTADO: Visão Arkium ---

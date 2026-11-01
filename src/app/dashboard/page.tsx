@@ -345,32 +345,59 @@ export default function DashboardPage() {
   const [ano, setAno] = useState<string>(currentYear)
   const [meses, setMeses] = useState<string[]>([MESES[new Date().getMonth()]]) // apenas o mês atual
   const [mostrarFotosGrafico, setMostrarFotosGrafico] = useState<boolean>(true)
+    const lastClickRef = useRef<{ month: string | null; time: number; count: number }>({ month: null, time: 0, count: 0 })
   const clickTimeout = useRef<NodeJS.Timeout | null>(null)
 
   function handleMonthClick(m: string) {
+    const now = Date.now()
+    const last = lastClickRef.current
+    const isSameMonth = last.month === m
+    const isQuickClick = isSameMonth && (now - last.time < 450)
+
     if (clickTimeout.current) {
-      // Duplo clique detectado: seleciona APENAS este mês
       clearTimeout(clickTimeout.current)
       clickTimeout.current = null
-      setMeses([m])
-    } else {
-      // Clique simples: espera janela para ver se é duplo clique
-      clickTimeout.current = setTimeout(() => {
-        clickTimeout.current = null
-        setMeses(prev => {
-          // Se o mês clicado é o ÚNICO selecionado atualmente, o 3º clique seleciona TODOS novamente
-          if (prev.length === 1 && prev.includes(m)) {
-            return [...MESES]
-          }
-          // Caso contrário, alterna individualmente (seleciona um a um)
-          if (prev.includes(m)) {
-            return prev.filter(x => x !== m)
-          } else {
-            return [...prev, m]
-          }
-        })
-      }, 250)
     }
+
+    if (isQuickClick) {
+      last.count += 1
+      last.time = now
+    } else {
+      last.month = m
+      last.count = 1
+      last.time = now
+    }
+
+    if (last.count === 2) {
+      setMeses([m])
+      clickTimeout.current = setTimeout(() => {
+        if (lastClickRef.current) lastClickRef.current.count = 0
+        clickTimeout.current = null
+      }, 450)
+      return
+    }
+
+    if (last.count >= 3) {
+      setMeses([...MESES])
+      last.count = 0
+      last.month = null
+      return
+    }
+
+    clickTimeout.current = setTimeout(() => {
+      clickTimeout.current = null
+      lastClickRef.current = { month: null, time: 0, count: 0 }
+      setMeses(prev => {
+        if (prev.length === 1 && prev.includes(m)) {
+          return [...MESES]
+        }
+        if (prev.includes(m)) {
+          return prev.filter(x => x !== m)
+        } else {
+          return [...prev, m]
+        }
+      })
+    }, 300)
   }
 
   const [legendaAtiva, setLegendaAtiva] = useState<string[]>(['dss', 'insp']) // filtro de legenda

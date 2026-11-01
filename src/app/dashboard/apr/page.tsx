@@ -356,26 +356,59 @@ export default function APRPage() {
   const totalPages = Math.ceil(totalCount / itemsPerPage)
 
   // Month handler — click = toggle; double-click = select only that month
+    const lastClickRef = useRef<{ month: number | null; time: number; count: number }>({ month: null, time: 0, count: 0 })
+  const ALL_MONTHS_NUM = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
   const handleMonthClick = (m: number) => {
+    const now = Date.now()
+    const last = lastClickRef.current
+    const isSameMonth = last.month === m
+    const isQuickClick = isSameMonth && (now - last.time < 450)
+
     if (clickTimeout.current) {
       clearTimeout(clickTimeout.current)
       clickTimeout.current = null
-      setSelectedMonths([m])
-    } else {
-      clickTimeout.current = setTimeout(() => {
-        clickTimeout.current = null
-        setSelectedMonths(prev => {
-          if (prev.length === 1 && prev.includes(m)) {
-            return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-          }
-          if (prev.includes(m)) {
-            return prev.filter(x => x !== m)
-          } else {
-            return [...prev, m].sort((a, b) => a - b)
-          }
-        })
-      }, 250)
     }
+
+    if (isQuickClick) {
+      last.count += 1
+      last.time = now
+    } else {
+      last.month = m
+      last.count = 1
+      last.time = now
+    }
+
+    if (last.count === 2) {
+      setSelectedMonths([m])
+      clickTimeout.current = setTimeout(() => {
+        if (lastClickRef.current) lastClickRef.current.count = 0
+        clickTimeout.current = null
+      }, 450)
+      return
+    }
+
+    if (last.count >= 3) {
+      setSelectedMonths([...ALL_MONTHS_NUM])
+      last.count = 0
+      last.month = null
+      return
+    }
+
+    clickTimeout.current = setTimeout(() => {
+      clickTimeout.current = null
+      lastClickRef.current = { month: null, time: 0, count: 0 }
+      setSelectedMonths(prev => {
+        if (prev.length === 1 && prev.includes(m)) {
+          return [...ALL_MONTHS_NUM]
+        }
+        if (prev.includes(m)) {
+          return prev.filter(x => x !== m)
+        } else {
+          return [...prev, m].sort((a, b) => a - b)
+        }
+      })
+    }, 300)
   }
 
   // Region filter handler
