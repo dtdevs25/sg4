@@ -274,7 +274,7 @@ export async function GET(req: Request) {
           OR: [
             ...(targetTecnicoId ? [{ tecnicoId: targetTecnicoId }] : []),
             ...(currentTecnico?.nome
-              ? [{ executor: { contains: currentTecnico.nome.split(' ')[0], mode: 'insensitive' as const } }]
+              ? [{ executor: { contains: currentTecnico?.nome || 'Técnico'.split(' ')[0], mode: 'insensitive' as const } }]
               : []),
           ],
         },
@@ -304,8 +304,8 @@ export async function GET(req: Request) {
             ...(currentTecnico?.matriculaArkium ? [{ matricula: currentTecnico.matriculaArkium }] : []),
             ...(currentTecnico?.nome
               ? [
-                  { lider: { contains: currentTecnico.nome.split(' ')[0], mode: 'insensitive' as const } },
-                  { nome: { contains: currentTecnico.nome.split(' ')[0], mode: 'insensitive' as const } },
+                  { lider: { contains: currentTecnico?.nome || 'Técnico'.split(' ')[0], mode: 'insensitive' as const } },
+                  { nome: { contains: currentTecnico?.nome || 'Técnico'.split(' ')[0], mode: 'insensitive' as const } },
                 ]
               : []),
           ],
@@ -317,7 +317,7 @@ export async function GET(req: Request) {
             ...(targetTecnicoId ? [{ tecnicoId: targetTecnicoId }] : []),
             ...(currentTecnico?.matriculaArkium ? [{ matriculaAuditor: currentTecnico.matriculaArkium }] : []),
             ...(currentTecnico?.nome
-              ? [{ nomeAuditor: { contains: currentTecnico.nome.split(' ')[0], mode: 'insensitive' as const } }]
+              ? [{ nomeAuditor: { contains: currentTecnico?.nome || 'Técnico'.split(' ')[0], mode: 'insensitive' as const } }]
               : []),
           ],
         },
@@ -472,7 +472,7 @@ export async function GET(req: Request) {
     const currentMonthBucket = getBucket(currentYear, currentMonth)
 
     // Cálculo financeiro de abastecimento no mês atual
-    const orcamentoBase = currentTecnico.orcamentoAbastecimento || 800
+    const orcamentoBase = currentTecnico?.orcamentoAbastecimento || 800
 
     const gastoMes = abastecimentos
       .filter((a) => {
@@ -504,14 +504,14 @@ export async function GET(req: Request) {
         syncedAt: new Date().toISOString(),
         user: {
           id: authUser.userId,
-          name: currentTecnico.nome || authUser.name || 'Usuário SG4',
+          name: currentTecnico?.nome || authUser.name || 'Usuário SG4',
           email: authUser.email,
           role: authUser.role,
           tecnicoId: targetTecnicoId,
         },
-        currentTecnico: {
+        currentTecnico: currentTecnico ? {
           id: currentTecnico.id,
-          nome: currentTecnico.nome,
+          nome: currentTecnico?.nome || 'Técnico',
           email: currentTecnico.email,
           telefone: currentTecnico.telefone,
           cargo: currentTecnico.cargo,
@@ -522,7 +522,7 @@ export async function GET(req: Request) {
           orcamentoAbastecimento: currentTecnico.orcamentoAbastecimento,
           baseFixaNome: currentTecnico.baseFixa?.nome || 'Sem Base Fixa',
           unidades: currentTecnico.unidades.map((u) => u.nome),
-        },
+        } : null,
         tecnicosAtivosCount,
         tecnicos: isMasterOrAdmin
           ? [
@@ -585,7 +585,7 @@ export async function GET(req: Request) {
         planejamentos: planejamentos.map((p) => ({
           id: p.id,
           tecnicoId: p.tecnicoId,
-          tecnicoNome: p.tecnico?.nome || currentTecnico.nome,
+          tecnicoNome: p.tecnico?.nome || currentTecnico?.nome || 'Técnico',
           dataAtividade: p.dataAtividade.toISOString(),
           hora: p.hora || '08:00',
           titulo: p.titulo || p.categoria,
@@ -605,7 +605,7 @@ export async function GET(req: Request) {
         quilometragens: quilometragens.map((k) => ({
           id: k.id,
           tecnicoId: k.tecnicoId,
-          tecnicoNome: k.tecnico?.nome || currentTecnico.nome,
+          tecnicoNome: k.tecnico?.nome || currentTecnico?.nome || 'Técnico',
           diaSemana: k.diaSemana,
           dataInicial: k.dataInicial.toISOString(),
           kmInicial: k.kmInicial,
@@ -622,7 +622,7 @@ export async function GET(req: Request) {
         abastecimentos: abastecimentos.map((a) => ({
           id: a.id,
           tecnicoId: a.tecnicoId,
-          tecnicoNome: a.tecnico?.nome || currentTecnico.nome,
+          tecnicoNome: a.tecnico?.nome || currentTecnico?.nome || 'Técnico',
           data: a.data.toISOString(),
           valor: a.valor,
           tipo: a.tipo,
@@ -631,7 +631,7 @@ export async function GET(req: Request) {
         manutencoes: manutencoes.map((m) => ({
           id: m.id,
           tecnicoId: m.tecnicoId,
-          tecnicoNome: m.tecnico?.nome || currentTecnico.nome,
+          tecnicoNome: m.tecnico?.nome || currentTecnico?.nome || 'Técnico',
           kmManutencao: m.kmManutencao,
           dataManutencao: m.dataManutencao.toISOString(),
           descricao: m.descricao || null,
@@ -640,7 +640,7 @@ export async function GET(req: Request) {
         relatoriosCampo: relatoriosCampo.map((r) => ({
           id: r.id,
           tecnicoId: r.tecnicoId,
-          tecnicoNome: r.tecnico?.nome || currentTecnico.nome,
+          tecnicoNome: r.tecnico?.nome || currentTecnico?.nome || 'Técnico',
           data: r.data.toISOString(),
           empresa: r.empresa,
           projeto: r.projeto,
@@ -652,7 +652,7 @@ export async function GET(req: Request) {
         dssAliados: dssAliados.map((d) => ({
           id: d.id,
           tecnicoId: d.tecnicoId,
-          tecnicoNome: d.tecnico?.nome || currentTecnico.nome,
+          tecnicoNome: d.tecnico?.nome || currentTecnico?.nome || 'Técnico',
           data: d.data.toISOString(),
           tema: d.tema,
           fotoUrl: d.fotoUrl || null,
@@ -660,7 +660,7 @@ export async function GET(req: Request) {
         naoConformidades: naoConformidades.map((nc) => ({
           id: nc.id,
           originalId: nc.originalId || '',
-          executor: nc.executor || nc.tecnico?.nome || currentTecnico.nome,
+          executor: nc.executor || nc.tecnico?.nome || currentTecnico?.nome || 'Técnico',
           tecnicoId: nc.tecnicoId,
           pergunta: nc.pergunta || '',
           resposta: nc.resposta || '',
@@ -675,7 +675,7 @@ export async function GET(req: Request) {
         documentos: documentos.map((doc) => ({
           id: doc.id,
           tecnicoId: doc.tecnicoId,
-          tecnicoNome: doc.tecnico?.nome || currentTecnico.nome,
+          tecnicoNome: doc.tecnico?.nome || currentTecnico?.nome || 'Técnico',
           tipoNome: doc.tipoDocumento?.nome || doc.titulo || 'Documento',
           titulo: doc.titulo || doc.tipoDocumento?.nome || 'Documento',
           arquivoUrl: doc.arquivoUrl,
@@ -697,7 +697,7 @@ export async function GET(req: Request) {
         reunioes: reunioes.map((r) => ({
           id: r.id,
           tecnicoId: r.tecnicoId,
-          tecnicoNome: r.tecnico?.nome || currentTecnico.nome,
+          tecnicoNome: r.tecnico?.nome || currentTecnico?.nome || 'Técnico',
           data: r.data.toISOString(),
           horaFim: r.horaFim || '',
           assunto: r.assunto || 'Reunião Geral SST',
