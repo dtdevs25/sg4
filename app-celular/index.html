@@ -2068,12 +2068,13 @@
               const km = kms.find(k => k.id === id);
               if (!km) return;
               openModal('Fotos do Odômetro', `
-                <div style="font-size:12px; font-weight:800; color:var(--purple); margin-bottom:10px;">
-                  ${km.diaSemana} • ${formatBrDate(km.dataInicial)}
+                <div style="font-size:12px; font-weight:800; color:var(--purple); margin-bottom:12px;">
+                  ${km.diaSemana} • Início: ${formatBrDate(km.dataInicial)} ${km.dataFinal ? `• Fim: ${formatBrDate(km.dataFinal)}` : '• (Em andamento)'}
                 </div>
                 <div style="margin-bottom:14px;">
-                  <div style="font-size:12px; font-weight:700; color:var(--slate-900); margin-bottom:4px;">
-                    Odômetro Inicial: ${formatKmNumber(km.kmInicial)} km
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <span style="font-size:12px; font-weight:700; color:var(--slate-900);">Odômetro Inicial: ${formatKmNumber(km.kmInicial)} km</span>
+                    <span style="font-size:11px; color:var(--slate-600); font-weight:600;">Data: ${formatBrDate(km.dataInicial)}</span>
                   </div>
                   ${km.fotoInicial ? `
                     <img src="${km.fotoInicial}" style="width:100%; max-height:220px; object-fit:contain; border-radius:8px; border:1px solid #cbd5e1;" />
@@ -2082,8 +2083,9 @@
                   `}
                 </div>
                 <div>
-                  <div style="font-size:12px; font-weight:700; color:var(--slate-900); margin-bottom:4px;">
-                    Odômetro Final: ${km.kmFinal != null ? formatKmNumber(km.kmFinal) + ' km' : 'Em rota'}
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <span style="font-size:12px; font-weight:700; color:var(--slate-900);">Odômetro Final: ${km.kmFinal != null ? formatKmNumber(km.kmFinal) + ' km' : 'Em rota'}</span>
+                    <span style="font-size:11px; color:var(--slate-600); font-weight:600;">Data: ${km.dataFinal ? formatBrDate(km.dataFinal) : 'Em aberto'}</span>
                   </div>
                   ${km.fotoFinal ? `
                     <img src="${km.fotoFinal}" style="width:100%; max-height:220px; object-fit:contain; border-radius:8px; border:1px solid #cbd5e1;" />

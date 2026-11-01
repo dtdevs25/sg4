@@ -4255,16 +4255,37 @@ fun KmAbastecimentoScreen(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("${km.diaSemana} • ${formatIsoDateBr(km.dataInicial)}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Sg4Purple)
+                    val dataFimStr = if (!km.dataFinal.isNullOrBlank()) formatIsoDateBr(km.dataFinal) else null
+                    val periodoHeader = if (dataFimStr != null && dataFimStr != formatIsoDateBr(km.dataInicial)) {
+                        "${km.diaSemana} • ${formatIsoDateBr(km.dataInicial)} até $dataFimStr"
+                    } else if (dataFimStr != null) {
+                        "${km.diaSemana} • ${formatIsoDateBr(km.dataInicial)}"
+                    } else {
+                        "${km.diaSemana} • ${formatIsoDateBr(km.dataInicial)} (Em andamento)"
+                    }
+
+                    Text(periodoHeader, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Sg4Purple)
 
                     // Foto Inicial
                     Column {
-                        Text(
-                            text = "Início: ${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(km.kmInicial.toInt())} km",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = Slate900
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Início: ${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(km.kmInicial.toInt())} km",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Slate900
+                            )
+                            Text(
+                                text = "Data: ${formatIsoDateBr(km.dataInicial)}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate600
+                            )
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         if (!km.fotoInicial.isNullOrBlank()) {
                             Base64OrUrlImage(
@@ -4291,12 +4312,24 @@ fun KmAbastecimentoScreen(
 
                     // Foto Final
                     Column {
-                        Text(
-                            text = "Fim: " + (if (km.kmFinal != null) "${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(km.kmFinal.toInt())} km" else "Em rota"),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = Slate900
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Fim: " + (if (km.kmFinal != null) "${NumberFormat.getIntegerInstance(Locale("pt", "BR")).format(km.kmFinal.toInt())} km" else "Em rota"),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Slate900
+                            )
+                            Text(
+                                text = if (!km.dataFinal.isNullOrBlank()) "Data: ${formatIsoDateBr(km.dataFinal)}" else "Em aberto",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (!km.dataFinal.isNullOrBlank()) Slate600 else Color(0xFFD97706)
+                            )
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         if (!km.fotoFinal.isNullOrBlank()) {
                             Base64OrUrlImage(

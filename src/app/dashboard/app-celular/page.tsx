@@ -92,7 +92,7 @@ export default function AppCelularPage() {
             <h2 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>
               SG4 Mobile
             </h2>
-            <span style={{ fontSize: 11, color: '#64748b' }}>Android • Versão 2.7.4</span>
+            <span style={{ fontSize: 11, color: '#64748b' }}>Android • Versão 2.7.5</span>
           </div>
         </div>
 
