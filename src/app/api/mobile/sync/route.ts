@@ -304,9 +304,9 @@ export async function GET(req: Request) {
             ...(currentTecnico?.matriculaArkium ? [{ matricula: currentTecnico.matriculaArkium }] : []),
             ...(currentTecnico?.nome
               ? [
-                  { lider: { contains: currentTecnico?.nome || 'Técnico'.split(' ')[0], mode: 'insensitive' as const } },
-                  { nome: { contains: currentTecnico?.nome || 'Técnico'.split(' ')[0], mode: 'insensitive' as const } },
-                ]
+                { lider: { contains: currentTecnico?.nome || 'Técnico'.split(' ')[0], mode: 'insensitive' as const } },
+                { nome: { contains: currentTecnico?.nome || 'Técnico'.split(' ')[0], mode: 'insensitive' as const } },
+              ]
               : []),
           ],
         },
@@ -336,25 +336,25 @@ export async function GET(req: Request) {
     const dssArkium = isAllTecnicos
       ? dssArkiumCandidate
       : dssArkiumCandidate.filter((d) => {
-          if (d.tecnicoId === targetTecnicoId) return true
-          if (currentTecnico?.matriculaArkium && d.matricula === currentTecnico.matriculaArkium) return true
-          return matchTecnicoName(d.lider || d.nome, currentTecnico?.nome)
-        })
+        if (d.tecnicoId === targetTecnicoId) return true
+        if (currentTecnico?.matriculaArkium && d.matricula === currentTecnico.matriculaArkium) return true
+        return matchTecnicoName(d.lider || d.nome, currentTecnico?.nome)
+      })
 
     const inspecoesArkium = isAllTecnicos
       ? inspecoesArkiumCandidate
       : inspecoesArkiumCandidate.filter((i) => {
-          if (i.tecnicoId === targetTecnicoId) return true
-          if (currentTecnico?.matriculaArkium && i.matriculaAuditor === currentTecnico.matriculaArkium) return true
-          return matchTecnicoName(i.nomeAuditor, currentTecnico?.nome)
-        })
+        if (i.tecnicoId === targetTecnicoId) return true
+        if (currentTecnico?.matriculaArkium && i.matriculaAuditor === currentTecnico.matriculaArkium) return true
+        return matchTecnicoName(i.nomeAuditor, currentTecnico?.nome)
+      })
 
     const naoConformidades = isAllTecnicos
       ? naoConformidadesAll
       : naoConformidadesAll.filter((nc) => {
-          if (nc.tecnicoId === targetTecnicoId) return true
-          return matchTecnicoName(nc.executor, currentTecnico?.nome)
-        })
+        if (nc.tecnicoId === targetTecnicoId) return true
+        return matchTecnicoName(nc.executor, currentTecnico?.nome)
+      })
 
     // Construir estatísticas mensais por (ano, mes 1..12) para que o filtro de meses do Painel funcione instantaneamente
     const yearsSet = new Set<number>([currentYear, currentYear - 1])
@@ -374,6 +374,9 @@ export async function GET(req: Request) {
       ncAbertas: number
       ncFechadas: number
       kmTotal: number
+      gastoAbastecimento: number
+      recargasAbastecimento: number
+      saldoMes: number
     }
 
     const bucketMap = new Map<string, MonthBucket>()
@@ -483,17 +486,34 @@ export async function GET(req: Request) {
       }
     }
 
+    // Separa recargas extras de depósitos/overrides mensais
+    const overridesPorMes = new Map<string, number>()
     for (const r of recargas) {
       const parsed = parseFlexibleMonthYear(r.data)
       if (parsed) {
-        const b = getBucket(parsed.year, parsed.month)
-        b.recargasAbastecimento = Number((b.recargasAbastecimento + (r.valor || 0)).toFixed(2))
+        const key = `${parsed.year}-${parsed.month}`
+        if (r.isOverride) {
+          overridesPorMes.set(key, r.valor || 0)
+        } else {
+          const b = getBucket(parsed.year, parsed.month)
+          b.recargasAbastecimento = Number((b.recargasAbastecimento + (r.valor || 0)).toFixed(2))
+        }
       }
     }
 
-    // 8. Calcular saldo líquido de cada mês
+    // 8. Calcular saldo líquido de cada mês respeitando aprovação/depósito real no mês vigente
     for (const b of bucketMap.values()) {
-      b.saldoMes = Number((orcamentoTotalMensal + b.recargasAbastecimento - b.gastoAbastecimento).toFixed(2))
+      const key = `${b.year}-${b.month}`
+      const isMesAtualOuFuturo = b.year > currentYear || (b.year === currentYear && b.month >= currentMonth)
+      let orcMes = 0
+      if (overridesPorMes.has(key)) {
+        orcMes = overridesPorMes.get(key)!
+      } else if (!isMesAtualOuFuturo) {
+        orcMes = orcamentoTotalMensal
+      } else {
+        orcMes = 0 // Mês vigente ou futuro aguarda lançamento/aprovação manual
+      }
+      b.saldoMes = Number((orcMes + b.recargasAbastecimento - b.gastoAbastecimento).toFixed(2))
     }
 
     const monthlyStats = Array.from(bucketMap.values()).sort((a, b) =>
@@ -503,8 +523,6 @@ export async function GET(req: Request) {
     const currentMonthBucket = getBucket(currentYear, currentMonth)
 
     // Cálculo financeiro de abastecimento no mês atual
-    const orcamentoBase = currentTecnico?.orcamentoAbastecimento || 800
-
     const gastoMes = abastecimentos
       .filter((a) => {
         const dt = new Date(a.data)
@@ -512,14 +530,23 @@ export async function GET(req: Request) {
       })
       .reduce((acc, a) => acc + a.valor, 0)
 
-    const recargasMes = recargas
+    const recargasExtrasMes = recargas
       .filter((r) => {
         const dt = new Date(r.data)
-        return dt >= startOfMonth && dt <= endOfMonth
+        return !r.isOverride && dt >= startOfMonth && dt <= endOfMonth
       })
       .reduce((acc, r) => acc + r.valor, 0)
 
-    const saldoAbastecimento = Number((orcamentoBase + recargasMes - gastoMes).toFixed(2))
+    const overridesMesAtual = recargas.filter((r) => {
+      const dt = new Date(r.data)
+      return r.isOverride && dt >= startOfMonth && dt <= endOfMonth
+    })
+
+    const orcamentoEfetivoMesAtual = overridesMesAtual.length > 0
+      ? overridesMesAtual[overridesMesAtual.length - 1].valor
+      : 0
+
+    const saldoAbastecimento = Number((orcamentoEfetivoMesAtual + recargasExtrasMes - gastoMes).toFixed(2))
 
     const ncPendentesCount = naoConformidades.filter(
       (nc) => !['RESOLVIDO', 'CERRADA', 'FECHADA'].includes((nc.status || '').toUpperCase())
@@ -557,33 +584,33 @@ export async function GET(req: Request) {
         tecnicosAtivosCount,
         tecnicos: isMasterOrAdmin
           ? [
-              {
-                id: 'ALL',
-                nome: `Todos os Colaboradores (${tecnicosAtivosCount} ativos)`,
-                cargo: 'Equipe Geral',
-                fotoUrl: null,
-                veiculo: null,
-                baseFixaNome: 'Todas as Unidades',
-              },
-              ...tecnicosList.map(t => ({
-                id: t.id,
-                nome: t.ativo ? t.nome : `${t.nome} (Inativo)`,
-                cargo: t.cargo,
-                fotoUrl: t.fotoUrl,
-                veiculo: t.veiculo,
-                baseFixaNome: t.baseFixa?.nome || null,
-              }))
-            ]
+            {
+              id: 'ALL',
+              nome: `Todos os Colaboradores (${tecnicosAtivosCount} ativos)`,
+              cargo: 'Equipe Geral',
+              fotoUrl: null,
+              veiculo: null,
+              baseFixaNome: 'Todas as Unidades',
+            },
+            ...tecnicosList.map(t => ({
+              id: t.id,
+              nome: t.ativo ? t.nome : `${t.nome} (Inativo)`,
+              cargo: t.cargo,
+              fotoUrl: t.fotoUrl,
+              veiculo: t.veiculo,
+              baseFixaNome: t.baseFixa?.nome || null,
+            }))
+          ]
           : [
-              {
-                id: currentTecnico?.id || 'TST',
-                nome: currentTecnico?.nome || 'Técnico',
-                cargo: currentTecnico?.cargo || 'Técnico de Segurança',
-                fotoUrl: currentTecnico?.fotoUrl || null,
-                veiculo: currentTecnico?.veiculo || null,
-                baseFixaNome: currentTecnico?.baseFixa?.nome || null,
-              },
-            ],
+            {
+              id: currentTecnico?.id || 'TST',
+              nome: currentTecnico?.nome || 'Técnico',
+              cargo: currentTecnico?.cargo || 'Técnico de Segurança',
+              fotoUrl: currentTecnico?.fotoUrl || null,
+              veiculo: currentTecnico?.veiculo || null,
+              baseFixaNome: currentTecnico?.baseFixa?.nome || null,
+            },
+          ],
         unidades: unidades.map((u) => ({
           id: u.id,
           nome: u.nome,
@@ -604,9 +631,9 @@ export async function GET(req: Request) {
           ncAbertasMes: currentMonthBucket.ncAbertas,
           ncFechadasMes: currentMonthBucket.ncFechadas,
           ncTotalMes: currentMonthBucket.ncTotal,
-          orcamentoBase,
+          orcamentoBase: orcamentoEfetivoMesAtual,
           gastoMes: Number(gastoMes.toFixed(2)),
-          recargasMes: Number(recargasMes.toFixed(2)),
+          recargasMes: Number(recargasExtrasMes.toFixed(2)),
           saldoAbastecimento,
           kmRodadosMes: currentMonthBucket.kmTotal,
           ncPendentesCount,

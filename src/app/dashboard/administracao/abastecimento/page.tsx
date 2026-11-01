@@ -6,6 +6,7 @@ import {
   getResumoOrcamentoMes,
   updateOrcamentoTecnico,
   createRecargaExtra,
+  salvarDepositoMesTecnico,
   getExtratoBancarioTecnico,
   getPrevisaoDepositosProximoMes,
   dispararNotificacaoPrevisaoDepositos,
@@ -78,6 +79,18 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   const [dadosExtrato, setDadosExtrato] = useState<ExtratoBancarioData | null>(null)
   const [loadingExtrato, setLoadingExtrato] = useState(false)
   const [fotoCupomZoom, setFotoCupomZoom] = useState<string | null>(null)
+
+  // Modal de Edição de Depósito Real no Extrato
+  const [depositoEditando, setDepositoEditando] = useState<{
+    tecnicoId: string
+    nomeTecnico: string
+    ano: number
+    mes: number
+    valorAtual: number
+    titulo: string
+  } | null>(null)
+  const [valorDepositoReal, setValorDepositoReal] = useState('')
+  const [salvandoDepositoReal, setSalvandoDepositoReal] = useState(false)
 
   // Filtro de pesquisa de colaboradores
   const [buscaColaborador, setBuscaColaborador] = useState('')
@@ -200,6 +213,44 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     setDataFimExtrato(fim)
     if (extratoModalTecnico) {
       carregarExtrato(extratoModalTecnico.id, inicio, fim)
+    }
+  }
+
+  async function handleSalvarDepositoRealExtrato(e: React.FormEvent) {
+    e.preventDefault()
+    if (!depositoEditando || submittingRef.current) return
+    const valor = parseFloat(valorDepositoReal.replace(',', '.'))
+    if (isNaN(valor) || valor < 0) {
+      return setNotification({ type: 'error', title: 'Valor Inválido', message: 'O valor do depósito não pode ser negativo.' })
+    }
+    submittingRef.current = true
+    setSalvandoDepositoReal(true)
+    try {
+      const res = await salvarDepositoMesTecnico(
+        depositoEditando.tecnicoId,
+        depositoEditando.ano,
+        depositoEditando.mes,
+        valor,
+        `Depósito real lançado/corrigido (${String(depositoEditando.mes).padStart(2, '0')}/${depositoEditando.ano})`
+      )
+      if (res.success) {
+        setNotification({
+          type: 'success',
+          title: 'Depósito Atualizado',
+          message: `Depósito de ${MESES_NOME[depositoEditando.mes - 1]}/${depositoEditando.ano} atualizado com sucesso no banco de dados e no extrato!`
+        })
+        const tecId = depositoEditando.tecnicoId
+        setDepositoEditando(null)
+        await carregarExtrato(tecId, dataInicioExtrato, dataFimExtrato)
+        load()
+      } else {
+        setNotification({ type: 'error', title: 'Erro ao Salvar', message: res.error || 'Não foi possível atualizar o depósito.' })
+      }
+    } catch (err: any) {
+      setNotification({ type: 'error', title: 'Erro', message: err.message || 'Falha ao salvar depósito.' })
+    } finally {
+      submittingRef.current = false
+      setSalvandoDepositoReal(false)
     }
   }
 
@@ -1450,6 +1501,103 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                 Total de <strong>{dadosExtrato?.transacoes.length || 0}</strong> lançamento(s) no período.
               </span>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PARA CORRIGIR / LANÇAR DEPÓSITO REAL DO MÊS */}
+      {depositoEditando && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1250, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 440, overflow: 'hidden', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0' }}>
+            <div style={{ background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff' }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Edit2 size={16} /> Lançar / Corrigir Depósito Real
+                </h3>
+                <span style={{ fontSize: 12, opacity: 0.9 }}>
+                  {depositoEditando.nomeTecnico} • {depositoEditando.titulo}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDepositoEditando(null)}
+                style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSalvarDepositoRealExtrato} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, color: '#475569', lineHeight: 1.5 }}>
+                Informe o valor real que a empresa efetivamente depositou para o colaborador neste mês. O banco de dados e o extrato bancário serão atualizados imediatamente.
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#475569', marginBottom: 6 }}>
+                  VALOR REAL DEPOSITADO (R$)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  autoFocus
+                  value={valorDepositoReal}
+                  onChange={e => setValorDepositoReal(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: 8,
+                    border: '2px solid #660099',
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: '#16a34a',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setDepositoEditando(null)}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    borderRadius: 8,
+                    border: '1px solid #cbd5e1',
+                    background: '#f1f5f9',
+                    color: '#475569',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvandoDepositoReal}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    borderRadius: 8,
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                    color: '#fff',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    opacity: salvandoDepositoReal ? 0.7 : 1,
+                  }}
+                >
+                  {salvandoDepositoReal ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar no Banco
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

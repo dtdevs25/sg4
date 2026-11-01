@@ -87,12 +87,17 @@ export async function getResumoOrcamentoMes(ano: number, meses: number[], intern
         let orcamentoMes = 0
         
         const mesesValidos = getValidMonthsCount(tec.admissao, curYear, curMonth) - getValidMonthsCount(tec.admissao, curYear, curMonth - 1)
+        const isMesAtualOuFuturo = curYear > currentYear || (curYear === currentYear && curMonth >= currentMonth)
         
         if (overridesMes.length > 0) {
-          // Se teve override, pega o mais recente no mês
+          // Se teve override/depósito manual ou aprovado, pega o mais recente no mês
           orcamentoMes = overridesMes[overridesMes.length - 1].valor
-        } else {
+        } else if (!isMesAtualOuFuturo) {
+          // Meses anteriores mantêm o histórico da cota base
           orcamentoMes = tec.orcamentoAbastecimento * Math.max(0, mesesValidos)
+        } else {
+          // Mês atual ou futuro só entra se o administrador lançar/aprovar
+          orcamentoMes = 0
         }
 
         const saldoMes = carryOver + orcamentoMes + recargasMes - gastoMes
@@ -127,9 +132,10 @@ export async function getResumoOrcamentoMes(ano: number, meses: number[], intern
         const ini = new Date(cy, cm - 1, 1)
         const fim = new Date(cy, cm, 0, 23, 59, 59)
         const over = todasRecargas.filter(a => a.isOverride && a.data >= ini && a.data <= fim)
+        const isCurOrFut = cy > currentYear || (cy === currentYear && cm >= currentMonth)
         if (over.length > 0) {
           orcamentoAcumulado += over[over.length - 1].valor
-        } else {
+        } else if (!isCurOrFut) {
           const mvs = getValidMonthsCount(tec.admissao, cy, cm) - getValidMonthsCount(tec.admissao, cy, cm - 1)
           orcamentoAcumulado += tec.orcamentoAbastecimento * Math.max(0, mvs)
         }
@@ -444,6 +450,9 @@ export type ItemExtratoBancario = {
   fotoCupom?: string | null
   userName?: string | null
   isOverride?: boolean
+  anoReferencia?: number
+  mesReferencia?: number
+  podeEditarDeposito?: boolean
 }
 
 export type ExtratoBancarioData = {
@@ -628,13 +637,19 @@ export async function getExtratoBancarioTecnico(
       const mesesValidos =
         getValidMonthsCount(tec.admissao, cy, cm) - getValidMonthsCount(tec.admissao, cy, cm - 1)
 
+      const isMesAtualOuFuturo = cy > defAno || (cy === defAno && cm >= defMes)
       const temOverride = overridesNoMes.length > 0
       const ultOverride = temOverride ? overridesNoMes[overridesNoMes.length - 1] : null
-      const valorBaseMes = ultOverride
-        ? ultOverride.valor
-        : mesesValidos > 0
-        ? tec.orcamentoAbastecimento
-        : 0
+      
+      let valorBaseMes = 0
+      if (temOverride && ultOverride) {
+        valorBaseMes = ultOverride.valor
+      } else if (!isMesAtualOuFuturo) {
+        valorBaseMes = mesesValidos > 0 ? tec.orcamentoAbastecimento : 0
+      } else {
+        // Mês atual ou futuro: não recebe cota automática; somente valor efetivado/aprovado pelo administrador
+        valorBaseMes = 0
+      }
 
       // Se a data de crédito caiu antes do início do período selecionado -> Saldo Anterior
       if (dataCreditoMes < dataInicioPeriodo) {
@@ -643,18 +658,21 @@ export async function getExtratoBancarioTecnico(
         // Se a data de crédito está dentro do período selecionado -> entra como transação única no extrato
         if (temOverride && ultOverride) {
           transacoes.push({
-            id: `deposito_empresa_${cy}_${cm}`,
+            id: ultOverride.id || `deposito_empresa_${cy}_${cm}`,
             data: dataCreditoMes.toISOString(),
             tipo: 'ENTRADA_AJUSTE',
-            titulo: `Depósito da Empresa - Cota Ajustada (${MESES_NOME[cm - 1]}/${cy})`,
-            descricao: `Depósito mensal no 1º dia útil (${String(diaUtil).padStart(2, '0')}/${String(cm).padStart(2, '0')}) com cota ajustada para R$ ${ultOverride.valor.toFixed(2)}${
+            titulo: `Depósito da Empresa - Cota Aprovada (${MESES_NOME[cm - 1]}/${cy})`,
+            descricao: `Depósito mensal no 1º dia útil (${String(diaUtil).padStart(2, '0')}/${String(cm).padStart(2, '0')}) com valor de R$ ${ultOverride.valor.toFixed(2)}${
               ultOverride.observacao ? ` — ${ultOverride.observacao}` : ''
             }`,
             valor: ultOverride.valor,
             userName: ultOverride.userName || 'Administrador',
             isOverride: true,
+            anoReferencia: cy,
+            mesReferencia: cm,
+            podeEditarDeposito: true,
           })
-        } else if (valorBaseMes > 0) {
+        } else if (!isMesAtualOuFuturo && valorBaseMes > 0) {
           transacoes.push({
             id: `deposito_empresa_${cy}_${cm}`,
             data: dataCreditoMes.toISOString(),
@@ -663,6 +681,23 @@ export async function getExtratoBancarioTecnico(
             descricao: `Depósito regular da cota mensal creditado no 1º dia útil (${String(diaUtil).padStart(2, '0')}/${String(cm).padStart(2, '0')})`,
             valor: valorBaseMes,
             userName: 'Empresa',
+            anoReferencia: cy,
+            mesReferencia: cm,
+            podeEditarDeposito: true,
+          })
+        } else if (isMesAtualOuFuturo) {
+          transacoes.push({
+            id: `deposito_empresa_pendente_${cy}_${cm}`,
+            data: dataCreditoMes.toISOString(),
+            tipo: 'ENTRADA_AJUSTE',
+            titulo: `Depósito da Empresa - Aguardando Lançamento (${MESES_NOME[cm - 1]}/${cy})`,
+            descricao: `Nenhum depósito manual/efetivado registrado para este mês (Clique no lápis para lançar o valor real)`,
+            valor: 0,
+            userName: 'Não Lançado',
+            isOverride: true,
+            anoReferencia: cy,
+            mesReferencia: cm,
+            podeEditarDeposito: true,
           })
         }
       }
@@ -1439,6 +1474,96 @@ export async function aplicarDepositosPrevisaoMes(
     return { success: false, error: 'Falha ao salvar depósitos no sistema.' }
   }
 }
+
+export async function salvarDepositoMesTecnico(
+  tecnicoId: string,
+  ano: number,
+  mes: number,
+  valor: number,
+  observacao?: string
+) {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+    const userId = (session.user as any).id
+    const userName = (session.user as any).name || (session.user as any).email || 'Administrador'
+
+    const { data: dataPrimeiroDiaUtil } = getPrimeiroDiaUtilMes(ano, mes)
+    const ultimoDiaMes = new Date(ano, mes, 0).getDate()
+    const inicioMes = getInicioDiaBrasil(`${ano}-${String(mes).padStart(2, '0')}-01`)
+    const fimMes = getFimDiaBrasil(`${ano}-${String(mes).padStart(2, '0')}-${String(ultimoDiaMes).padStart(2, '0')}`)
+
+    const valorFinal = Math.max(0, isNaN(valor) ? 0 : Number(valor.toFixed(2)))
+
+    // Procura se já existem overrides neste mês
+    const overridesExistentes = await prisma.recargaAbastecimento.findMany({
+      where: {
+        tecnicoId,
+        isOverride: true,
+        data: {
+          gte: inicioMes,
+          lte: fimMes,
+        },
+      },
+      orderBy: { data: 'desc' },
+    })
+
+    if (overridesExistentes.length > 0) {
+      const primeiro = overridesExistentes[0]
+      await prisma.recargaAbastecimento.update({
+        where: { id: primeiro.id },
+        data: {
+          valor: valorFinal,
+          observacao: observacao || `Depósito real do mês (${String(mes).padStart(2, '0')}/${ano})`,
+          userId,
+          userName,
+          data: primeiro.data,
+        },
+      })
+
+      // Se houver mais de um override duplicado no mês, limpa os excedentes para evitar divergências
+      if (overridesExistentes.length > 1) {
+        const idsExtras = overridesExistentes.slice(1).map(o => o.id)
+        await prisma.recargaAbastecimento.deleteMany({
+          where: { id: { in: idsExtras } },
+        })
+      }
+    } else {
+      await prisma.recargaAbastecimento.create({
+        data: {
+          tecnicoId,
+          valor: valorFinal,
+          observacao: observacao || `Depósito real do mês (${String(mes).padStart(2, '0')}/${ano})`,
+          userId,
+          userName,
+          isOverride: true,
+          data: dataPrimeiroDiaUtil,
+        },
+      })
+    }
+
+    await audit({
+      userId,
+      action: 'CORRECAO_DEPOSITO_MES_REAL',
+      entity: 'RecargaAbastecimento',
+      entityId: tecnicoId,
+      details: {
+        ano,
+        mes,
+        valor: valorFinal,
+        observacao: observacao || `Depósito real do mês (${String(mes).padStart(2, '0')}/${ano})`,
+        userName,
+      },
+    })
+
+    return { success: true, valor: valorFinal }
+  } catch (error: any) {
+    console.error('Erro ao salvar depósito real do mês:', error)
+    return { success: false, error: 'Falha ao salvar depósito no banco de dados.' }
+  }
+}
+
 
 
 
