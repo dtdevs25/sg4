@@ -89,3 +89,4 @@ export async function setAbastecimentoWebBloqueadoParaTecnicos(
     'Quando ativado, oculta a aba e bloqueia lançamentos de abastecimento no sistema web para técnicos (TST), exigindo o uso exclusivo do SG4 Mobile com geolocalização.'
   )
 }
+

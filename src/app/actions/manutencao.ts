@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { auth } from '@/lib/auth'
 import { audit } from '@/lib/audit'
 import { sendMail } from '@/lib/mail'
+import { frotaWebBloqueadaParaRole, MSG_FROTA_WEB_BLOQUEADA } from '@/lib/frotaWeb'
 
 export async function getManutencoes(ano?: number, mes?: number, tecnicoId?: string) {
   try {
@@ -50,6 +51,7 @@ export async function registrarManutencao(data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
     const userId = (session.user as any).id
 
     const item = await prisma.manutencaoVeiculo.create({
@@ -74,6 +76,7 @@ export async function excluirManutencao(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
     const userId = (session.user as any).id
 
     const role = (session.user as any).role

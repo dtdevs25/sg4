@@ -8,9 +8,7 @@ import {
   Send,
   Cake,
   Lock,
-  Unlock,
-  ShieldAlert,
-  Smartphone
+  Unlock
 } from 'lucide-react'
 import { testN8NWebhook } from '@/app/actions/abastecimentoOrcamento'
 import { testN8NMetasWebhook } from '@/app/actions/metas'
@@ -75,10 +73,10 @@ export default function TestesPage({ hideHeader = false }: { hideHeader?: boolea
       setBloqueioAbastecimento(novoValor)
       setNotification({
         type: 'success',
-        title: novoValor ? 'Abastecimento Web Desabilitado para Técnicos' : 'Abastecimento Web Liberado para Técnicos',
+        title: novoValor ? 'Quilometragem Web Desabilitada para Técnicos' : 'Quilometragem Web Liberada para Técnicos',
         message: novoValor
-          ? 'A aba e os lançamentos de abastecimento no sistema web estão agora ocultos e bloqueados para todos os técnicos (TST). Eles deverão registrar abastecimentos exclusivamente no aplicativo SG4 Mobile, garantindo a captura obrigatória de geolocalização.'
-          : 'A aba e os lançamentos de abastecimento no sistema web foram liberados novamente para os técnicos.'
+          ? 'O menu Quilometragem (KM, Abastecimento e Manutenção) foi removido e bloqueado no sistema web para todos os técnicos (TST). Eles deverão fazer esses lançamentos exclusivamente no aplicativo SG4 Mobile, garantindo a captura de geolocalização. Técnicos já logados precisam apenas recarregar a página.'
+          : 'O menu Quilometragem (KM, Abastecimento e Manutenção) foi liberado novamente no sistema web para os técnicos.'
       })
     } else {
       setNotification({
@@ -144,7 +142,7 @@ export default function TestesPage({ hideHeader = false }: { hideHeader?: boolea
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-                Desabilitar Abastecimento no Sistema Web para Técnicos
+                Desabilitar Quilometragem no Sistema Web para Técnicos
               </h2>
               <span
                 style={{
@@ -161,7 +159,7 @@ export default function TestesPage({ hideHeader = false }: { hideHeader?: boolea
               </span>
             </div>
             <p style={{ fontSize: 13, color: '#64748b', margin: '6px 0 0 0', lineHeight: 1.5 }}>
-              Quando este flag está <b>ativado</b>, a aba e as opções de lançamento de abastecimento <b>desaparecem totalmente para os técnicos de segurança no sistema web</b> (com bloqueio também a nível de servidor contra tentativas de burla). Assim, os técnicos serão obrigados a lançar abastecimento exclusivamente pelo <b>aplicativo SG4 Mobile</b>, garantindo a captura obrigatória de geolocalização via GPS.
+              Quando este flag está <b>ativado</b>, o menu <b>Quilometragem</b> inteiro (<b>KM, Abastecimento e Manutenção</b>) <b>desaparece para os técnicos de segurança no sistema web</b>. O bloqueio também é feito no servidor: acesso direto pela URL é redirecionado e qualquer tentativa de gravar/alterar/excluir esses registros pelo web é recusada. Assim, os técnicos serão obrigados a lançar exclusivamente pelo <b>aplicativo SG4 Mobile</b>, garantindo a captura de geolocalização via GPS.
               Administradores e usuários Master continuam com visualização e controle normais no sistema web.
             </p>
           </div>

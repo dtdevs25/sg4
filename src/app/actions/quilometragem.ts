@@ -7,13 +7,14 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 import s3Client from '@/lib/s3'
 import { checkMaintenanceAlert } from './manutencao'
 import { triggerN8NAlertCheck } from './abastecimentoOrcamento'
-import { isAbastecimentoWebBloqueadoParaTecnicos } from './configuracao'
+import { frotaWebBloqueadaParaRole, MSG_FROTA_WEB_BLOQUEADA } from '@/lib/frotaWeb'
 
 // ─── UPLOAD PARA O MINIO (Bucket: sg4-km) ───
 export async function uploadFotoKm(formData: FormData) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
 
     const fileData = formData.get('fileData') as string;
     const fileName = formData.get('fileName') as string;
@@ -90,6 +91,7 @@ export async function createQuilometragem(data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
     const userId = (session.user as any).id
 
     const item = await prisma.quilometragem.create({
@@ -117,6 +119,7 @@ export async function fecharQuilometragem(id: string, kmFinal: number, fotoFinal
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
     const userId = (session.user as any).id
 
     const km = await prisma.quilometragem.findUnique({ where: { id } })
@@ -152,6 +155,7 @@ export async function updateQuilometragem(id: string, data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
     const userId = (session.user as any).id
 
     const km = await prisma.quilometragem.findUnique({ where: { id } })
@@ -189,6 +193,7 @@ export async function deleteQuilometragem(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
     const userId = (session.user as any).id
 
     const km = await prisma.quilometragem.findUnique({ where: { id } })
@@ -247,16 +252,7 @@ export async function createAbastecimento(data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
-    const role = (session.user as any).role
-    if (role === 'TST') {
-      const bloqueado = await isAbastecimentoWebBloqueadoParaTecnicos()
-      if (bloqueado) {
-        return {
-          success: false,
-          error: 'O lançamento de abastecimento via sistema web está desabilitado para técnicos. Por favor, utilize exclusivamente o aplicativo SG4 Mobile.'
-        }
-      }
-    }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
     const userId = (session.user as any).id
 
     const item = await prisma.abastecimento.create({
@@ -289,16 +285,7 @@ export async function updateAbastecimento(id: string, data: {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
-    const role = (session.user as any).role
-    if (role === 'TST') {
-      const bloqueado = await isAbastecimentoWebBloqueadoParaTecnicos()
-      if (bloqueado) {
-        return {
-          success: false,
-          error: 'A alteração de abastecimento via sistema web está desabilitada para técnicos. Utilize o aplicativo SG4 Mobile.'
-        }
-      }
-    }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
     const userId = (session.user as any).id
 
     const item = await prisma.abastecimento.update({
@@ -326,16 +313,7 @@ export async function deleteAbastecimento(id: string) {
   try {
     const session = await auth()
     if (!session?.user) return { success: false, error: 'Não autorizado' }
-    const role = (session.user as any).role
-    if (role === 'TST') {
-      const bloqueado = await isAbastecimentoWebBloqueadoParaTecnicos()
-      if (bloqueado) {
-        return {
-          success: false,
-          error: 'A exclusão de abastecimento via sistema web está desabilitada para técnicos.'
-        }
-      }
-    }
+    if (await frotaWebBloqueadaParaRole((session.user as any).role)) return { success: false, error: MSG_FROTA_WEB_BLOQUEADA }
     const userId = (session.user as any).id
 
     await prisma.abastecimento.delete({ where: { id } })

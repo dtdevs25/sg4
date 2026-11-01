@@ -222,8 +222,8 @@ function UserProfile({ collapsed, name, role, initials }: {
 }
 
 /* ── Sidebar content ──────────────────────────────────────────────────────── */
-function SidebarContent({ collapsed, isMobile = false, onClose }: {
-  collapsed: boolean; isMobile?: boolean; onClose?: () => void
+function SidebarContent({ collapsed, isMobile = false, onClose, hideFrota = false }: {
+  collapsed: boolean; isMobile?: boolean; onClose?: () => void; hideFrota?: boolean
 }) {
   const { data: session } = useSession()
   const name     = session?.user?.name || 'Usuário SG4'
@@ -232,6 +232,10 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
 
   const filteredNav = NAV.filter(item => {
     if (role === 'TST' && (item.label === 'Cadastros' || item.label === 'Administração')) {
+      return false
+    }
+    // Módulo de Quilometragem (KM/Abastecimento/Manutenção) desabilitado no web para técnicos pelo admin
+    if (role === 'TST' && hideFrota && item.href === '/dashboard/quilometragem') {
       return false
     }
     return true
@@ -270,7 +274,7 @@ function SidebarContent({ collapsed, isMobile = false, onClose }: {
 }
 
 /* ── Main export ───────────────────────────────────────────────────── */
-export function Sidebar() {
+export function Sidebar({ hideFrota = false }: { hideFrota?: boolean } = {}) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
@@ -313,7 +317,7 @@ export function Sidebar() {
                 <X size={20} />
               </button>
             </div>
-            <SidebarContent collapsed={false} isMobile onClose={() => setMobileOpen(false)} />
+            <SidebarContent collapsed={false} isMobile onClose={() => setMobileOpen(false)} hideFrota={hideFrota} />
           </aside>
         </div>
       )}
@@ -347,7 +351,7 @@ export function Sidebar() {
           </button>
         </div>
 
-        <SidebarContent collapsed={collapsed} />
+        <SidebarContent collapsed={collapsed} hideFrota={hideFrota} />
       </aside>
     </>
   )
