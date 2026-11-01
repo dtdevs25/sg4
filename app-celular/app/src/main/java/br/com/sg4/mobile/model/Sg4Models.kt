@@ -63,7 +63,9 @@ data class MonthlyStatDto(
     val ncTotal: Int = 0,
     val ncAbertas: Int = 0,
     val ncFechadas: Int = 0,
-    val kmTotal: Double = 0.0
+    val kmTotal: Double = 0.0,
+    val saldoMes: Double = 0.0,
+    val gastoAbastecimento: Double = 0.0
 )
 
 data class DashboardSummaryDto(

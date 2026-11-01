@@ -752,8 +752,8 @@ fun HomeDashboardScreen(
 
     val tecnico = uiState.syncData.currentTecnico
     val summary = uiState.syncData.summary
-    val firstName = remember(tecnico?.nome, uiState.userName) {
-        (tecnico?.nome ?: uiState.userName.ifBlank { "Técnico" }).trim().split(" ").firstOrNull() ?: "Técnico"
+    val firstName = remember(uiState.userName) {
+        uiState.userName.ifBlank { "Colaborador" }.trim().split(" ").firstOrNull() ?: "Colaborador"
     }
 
     val yearsList = remember(uiState.syncData.availableYears, currentYearNum) {
@@ -835,11 +835,34 @@ fun HomeDashboardScreen(
     }
     val ncPctFechadas = if (ncTotal > 0) ((ncFechadas * 100.0) / ncTotal).toInt() else 100
 
-    val kmPeriodo = if (filteredStats.isNotEmpty()) {
-        filteredStats.sumOf { it.kmTotal }
-    } else if (selectedYear == currentYearNum && selectedMonths.contains(currentMonth1to12)) {
-        summary.kmRodadosMes
-    } else 0.0
+    val kmPeriodo = remember(filteredStats, uiState.syncData.quilometragens, selectedYear, selectedMonths.toList()) {
+        val fromStats = filteredStats.sumOf { it.kmTotal }
+        if (fromStats > 0.0) {
+            fromStats
+        } else {
+            uiState.syncData.quilometragens.filter { k ->
+                val parts = k.dataInicial.split("T")[0].split("-")
+                if (parts.size >= 2) {
+                    val y = parts[0].toIntOrNull() ?: 0
+                    val m = parts[1].toIntOrNull() ?: 0
+                    y == selectedYear && selectedMonths.contains(m)
+                } else false
+            }.sumOf { k ->
+                k.diferenca ?: if (k.kmFinal != null && k.kmFinal >= k.kmInicial) (k.kmFinal - k.kmInicial).toDouble() else 0.0
+            }
+        }
+    }
+
+    val saldoPeriodo = remember(filteredStats, selectedYear, selectedMonths.toList(), summary.saldoAbastecimento) {
+        val fromStats = filteredStats.sumOf { it.saldoMes }
+        if (filteredStats.isNotEmpty()) {
+            fromStats
+        } else if (selectedYear == currentYearNum && selectedMonths.size == 1 && selectedMonths.contains(currentMonth1to12)) {
+            summary.saldoAbastecimento
+        } else {
+            0.0
+        }
+    }
 
     val periodoLabel = remember(selectedYear, selectedMonths.toList()) {
         if (selectedMonths.size == 12) {
@@ -1141,7 +1164,7 @@ fun HomeDashboardScreen(
                             color = Slate600
                         )
                         Text(
-                            text = "R$ ${Math.round(summary.saldoAbastecimento)}",
+                            text = "R$ ${Math.round(saldoPeriodo)}",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Sg4Green
@@ -3201,7 +3224,7 @@ fun KmAbastecimentoScreen(
             Tab(
                 selected = selectedSubTab == 1,
                 onClick = { selectedSubTab = 1 },
-                text = { Text("Abastecimento", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
+                text = { Text("Abastec.", fontWeight = FontWeight.Bold, fontSize = 13.sp) }
             )
             Tab(
                 selected = selectedSubTab == 2,

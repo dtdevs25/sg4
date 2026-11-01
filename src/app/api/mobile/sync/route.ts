@@ -238,18 +238,18 @@ export async function GET(req: Request) {
         where: whereTecnico,
         include: { tecnico: { select: { id: true, nome: true } } },
         orderBy: { dataInicial: 'desc' },
-        take: 250,
+        take: 1500,
       }),
       prisma.abastecimento.findMany({
         where: whereTecnico,
         include: { tecnico: { select: { id: true, nome: true } } },
         orderBy: { data: 'desc' },
-        take: 120,
+        take: 800,
       }),
       prisma.recargaAbastecimento.findMany({
         where: whereTecnico,
         orderBy: { data: 'desc' },
-        take: 60,
+        take: 300,
       }),
       prisma.manutencaoVeiculo.findMany({
         where: whereTecnico,
@@ -394,6 +394,9 @@ export async function GET(req: Request) {
           ncAbertas: 0,
           ncFechadas: 0,
           kmTotal: 0,
+          gastoAbastecimento: 0,
+          recargasAbastecimento: 0,
+          saldoMes: 0,
         }
         bucketMap.set(key, b)
       }
@@ -455,14 +458,42 @@ export async function GET(req: Request) {
       }
     }
 
-    // 6. Contabilizar KM por mês
+    const orcamentoPadraoTecnico = (currentTecnico?.orcamentoAbastecimento || 800)
+    const orcamentoTotalMensal = isAllTecnicos
+      ? tecnicosList.filter(t => t.ativo).reduce((acc, t) => acc + (t.orcamentoAbastecimento || 800), 0)
+      : orcamentoPadraoTecnico
+
+    // 6. Contabilizar KM por mês (calcula diferenca real caso k.diferenca seja nulo)
     for (const k of quilometragens) {
-      if (k.diferenca == null) continue
+      const diff = k.diferenca != null ? k.diferenca : (k.kmFinal != null && k.kmFinal >= k.kmInicial ? (k.kmFinal - k.kmInicial) : 0)
+      if (diff <= 0) continue
       const parsed = parseFlexibleMonthYear(k.dataInicial)
       if (parsed) {
         const b = getBucket(parsed.year, parsed.month)
-        b.kmTotal = Number((b.kmTotal + (k.diferenca || 0)).toFixed(1))
+        b.kmTotal = Number((b.kmTotal + diff).toFixed(1))
       }
+    }
+
+    // 7. Contabilizar Abastecimentos e Recargas por mês
+    for (const a of abastecimentos) {
+      const parsed = parseFlexibleMonthYear(a.data)
+      if (parsed) {
+        const b = getBucket(parsed.year, parsed.month)
+        b.gastoAbastecimento = Number((b.gastoAbastecimento + (a.valor || 0)).toFixed(2))
+      }
+    }
+
+    for (const r of recargas) {
+      const parsed = parseFlexibleMonthYear(r.data)
+      if (parsed) {
+        const b = getBucket(parsed.year, parsed.month)
+        b.recargasAbastecimento = Number((b.recargasAbastecimento + (r.valor || 0)).toFixed(2))
+      }
+    }
+
+    // 8. Calcular saldo líquido de cada mês
+    for (const b of bucketMap.values()) {
+      b.saldoMes = Number((orcamentoTotalMensal + b.recargasAbastecimento - b.gastoAbastecimento).toFixed(2))
     }
 
     const monthlyStats = Array.from(bucketMap.values()).sort((a, b) =>
