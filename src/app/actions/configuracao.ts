@@ -73,7 +73,7 @@ export async function setConfiguracao(
   }
 }
 
-export const CHAVE_BLOQUEIO_ABASTECIMENTO_WEB = 'BLOQUEAR_ABASTECIMENTO_WEB_TECNICOS'
+const CHAVE_BLOQUEIO_ABASTECIMENTO_WEB = 'BLOQUEAR_ABASTECIMENTO_WEB_TECNICOS'
 
 export async function isAbastecimentoWebBloqueadoParaTecnicos(): Promise<boolean> {
   const valor = await getConfiguracao(CHAVE_BLOQUEIO_ABASTECIMENTO_WEB, 'false')
