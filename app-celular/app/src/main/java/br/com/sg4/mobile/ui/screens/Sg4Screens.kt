@@ -44,6 +44,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -3026,6 +3028,33 @@ fun AgendaCardItem(
  * - Aba de registro de manutenções com data, hora, KM, descrição e foto
  */
 
+
+fun updateKmTextFieldValue(newValue: TextFieldValue): Pair<TextFieldValue, String> {
+    val cleanDigits = newValue.text.filter { it.isDigit() }.take(7) // máx 7 dígitos (ex: 9.999.999)
+    if (cleanDigits.isBlank()) {
+        return TextFieldValue("", TextRange.Zero) to ""
+    }
+    val formatted = formatKmDigits(cleanDigits)
+    val tfv = TextFieldValue(
+        text = formatted,
+        selection = TextRange(formatted.length)
+    )
+    return tfv to cleanDigits
+}
+
+fun updateCurrencyTextFieldValue(newValue: TextFieldValue): Pair<TextFieldValue, String> {
+    val cleanDigits = newValue.text.filter { it.isDigit() }.take(8) // máx 8 dígitos
+    if (cleanDigits.isBlank()) {
+        return TextFieldValue("", TextRange.Zero) to ""
+    }
+    val formatted = formatCurrencyBrlInput(cleanDigits)
+    val tfv = TextFieldValue(
+        text = formatted,
+        selection = TextRange(formatted.length)
+    )
+    return tfv to cleanDigits
+}
+
 fun formatKmDigits(rawDigits: String): String {
     val digits = rawDigits.filter { it.isDigit() }
     if (digits.isBlank()) return ""
@@ -3530,6 +3559,7 @@ fun KmAbastecimentoScreen(
 
     // 1. DIÁLOGO: INICIAR KM DO DIA
     if (showStartKmDialog) {
+        var kmIniValue by remember { mutableStateOf(TextFieldValue("")) }
         var rawKmIni by remember { mutableStateOf("") }
         var fotoIniBase64 by remember { mutableStateOf("") }
 
@@ -3584,8 +3614,12 @@ fun KmAbastecimentoScreen(
 
                     // Campo de Odômetro Inicial com formatação automática de milhar (ex: 12345 -> 12.345)
                     OutlinedTextField(
-                        value = formatKmDigits(rawKmIni),
-                        onValueChange = { rawKmIni = it.filter { ch -> ch.isDigit() } },
+                        value = kmIniValue,
+                        onValueChange = { newVal ->
+                            val (tfv, clean) = updateKmTextFieldValue(newVal)
+                            kmIniValue = tfv
+                            rawKmIni = clean
+                        },
                         label = { Text("Odômetro Inicial (KM)", color = Slate900) },
                         placeholder = { Text("Ex: 45.210", color = Slate400) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -3690,6 +3724,7 @@ fun KmAbastecimentoScreen(
 
     // 2. DIÁLOGO: ENCERRAR KM DO DIA
     finishingKmItem?.let { kmItem ->
+        var kmFimValue by remember(kmItem.id) { mutableStateOf(TextFieldValue("")) }
         var rawKmFim by remember(kmItem.id) { mutableStateOf("") }
         var fotoFimBase64 by remember(kmItem.id) { mutableStateOf("") }
 
@@ -3758,8 +3793,12 @@ fun KmAbastecimentoScreen(
 
                     // Campo de Odômetro Final com formatação de milhar
                     OutlinedTextField(
-                        value = formatKmDigits(rawKmFim),
-                        onValueChange = { rawKmFim = it.filter { ch -> ch.isDigit() } },
+                        value = kmFimValue,
+                        onValueChange = { newVal ->
+                            val (tfv, clean) = updateKmTextFieldValue(newVal)
+                            kmFimValue = tfv
+                            rawKmFim = clean
+                        },
                         label = { Text("Odômetro Final (KM)", color = Slate900) },
                         placeholder = { Text("Ex: 45.320", color = Slate400) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -3865,6 +3904,7 @@ fun KmAbastecimentoScreen(
 
     // 3. DIÁLOGO: REGISTRAR ABASTECIMENTO (COM TECLADO NUMÉRICO E FOTO)
     if (showAbastecimentoDialog) {
+        var absValorValue by remember { mutableStateOf(TextFieldValue("")) }
         var rawDigits by remember { mutableStateOf("") }
         var fotoCupomBase64 by remember { mutableStateOf("") }
 
@@ -3917,8 +3957,12 @@ fun KmAbastecimentoScreen(
                     }
 
                     OutlinedTextField(
-                        value = formatCurrencyBrlInput(rawDigits),
-                        onValueChange = { rawDigits = it.filter { ch -> ch.isDigit() } },
+                        value = absValorValue,
+                        onValueChange = { newVal ->
+                            val (tfv, clean) = updateCurrencyTextFieldValue(newVal)
+                            absValorValue = tfv
+                            rawDigits = clean
+                        },
                         label = { Text("Valor do Abastecimento (R$)", color = Slate900) },
                         placeholder = { Text("R$ 0,00", color = Slate400) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -4022,6 +4066,7 @@ fun KmAbastecimentoScreen(
 
     // 4. DIÁLOGO: REGISTRAR MANUTENÇÃO (COM TECLADO NUMÉRICO E FOTO)
     if (showManutencaoDialog) {
+        var kmManutValue by remember { mutableStateOf(TextFieldValue("")) }
         var rawKmManut by remember { mutableStateOf("") }
         var descManut by remember { mutableStateOf("") }
         var fotoManutBase64 by remember { mutableStateOf("") }
@@ -4075,8 +4120,12 @@ fun KmAbastecimentoScreen(
                     }
 
                     OutlinedTextField(
-                        value = formatKmDigits(rawKmManut),
-                        onValueChange = { rawKmManut = it.filter { ch -> ch.isDigit() } },
+                        value = kmManutValue,
+                        onValueChange = { newVal ->
+                            val (tfv, clean) = updateKmTextFieldValue(newVal)
+                            kmManutValue = tfv
+                            rawKmManut = clean
+                        },
                         label = { Text("KM no Momento da Manutenção", color = Slate900) },
                         placeholder = { Text("Ex: 50.000", color = Slate400) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

@@ -201,7 +201,7 @@ export default function AppCelularPage() {
             {downloading ? 'Iniciando download...' : 'Baixar Instalador Android (.apk)'}
           </button>
           <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>
-            Compatível com Android 8.0 ou superior • Versão 2.7.3
+            Compatível com Android 8.0 ou superior • Versão 2.7.4
           </span>
         </div>
 
