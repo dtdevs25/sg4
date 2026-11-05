@@ -883,6 +883,8 @@ export interface ItemPrevisaoDeposito {
 
 export interface PrevisaoDepositosResultado {
   mesReferencia: string // ex: "Novembro/2026"
+  mesAlvo: number
+  anoAlvo: number
   dataGeracao: string
   totalSugerido: number
   totalCotaFixa: number
@@ -893,7 +895,11 @@ export interface PrevisaoDepositosResultado {
   itens: ItemPrevisaoDeposito[]
 }
 
-export async function getPrevisaoDepositosProximoMes(internalBypassAuth: boolean = false): Promise<{
+export async function getPrevisaoDepositosProximoMes(
+  internalBypassAuth: boolean = false,
+  mesAlvoCustom?: number,
+  anoAlvoCustom?: number
+): Promise<{
   success: boolean
   data?: PrevisaoDepositosResultado
   error?: string
@@ -907,10 +913,10 @@ export async function getPrevisaoDepositosProximoMes(internalBypassAuth: boolean
     const hoje = new Date()
     const { ano: anoAtual, mes1: mesAtual } = getDataBrasilParts(hoje) // 1 a 12
 
-    // Mês Alvo (próximo mês a receber o depósito no dia 1º)
-    let anoAlvo = anoAtual
-    let mesAlvo = mesAtual + 1
-    if (mesAlvo > 12) {
+    // Mês Alvo (pode ser customizado para o mês atual ou padrão próximo mês)
+    let anoAlvo = anoAlvoCustom && anoAlvoCustom >= 2020 ? anoAlvoCustom : anoAtual
+    let mesAlvo = mesAlvoCustom && mesAlvoCustom >= 1 && mesAlvoCustom <= 12 ? mesAlvoCustom : mesAtual + 1
+    if (!mesAlvoCustom && mesAlvo > 12) {
       mesAlvo = 1
       anoAlvo++
     }
@@ -934,10 +940,10 @@ export async function getPrevisaoDepositosProximoMes(internalBypassAuth: boolean
       return { ano: anoRes, mes: mesRes }
     }
 
-    // M1: mês atual, M2: mês anterior, M3: 2 meses atrás
-    const m1 = subMeses(anoAtual, mesAtual, 0)
-    const m2 = subMeses(anoAtual, mesAtual, 1)
-    const m3 = subMeses(anoAtual, mesAtual, 2)
+    // M1: 1 mês antes do mês alvo, M2: 2 meses antes, M3: 3 meses antes
+    const m1 = subMeses(anoAlvo, mesAlvo, 1)
+    const m2 = subMeses(anoAlvo, mesAlvo, 2)
+    const m3 = subMeses(anoAlvo, mesAlvo, 3)
 
     const rotulosMeses: [string, string, string] = [
       `${MESES_ABREV[m1.mes - 1]}/${String(m1.ano).slice(-2)}`,
@@ -1072,6 +1078,8 @@ export async function getPrevisaoDepositosProximoMes(internalBypassAuth: boolean
       success: true,
       data: {
         mesReferencia,
+        mesAlvo,
+        anoAlvo,
         dataGeracao: hoje.toISOString(),
         totalSugerido: Number(totalSugerido.toFixed(2)),
         totalCotaFixa: Number(totalCotaFixa.toFixed(2)),

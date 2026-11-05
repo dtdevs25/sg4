@@ -105,6 +105,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
   const [enviandoEmail, setEnviandoEmail] = useState(false)
   const [buscaTecnicoPrevisao, setBuscaTecnicoPrevisao] = useState('')
   const [salvandoDepositos, setSalvandoDepositos] = useState(false)
+  const [modalConfirmEfetivarOpen, setModalConfirmEfetivarOpen] = useState(false)
   const [savingAction, setSavingAction] = useState(false)
   const submittingRef = useRef(false)
 
@@ -127,6 +128,12 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
 
   // Toggle dropdown de meses
   const [mesesDropdownOpen, setMesesDropdownOpen] = useState(false)
+
+  const hojeDataRef = new Date()
+  const mesAtualNum = hojeDataRef.getMonth() + 1
+  const anoAtualNum = hojeDataRef.getFullYear()
+  const mesProximoNum = mesAtualNum === 12 ? 1 : mesAtualNum + 1
+  const anoProximoNum = mesAtualNum === 12 ? anoAtualNum + 1 : anoAtualNum
 
   const MESES_NOME = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -387,11 +394,11 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     })
   }
 
-  async function handleAbrirModalPrevisao() {
+  async function handleAbrirModalPrevisao(mesAlvo?: number, anoAlvo?: number) {
     setModalPrevisaoOpen(true)
     setLoadingPrevisao(true)
     try {
-      const res = await getPrevisaoDepositosProximoMes()
+      const res = await getPrevisaoDepositosProximoMes(false, mesAlvo, anoAlvo)
       if (res.success && res.data) {
         setDadosPrevisao(res.data)
       } else {
@@ -431,10 +438,15 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     })
   }
 
-  async function handleEfetivarDepositos() {
+  function solicitarEfetivacao() {
     if (!dadosPrevisao || submittingRef.current) return
-    const confirma = confirm(`Deseja efetivar esses valores como o depósito de ${dadosPrevisao.mesReferencia} para os técnicos no sistema?`)
-    if (!confirma) return
+    setModalConfirmEfetivarOpen(true)
+  }
+
+  async function executarEfetivacaoDepositos() {
+    if (!dadosPrevisao || submittingRef.current) return
+    setModalConfirmEfetivarOpen(false)
+
 
     submittingRef.current = true
     setSalvandoDepositos(true)
@@ -581,7 +593,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
             {/* Botão de Sugestão Inteligente Próximo Mês */}
             <button
               type="button"
-              onClick={handleAbrirModalPrevisao}
+              onClick={() => handleAbrirModalPrevisao()}
               style={{
                 background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)',
                 color: '#fff',
@@ -709,7 +721,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
             {/* Botão de Sugestão Inteligente Próximo Mês */}
             <button
               type="button"
-              onClick={handleAbrirModalPrevisao}
+              onClick={() => handleAbrirModalPrevisao()}
               style={{
                 background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)',
                 color: '#fff',
@@ -1082,6 +1094,63 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação para Efetivação de Depósitos */}
+      {modalConfirmEfetivarOpen && dadosPrevisao && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 440, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Save size={28} />
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+              Confirmar Depósitos de {dadosPrevisao.mesReferencia}?
+            </h2>
+            <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.5 }}>
+              Você está prestes a gravar um total de <strong style={{ color: '#16a34a' }}>R$ {dadosPrevisao.totalSugerido.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> para os <strong>{dadosPrevisao.itens.length} colaboradores</strong> com data de primeiro dia útil de <strong>{dadosPrevisao.mesReferencia}</strong>.
+            </p>
+            <div style={{ fontSize: 12, color: '#64748b', background: '#f8fafc', padding: '10px 14px', borderRadius: 8, width: '100%', boxSizing: 'border-box', border: '1px solid #e2e8f0' }}>
+              ℹ️ Esta operação registrará as recargas na tabela de abastecimento do sistema e atualizará o extrato e orçamento do mês selecionado.
+            </div>
+            <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setModalConfirmEfetivarOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  background: '#f1f5f9',
+                  color: '#475569',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                Voltar / Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executarEfetivacaoDepositos}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(22, 163, 74, 0.3)',
+                }}
+              >
+                Confirmar e Efetivar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1752,26 +1821,70 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                   Estimativa calculada pelo consumo dos últimos 3 meses com abatimento do saldo em conta
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setModalPrevisaoOpen(false)}
-                style={{
-                  background: 'rgba(255,255,255,0.15)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: 32,
-                  height: 32,
-                  color: '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-                title="Fechar"
-              >
-                <X size={18} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* Seletor Mês Atual vs Próximo Mês */}
+                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.18)', padding: 3, borderRadius: 8, gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleAbrirModalPrevisao(mesAtualNum, anoAtualNum)}
+                    disabled={loadingPrevisao}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 6,
+                      border: 'none',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      background: dadosPrevisao?.mesAlvo === mesAtualNum && dadosPrevisao?.anoAlvo === anoAtualNum ? '#fff' : 'transparent',
+                      color: dadosPrevisao?.mesAlvo === mesAtualNum && dadosPrevisao?.anoAlvo === anoAtualNum ? '#660099' : '#fff',
+                      transition: 'all 0.15s ease',
+                    }}
+                    title={`Calcular para o mês em curso: ${MESES_NOME[mesAtualNum - 1]}/${anoAtualNum}`}
+                  >
+                    Mês Atual ({MESES_NOME[mesAtualNum - 1]})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAbrirModalPrevisao(mesProximoNum, anoProximoNum)}
+                    disabled={loadingPrevisao}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 6,
+                      border: 'none',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      background: dadosPrevisao?.mesAlvo === mesProximoNum && dadosPrevisao?.anoAlvo === anoProximoNum ? '#fff' : 'transparent',
+                      color: dadosPrevisao?.mesAlvo === mesProximoNum && dadosPrevisao?.anoAlvo === anoProximoNum ? '#660099' : '#fff',
+                      transition: 'all 0.15s ease',
+                    }}
+                    title={`Calcular para o próximo mês: ${MESES_NOME[mesProximoNum - 1]}/${anoProximoNum}`}
+                  >
+                    Próximo Mês ({MESES_NOME[mesProximoNum - 1]})
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setModalPrevisaoOpen(false)}
+                  style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: 32,
+                    height: 32,
+                    color: '#fff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                  title="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* KPI Cards & Status */}
@@ -1907,7 +2020,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
 
                     <button
                       type="button"
-                      onClick={handleEfetivarDepositos}
+                      onClick={solicitarEfetivacao}
                       disabled={salvandoDepositos}
                       style={{
                         padding: '6px 14px',
