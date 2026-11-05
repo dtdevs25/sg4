@@ -1155,6 +1155,19 @@ export async function dispararTesteCronProdutividade() {
   }
 }
 
+export async function getStatusEnvioProdutividadeAction() {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Não autorizado', jaEnviado: false }
+
+  try {
+    const { getStatusEnvioProdutividadeMensal } = await import('@/lib/cronProdutividade')
+    return await getStatusEnvioProdutividadeMensal()
+  } catch (error: any) {
+    console.error('Erro ao buscar status do envio de produtividade:', error)
+    return { success: false, error: error?.message || 'Erro ao consultar status', jaEnviado: false }
+  }
+}
+
 export async function getRelatorioUnidadesTecnico(f: FiltrosRelatorio) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }

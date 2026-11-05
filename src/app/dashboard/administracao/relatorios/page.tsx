@@ -16,6 +16,7 @@ import {
   getRelatorioProdutividadeDssInspecoes,
   definirRecebedorRelatorioProdutividade,
   dispararTesteCronProdutividade,
+  getStatusEnvioProdutividadeAction,
   getRelatorioUnidadesTecnico,
   getRelatorioContatosTecnicos,
   type FiltrosRelatorio
@@ -127,6 +128,10 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
   const [sucesso, setSucesso]     = useState(false)
   const [destinatarioId, setDestinatarioId] = useState('')
   const [testandoCron, setTestandoCron] = useState(false)
+  const [statusProdutividade, setStatusProdutividade] = useState<any>(null)
+  const [carregandoStatusProd, setCarregandoStatusProd] = useState(false)
+  const [modalConfirmDisparoOpen, setModalConfirmDisparoOpen] = useState(false)
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', title: string, message: string } | null>(null)
   const submittingRef = useRef(false)
 
   useEffect(() => {
@@ -134,20 +139,50 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
     if (saved) setDestinatarioId(saved)
   }, [])
 
-  async function handleTestarEnvioAutomatico() {
+  async function carregarStatusProdutividade() {
+    setCarregandoStatusProd(true)
+    try {
+      const st = await getStatusEnvioProdutividadeAction()
+      if (st && st.success) {
+        setStatusProdutividade(st)
+      }
+    } catch (err) {
+      console.error('Erro ao carregar status do envio:', err)
+    } finally {
+      setCarregandoStatusProd(false)
+    }
+  }
+
+  async function executarDisparoProdutividade() {
+    setModalConfirmDisparoOpen(false)
     if (testandoCron || submittingRef.current) return
+    submittingRef.current = true
     setTestandoCron(true)
     setErro('')
     try {
       const res: any = await dispararTesteCronProdutividade()
-      if (res.success) {
-        alert(res.message || 'E-mail de produtividade disparado com sucesso!')
+      if (res.success && res.emailEnviado) {
+        setNotification({
+          type: 'success',
+          title: 'Relatório de Produtividade Enviado!',
+          message: res.message || 'E-mail enviado com sucesso e registrado no sistema!',
+        })
+        await carregarStatusProdutividade()
       } else {
-        setErro(res.message || res.error || 'Falha ao disparar e-mail de produtividade.')
+        setNotification({
+          type: 'error',
+          title: 'Falha no Envio',
+          message: res.message || res.error || 'Não foi possível disparar o e-mail de produtividade.',
+        })
       }
     } catch (e: any) {
-      setErro(e?.message || 'Erro inesperado ao disparar teste.')
+      setNotification({
+        type: 'error',
+        title: 'Erro Inesperado',
+        message: e?.message || 'Erro inesperado ao disparar relatório.',
+      })
     } finally {
+      submittingRef.current = false
       setTestandoCron(false)
     }
   }
@@ -157,6 +192,7 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
     if (id === 'produtividade') {
       setDataInicio(primeiroDiaMesAnterior())
       setDataFim(ultimoDiaMesAnterior())
+      carregarStatusProdutividade()
     } else {
       setDataInicio(primeiroDiaMes())
       setDataFim(hoje())
@@ -440,46 +476,190 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
                 </button>
               </div>
 
-              {/* Área de E-mail (Só para Produtividade, ou disponível em todos) */}
+              {/* Área de E-mail Automático no 1º Dia Útil */}
               {tipoSel === 'produtividade' && (
-                <div style={{ marginTop: 20, padding: 16, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    <Mail size={14} /> Enviar PDF por E-mail
-                  </label>
-                  
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <select value={destinatarioId} onChange={e => {
-                        const v = e.target.value
-                        setDestinatarioId(v)
-                        if (v) localStorage.setItem('tstDestinoEmailId', v)
-                        else localStorage.removeItem('tstDestinoEmailId')
-                      }}
-                      style={{ flex: 1, padding: '12px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
-                      <option value=''>Selecione o TST Destino...</option>
-                      {tecnicos.filter(t => !!t.email).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                    </select>
+                <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Card de Status do Envio Automático */}
+                  <div style={{
+                    padding: 16,
+                    borderRadius: 12,
+                    border: statusProdutividade?.jaEnviado ? '1px solid #bbf7d0' : '1px solid #fed7aa',
+                    background: statusProdutividade?.jaEnviado ? '#f0fdf4' : '#fffbeb',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 12,
+                          fontWeight: 800,
+                          color: statusProdutividade?.jaEnviado ? '#16a34a' : '#d97706',
+                          background: statusProdutividade?.jaEnviado ? '#dcfce7' : '#fef3c7',
+                          padding: '4px 10px',
+                          borderRadius: 6,
+                        }}>
+                          {statusProdutividade?.jaEnviado ? <CheckCircle size={14} /> : <Clock size={14} />}
+                          {statusProdutividade?.jaEnviado ? 'Enviado com Sucesso' : 'Pendente de Envio'}
+                        </span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                          Mês: {statusProdutividade?.mesReferenciaFormatado || 'Mês Anterior'}
+                        </span>
+                      </div>
 
-                    <button onClick={() => gerar('email')} disabled={loading || !destinatarioId} title="Enviar Teste Agora"
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 20px', borderRadius: 8, background: '#1e293b', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1 }}>
-                      {loading && exportando === 'email' ? <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Send size={16} />}
-                      Enviar
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setModalConfirmDisparoOpen(true)}
+                        disabled={loading || testandoCron}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: 8,
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)',
+                          color: '#fff',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          boxShadow: '0 2px 4px rgba(102, 0, 153, 0.25)',
+                        }}
+                        title="Disparar a consolidação e envio de e-mails para todos agora"
+                      >
+                        {testandoCron ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                        {statusProdutividade?.jaEnviado ? 'Reenviar E-mail Agora' : 'Disparar Envio Agora'}
+                      </button>
+                    </div>
+
+                    {statusProdutividade?.jaEnviado && statusProdutividade?.dataUltimoEnvio ? (
+                      <div style={{ fontSize: 12, color: '#166534', lineHeight: 1.4 }}>
+                        ✓ Enviado em <strong>{formatarDataHoraBr(statusProdutividade.dataUltimoEnvio)}</strong> para <strong>{statusProdutividade.totalDestinatariosUltimoEnvio} destinatário(s)</strong>. O sistema gravou o envio no banco de dados e não duplicará o envio automático.
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#92400e', lineHeight: 1.4 }}>
+                        ⚠️ O e-mail deste mês ainda não foi registrado como enviado. Você pode clicar em <strong>"Disparar Envio Agora"</strong> para enviar imediatamente a todos os técnicos e administradores configurados.
+                      </div>
+                    )}
                   </div>
-                  <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                    <button onClick={handleTestarEnvioAutomatico} disabled={loading || testandoCron} title="Dispara a mesma rotina que roda automaticamente no 1º dia útil"
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6, color: '#334155', fontSize: 12, fontWeight: 600, cursor: (loading || testandoCron) ? 'not-allowed' : 'pointer', opacity: (loading || testandoCron) ? 0.6 : 1 }}>
-                      {testandoCron ? <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Send size={14} />}
-                      Testar Envio Automático Agora
-                    </button>
 
-                    <button onClick={setarRecebedorAutomatico} disabled={loading || !destinatarioId}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'transparent', border: '1px solid #cbd5e1', borderRadius: 6, color: '#475569', fontSize: 12, fontWeight: 600, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1 }}>
-                      <Clock size={14} /> Salvar Recebedor (Todo 1º Dia Útil)
-                    </button>
+                  {/* Envio Individual / Teste Direto para um TST */}
+                  <div style={{ padding: 14, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      <Mail size={14} /> Enviar PDF para um Destinatário Específico
+                    </label>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <select value={destinatarioId} onChange={e => {
+                          const v = e.target.value
+                          setDestinatarioId(v)
+                          if (v) localStorage.setItem('tstDestinoEmailId', v)
+                          else localStorage.removeItem('tstDestinoEmailId')
+                        }}
+                        style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
+                        <option value=''>Selecione o TST Destino...</option>
+                        {tecnicos.filter(t => !!t.email).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                      </select>
+
+                      <button onClick={() => gerar('email')} disabled={loading || !destinatarioId} title="Enviar PDF avulso por e-mail"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 16px', borderRadius: 8, background: '#1e293b', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1 }}>
+                        {loading && exportando === 'email' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                        Enviar PDF
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Disparo de Produtividade */}
+      {modalConfirmDisparoOpen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 440, overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#ede9fe', color: '#660099', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Send size={26} />
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+              Disparar Relatório de Produtividade?
+            </h2>
+            <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.5 }}>
+              O sistema consolidará todos os DSS e Inspeções referentes a <strong>{statusProdutividade?.mesReferenciaFormatado || 'Mês Anterior'}</strong> e enviará o e-mail formal para todos os técnicos ativos e administradores.
+            </p>
+            <div style={{ fontSize: 12, color: '#64748b', background: '#f8fafc', padding: '10px 14px', borderRadius: 8, width: '100%', boxSizing: 'border-box', border: '1px solid #e2e8f0', textAlign: 'left' }}>
+              ℹ️ O envio será gravado no banco de dados. O agendador automático detectará essa gravação e <strong>não duplicará</strong> o envio.
+            </div>
+            <div style={{ display: 'flex', gap: 10, width: '100%', marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => setModalConfirmDisparoOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  background: '#f1f5f9',
+                  color: '#475569',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executarDisparoProdutividade}
+                disabled={testandoCron}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(102, 0, 153, 0.3)',
+                }}
+              >
+                Confirmar e Disparar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Notificação */}
+      {notification && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100001, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', padding: 16 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 380, overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)', padding: 24, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: notification.type === 'success' ? '#dcfce7' : '#fee2e2', color: notification.type === 'success' ? '#16a34a' : '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {notification.type === 'success' ? <CheckCircle size={28} /> : <AlertTriangle size={28} />}
+            </div>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: 0 }}>{notification.title}</h2>
+            <p style={{ margin: 0, fontSize: 13, color: '#475569', lineHeight: 1.5 }}>{notification.message}</p>
+            <button
+              onClick={() => setNotification(null)}
+              style={{
+                width: '100%',
+                padding: 10,
+                borderRadius: 8,
+                border: 'none',
+                background: notification.type === 'success' ? '#16a34a' : '#dc2626',
+                color: '#fff',
+                fontWeight: 800,
+                cursor: 'pointer',
+                marginTop: 6,
+              }}
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

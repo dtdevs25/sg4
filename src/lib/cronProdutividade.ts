@@ -421,3 +421,80 @@ export async function dispararRelatorioProdutividadeMensal(
   }
 }
 
+export async function getStatusEnvioProdutividadeMensal() {
+  try {
+    const hoje = new Date()
+    const { ano: anoAtual, mes1: mesAtual } = getDataBrasilParts(hoje)
+    const anoRef = mesAtual === 1 ? anoAtual - 1 : anoAtual
+    const mesRef = mesAtual === 1 ? 12 : mesAtual - 1
+    const MESES_NOME = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+    ]
+    const mesFormatado = `${MESES_NOME[mesRef - 1]} de ${anoRef}`
+    const chaveReferencia = `${String(mesRef).padStart(2, '0')}/${anoRef}`
+
+    const inicioMesAtual = getInicioDiaBrasil(
+      `${anoAtual}-${String(mesAtual).padStart(2, '0')}-01`
+    )
+
+    const logsRecentes = await prisma.auditLog.findMany({
+      where: {
+        action: 'CRON_RELATORIO_PRODUTIVIDADE',
+        createdAt: { gte: inicioMesAtual },
+      },
+      select: { details: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    let ultimoLogSucesso: { dataEnvio: Date; details: any } | null = null
+
+    for (const log of logsRecentes) {
+      if (!log.details) continue
+      try {
+        const parsed =
+          typeof log.details === 'string'
+            ? JSON.parse(log.details)
+            : (log.details as Record<string, any>)
+        if (parsed?.emailEnviado === true && parsed?.mesReferencia === chaveReferencia) {
+          ultimoLogSucesso = { dataEnvio: log.createdAt, details: parsed }
+          break
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const [tecnicosRecebedores, gestores] = await Promise.all([
+      prisma.tecnico.findMany({
+        where: { recebeRelatorioProdutividade: true, ativo: true },
+        select: { id: true, nome: true, email: true },
+      }),
+      prisma.user.findMany({
+        where: { role: { in: ['MASTER', 'ADMIN'] }, active: true },
+        select: { id: true, name: true, email: true },
+      }),
+    ])
+
+    return {
+      success: true,
+      mesReferenciaFormatado: mesFormatado,
+      chaveReferencia,
+      jaEnviado: !!ultimoLogSucesso,
+      dataUltimoEnvio: ultimoLogSucesso ? ultimoLogSucesso.dataEnvio.toISOString() : null,
+      destinatariosUltimoEnvio: ultimoLogSucesso?.details?.destinatarios || [],
+      totalDestinatariosUltimoEnvio: ultimoLogSucesso?.details?.destinatarios?.length || 0,
+      qtdTecnicosConfigurados: tecnicosRecebedores.length,
+      tecnicosNomes: tecnicosRecebedores.map(t => t.nome),
+      qtdAdminsConfigurados: gestores.length,
+    }
+  } catch (err: any) {
+    console.error('Erro ao buscar status do envio de produtividade:', err)
+    return {
+      success: false,
+      error: err.message || 'Erro ao consultar status.',
+      jaEnviado: false,
+    }
+  }
+}
+
