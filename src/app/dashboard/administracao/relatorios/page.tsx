@@ -402,34 +402,51 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
 
       {/* Modal de Filtros */}
       {tipoSel && tipo && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 500, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', padding: 12 }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 16,
+            width: '100%',
+            maxWidth: 480,
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 30px rgba(0, 0, 0, 0.2)',
+            overflow: 'hidden',
+          }}>
             
-            <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#660099', color: '#fff' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <tipo.icon size={22} color="#fff" />
+            {/* Header Fixo */}
+            <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#660099', color: '#fff', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <tipo.icon size={20} color="#fff" />
                 <div>
-                  <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#fff' }}>{tipo.label}</h2>
-                  <p style={{ fontSize: 12, opacity: 0.8, margin: 0, color: '#fff' }}>Configurar filtros e exportar</p>
+                  <h2 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: '#fff' }}>{tipo.label}</h2>
+                  <p style={{ fontSize: 11, opacity: 0.85, margin: 0, color: '#fff' }}>Configurar filtros e exportar</p>
                 </div>
               </div>
-              <button onClick={() => setTipoSel(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <X size={20} />
+              <button
+                type="button"
+                onClick={() => setTipoSel(null)}
+                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 28, height: 28, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                title="Fechar"
+              >
+                <X size={16} />
               </button>
             </div>
 
-            <div style={{ padding: '24px' }}>
-              <div style={{ display: 'grid', gap: 16 }}>
+            {/* Corpo com Scroll Suave e Espaçamento Compacto */}
+            <div style={{ padding: '16px 18px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gap: 10 }}>
                 {/* Técnico */}
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Técnico</label>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Técnico</label>
                   {tecLoading ? (
-                    <div style={{ padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 13 }}>
-                      <Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> Carregando...
+                    <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 8, color: '#94a3b8', fontSize: 12 }}>
+                      <Loader2 size={14} className="animate-spin" /> Carregando...
                     </div>
                   ) : (
                     <select value={tecnicoId} onChange={e => setTecnicoId(e.target.value)}
-                      style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
                       <option value=''>Todos os técnicos (Ativos e Inativos)</option>
                       <option value='ativos'>Apenas técnicos ativos</option>
                       {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
@@ -438,74 +455,74 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
                 </div>
 
                 {tipoSel !== 'unidades-tecnico' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {/* Data Início */}
                     <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Início</label>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Início</label>
                       <input type='date' value={dataInicio} onChange={e => setDataInicio(e.target.value)}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
                     </div>
 
                     {/* Data Fim */}
                     <div>
-                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Fim</label>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data Fim</label>
                       <input type='date' value={dataFim} onChange={e => setDataFim(e.target.value)}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} />
                     </div>
                   </div>
                 )}
               </div>
 
               {erro && (
-                <div style={{ marginTop: 18, padding: '12px 16px', borderRadius: 8, background: '#fee2e2', border: '1px solid #fca5a5', color: '#dc2626', fontSize: 13, fontWeight: 500 }}>
+                <div style={{ padding: '8px 12px', borderRadius: 8, background: '#fee2e2', border: '1px solid #fca5a5', color: '#dc2626', fontSize: 12, fontWeight: 500 }}>
                   {erro}
                 </div>
               )}
 
-              {/* Botões Normais */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 24 }}>
+              {/* Botões Gerar PDF / Excel */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <button onClick={() => gerar('pdf')} disabled={loading}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 10, background: RED, color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'opacity 0.15s' }}>
-                  {loading && exportando === 'pdf' ? <Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Download size={18} />}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 12px', borderRadius: 8, background: RED, color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+                  {loading && exportando === 'pdf' ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
                   Gerar PDF
                 </button>
                 <button onClick={() => gerar('excel')} disabled={loading}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 10, background: '#16a34a', color: '#fff', border: 'none', fontSize: 14, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-                  {loading && exportando === 'excel' ? <Loader2 size={18} style={{ animation: 'spin 0.8s linear infinite' }} /> : <FileSpreadsheet size={18} />}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '9px 12px', borderRadius: 8, background: '#16a34a', color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+                  {loading && exportando === 'excel' ? <Loader2 size={15} className="animate-spin" /> : <FileSpreadsheet size={15} />}
                   Gerar Excel
                 </button>
               </div>
 
               {/* Área de E-mail Automático no 1º Dia Útil */}
               {tipoSel === 'produtividade' && (
-                <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
                   {/* Card de Status do Envio Automático */}
                   <div style={{
-                    padding: 16,
-                    borderRadius: 12,
+                    padding: '12px 14px',
+                    borderRadius: 10,
                     border: statusProdutividade?.jaEnviado ? '1px solid #bbf7d0' : '1px solid #fed7aa',
                     background: statusProdutividade?.jaEnviado ? '#f0fdf4' : '#fffbeb',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 10,
+                    gap: 8,
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 6,
-                          fontSize: 12,
+                          gap: 4,
+                          fontSize: 11,
                           fontWeight: 800,
                           color: statusProdutividade?.jaEnviado ? '#16a34a' : '#d97706',
                           background: statusProdutividade?.jaEnviado ? '#dcfce7' : '#fef3c7',
-                          padding: '4px 10px',
+                          padding: '2px 8px',
                           borderRadius: 6,
                         }}>
-                          {statusProdutividade?.jaEnviado ? <CheckCircle size={14} /> : <Clock size={14} />}
-                          {statusProdutividade?.jaEnviado ? 'Enviado com Sucesso' : 'Pendente de Envio'}
+                          {statusProdutividade?.jaEnviado ? <CheckCircle size={12} /> : <Clock size={12} />}
+                          {statusProdutividade?.jaEnviado ? 'Enviado' : 'Pendente'}
                         </span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>
                           Mês: {statusProdutividade?.mesReferenciaFormatado || 'Mês Anterior'}
                         </span>
                       </div>
@@ -515,8 +532,8 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
                         onClick={() => setModalConfirmDisparoOpen(true)}
                         disabled={loading || testandoCron}
                         style={{
-                          padding: '8px 14px',
-                          borderRadius: 8,
+                          padding: '6px 12px',
+                          borderRadius: 6,
                           border: 'none',
                           background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)',
                           color: '#fff',
@@ -526,49 +543,50 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 6,
-                          boxShadow: '0 2px 4px rgba(102, 0, 153, 0.25)',
+                          boxShadow: '0 2px 4px rgba(102, 0, 153, 0.2)',
                         }}
                         title="Disparar a consolidação e envio de e-mails para todos agora"
                       >
-                        {testandoCron ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                        {statusProdutividade?.jaEnviado ? 'Reenviar E-mail Agora' : 'Disparar Envio Agora'}
+                        {testandoCron ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                        {statusProdutividade?.jaEnviado ? 'Reenviar E-mail' : 'Disparar Envio Agora'}
                       </button>
                     </div>
 
-                    {statusProdutividade?.jaEnviado && statusProdutividade?.dataUltimoEnvio ? (
-                      <div style={{ fontSize: 12, color: '#166534', lineHeight: 1.4 }}>
-                        ✓ Enviado em <strong>{formatarDataHoraBr(statusProdutividade.dataUltimoEnvio)}</strong> para <strong>{statusProdutividade.totalDestinatariosUltimoEnvio} destinatário(s)</strong>. O sistema gravou o envio no banco de dados e não duplicará o envio automático.
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 12, color: '#92400e', lineHeight: 1.4 }}>
-                        ⚠️ O e-mail deste mês ainda não foi registrado como enviado. Você pode clicar em <strong>"Disparar Envio Agora"</strong> para enviar imediatamente a todos os técnicos e administradores configurados.
-                      </div>
-                    )}
+                    <div style={{ fontSize: 11, color: statusProdutividade?.jaEnviado ? '#166534' : '#92400e', lineHeight: 1.35 }}>
+                      {statusProdutividade?.jaEnviado && statusProdutividade?.dataUltimoEnvio ? (
+                        <>✓ Enviado em <strong>{formatarDataHoraBr(statusProdutividade.dataUltimoEnvio)}</strong> para <strong>{statusProdutividade.totalDestinatariosUltimoEnvio} destinatário(s)</strong>. Gravado no banco para não duplicar.</>
+                      ) : (
+                        <>⚠️ E-mail deste mês não registrado. Clique em <strong>"Disparar Envio Agora"</strong> para enviar à equipe.</>
+                      )}
+                    </div>
                   </div>
 
                   {/* Envio Individual / Teste Direto para um TST */}
-                  <div style={{ padding: 14, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      <Mail size={14} /> Enviar PDF para um Destinatário Específico
-                    </label>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <select value={destinatarioId} onChange={e => {
-                          const v = e.target.value
-                          setDestinatarioId(v)
-                          if (v) localStorage.setItem('tstDestinoEmailId', v)
-                          else localStorage.removeItem('tstDestinoEmailId')
-                        }}
-                        style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}>
-                        <option value=''>Selecione o TST Destino...</option>
-                        {tecnicos.filter(t => !!t.email).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                      </select>
+                  <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <select
+                      value={destinatarioId}
+                      onChange={e => {
+                        const v = e.target.value
+                        setDestinatarioId(v)
+                        if (v) localStorage.setItem('tstDestinoEmailId', v)
+                        else localStorage.removeItem('tstDestinoEmailId')
+                      }}
+                      style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, color: '#1e293b', background: '#fff', outline: 'none', cursor: 'pointer' }}
+                    >
+                      <option value=''>Enviar PDF para um TST específico...</option>
+                      {tecnicos.filter(t => !!t.email).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                    </select>
 
-                      <button onClick={() => gerar('email')} disabled={loading || !destinatarioId} title="Enviar PDF avulso por e-mail"
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '0 16px', borderRadius: 8, background: '#1e293b', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1 }}>
-                        {loading && exportando === 'email' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                        Enviar PDF
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => gerar('email')}
+                      disabled={loading || !destinatarioId}
+                      style={{ padding: '6px 12px', borderRadius: 6, background: '#1e293b', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+                      title="Enviar PDF avulso por e-mail"
+                    >
+                      {loading && exportando === 'email' ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                      Enviar
+                    </button>
                   </div>
                 </div>
               )}
