@@ -1141,6 +1141,20 @@ export async function definirRecebedorRelatorioProdutividade(tecnicoId: string) 
   }
 }
 
+export async function dispararTesteCronProdutividade() {
+  const session = await auth()
+  if (!session?.user) return { success: false, error: 'Não autorizado' }
+
+  try {
+    const { dispararRelatorioProdutividadeMensal } = await import('@/lib/cronProdutividade')
+    const res = await dispararRelatorioProdutividadeMensal(true, true)
+    return res
+  } catch (error: any) {
+    console.error('Erro ao disparar teste de produtividade:', error)
+    return { success: false, error: error?.message || 'Erro ao executar disparo' }
+  }
+}
+
 export async function getRelatorioUnidadesTecnico(f: FiltrosRelatorio) {
   const session = await auth()
   if (!session?.user) return { success: false, error: 'Não autorizado', data: [] }

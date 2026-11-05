@@ -168,7 +168,11 @@ export async function dispararRelatorioProdutividadeMensal(
     const [tecnicosRecebedores, gestores] = await Promise.all([
       prisma.tecnico.findMany({
         where: { recebeRelatorioProdutividade: true, ativo: true },
-        select: { nome: true, email: true },
+        select: {
+          nome: true,
+          email: true,
+          user: { select: { email: true } },
+        },
       }),
       prisma.user.findMany({
         where: { role: { in: ['MASTER', 'ADMIN'] }, active: true },
@@ -177,7 +181,11 @@ export async function dispararRelatorioProdutividadeMensal(
     ])
 
     const emailsTecnicos = Array.from(
-      new Set(tecnicosRecebedores.map(t => t.email?.trim()).filter(Boolean))
+      new Set(
+        tecnicosRecebedores
+          .map(t => (t.email?.trim() || t.user?.email?.trim()))
+          .filter(Boolean)
+      )
     ) as string[]
 
     const emailsGestores = Array.from(

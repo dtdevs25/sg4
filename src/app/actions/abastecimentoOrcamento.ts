@@ -1117,12 +1117,13 @@ export async function dispararNotificacaoPrevisaoDepositos(
 
     const hoje = new Date()
     const isAntepenultimo = isAntepenultimoDiaUtil(hoje)
+    const isPenultimo = isPenultimoDiaUtil(hoje)
     const isDentroJanela = permitirJanelaRecuperacao && isJanelaAntepenultimoDiaUtil(hoje)
 
-    if (!isAntepenultimo && !isDentroJanela && !forcarEnvio) {
+    if (!isAntepenultimo && !isPenultimo && !isDentroJanela && !forcarEnvio) {
       return {
         success: false,
-        error: 'Hoje não é o antepenúltimo dia útil do mês. Para testar ou enviar agora, utilize o envio manual.'
+        error: 'Hoje não é o penúltimo nem antepenúltimo dia útil do mês. Para testar ou enviar agora, utilize o envio manual.'
       }
     }
 
@@ -1406,11 +1407,31 @@ export async function aplicarDepositosPrevisaoMes(
     const userId = (session.user as any).id
     const userName = (session.user as any).name || (session.user as any).email || 'Administrador'
 
-    const [mesStr, anoStr] = mesReferencia.split('/')
-    const mes = Number(mesStr)
-    const ano = Number(anoStr)
+    const MESES_MAP: Record<string, number> = {
+      janeiro: 1, jan: 1,
+      fevereiro: 2, fev: 2,
+      março: 3, marco: 3, mar: 3,
+      abril: 4, abr: 4,
+      maio: 5, mai: 5,
+      junho: 6, jun: 6,
+      julho: 7, jul: 7,
+      agosto: 8, ago: 8,
+      setembro: 9, set: 9,
+      outubro: 10, out: 10,
+      novembro: 11, nov: 11,
+      dezembro: 12, dez: 12,
+    }
 
-    if (isNaN(mes) || isNaN(ano)) {
+    const [mesStrRaw, anoStrRaw] = (mesReferencia || '').split('/')
+    const ano = Number(anoStrRaw)
+    let mes = Number(mesStrRaw)
+
+    if (isNaN(mes) && mesStrRaw) {
+      const cleanMes = mesStrRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      mes = MESES_MAP[cleanMes] || NaN
+    }
+
+    if (isNaN(mes) || isNaN(ano) || mes < 1 || mes > 12) {
       return { success: false, error: 'Mês de referência inválido' }
     }
 

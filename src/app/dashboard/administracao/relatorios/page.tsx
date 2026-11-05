@@ -15,6 +15,7 @@ import {
   getRelatorioAtividadesCampo, getRelatorioRanking, getTecnicosParaFiltro,
   getRelatorioProdutividadeDssInspecoes,
   definirRecebedorRelatorioProdutividade,
+  dispararTesteCronProdutividade,
   getRelatorioUnidadesTecnico,
   getRelatorioContatosTecnicos,
   type FiltrosRelatorio
@@ -125,12 +126,31 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
   const [exportando, setExportando] = useState<'pdf' | 'excel' | 'email' | null>(null)
   const [sucesso, setSucesso]     = useState(false)
   const [destinatarioId, setDestinatarioId] = useState('')
+  const [testandoCron, setTestandoCron] = useState(false)
   const submittingRef = useRef(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('tstDestinoEmailId')
     if (saved) setDestinatarioId(saved)
   }, [])
+
+  async function handleTestarEnvioAutomatico() {
+    if (testandoCron || submittingRef.current) return
+    setTestandoCron(true)
+    setErro('')
+    try {
+      const res: any = await dispararTesteCronProdutividade()
+      if (res.success) {
+        alert(res.message || 'E-mail de produtividade disparado com sucesso!')
+      } else {
+        setErro(res.message || res.error || 'Falha ao disparar e-mail de produtividade.')
+      }
+    } catch (e: any) {
+      setErro(e?.message || 'Erro inesperado ao disparar teste.')
+    } finally {
+      setTestandoCron(false)
+    }
+  }
 
   async function abrirFiltros(id: string) {
     setTipoSel(id); setErro('')
@@ -445,7 +465,13 @@ export default function AdminRelatoriosPage({ hideHeader = false }: { hideHeader
                       Enviar
                     </button>
                   </div>
-                  <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <button onClick={handleTestarEnvioAutomatico} disabled={loading || testandoCron} title="Dispara a mesma rotina que roda automaticamente no 1º dia útil"
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6, color: '#334155', fontSize: 12, fontWeight: 600, cursor: (loading || testandoCron) ? 'not-allowed' : 'pointer', opacity: (loading || testandoCron) ? 0.6 : 1 }}>
+                      {testandoCron ? <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Send size={14} />}
+                      Testar Envio Automático Agora
+                    </button>
+
                     <button onClick={setarRecebedorAutomatico} disabled={loading || !destinatarioId}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'transparent', border: '1px solid #cbd5e1', borderRadius: 6, color: '#475569', fontSize: 12, fontWeight: 600, cursor: (loading || !destinatarioId) ? 'not-allowed' : 'pointer', opacity: (loading || !destinatarioId) ? 0.6 : 1 }}>
                       <Clock size={14} /> Salvar Recebedor (Todo 1º Dia Útil)
