@@ -39,11 +39,11 @@ export async function uploadRelatorioPdf(formData: FormData) {
       ? formElaborador
       : (tecnico?.nome || user?.name || 'Sistema')
 
-    const base64Data = formData.get('fileData') as string;
+    const fileEntry = formData.get('fileData');
     let fileName = formData.get('fileName') as string;
     const mesAno = formData.get('mesAno') as string;
 
-    if (!base64Data || !fileName) return { success: false, error: 'Dados inválidos' }
+    if (!fileEntry || !fileName) return { success: false, error: 'Dados inválidos' }
 
     // Se o nome do arquivo começou com "TST - " mas temos o nome real, ajusta o nome
     if (fileName.startsWith('TST - ') && elaborador && elaborador !== 'TST') {
@@ -51,9 +51,16 @@ export async function uploadRelatorioPdf(formData: FormData) {
       fileName = fileName.replace(/^TST - /, `${safeElab} - `)
     }
 
-    // Limpar o prefixo data:application/pdf;base64,
-    const base64String = base64Data.split(',')[1] || base64Data
-    const buffer = Buffer.from(base64String, 'base64')
+    let buffer: Buffer
+    if (typeof fileEntry === 'object' && fileEntry && 'arrayBuffer' in fileEntry) {
+      const arrayBuf = await (fileEntry as any).arrayBuffer()
+      buffer = Buffer.from(arrayBuf)
+    } else if (typeof fileEntry === 'string') {
+      const base64String = fileEntry.split(',')[1] || fileEntry
+      buffer = Buffer.from(base64String, 'base64')
+    } else {
+      return { success: false, error: 'Formato do arquivo PDF inválido' }
+    }
 
     // Garantir nome único para não sobrescrever
     const timestamp = Date.now()

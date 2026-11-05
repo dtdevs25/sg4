@@ -4,35 +4,50 @@ async function optimizeTextWithGroq(prompt: string) {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) return null
 
-  try {
-    const url = 'https://api.groq.com/openai/v1/chat/completions'
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-        max_tokens: 1024
+  const candidateModels = [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'llama-3.1-70b-versatile',
+    'llama3-70b-8192'
+  ]
+
+  for (const model of candidateModels) {
+    try {
+      const url = 'https://api.groq.com/openai/v1/chat/completions'
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+          max_tokens: 1024
+        })
       })
-    })
 
-    if (!response.ok) {
-      console.error('Erro Groq REST:', await response.text())
-      return null
+      if (!response.ok) {
+        const errText = await response.text()
+        // Se for erro de modelo inexistente, tenta o próximo candidato
+        if (response.status === 404 || errText.includes('model_not_found') || errText.includes('does not exist')) {
+          continue
+        }
+        console.error(`Erro Groq REST (${model}):`, errText)
+        return null
+      }
+
+      const data = await response.json()
+      const correctedText = data.choices?.[0]?.message?.content || ''
+      const cleanText = correctedText.replace(/^["']|["']$/g, '').trim()
+      if (cleanText) return cleanText
+    } catch (error) {
+      console.error(`Erro na integração com Groq (${model}):`, error)
     }
-
-    const data = await response.json()
-    const correctedText = data.choices?.[0]?.message?.content || ''
-    const cleanText = correctedText.replace(/^["']|["']$/g, '').trim()
-    return cleanText || null
-  } catch (error) {
-    console.error('Erro na integração com Groq:', error)
-    return null
   }
+
+  return null
 }
 
 export async function optimizeTextWithAI(text: string) {
@@ -75,8 +90,8 @@ Relato original:
 
     // Filtra modelos que suportam geração de texto e contêm 'gemini'
     const availableModels = listData.models || []
-    const compatibleModels = availableModels.filter((m: any) => 
-      m.supportedGenerationMethods?.includes('generateContent') && 
+    const compatibleModels = availableModels.filter((m: any) =>
+      m.supportedGenerationMethods?.includes('generateContent') &&
       m.name.includes('gemini')
     )
 
@@ -93,7 +108,7 @@ Relato original:
 
     // selectedModelName já vem no formato "models/gemini-..."
     const url = `https://generativelanguage.googleapis.com/v1beta/${selectedModelName}:generateContent?key=${apiKey}`
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {

@@ -539,7 +539,11 @@ export default function RelatoriosAtividadesPage() {
         // Salvar na nuvem e atualizar a lista
         const mesAnoFormat = `${formPdf.mes.toString().padStart(2, '0')}/${formPdf.ano}`
         const formData = new FormData();
-        formData.append('fileData', pdfObj.base64);
+        if (pdfObj.blob) {
+          formData.append('fileData', pdfObj.blob, pdfObj.fileName);
+        } else {
+          formData.append('fileData', pdfObj.base64);
+        }
         formData.append('fileName', pdfObj.fileName);
         formData.append('mesAno', mesAnoFormat);
         if (tIdParaGerar) formData.append('tecnicoId', tIdParaGerar);
@@ -555,9 +559,9 @@ export default function RelatoriosAtividadesPage() {
       }
 
       setShowGerarPdfModal(false)
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      alert('Erro ao gerar o PDF.')
+      alert('Erro ao gerar o PDF: ' + (err?.message || 'Falha inesperada.'))
     } finally {
       submittingRef.current = false
       setGeneratingPdf(false)

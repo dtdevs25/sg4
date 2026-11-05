@@ -21,18 +21,32 @@ async function normalizeImageOrientation(base64: string): Promise<string> {
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas')
-        // naturalWidth/naturalHeight refletem as dimensões APÓS o browser
-        // aplicar a rotação EXIF (ex: foto tirada em portrait fica w<h).
-        canvas.width = img.naturalWidth
-        canvas.height = img.naturalHeight
+        // Redimensiona fotos de alta resolução para evitar PDFs gigantescos (>10MB).
+        // Em um quadro de 140x90 pt no PDF, 1200px oferece altíssima definição (>500 DPI).
+        const MAX_DIM = 1200
+        let width = img.naturalWidth || 800
+        let height = img.naturalHeight || 600
+
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width)
+            width = MAX_DIM
+          } else {
+            width = Math.round((width * MAX_DIM) / height)
+            height = MAX_DIM
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
 
         const ctx = canvas.getContext('2d')
         if (!ctx) { resolve(base64); return }
 
-        ctx.drawImage(img, 0, 0)
+        ctx.drawImage(img, 0, 0, width, height)
 
-        // Exporta como JPEG sem EXIF, pixels já corretamente orientados.
-        resolve(canvas.toDataURL('image/jpeg', 0.92))
+        // Exporta como JPEG sem EXIF, com compressão equilibrada (0.80)
+        resolve(canvas.toDataURL('image/jpeg', 0.80))
       } catch {
         resolve(base64)
       }
@@ -317,6 +331,7 @@ export async function gerarPdfRelatorio(
 
   return {
     fileName,
-    base64: doc.output('datauristring')
+    base64: doc.output('datauristring'),
+    blob: doc.output('blob')
   }
 }

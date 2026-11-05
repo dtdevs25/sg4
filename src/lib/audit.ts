@@ -13,17 +13,43 @@ export async function audit(opts: {
   entityId?: string | null
   details?: Record<string, any> | null
 }) {
+  // Evita IDs simbólicos que violam a FK audit_logs_userId_fkey
+  const safeUserId =
+    opts.userId && opts.userId !== 'CRON_SYSTEM' && opts.userId !== 'SYSTEM'
+      ? opts.userId
+      : null
+
+  const detailsPayload =
+    opts.userId && !safeUserId
+      ? { ...(opts.details || {}), executor: opts.userId }
+      : opts.details
+
   try {
     await prisma.auditLog.create({
       data: {
-        userId:   opts.userId   ?? null,
+        userId:   safeUserId,
         action:   opts.action,
         entity:   opts.entity   ?? null,
         entityId: opts.entityId ?? null,
-        details:  opts.details ? opts.details : undefined,
+        details:  detailsPayload ? detailsPayload : undefined,
       }
     })
-  } catch {
-    // silencia — log não pode derrubar a operação
+  } catch (err: any) {
+    // Se o userId fornecido não existir na tabela User (erro P2003 de FK), salva com userId null
+    if (safeUserId && err?.code === 'P2003') {
+      try {
+        await prisma.auditLog.create({
+          data: {
+            userId:   null,
+            action:   opts.action,
+            entity:   opts.entity   ?? null,
+            entityId: opts.entityId ?? null,
+            details:  { ...(opts.details || {}), _unmatchedUserId: safeUserId },
+          }
+        })
+      } catch {
+        // silencia
+      }
+    }
   }
 }

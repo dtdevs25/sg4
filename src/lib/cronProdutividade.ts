@@ -374,10 +374,11 @@ export async function dispararRelatorioProdutividadeMensal(
     const emailEnviado = mailRes.success
 
     await audit({
-      userId: 'CRON_SYSTEM',
+      userId: null,
       action: 'CRON_RELATORIO_PRODUTIVIDADE',
       entity: 'RelatorioProdutividade',
       details: {
+        executor: 'CRON_SYSTEM',
         mesReferencia: chaveReferencia,
         mesFormatado,
         emailEnviado,
