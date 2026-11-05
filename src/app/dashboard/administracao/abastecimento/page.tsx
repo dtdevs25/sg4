@@ -326,25 +326,38 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
     
     startTransition(async () => {
       try {
-        // Define a data baseada no mês que o usuário está visualizando (o maior selecionado, ou o mês atual)
-        const maxMesSelecionado = mesesSelecionados.length > 0 ? Math.max(...mesesSelecionados) : new Date().getMonth() + 1
-        const anoSelecionado = ano === 0 ? new Date().getFullYear() : ano
-        const dataDestino = new Date(anoSelecionado, maxMesSelecionado - 1, 15) // Dia 15 para garantir que cai no meio do mês
+        const maxMesSelecionado = mesesSelecionados.length > 0 ? Math.max(...mesesSelecionados) : mesAtualNum
+        const anoSelecionado = ano === 0 ? anoAtualNum : ano
+        const nomeMes = MESES_NOME[maxMesSelecionado - 1]
         
         if (tipoEdicao === 'definitivo') {
           const res = await updateOrcamentoTecnico(editModal.id, valor)
           if (res.success) {
+            // Também sincroniza/cria o depósito do mês visualizado para refletir na tela imediatamente
+            await salvarDepositoMesTecnico(
+              editModal.id,
+              anoSelecionado,
+              maxMesSelecionado,
+              valor,
+              `Base definitiva atualizada (${nomeMes}/${anoSelecionado})`
+            )
             setEditModal(null)
-            setNotification({ type: 'success', title: 'Sucesso', message: 'Orçamento atualizado para todos os meses!' })
+            setNotification({ type: 'success', title: 'Sucesso', message: `Orçamento base definitivo atualizado e aplicado a ${nomeMes}/${anoSelecionado}!` })
             load()
           } else {
             setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao atualizar orçamento' })
           }
         } else {
-          const res = await createRecargaExtra(editModal.id, valor, `Ajuste manual (substituição) da verba base do mês`, dataDestino, true)
+          const res = await salvarDepositoMesTecnico(
+            editModal.id,
+            anoSelecionado,
+            maxMesSelecionado,
+            valor,
+            `Ajuste manual da cota (${nomeMes}/${anoSelecionado})`
+          )
           if (res.success) {
             setEditModal(null)
-            setNotification({ type: 'success', title: 'Sucesso', message: `Base alterada apenas para o mês selecionado (${MESES_NOME[maxMesSelecionado-1]})!` })
+            setNotification({ type: 'success', title: 'Sucesso', message: `Depósito ajustado com sucesso para ${nomeMes}/${anoSelecionado}!` })
             load()
           } else {
             setNotification({ type: 'error', title: 'Erro', message: res.error || 'Erro ao alterar base do mês' })
@@ -593,7 +606,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
             {/* Botão de Sugestão Inteligente Próximo Mês */}
             <button
               type="button"
-              onClick={() => handleAbrirModalPrevisao()}
+              onClick={() => handleAbrirModalPrevisao(mesesSelecionados.length > 0 ? mesesSelecionados[0] : mesAtualNum, ano || anoAtualNum)}
               style={{
                 background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)',
                 color: '#fff',
@@ -721,7 +734,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
             {/* Botão de Sugestão Inteligente Próximo Mês */}
             <button
               type="button"
-              onClick={() => handleAbrirModalPrevisao()}
+              onClick={() => handleAbrirModalPrevisao(mesesSelecionados.length > 0 ? mesesSelecionados[0] : mesAtualNum, ano || anoAtualNum)}
               style={{
                 background: 'linear-gradient(135deg, #660099 0%, #7c3aed 100%)',
                 color: '#fff',
@@ -931,7 +944,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                         onClick={() => {
                           const orcEfetivo = mesesSelecionados.length > 0 ? (item.orcamentoTotalPeriodo + item.recargasTotalPeriodo) : item.orcamentoAcumulado
                           setEditModal({ id: item.tecnico.id, nome: item.tecnico.nome, orcamentoBase: item.orcamento, orcamentoEfetivo: orcEfetivo })
-                          setNovoValor(orcEfetivo.toString())
+                          setNovoValor(orcEfetivo > 0 ? orcEfetivo.toString() : (item.orcamento > 0 ? item.orcamento.toString() : '0'))
                           setTipoEdicao('mes') // Padrão
                         }}
                         style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: 8, color: '#475569', cursor: 'pointer', transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center' }}
@@ -998,11 +1011,11 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                     checked={tipoEdicao === 'mes'} 
                     onChange={() => {
                       setTipoEdicao('mes')
-                      setNovoValor(editModal.orcamentoEfetivo.toString())
+                      setNovoValor(editModal.orcamentoEfetivo > 0 ? editModal.orcamentoEfetivo.toString() : editModal.orcamentoBase.toString())
                     }} 
                     style={{ accentColor: '#660099' }}
                   />
-                  Apenas este mês (Atual: R$ {editModal.orcamentoEfetivo.toFixed(2)})
+                  Apenas em {MESES_NOME[(mesesSelecionados.length > 0 ? Math.max(...mesesSelecionados) : mesAtualNum) - 1]}/{ano} (Atual: R$ {editModal.orcamentoEfetivo.toFixed(2)})
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#334155', cursor: 'pointer', fontWeight: tipoEdicao === 'definitivo' ? 700 : 500 }}>
                   <input 
@@ -1015,7 +1028,7 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                     }}
                     style={{ accentColor: '#660099' }}
                   />
-                  Definitivo (Muda a base recorrente)
+                  Definitivo (Muda a base cadastral e reflete neste mês)
                 </label>
               </div>
 
@@ -1822,46 +1835,53 @@ export default function AbastecimentoOrcamentoPage({ hideHeader = false }: { hid
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {/* Seletor Mês Atual vs Próximo Mês */}
-                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.18)', padding: 3, borderRadius: 8, gap: 4 }}>
-                  <button
-                    type="button"
-                    onClick={() => handleAbrirModalPrevisao(mesAtualNum, anoAtualNum)}
+                {/* Seletor Direto do Mês e Ano de Referência */}
+                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.18)', padding: '3px 8px', borderRadius: 8, gap: 6 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: '#f3e8ff', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Mês Alvo:
+                  </span>
+                  <select
+                    value={dadosPrevisao?.mesAlvo || mesAtualNum}
+                    onChange={e => handleAbrirModalPrevisao(Number(e.target.value), dadosPrevisao?.anoAlvo || anoAtualNum)}
                     disabled={loadingPrevisao}
                     style={{
-                      padding: '5px 12px',
-                      borderRadius: 6,
+                      background: '#fff',
                       border: 'none',
+                      borderRadius: 6,
+                      padding: '4px 8px',
                       fontSize: 12,
                       fontWeight: 700,
+                      color: '#660099',
                       cursor: 'pointer',
-                      background: dadosPrevisao?.mesAlvo === mesAtualNum && dadosPrevisao?.anoAlvo === anoAtualNum ? '#fff' : 'transparent',
-                      color: dadosPrevisao?.mesAlvo === mesAtualNum && dadosPrevisao?.anoAlvo === anoAtualNum ? '#660099' : '#fff',
-                      transition: 'all 0.15s ease',
+                      outline: 'none',
                     }}
-                    title={`Calcular para o mês em curso: ${MESES_NOME[mesAtualNum - 1]}/${anoAtualNum}`}
                   >
-                    Mês Atual ({MESES_NOME[mesAtualNum - 1]})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAbrirModalPrevisao(mesProximoNum, anoProximoNum)}
+                    {MESES_NOME.map((m, idx) => (
+                      <option key={idx + 1} value={idx + 1}>
+                        {m} {idx + 1 === mesAtualNum ? '(Atual)' : idx + 1 === mesProximoNum ? '(Próximo)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={dadosPrevisao?.anoAlvo || anoAtualNum}
+                    onChange={e => handleAbrirModalPrevisao(dadosPrevisao?.mesAlvo || mesAtualNum, Number(e.target.value))}
                     disabled={loadingPrevisao}
                     style={{
-                      padding: '5px 12px',
-                      borderRadius: 6,
+                      background: '#fff',
                       border: 'none',
+                      borderRadius: 6,
+                      padding: '4px 8px',
                       fontSize: 12,
                       fontWeight: 700,
+                      color: '#660099',
                       cursor: 'pointer',
-                      background: dadosPrevisao?.mesAlvo === mesProximoNum && dadosPrevisao?.anoAlvo === anoProximoNum ? '#fff' : 'transparent',
-                      color: dadosPrevisao?.mesAlvo === mesProximoNum && dadosPrevisao?.anoAlvo === anoProximoNum ? '#660099' : '#fff',
-                      transition: 'all 0.15s ease',
+                      outline: 'none',
                     }}
-                    title={`Calcular para o próximo mês: ${MESES_NOME[mesProximoNum - 1]}/${anoProximoNum}`}
                   >
-                    Próximo Mês ({MESES_NOME[mesProximoNum - 1]})
-                  </button>
+                    {[2026, 2027, 2028].map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <button
